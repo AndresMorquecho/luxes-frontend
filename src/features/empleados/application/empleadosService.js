@@ -101,6 +101,7 @@ export const saveEmpleado = async (empleado) => {
     departamento: empleado.departamento ?? '',
     telefono: empleado.telefono ?? '',
     correo: empleado.correo ?? '',
+    contraseña: empleado.contraseña ?? '123456',
     cuentaBanco: empleado.cuentaBanco ?? '',
     banco: empleado.banco ?? '',
     tipoContrato: empleado.tipoContrato ?? 'Fijo',

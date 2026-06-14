@@ -1,9 +1,19 @@
 import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import headerBg from '../../../../assets/header-bg.png';
 import { NominaContext } from '../../application/context/NominaContext';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 import { registrarAbono } from '../../domain/use-cases/registrarAbono';
 import { obtenerFechasPeriodo } from '../../application/hooks/useNomina';
+import { NominaPayBankCard } from './NominaPayBankCard';
+
+const MODAL_HEADER_STYLE = {
+  backgroundColor: '#02188E',
+  backgroundImage: `linear-gradient(90deg, rgba(1, 12, 72, 0.55) 0%, rgba(4, 51, 255, 0.25) 50%, rgba(1, 12, 72, 0.55) 100%), url(${headerBg})`,
+  backgroundPosition: 'center',
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+};
 
 const MESES = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -25,67 +35,180 @@ const ESTADO_BADGE = {
   PAGADO:        { label: 'Pagado',      cls: 'bg-green-100 text-green-700' },
 };
 
-const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, onClose, onConfirm, onMontoChange }) => (
-  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
-    onClick={onClose}>
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
-      onClick={(e) => e.stopPropagation()}>
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-4 text-white">
-        <h3 className="text-lg font-extrabold tracking-tight uppercase">Confirmar Pago</h3>
-        <p className="text-blue-200 text-xs mt-0.5">{quincenaLabel} — {emp.nombre}</p>
-      </div>
-      <div className="p-6 space-y-4">
-        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold text-gray-600">Empleado</span>
-            <span className="text-sm font-bold text-gray-800 uppercase">{emp.nombre}</span>
-          </div>
-          <div className="border-t border-blue-100" />
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold text-gray-600">Banco</span>
-            <span className="text-sm font-bold text-gray-800">{emp.banco || '—'}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold text-gray-600">Cuenta</span>
-            <span className="text-sm font-bold text-gray-800 font-mono tracking-wider">{emp.cuentaBanco || '—'}</span>
-          </div>
-          <div className="border-t border-blue-100" />
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              {isCross ? 'Pago pendiente de otra quincena' : 'Monto a Pagar'}
-            </label>
-            <input type="number" step="0.01" min="0.01" max={maxMonto}
-              value={monto}
-              onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
-              className="w-full px-3 py-2 text-lg font-extrabold text-blue-700 border border-blue-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
-          </div>
-          {restante > 0 && (
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold text-gray-500">Saldo pendiente después</span>
-              <span className="text-xs font-bold text-orange-600">{formatUSD(restante)}</span>
-            </div>
-          )}
+const PayModal = ({
+  emp,
+  cp,
+  monto,
+  maxMonto,
+  restante,
+  quincenaLabel,
+  showIess,
+  isCross,
+  onClose,
+  onConfirm,
+  onMontoChange,
+}) => {
+  const diasT = cp?.diasLaborados ?? 15;
+  const sueldo = emp.sueldoDiario ?? 0;
+  const baseSueldo = sueldo * diasT;
+  const hrsExtras = cp?.ingresos?.horasExtras ?? 0;
+  const overtimeHours = cp?.overtimeHours ?? 0;
+  const iess = showIess ? (cp?.egresos?.iess ?? 0) : 0;
+  const totalCalculado = Math.max(0, baseSueldo + hrsExtras - iess);
+
+  return (
+    <div
+      className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 text-white" style={MODAL_HEADER_STYLE}>
+          <h3 className="text-lg font-extrabold tracking-tight uppercase">Confirmar Pago</h3>
+          <p className="text-blue-100 text-xs mt-0.5">{quincenaLabel} — {emp.nombre}</p>
         </div>
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition-all">
-            Cancelar
-          </button>
-          <button onClick={onConfirm}
-            disabled={!monto || monto <= 0}
-            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-sm hover:from-blue-700 hover:to-blue-800 shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-            {monto > 0 ? `Pagar ${formatUSD(monto)}` : 'Ingrese un monto'}
-          </button>
+
+        <div className="p-6 space-y-4">
+          <NominaPayBankCard
+            banco={emp.banco}
+            cuentaBanco={emp.cuentaBanco}
+            titular={emp.nombre}
+          />
+
+          <div className="rounded-2xl border border-blue-100 overflow-hidden shadow-sm">
+            <div className="bg-gradient-to-br from-blue-50 via-indigo-50/80 to-white px-5 py-5 text-center">
+              <p className="text-[11px] font-semibold text-blue-600/80 uppercase tracking-wide">
+                Total a pagar
+              </p>
+              <p className="text-3xl font-black text-blue-900 tracking-tight mt-1">
+                {formatUSD(totalCalculado)}
+              </p>
+            </div>
+
+            <div className="px-4 py-3 flex flex-wrap items-center justify-center gap-2 bg-white border-t border-blue-50">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-xs text-slate-600">
+                <span>{diasT} días</span>
+                <span className="font-bold text-slate-800">{formatUSD(baseSueldo)}</span>
+              </span>
+              {hrsExtras > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 text-xs text-orange-700 border border-orange-100">
+                  <span>+{overtimeHours}h extras</span>
+                  <span className="font-bold">{formatUSD(hrsExtras)}</span>
+                </span>
+              )}
+              {showIess && iess > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-xs text-red-600 border border-red-100">
+                  <span>IESS</span>
+                  <span className="font-bold">−{formatUSD(iess)}</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-xs font-semibold text-slate-500 shrink-0">
+                {isCross ? 'Pago pendiente' : 'Monto a transferir'}
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={maxMonto}
+                value={monto}
+                onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
+                className="w-36 text-right px-3 py-2 text-lg font-bold text-blue-800 border border-blue-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            {restante > 0 && (
+              <p className="text-[11px] text-orange-600 font-medium mt-2 text-right">
+                Saldo después: {formatUSD(restante)}
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-0.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!monto || monto <= 0}
+              className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg, #0433ff 0%, #02188e 100%)' }}
+            >
+              {monto > 0 ? `Pagar ${formatUSD(monto)}` : 'Ingrese un monto'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const computeSubtotal = (emp, cp, includeIess = true) => {
   if (!cp) return 0;
-  const d = emp.sueldoDiario * (cp.diasLaborados ?? 30);
-  return includeIess ? d - (cp.egresos?.iess ?? 0) : d;
+  const diasT = cp.diasLaborados ?? 15;
+  const hrsExtras = cp.ingresos?.horasExtras ?? 0;
+  const subD = emp.sueldoDiario * diasT + hrsExtras;
+  const ie = cp.egresos?.iess ?? 0;
+  return includeIess ? subD - ie : subD;
+};
+
+const aggregateOvertimeByEmployee = (records = []) => {
+  const map = {};
+  records.forEach((record) => {
+    const id = record.colaboradorId;
+    const hours = Number(record.horas) || 0;
+    const total = Number(record.total ?? hours * Number(record.valorPorHora || 0));
+    if (!map[id]) map[id] = { total: 0, hours: 0 };
+    map[id].total += total;
+    map[id].hours += hours;
+  });
+  Object.keys(map).forEach((id) => {
+    map[id].total = Math.round((map[id].total + Number.EPSILON) * 100) / 100;
+    map[id].hours = Math.round((map[id].hours + Number.EPSILON) * 100) / 100;
+  });
+  return map;
+};
+
+const buildQuincenaCalculated = (employees, rawPayrolls, overtimeRecords, fechas) => {
+  const overtimeMap = aggregateOvertimeByEmployee(overtimeRecords);
+
+  return employees.map((emp) => {
+    const raw = rawPayrolls.find((p) => p.empleadoId === emp.id);
+    const ot = overtimeMap[emp.id] || { total: 0, hours: 0 };
+    if (!raw && ot.total === 0) return null;
+
+    const nominaData = raw
+      ? {
+          ...raw,
+          ingresos: {
+            ...(raw.ingresos || {}),
+            horasExtras: ot.total > 0 ? ot.total : Number(raw.ingresos?.horasExtras ?? 0),
+          },
+        }
+      : {
+          empleadoId: emp.id,
+          fechaInicio: fechas.fechaInicio,
+          fechaFin: fechas.fechaFin,
+          diasLaborables: 15,
+          diasLaborados: 15,
+          ingresos: { horasExtras: ot.total },
+          egresos: {},
+          abonos: [],
+        };
+
+    const calculated = calcularNomina(emp, nominaData);
+    return { ...calculated, overtimeHours: ot.hours };
+  }).filter(Boolean);
 };
 
 const QuincenaTable = ({ label, rows, crossPendientes, showIess = true, onPagar, onPagarCross }) => (
@@ -133,7 +256,8 @@ const QuincenaTable = ({ label, rows, crossPendientes, showIess = true, onPagar,
           const totalB    = cp?.totalBruto ?? (sueldo * diasLab);
           const diasT     = cp?.diasLaborados ?? diasLab;
           const hrsExtras = cp?.ingresos?.horasExtras ?? 0;
-          const subD      = sueldo * diasT;
+          const overtimeHours = cp?.overtimeHours ?? 0;
+          const subD      = sueldo * diasT + hrsExtras;
           const ie        = cp?.egresos?.iess ?? 0;
           const sub       = showIess ? subD - ie : subD;
           const ep        = cp?.estadoPago ?? 'PENDIENTE';
@@ -150,7 +274,13 @@ const QuincenaTable = ({ label, rows, crossPendientes, showIess = true, onPagar,
               <td className="border border-gray-200 text-center px-2 py-2.5 bg-orange-50/40 font-bold text-gray-700">{diasLab}</td>
               <td className="border border-gray-200 text-center px-2 py-2.5 bg-yellow-50 font-bold text-gray-800">{formatUSD(totalB)}</td>
               <td className="border border-gray-200 text-center px-2 py-2.5 bg-orange-50/40 font-bold text-gray-700">{diasT}</td>
-              <td className="border border-gray-200 text-center px-2 py-2.5 bg-orange-50/40 text-gray-500">{hrsExtras > 0 ? hrsExtras : '—'}</td>
+              <td className="border border-gray-200 text-center px-2 py-2.5 bg-orange-50/40 font-semibold text-orange-700">
+                {hrsExtras > 0 ? (
+                  <span title={`${overtimeHours} horas extras`}>
+                    {overtimeHours > 0 ? `${overtimeHours}h · ` : ''}{formatUSD(hrsExtras)}
+                  </span>
+                ) : '—'}
+              </td>
               <td className="border border-gray-200 text-center px-2 py-2.5 bg-yellow-100/60 font-bold text-gray-800">{formatUSD(subD)}</td>
               {showIess && (
                 <td className="border border-gray-200 text-center px-2 py-2.5 bg-red-50/60 text-red-700 font-semibold">{ie > 0 ? `- ${formatUSD(ie)}` : '—'}</td>
@@ -187,8 +317,10 @@ const QuincenaTable = ({ label, rows, crossPendientes, showIess = true, onPagar,
           <td className="border border-gray-300 text-center px-2 py-2 text-gray-500">—</td>
           <td className="border border-gray-300 text-center px-2 py-2 text-gray-900">{formatUSD(rows.reduce((s, r) => s + (r.cp?.totalBruto ?? r.emp.sueldoDiario * 30), 0))}</td>
           <td className="border border-gray-300 text-center px-2 py-2 text-gray-500">—</td>
-          <td className="border border-gray-300 text-center px-2 py-2 text-gray-500">—</td>
-          <td className="border border-gray-300 text-center px-2 py-2 text-gray-900">{formatUSD(rows.reduce((s, r) => s + r.emp.sueldoDiario * (r.cp?.diasLaborados ?? 30), 0))}</td>
+          <td className="border border-gray-300 text-center px-2 py-2 text-orange-700 font-semibold">
+            {formatUSD(rows.reduce((s, r) => s + (r.cp?.ingresos?.horasExtras ?? 0), 0))}
+          </td>
+          <td className="border border-gray-300 text-center px-2 py-2 text-gray-900">{formatUSD(rows.reduce((s, r) => s + r.emp.sueldoDiario * (r.cp?.diasLaborados ?? 15) + (r.cp?.ingresos?.horasExtras ?? 0), 0))}</td>
           {showIess && (
             <td className="border border-gray-300 text-center px-2 py-2 text-red-700">{formatUSD(rows.reduce((s, r) => s + (r.cp?.egresos?.iess ?? 0), 0))}</td>
           )}
@@ -215,6 +347,8 @@ export const NominaMesTab = () => {
   const [employees, setEmployees] = useState([]);
   const [q1Raw, setQ1Raw] = useState([]);
   const [q2Raw, setQ2Raw] = useState([]);
+  const [q1Overtime, setQ1Overtime] = useState([]);
+  const [q2Overtime, setQ2Overtime] = useState([]);
   const [loading, setLoading] = useState(false);
   const [payTarget, setPayTarget] = useState(null);
 
@@ -230,12 +364,16 @@ export const NominaMesTab = () => {
       const emps = await adapter.getEmployees();
       setEmployees(emps);
 
-      const [p1, p2] = await Promise.all([
+      const [p1, p2, ot1, ot2] = await Promise.all([
         adapter.getPayrolls(fechas1.fechaInicio, fechas1.fechaFin),
         adapter.getPayrolls(fechas2.fechaInicio, fechas2.fechaFin),
+        adapter.getOvertime(fechas1.fechaInicio, fechas1.fechaFin),
+        adapter.getOvertime(fechas2.fechaInicio, fechas2.fechaFin),
       ]);
       setQ1Raw(p1);
       setQ2Raw(p2);
+      setQ1Overtime(ot1);
+      setQ2Overtime(ot2);
     } catch (err) {
       console.error(err);
     } finally {
@@ -245,19 +383,15 @@ export const NominaMesTab = () => {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const q1Calculated = useMemo(() =>
-    employees.map(emp => {
-      const n = q1Raw.find(p => p.empleadoId === emp.id);
-      return n ? calcularNomina(emp, n) : null;
-    }).filter(Boolean),
-  [employees, q1Raw]);
+  const q1Calculated = useMemo(
+    () => buildQuincenaCalculated(employees, q1Raw, q1Overtime, fechas1),
+    [employees, q1Raw, q1Overtime, fechas1]
+  );
 
-  const q2Calculated = useMemo(() =>
-    employees.map(emp => {
-      const n = q2Raw.find(p => p.empleadoId === emp.id);
-      return n ? calcularNomina(emp, n) : null;
-    }).filter(Boolean),
-  [employees, q2Raw]);
+  const q2Calculated = useMemo(
+    () => buildQuincenaCalculated(employees, q2Raw, q2Overtime, fechas2),
+    [employees, q2Raw, q2Overtime, fechas2]
+  );
 
   const q1Rows = employees.map(emp => ({
     emp,
@@ -304,24 +438,33 @@ export const NominaMesTab = () => {
   const handlePagar = (emp, cp, sub, restantePagar, quincena) => {
     const maxMonto = Math.max(0, Math.round(restantePagar * 100) / 100);
     setPayTarget({
-      emp, cp, subtotal: sub,
+      emp,
+      cp,
+      subtotal: sub,
       monto: maxMonto,
       maxMonto,
       restante: 0,
       quincenaOrigen: quincena,
       quincenaDestino: 0,
+      showIess: quincena === 2,
     });
   };
 
   const handlePagarCross = (emp, cross) => {
     const monto = Math.round(cross.pendiente * 100) / 100;
+    const cp = cross.quincenaOrigen === 1
+      ? q1Calculated.find((p) => p.empleadoId === emp.id)
+      : q2Calculated.find((p) => p.empleadoId === emp.id);
     setPayTarget({
-      emp, cp: null, subtotal: cross.pendiente,
+      emp,
+      cp: cp || null,
+      subtotal: cross.pendiente,
       monto,
       maxMonto: monto,
       restante: 0,
       quincenaOrigen: cross.quincenaOrigen,
       quincenaDestino: cross.quincenaOrigen,
+      showIess: cross.quincenaOrigen === 2,
       isCross: true,
     });
   };
@@ -403,22 +546,37 @@ export const NominaMesTab = () => {
   }
 
   return (
-    <div className="animate-slide-up space-y-5">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-blue-900 tracking-tight uppercase">
-            Rol Quincenal — {mesLabel} {year}
-          </h2>
-          <p className="text-gray-400 text-xs mt-0.5">
-            Nómina dividida en primera y segunda quincena. Los pagos pendientes de una quincena aparecen en la otra.
-          </p>
+    <div className="space-y-5">
+      <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h-15m0 0h-.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Nómina del Mes</h1>
+            <p className="text-sm text-slate-500">
+              Rol quincenal por colaborador — primera y segunda quincena
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleMesAnterior}
-            className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 font-bold shadow-sm transition-all">&#8249;</button>
-          <span className="text-sm font-bold text-gray-700 min-w-[140px] text-center">{mesLabel} {year}</span>
-          <button onClick={handleMesSiguiente}
-            className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 font-bold shadow-sm transition-all">&#8250;</button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleMesAnterior}
+            className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg hover:bg-gray-50 text-slate-600 font-bold shadow-sm transition-all"
+          >
+            ‹
+          </button>
+          <span className="text-sm font-bold text-slate-700 min-w-[140px] text-center">{mesLabel} {year}</span>
+          <button
+            type="button"
+            onClick={handleMesSiguiente}
+            className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg hover:bg-gray-50 text-slate-600 font-bold shadow-sm transition-all"
+          >
+            ›
+          </button>
         </div>
       </div>
 
@@ -457,9 +615,11 @@ export const NominaMesTab = () => {
       {payTarget && createPortal(
         <PayModal
           emp={payTarget.emp}
+          cp={payTarget.cp}
           monto={payTarget.monto}
           maxMonto={payTarget.maxMonto}
           restante={payTarget.restante}
+          showIess={payTarget.showIess}
           isCross={payTarget.isCross}
           quincenaLabel={`${mesLabel} ${year}`}
           onClose={() => setPayTarget(null)}

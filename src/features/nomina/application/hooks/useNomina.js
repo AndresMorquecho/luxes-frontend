@@ -129,19 +129,13 @@ export function useNomina() {
    */
   const saveOvertimeRecords = useCallback(async (horasExtras) => {
     if (!adapter) return;
-    try {
-      horasExtras.forEach(he => he.validate());
-      const { fechaInicio, fechaFin } = fechasActuales;
-      const saved = await adapter.saveOvertime(horasExtras, fechaInicio, fechaFin);
-      
-      // Volver a cargar horas extras para mantener sincronía
-      const updatedOvertime = await adapter.getOvertime(fechaInicio, fechaFin);
-      dispatch({ type: NOMINA_ACTIONS.SET_OVERTIME, payload: updatedOvertime });
-      return saved;
-    } catch (err) {
-      alert(`Error al guardar horas extras: ${err.message}`);
-      throw err;
-    }
+    horasExtras.forEach(he => he.validate());
+    const { fechaInicio, fechaFin } = fechasActuales;
+    const saved = await adapter.saveOvertime(horasExtras, fechaInicio, fechaFin);
+
+    const updatedOvertime = await adapter.getOvertime(fechaInicio, fechaFin);
+    dispatch({ type: NOMINA_ACTIONS.SET_OVERTIME, payload: updatedOvertime });
+    return saved;
   }, [adapter, fechasActuales, dispatch]);
 
   /**

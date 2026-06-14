@@ -1,7 +1,18 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import headerBg from '../../../../assets/header-bg.png';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { getClientes } from '../../../clientes/application/clientesService';
 import { getProformas, saveProforma, deleteProforma, updateProformaEstado } from '../../application/proformasService';
 import { ProformaPDF } from '../components/ProformaPDF';
+
+const MODAL_HEADER_STYLE = {
+  backgroundColor: '#02188E',
+  backgroundImage: `linear-gradient(90deg, rgba(1, 12, 72, 0.55) 0%, rgba(4, 51, 255, 0.25) 50%, rgba(1, 12, 72, 0.55) 100%), url(${headerBg})`,
+  backgroundPosition: 'center',
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+};
 
 const EMPTY_PROFORMA = {
   clienteId: '', cliente: '', telefono: '', email: '', fecha: new Date().toISOString().split('T')[0],
@@ -25,6 +36,7 @@ export const ProformasPage = () => {
   const perPage = 6;
   const [clienteSelOpen, setClienteSelOpen] = useState(false);
   const [clienteSelSearch, setClienteSelSearch] = useState('');
+  const [modalTab, setModalTab] = useState('cliente');
 
   const load = async () => {
     setLoading(true);
@@ -40,6 +52,9 @@ export const ProformasPage = () => {
   const openNew = () => {
     setEditing(null);
     setForm({ ...EMPTY_PROFORMA, fecha: new Date().toISOString().split('T')[0] });
+    setClienteSelOpen(false);
+    setClienteSelSearch('');
+    setModalTab('cliente');
     setFormOpen(true);
   };
 
@@ -51,6 +66,9 @@ export const ProformasPage = () => {
       clienteId: related?.id || '',
       items: p.items.map(i => ({ ...i })),
     });
+    setClienteSelOpen(false);
+    setClienteSelSearch('');
+    setModalTab('cliente');
     setFormOpen(true);
   };
 
@@ -89,7 +107,7 @@ export const ProformasPage = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const saved = await saveProforma(editing ? form : { ...form, clienteId: undefined });
+      const saved = await saveProforma(editing ? form : form);
       if (editing) {
         setProformas(prev => prev.map(p => p.id === saved.id ? saved : p));
       } else {
@@ -99,10 +117,19 @@ export const ProformasPage = () => {
     } catch (err) { console.error(err); } finally { setSaving(false); }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta proforma?')) return;
-    await deleteProforma(id);
-    setProformas(prev => prev.filter(p => p.id !== id));
+  const handleDelete = async (proforma) => {
+    const confirmed = await confirmDialog(
+      '¿Eliminar proforma?',
+      `¿Eliminar permanentemente la proforma ${proforma.id} de ${proforma.cliente}? Esta acción no se puede deshacer.`,
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
+    );
+    if (!confirmed) return;
+    try {
+      await deleteProforma(proforma.id);
+      setProformas(prev => prev.filter(p => p.id !== proforma.id));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleEstado = async (id, estado) => {
@@ -138,14 +165,6 @@ export const ProformasPage = () => {
     }
   };
 
-  const totales = {
-    total: proformas.length,
-    pendientes: proformas.filter(p => p.estado === 'Pendiente').length,
-    aprobadas: proformas.filter(p => p.estado === 'Aprobada').length,
-    pagadas: proformas.filter(p => p.estado === 'Pagada').length,
-    montoTotal: proformas.reduce((s, p) => s + calcularTotal(p.items, p.iva), 0),
-  };
-
   if (preview) {
     return <ProformaPDF proforma={preview} onClose={() => setPreview(null)} />;
   }
@@ -165,27 +184,6 @@ export const ProformasPage = () => {
           </svg>
           Nueva Proforma
         </button>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        {[
-          { label: 'Total', value: totales.total, color: '#1e40af', bg: '#eff6ff' },
-          { label: 'Pendientes', value: totales.pendientes, color: '#d97706', bg: '#fffbeb' },
-          { label: 'Aprobadas', value: totales.aprobadas, color: '#059669', bg: '#ecfdf5' },
-          { label: 'Pagadas', value: totales.pagadas, color: '#6366f1', bg: '#eef2ff' },
-          { label: 'Monto Total', value: formatUSD(totales.montoTotal), color: '#0f172a', bg: '#f8fafc' },
-        ].map(k => (
-          <div key={k.label} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: k.bg }}>
-              <span className="text-base font-extrabold" style={{ color: k.color }}>{k.label === 'Monto Total' ? '$' : ''}</span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-2xl font-bold text-slate-800 truncate">{k.value}</p>
-              <p className="text-xs text-slate-500">{k.label}</p>
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* Table Card */}
@@ -255,7 +253,7 @@ export const ProformasPage = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                             </svg>
                           </button>
-                          <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
+                          <button onClick={() => handleDelete(p)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                             </svg>
@@ -295,194 +293,295 @@ export const ProformasPage = () => {
       </div>
 
       {/* Modal */}
-      {formOpen && (
+      {formOpen && createPortal(
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setFormOpen(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-[modal-in_0.25s_cubic-bezier(0.16,1,0.3,1)_forwards]"
-              onClick={e => e.stopPropagation()}>
-              <style>{`@keyframes modal-in { from { transform: scale(0.95) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }`}</style>
-
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md" onClick={() => setFormOpen(false)} />
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6">
+            <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl animate-modal-in flex flex-col border border-gray-100 max-h-[min(860px,94vh)] min-h-[520px] overflow-hidden">
+              <div className="flex items-center justify-between px-8 py-5 shrink-0" style={MODAL_HEADER_STYLE}>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">{editing ? 'Editar Proforma' : 'Nueva Proforma'}</h2>
-                  <p className="text-xs text-slate-400">{editing ? `Modificando proforma ${editing.id}` : 'Complete los datos del cliente y artículos'}</p>
+                  <h2 className="text-xl font-bold text-white">{editing ? 'Editar Proforma' : 'Nueva Proforma'}</h2>
+                  <p className="text-xs text-white/60 mt-0.5">
+                    {editing ? editing.id : 'Complete la información por secciones'}
+                  </p>
                 </div>
-                <button onClick={() => setFormOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <button type="button" onClick={() => setFormOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 text-white border border-white/20 transition-colors">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              <div className="overflow-y-auto flex-1 p-6">
-                <form onSubmit={handleSave} className="space-y-5">
-                  {/* Cliente */}
-                  <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-5 space-y-3">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Datos del cliente</p>
-                    <div className="relative">
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Cliente *</label>
-                      <div className="flex gap-2">
-                        <input name="cliente" value={form.cliente} onChange={handleChange} required
-                          placeholder="Seleccionar o escribir nombre…"
-                          className="flex-1 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                          onFocus={() => setClienteSelOpen(true)} />
-                        <button type="button" onClick={() => setClienteSelOpen(o => !o)}
-                          className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                          </svg>
-                        </button>
-                      </div>
-                      {clienteSelOpen && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setClienteSelOpen(false)} />
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-56 flex flex-col overflow-hidden">
-                            <div className="p-2 border-b border-slate-100">
-                              <input autoFocus value={clienteSelSearch} onChange={e => setClienteSelSearch(e.target.value)}
-                                placeholder="Filtrar clientes…"
-                                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <div className="flex gap-1 px-8 pt-4 shrink-0 border-b border-gray-100">
+                {[
+                  { id: 'cliente', label: 'Cliente y fechas' },
+                  { id: 'articulos', label: 'Artículos' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setModalTab(tab.id)}
+                    className={`px-5 py-3 text-sm font-semibold rounded-t-lg transition-colors border-b-2 -mb-px ${
+                      modalTab === tab.id
+                        ? 'text-blue-700 border-blue-600 bg-blue-50/50'
+                        : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {tab.label}
+                    {tab.id === 'articulos' && (
+                      <span className="ml-1.5 text-[10px] font-bold text-red-500">*</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto px-8 py-6">
+                  {modalTab === 'cliente' && (
+                    <div className="space-y-8">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                          Datos del cliente
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="relative">
+                            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Cliente</label>
+                            <div className="flex gap-2">
+                              <input
+                                name="cliente"
+                                value={form.cliente}
+                                onChange={handleChange}
+                                required
+                                placeholder="Nombre del cliente"
+                                className="input-field flex-1"
+                                onFocus={() => setClienteSelOpen(true)}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setClienteSelOpen(o => !o)}
+                                className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 shrink-0"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                </svg>
+                              </button>
                             </div>
-                            <div className="overflow-y-auto flex-1">
-                              {clientes.filter(c => c.nombre.toLowerCase().includes(clienteSelSearch.toLowerCase())).map(c => (
-                                <div key={c.id} onClick={() => { selectCliente(c); setClienteSelOpen(false); setClienteSelSearch(''); }}
-                                  className="px-4 py-2.5 cursor-pointer hover:bg-blue-50 border-b border-slate-50 last:border-0 transition-colors">
-                                  <p className="text-sm font-semibold text-slate-800">{c.nombre}</p>
-                                  <p className="text-xs text-slate-400">{c.cedulaRuc} · {c.telefono}</p>
+                            {clienteSelOpen && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setClienteSelOpen(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 flex flex-col overflow-hidden">
+                                  <div className="p-2 border-b border-slate-100">
+                                    <input
+                                      autoFocus
+                                      value={clienteSelSearch}
+                                      onChange={e => setClienteSelSearch(e.target.value)}
+                                      placeholder="Filtrar clientes…"
+                                      className="input-field py-1.5 text-sm"
+                                    />
+                                  </div>
+                                  <div className="overflow-y-auto flex-1">
+                                    {clientes.filter(c => c.nombre.toLowerCase().includes(clienteSelSearch.toLowerCase())).map(c => (
+                                      <div
+                                        key={c.id}
+                                        onClick={() => { selectCliente(c); setClienteSelOpen(false); setClienteSelSearch(''); }}
+                                        className="px-3 py-2 cursor-pointer hover:bg-blue-50 border-b border-slate-50 last:border-0"
+                                      >
+                                        <p className="text-sm font-semibold text-slate-800">{c.nombre}</p>
+                                        <p className="text-[11px] text-slate-400">{c.telefono}</p>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                              ))}
-                              {clientes.filter(c => c.nombre.toLowerCase().includes(clienteSelSearch.toLowerCase())).length === 0 && (
-                                <p className="text-center py-6 text-sm text-slate-400">Sin resultados</p>
-                              )}
+                              </>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+                            <div>
+                              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Teléfono</label>
+                              <input name="telefono" value={form.telefono} onChange={handleChange} required placeholder="0991234567" className="input-field" />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Email</label>
+                              <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="cliente@email.com" className="input-field" />
                             </div>
                           </div>
-                        </>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">Teléfono *</label>
-                        <input name="telefono" value={form.telefono} onChange={handleChange} required
-                          placeholder="0991234567"
-                          className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">Email</label>
-                        <input name="email" type="email" value={form.email} onChange={handleChange}
-                          placeholder="cliente@correo.com"
-                          className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Fechas e IVA */}
-                  <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-5 space-y-3">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fechas y configuración</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">Fecha de emisión *</label>
-                        <input name="fecha" type="date" value={form.fecha} onChange={handleChange} required
-                          className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">Fecha de vencimiento *</label>
-                        <input name="vencimiento" type="date" value={form.vencimiento} onChange={handleChange} required
-                          className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">IVA (%)</label>
-                        <select name="iva" value={form.iva} onChange={handleChange}
-                          className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-                          <option value={0}>0% — Sin IVA</option>
-                          <option value={0.08}>8%</option>
-                          <option value={0.12}>12%</option>
-                          <option value={0.15}>15%</option>
-                        </select>
+                      <div className="border-t border-gray-100 pt-6">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                          Fechas e impuestos
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-5 gap-y-4">
+                          <div>
+                            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Fecha emisión</label>
+                            <input name="fecha" type="date" value={form.fecha} onChange={handleChange} required className="input-field" />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Vencimiento</label>
+                            <input name="vencimiento" type="date" value={form.vencimiento} onChange={handleChange} required className="input-field" />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">IVA</label>
+                            <select name="iva" value={form.iva} onChange={handleChange} className="input-field">
+                              <option value={0}>IVA 0%</option>
+                              <option value={0.08}>IVA 8%</option>
+                              <option value={0.12}>IVA 12%</option>
+                              <option value={0.15}>IVA 15%</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Notas u observaciones</label>
+                          <textarea name="notas" value={form.notas} onChange={handleChange} rows={3} placeholder="Notas u observaciones…" className="input-field resize-none" />
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Notas / Observaciones</label>
-                      <textarea name="notas" value={form.notas} onChange={handleChange}
-                        placeholder="Condiciones especiales, descuentos, términos de pago…" rows={2}
-                        className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white resize-none" />
-                    </div>
-                  </div>
+                  )}
 
-                  {/* Artículos */}
-                  <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Artículos / Servicios</p>
-                      <button type="button" onClick={addItem}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg px-3 py-1.5 transition-colors">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        Agregar ítem
+                  {modalTab === 'articulos' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                          <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                          Líneas de la proforma
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={addItem}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                          Agregar ítem
+                        </button>
+                      </div>
+
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="grid grid-cols-[1fr_72px_96px_96px_36px] gap-2 px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase bg-gray-50 border-b border-gray-100">
+                          <span>Descripción</span>
+                          <span className="text-center">Cant.</span>
+                          <span className="text-right">P. Unit.</span>
+                          <span className="text-right">Subtotal</span>
+                          <span />
+                        </div>
+
+                        <div className="divide-y divide-gray-50 max-h-[min(340px,42vh)] overflow-y-auto">
+                          {form.items.map((item, i) => (
+                            <div key={i} className="grid grid-cols-[1fr_72px_96px_96px_36px] gap-2 px-4 py-3 items-center">
+                              <input
+                                value={item.descripcion}
+                                onChange={e => handleItemChange(i, 'descripcion', e.target.value)}
+                                placeholder="Descripción del ítem"
+                                required
+                                className="input-field py-2 text-sm"
+                              />
+                              <input
+                                type="number"
+                                value={item.cantidad}
+                                onChange={e => handleItemChange(i, 'cantidad', e.target.value)}
+                                min={1}
+                                required
+                                className="input-field py-2 text-sm text-center"
+                              />
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.precioUnitario}
+                                onChange={e => handleItemChange(i, 'precioUnitario', e.target.value)}
+                                min={0}
+                                required
+                                className="input-field py-2 text-sm text-right"
+                              />
+                              <span className="text-sm font-bold text-slate-700 text-right pr-1">
+                                {formatUSD((item.cantidad || 0) * (item.precioUnitario || 0))}
+                              </span>
+                              {form.items.length > 1 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(i)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              ) : <div />}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="px-4 py-4 bg-blue-50/60 border-t border-blue-100 flex items-center justify-between">
+                          <div className="text-sm text-slate-500">
+                            Subtotal {formatUSD(form.items.reduce((s, i) => s + (i.cantidad || 0) * (i.precioUnitario || 0), 0))}
+                            <span className="mx-2 text-slate-300">·</span>
+                            IVA {(form.iva * 100).toFixed(0)}%
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+                            <p className="text-xl font-extrabold text-blue-700">{formatUSD(calcularTotal(form.items, form.iva))}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 px-8 py-5 border-t border-gray-100 bg-gray-50/50 shrink-0 rounded-b-2xl">
+                  <div className="flex gap-2">
+                    {modalTab === 'articulos' && (
+                      <button
+                        type="button"
+                        onClick={() => setModalTab('cliente')}
+                        className="btn-ghost px-3 py-2 rounded-xl text-xs font-semibold text-gray-500"
+                      >
+                        ← Anterior
                       </button>
-                    </div>
-
-                    <div className="grid grid-cols-[1fr_70px_100px_85px_28px] gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1">
-                      <span>Descripción</span>
-                      <span className="text-center">Cant.</span>
-                      <span className="text-right">P. Unitario</span>
-                      <span className="text-right">Subtotal</span>
-                      <span />
-                    </div>
-
-                    {form.items.map((item, i) => (
-                      <div key={i} className="grid grid-cols-[1fr_70px_100px_85px_28px] gap-2 items-center bg-white border border-slate-200 rounded-lg p-2.5">
-                        <input value={item.descripcion} onChange={e => handleItemChange(i, 'descripcion', e.target.value)}
-                          placeholder="Descripción" required
-                          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                        <input type="number" value={item.cantidad} onChange={e => handleItemChange(i, 'cantidad', e.target.value)}
-                          min={1} required className="border border-slate-200 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                        <input type="number" step="0.01" value={item.precioUnitario} onChange={e => handleItemChange(i, 'precioUnitario', e.target.value)}
-                          min={0} required className="border border-slate-200 rounded-lg px-2 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                        <span className="text-sm font-bold text-slate-700 text-right">{formatUSD((item.cantidad || 0) * (item.precioUnitario || 0))}</span>
-                        {form.items.length > 1 ? (
-                          <button type="button" onClick={() => removeItem(i)}
-                            className="w-6 h-6 flex items-center justify-center rounded-md bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        ) : <div />}
-                      </div>
-                    ))}
-
-                    <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 space-y-1.5">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Subtotal</span>
-                        <span className="font-semibold text-slate-700">{formatUSD(form.items.reduce((s, i) => s + (i.cantidad || 0) * (i.precioUnitario || 0), 0))}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">IVA ({(form.iva * 100).toFixed(0)}%)</span>
-                        <span className="font-semibold text-slate-700">{formatUSD(form.items.reduce((s, i) => s + (i.cantidad || 0) * (i.precioUnitario || 0), 0) * form.iva)}</span>
-                      </div>
-                      <hr className="border-slate-200" />
-                      <div className="flex justify-between text-base">
-                        <span className="font-bold text-slate-800">Total</span>
-                        <span className="font-extrabold text-blue-700 text-lg">{formatUSD(calcularTotal(form.items, form.iva))}</span>
-                      </div>
-                    </div>
+                    )}
+                    {modalTab === 'cliente' && (
+                      <button
+                        type="button"
+                        onClick={() => setModalTab('articulos')}
+                        className="btn-ghost px-3 py-2 rounded-xl text-xs font-semibold text-blue-600"
+                      >
+                        Siguiente →
+                      </button>
+                    )}
                   </div>
-
-                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setFormOpen(false)}
-                      className="px-5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-medium transition-colors text-sm">Cancelar</button>
-                    <button type="submit" disabled={saving}
-                      className="flex items-center gap-2 px-6 py-2 rounded-xl text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 shadow-sm text-sm"
-                      style={{ backgroundColor: '#1d4ed8' }}>
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => setFormOpen(false)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold text-gray-600">
+                      Cancelar
+                    </button>
+                    <button type="submit" disabled={saving} className="btn-primary px-6 py-2 rounded-xl text-sm font-semibold text-white inline-flex items-center gap-2 disabled:opacity-60">
                       {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
-                      {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear Proforma'}
+                      {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear Proforma'}
                     </button>
                   </div>
-                </form>
-              </div>
+                </div>
+              </form>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .btn-primary { background: #2563eb; transition: all 0.15s ease; }
+        .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+        .btn-ghost { transition: all 0.15s ease; }
+        .btn-ghost:hover { background: #f1f5f9; }
+        .input-field { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.625rem 0.875rem; font-size: 0.875rem; font-weight: 500; color: #1e293b; outline: none; transition: all 0.15s ease; background: white; width: 100%; }
+        .input-field:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .input-field::placeholder { color: #94a3b8; }
+        @keyframes modal-in {
+          from { transform: scale(0.95) translateY(8px); opacity: 0; }
+          to   { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .animate-modal-in { animation: modal-in 0.2s cubic-bezier(0.16,1,0.3,1) forwards; }
+      `}} />
     </div>
   );
 };

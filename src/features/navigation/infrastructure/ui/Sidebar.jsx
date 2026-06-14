@@ -1,12 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getUnreadCount } from '../../../notificaciones/application/notificationsService';
+import { Banknote, ClipboardCheck, ClockPlus, Palmtree } from 'lucide-react';
+import faviconIcon from '../../../../assets/icon/favicon.png';
+import headerBg from '../../../../assets/header-bg.png';
 import './Sidebar.css';
 
-export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogout }) => {
-  const userName = user?.nombre || 'Usuario';
+const LOGO_BOX_STYLE = {
+  backgroundColor: '#02188E',
+  backgroundImage: `linear-gradient(90deg, rgba(1, 12, 72, 0.55) 0%, rgba(4, 51, 255, 0.25) 50%, rgba(1, 12, 72, 0.55) 100%), url(${headerBg})`,
+  backgroundPosition: 'center',
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+};
+
+export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
   const userRole = (user?.rol || 'visor').toUpperCase();
-  const userInitial = userName.charAt(0).toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
   const hasAprobacionPermission = user?.permissions?.includes('aprobacion_ordenes_compra') || isAdmin;
 
@@ -18,33 +26,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const [isComprasOpen, setIsComprasOpen] = useState(false);
   const location = useLocation();
   const currentPath = location.pathname;
-
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) return;
-    try {
-      const data = await getUnreadCount();
-      setUnreadCount(data.count || 0);
-    } catch (err) {
-      console.error('Error fetching unread count:', err);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchUnreadCount();
-
-    // Listen to custom notification updates (e.g. when marked as read)
-    window.addEventListener('notifications-updated', fetchUnreadCount);
-
-    // Polling count every 15 seconds
-    const interval = setInterval(fetchUnreadCount, 15000);
-
-    return () => {
-      window.removeEventListener('notifications-updated', fetchUnreadCount);
-      clearInterval(interval);
-    };
-  }, [user, fetchUnreadCount]);
 
   // Auto-open submenus based on current route
   React.useEffect(() => {
@@ -76,18 +57,17 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
     >
       
       {/* Sidebar Logo Panel */}
-      <div className="sidebar-logo-box">
-        <img 
-          src={isCollapsed ? "/LogoGlobo.png" : "/LogoBanner.png"} 
-          alt="Luxes Logo" 
-          className="sidebar-logo-img" 
+      <div className="sidebar-logo-box" style={LOGO_BOX_STYLE}>
+        <img
+          src={isCollapsed ? faviconIcon : '/LogoBanner.png'}
+          alt="Luxes Logo"
+          className="sidebar-logo-img"
         />
       </div>
 
       {/* Navigation menu list */}
       <nav className="sidebar-nav">
         <div className="sidebar-category">
-          <span className="sidebar-category-title">PRINCIPAL</span>
           <ul>
             <li className={currentPath === '/' ? 'active' : ''}>
               <Link to="/">
@@ -100,25 +80,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                 <span className="sidebar-link-text">Dashboard</span>
               </Link>
             </li>
-            <li className={currentPath === '/notificaciones' ? 'active' : ''}>
-              <Link to="/notificaciones">
-                <div className="sidebar-icon-wrapper">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-                  </svg>
-                  {unreadCount > 0 && (
-                    <span className="sidebar-badge-count">{unreadCount}</span>
-                  )}
-                </div>
-                <span className="sidebar-link-text">Notificaciones</span>
-              </Link>
-            </li>
-          </ul>
-        </div>
 
-        <div className="sidebar-category">
-          <span className="sidebar-category-title">MÓDULOS</span>
-          <ul>
             <li className={`sidebar-has-submenu ${isNominaOpen ? 'submenu-open' : ''} ${currentPath.startsWith('/nomina') ? 'active' : ''}`}>
               <button
                 type="button"
@@ -133,12 +95,8 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                     setIsConfigOpen(false);
                   }
                 }}
-                className="sidebar-submenu-toggle"
+                className="sidebar-submenu-toggle sidebar-submenu-toggle--text-only"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
-                  <line x1="12" y1="1" x2="12" y2="23"></line>
-                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                </svg>
                 <span className="sidebar-link-text">Nómina</span>
                 {!isCollapsed && (
                   <svg
@@ -161,7 +119,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                       </svg>
-                      <span className="sidebar-submenu-text">Empleados</span>
+                      <span className="sidebar-submenu-text">Colaboradores</span>
                     </Link>
                   </li>
                   <li className={currentPath === '/nomina/credenciales' ? 'submenu-active' : ''}>
@@ -174,33 +132,25 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   </li>
                   <li className={currentPath === '/nomina/registro-asistencia' || currentPath === '/nomina' ? 'submenu-active' : ''}>
                     <Link to="/nomina/registro-asistencia" className="sidebar-submenu-link">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-                      </svg>
-                      <span className="sidebar-submenu-text">Registro de Asistencia</span>
+                      <ClipboardCheck className="sidebar-submenu-icon" size={18} strokeWidth={1.75} />
+                      <span className="sidebar-submenu-text">Asistencia</span>
                     </Link>
                   </li>
                   <li className={currentPath === '/nomina/horas-extras' ? 'submenu-active' : ''}>
                     <Link to="/nomina/horas-extras" className="sidebar-submenu-link">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
+                      <ClockPlus className="sidebar-submenu-icon" size={18} strokeWidth={1.75} />
                       <span className="sidebar-submenu-text">Horas Extras</span>
                     </Link>
                   </li>
                   <li className={currentPath === '/nomina/vacaciones' ? 'submenu-active' : ''}>
                     <Link to="/nomina/vacaciones" className="sidebar-submenu-link">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
-                      </svg>
+                      <Palmtree className="sidebar-submenu-icon" size={18} strokeWidth={1.75} />
                       <span className="sidebar-submenu-text">Vacaciones</span>
                     </Link>
                   </li>
                   <li className={currentPath === '/nomina/nomina-del-mes' ? 'submenu-active' : ''}>
                     <Link to="/nomina/nomina-del-mes" className="sidebar-submenu-link">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
-                      </svg>
+                      <Banknote className="sidebar-submenu-icon" size={18} strokeWidth={1.75} />
                       <span className="sidebar-submenu-text">Nómina del Mes</span>
                     </Link>
                   </li>
@@ -561,13 +511,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               )}
             </li>
 
-
-          </ul>
-        </div>
-
-        <div className="sidebar-category">
-          <span className="sidebar-category-title">SISTEMA</span>
-          <ul>
             <li className={`sidebar-has-submenu ${isConfigOpen ? 'submenu-open' : ''}`}>
               <button 
                 type="button"
@@ -620,51 +563,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
           </ul>
         </div>
       </nav>
-
-      {/* Sidebar Footer - Profile Info / Logout */}
-      <div className="sidebar-footer">
-        {isCollapsed ? (
-          <a 
-            href="#logout" 
-            className="sidebar-profile-collapsed-btn" 
-            title="Cerrar sesión"
-            onClick={(e) => {
-              e.preventDefault();
-              onLogout();
-            }}
-          >
-            <div className="avatar-circle">
-              <span>{userInitial}</span>
-            </div>
-          </a>
-        ) : (
-          <div className="sidebar-profile-container">
-            <div className="sidebar-profile-info-box">
-              <div className="avatar-circle">
-                <span>{userInitial}</span>
-              </div>
-              <div className="profile-info">
-                <span className="profile-name">{userName}</span>
-                <span className="profile-role">{userRole}</span>
-              </div>
-            </div>
-            <a 
-              href="#logout" 
-              className="logout-trigger-btn" 
-              aria-label="Cerrar sesión" 
-              title="Cerrar sesión"
-              onClick={(e) => {
-                e.preventDefault();
-                onLogout();
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="logout-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-              </svg>
-            </a>
-          </div>
-        )}
-      </div>
 
     </aside>
   );

@@ -15,6 +15,7 @@ const MODAL_HEADER_STYLE = {
 
 const EMPTY_FORM = {
   nombre: '', cedula: '', cargo: '', departamento: '', telefono: '', correo: '',
+  contraseña: '123456',
   cuentaBanco: '', banco: '', tipoContrato: 'Fijo', sueldoDiario: '', direccion: '', foto: '',
 };
 
@@ -82,14 +83,43 @@ const BANCO_BADGES = {
   Machala: { letter: 'M', background: '#0369a1', color: '#ffffff' },
 };
 
-const getBankBadge = (banco) => {
-  if (!banco) return { letter: '?', background: '#e2e8f0', color: '#64748b' };
-  return BANCO_BADGES[banco] || {
-    letter: banco.charAt(0).toUpperCase(),
-    background: '#e2e8f0',
-    color: '#475569',
-  };
+const normalizeBancoKey = (banco = '') => {
+  const trimmed = String(banco).trim();
+  if (!trimmed) return '';
+
+  if (BANCO_BADGES[trimmed]) return trimmed;
+
+  const stripped = trimmed.replace(/^banco\s+(de(l?)\s+)?/i, '');
+  if (BANCO_BADGES[stripped]) return stripped;
+
+  const normalized = stripped
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  return BANCOS.find((name) => {
+    const candidate = name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    return normalized === candidate || normalized.includes(candidate);
+  }) || '';
 };
+
+const getBankBadge = (banco) => {
+  const key = normalizeBancoKey(banco);
+  if (!key) {
+    if (!banco) return { letter: '?', background: '#e2e8f0', color: '#64748b' };
+    return {
+      letter: banco.charAt(0).toUpperCase(),
+      background: '#e2e8f0',
+      color: '#475569',
+    };
+  }
+  return BANCO_BADGES[key];
+};
+
+const getBankTheme = (banco) => BANCO_THEMES[normalizeBancoKey(banco)] || BANCO_THEMES[''];
 
 const AVATAR_PALETTES = [
   { bg: '#dbeafe', text: '#2563eb' },
@@ -314,7 +344,7 @@ const BankSelect = ({ value, onChange, light = false }) => {
 };
 
 const BankAccountCard = ({ banco, cuentaBanco, onChange }) => {
-  const theme = BANCO_THEMES[banco] || BANCO_THEMES[''];
+  const theme = getBankTheme(banco);
   const light = theme.light === true;
 
   return (
@@ -575,7 +605,7 @@ export const EmpleadosPage = () => {
 
   const openEdit = async (emp) => {
     setEditing(emp);
-    setForm({ ...emp });
+    setForm({ ...emp, contraseña: emp.contraseña || '123456' });
     setPendingDocs({});
     setFormError('');
     setModalTab('personal');
@@ -918,6 +948,7 @@ export const EmpleadosPage = () => {
               <div className="flex gap-1 px-8 pt-4 shrink-0 border-b border-gray-100">
                 {[
                   { id: 'personal', label: 'Personal y contrato' },
+                  { id: 'credenciales', label: 'Credenciales' },
                   { id: 'documentos', label: 'Documentos' },
                 ].map(tab => (
                   <button
@@ -977,10 +1008,6 @@ export const EmpleadosPage = () => {
                             <input name="telefono" value={form.telefono} onChange={handleChange} placeholder="0991234567" className="input-field" />
                           </div>
                           <div>
-                            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Correo</label>
-                            <input name="correo" type="email" value={form.correo} onChange={handleChange} placeholder="correo@luxes.com" className="input-field" />
-                          </div>
-                          <div>
                             <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Dirección</label>
                             <input name="direccion" value={form.direccion} onChange={handleChange} placeholder="Ciudad / Dirección" className="input-field" />
                           </div>
@@ -1024,6 +1051,44 @@ export const EmpleadosPage = () => {
                             />
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {modalTab === 'credenciales' && (
+                    <div className="max-w-lg space-y-5">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                          Acceso del colaborador
+                        </h3>
+                        <p className="text-sm text-slate-500 mb-5">
+                          Credenciales para el acceso del colaborador al sistema y su carnet digital.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Correo electrónico</label>
+                        <input
+                          name="correo"
+                          type="email"
+                          value={form.correo}
+                          onChange={handleChange}
+                          placeholder="correo@luxes.com"
+                          className="input-field"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Contraseña</label>
+                        <input
+                          name="contraseña"
+                          type="text"
+                          value={form.contraseña}
+                          onChange={handleChange}
+                          className="input-field"
+                        />
+                        <p className="text-xs text-slate-400 mt-2">
+                          Se genera automáticamente con la contraseña <span className="font-semibold text-slate-500">123456</span>. Puedes cambiarla si lo necesitas.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -1095,7 +1160,7 @@ export const EmpleadosPage = () => {
                 {/* Footer fijo */}
                 <div className="flex items-center justify-between gap-3 px-8 py-5 border-t border-gray-100 bg-gray-50/50 shrink-0 rounded-b-2xl">
                   <div className="flex gap-2">
-                    {modalTab === 'documentos' && (
+                    {modalTab === 'credenciales' && (
                       <button
                         type="button"
                         onClick={() => setModalTab('personal')}
@@ -1104,7 +1169,25 @@ export const EmpleadosPage = () => {
                         ← Anterior
                       </button>
                     )}
+                    {modalTab === 'documentos' && (
+                      <button
+                        type="button"
+                        onClick={() => setModalTab('credenciales')}
+                        className="btn-ghost px-3 py-2 rounded-xl text-xs font-semibold text-gray-500"
+                      >
+                        ← Anterior
+                      </button>
+                    )}
                     {modalTab === 'personal' && (
+                      <button
+                        type="button"
+                        onClick={() => setModalTab('credenciales')}
+                        className="btn-ghost px-3 py-2 rounded-xl text-xs font-semibold text-blue-600"
+                      >
+                        Siguiente →
+                      </button>
+                    )}
+                    {modalTab === 'credenciales' && (
                       <button
                         type="button"
                         onClick={() => setModalTab('documentos')}

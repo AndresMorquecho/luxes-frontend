@@ -1,0 +1,209 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 64px;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 12px rgba(2, 24, 142, 0.18);
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  flex-shrink: 0;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.app-header-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.app-header-menu-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.app-header-menu-btn:hover {
+  background-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.app-header-notif-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.app-header-notif-btn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.app-header-notif-btn:hover,
+.app-header-notif-btn.active {
+  background-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.app-header-notif-badge {
+  position: absolute;
+  top: 2px;
+  left: 24px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background-color: #ef4444;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid #02188e;
+}
+
+.app-header-notif-label {
+  white-space: nowrap;
+}
+
+.app-header-divider {
+  width: 1px;
+  height: 32px;
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+.app-header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.35rem;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.app-header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #02188e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.app-header-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-header-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.app-header-user-role {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.app-header-logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.app-header-logout-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.app-header-logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.22);
+  color: #fecaca;
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    position: relative;
+    box-shadow: none;
+    border-bottom: none;
+  }
+
+  .app-header-notif-label,
+  .app-header-user-info {
+    display: none;
+  }
+
+  .app-header-user {
+    padding: 0.25rem;
+    border: none;
+    background: transparent;
+  }
+
+  .app-header-divider {
+    display: none;
+  }
+
+  .app-header-notif-btn {
+    padding: 0.5rem;
+  }
+
+  .app-header-notif-badge {
+    left: 18px;
+  }
+}

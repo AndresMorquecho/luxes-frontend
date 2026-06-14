@@ -41,7 +41,9 @@ export class HoraExtra {
    */
   validate() {
     if (!this.fecha) throw new Error("La fecha de la hora extra es obligatoria.");
-    if (!this.colaboradorId) throw new Error("El ID del colaborador es obligatorio.");
+    if (!this.colaboradorId || (typeof this.colaboradorId === 'number' && isNaN(this.colaboradorId))) {
+      throw new Error("El ID del colaborador es obligatorio.");
+    }
     if (isNaN(this.horas) || this.horas <= 0) throw new Error("La cantidad de horas debe ser mayor a cero.");
     if (isNaN(this.valorPorHora) || this.valorPorHora < 0) throw new Error("El valor por hora debe ser un número positivo.");
     return true;

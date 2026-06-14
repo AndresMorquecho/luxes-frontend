@@ -1,7 +1,7 @@
 .confirm-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9990;
+  z-index: 10050;
   background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -11,7 +11,7 @@
 .confirm-wrapper {
   position: fixed;
   inset: 0;
-  z-index: 9991;
+  z-index: 10051;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -113,6 +113,14 @@
 .confirm-btn-action:hover {
   transform: translateY(-1px);
   filter: brightness(1.05);
+}
+
+.confirm-footer--alert {
+  justify-content: stretch;
+}
+
+.confirm-btn-action--full {
+  width: 100%;
 }
 
 @keyframes confirm-fade-in {

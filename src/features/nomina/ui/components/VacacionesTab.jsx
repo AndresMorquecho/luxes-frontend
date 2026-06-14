@@ -230,16 +230,35 @@ export const VacacionesTab = () => {
   return (
     <div className="animate-slide-up">
       <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Vacaciones Correspondiente al {año}</h1>
-          <p className="text-sm text-slate-500">Registro de días de vacaciones tomados por cada colaborador. Cada año corresponden {DIAS_VACACIONES_POR_ANO} días.</p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Vacaciones</h1>
+            <p className="text-sm text-slate-500">
+              Registro de días tomados por colaborador · {DIAS_VACACIONES_POR_ANO} días por año
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setAño(a => a - 1)}
-            className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg hover:bg-gray-50 text-slate-600 font-bold shadow-sm transition-all">‹</button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setAño(a => a - 1)}
+            className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg hover:bg-gray-50 text-slate-600 font-bold shadow-sm transition-all"
+          >
+            ‹
+          </button>
           <span className="text-sm font-bold text-slate-700 min-w-[60px] text-center">{año}</span>
-          <button onClick={() => setAño(a => a + 1)}
-            className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg hover:bg-gray-50 text-slate-600 font-bold shadow-sm transition-all">›</button>
+          <button
+            type="button"
+            onClick={() => setAño(a => a + 1)}
+            className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg hover:bg-gray-50 text-slate-600 font-bold shadow-sm transition-all"
+          >
+            ›
+          </button>
         </div>
       </div>
 
