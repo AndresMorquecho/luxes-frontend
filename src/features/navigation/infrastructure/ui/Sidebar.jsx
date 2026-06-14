@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Banknote, ClipboardCheck, ClockPlus, Palmtree } from 'lucide-react';
+import { Banknote, Car, ClipboardCheck, ClockPlus, Palmtree, Wallet } from 'lucide-react';
 import faviconIcon from '../../../../assets/icon/favicon.png';
 import headerBg from '../../../../assets/header-bg.png';
 import './Sidebar.css';
@@ -24,6 +24,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
   const [isRelacionesOpen, setIsRelacionesOpen] = useState(false);
   const [isInventarioOpen, setIsInventarioOpen] = useState(false);
   const [isComprasOpen, setIsComprasOpen] = useState(false);
+  const [isGastosOpen, setIsGastosOpen] = useState(false);
   const location = useLocation();
   const currentPath = location.pathname;
 
@@ -46,6 +47,9 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
     }
     if (currentPath.startsWith('/compras')) {
       setIsComprasOpen(true);
+    }
+    if (currentPath.startsWith('/gastos')) {
+      setIsGastosOpen(true);
     }
   }, [currentPath]);
 
@@ -92,6 +96,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
                     setIsRelacionesOpen(false);
                     setIsInventarioOpen(false);
                     setIsComprasOpen(false);
+                    setIsGastosOpen(false);
                     setIsConfigOpen(false);
                   }
                 }}
@@ -183,6 +188,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
                     setIsPrintOpen(false);
                     setIsRelacionesOpen(false);
                     setIsComprasOpen(false);
+                    setIsGastosOpen(false);
                     setIsConfigOpen(false);
                   }
                 }}
@@ -250,6 +256,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
                     setIsRelacionesOpen(false);
                     setIsInventarioOpen(false);
                     setIsComprasOpen(false);
+                    setIsGastosOpen(false);
                     setIsConfigOpen(false);
                   }
                 }}
@@ -295,18 +302,56 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
               )}
             </li>
 
-            <li className={currentPath.startsWith('/gastos') ? 'active' : ''}>
-              <Link to="/gastos">
+            <li className={`sidebar-has-submenu ${isGastosOpen ? 'submenu-open' : ''} ${currentPath.startsWith('/gastos') ? 'active' : ''}`}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGastosOpen(prev => !prev);
+                  if (!isGastosOpen) {
+                    setIsNominaOpen(false);
+                    setIsPrintOpen(false);
+                    setIsRelacionesOpen(false);
+                    setIsInventarioOpen(false);
+                    setIsComprasOpen(false);
+                    setIsConfigOpen(false);
+                  }
+                }}
+                className="sidebar-submenu-toggle"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
                 </svg>
                 <span className="sidebar-link-text">Gastos</span>
                 {!isCollapsed && (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    className={`chevron-icon submenu-chevron ${isGastosOpen ? 'rotated' : ''}`}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                   </svg>
                 )}
-              </Link>
+              </button>
+
+              {!isCollapsed && isGastosOpen && (
+                <ul className="sidebar-submenu">
+                  <li className={currentPath === '/gastos' ? 'submenu-active' : ''}>
+                    <Link to="/gastos" className="sidebar-submenu-link">
+                      <Wallet className="sidebar-submenu-icon" size={18} strokeWidth={1.75} />
+                      <span className="sidebar-submenu-text">Gastos Generales</span>
+                    </Link>
+                  </li>
+                  <li className={currentPath.startsWith('/gastos/carros') ? 'submenu-active' : ''}>
+                    <Link to="/gastos/carros" className="sidebar-submenu-link">
+                      <Car className="sidebar-submenu-icon" size={18} strokeWidth={1.75} />
+                      <span className="sidebar-submenu-text">Gastos de Carros</span>
+                    </Link>
+                  </li>
+                </ul>
+              )}
             </li>
 
             <li className={currentPath.startsWith('/tareas') ? 'active' : ''}>
@@ -316,6 +361,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
                 setIsRelacionesOpen(false);
                 setIsInventarioOpen(false);
                 setIsComprasOpen(false);
+                setIsGastosOpen(false);
                 setIsConfigOpen(false);
               }}>
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
@@ -369,6 +415,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
                     setIsPrintOpen(false);
                     setIsRelacionesOpen(false);
                     setIsInventarioOpen(false);
+                    setIsGastosOpen(false);
                     setIsConfigOpen(false);
                   }
                 }}
@@ -458,6 +505,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
                     setIsPrintOpen(false);
                     setIsInventarioOpen(false);
                     setIsComprasOpen(false);
+                    setIsGastosOpen(false);
                     setIsConfigOpen(false);
                   }
                 }}
@@ -523,6 +571,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user }) => {
                     setIsRelacionesOpen(false);
                     setIsInventarioOpen(false);
                     setIsComprasOpen(false);
+                    setIsGastosOpen(false);
                   }
                 }}
                 className="sidebar-submenu-toggle"

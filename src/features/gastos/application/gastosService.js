@@ -1,55 +1,104 @@
-const STORAGE_KEY = 'luxes_gastos';
+const getHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    Authorization: token ? `Bearer ${token}` : '',
+  };
+};
 
-const MOCK = [
-  { id: 'GTO-001', concepto: 'Papelería y útiles de oficina', categoria: 'oficina', fecha: '2026-05-03', monto: 125.50, proveedor: 'Importadora del Sur S.A.', notas: '' },
-  { id: 'GTO-002', concepto: 'Mantenimiento de equipos', categoria: 'mantenimiento', fecha: '2026-05-08', monto: 340.00, proveedor: 'Tecnología Andina Cía. Ltda.', notas: 'Impresoras y scanner' },
-  { id: 'GTO-003', concepto: 'Servicio de internet', categoria: 'servicios', fecha: '2026-05-15', monto: 89.90, proveedor: 'NetPlus', notas: 'Plan corporativo mayo' },
-  { id: 'GTO-004', concepto: 'Transporte de materiales', categoria: 'logistica', fecha: '2026-05-20', monto: 210.00, proveedor: 'Carlos Mendoza', notas: '' },
-  { id: 'GTO-005', concepto: 'Alimentación personal', categoria: 'varios', fecha: '2026-05-22', monto: 56.00, proveedor: '', notas: 'Reunión de equipo' },
-  { id: 'GTO-006', concepto: 'Material de limpieza', categoria: 'oficina', fecha: '2026-06-01', monto: 78.50, proveedor: 'Importadora del Sur S.A.', notas: '' },
-  { id: 'GTO-007', concepto: 'Envío de documentos', categoria: 'logistica', fecha: '2026-06-05', monto: 15.00, proveedor: 'ServiEntrega', notas: '' },
-  { id: 'GTO-008', concepto: 'Suscripción software', categoria: 'servicios', fecha: '2026-06-07', monto: 199.00, proveedor: 'CloudTech', notas: 'Plan mensual herramientas' },
+const parseResponse = async (response) => {
+  const text = await response.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    if (response.status === 502 || response.status === 503) {
+      throw new Error('No se pudo conectar con el servidor. Asegúrate de que el backend esté corriendo.');
+    }
+    throw new Error(`Respuesta inválida del servidor (${response.status})`);
+  }
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error?.message || `Error en la operación (${response.status})`);
+  }
+  return data.data;
+};
+
+export const CATEGORIAS = ['oficina', 'mantenimiento', 'servicios', 'logistica', 'varios'];
+
+export const TIPOS_MANTENIMIENTO = [
+  { id: 'cambio_aceite', label: 'Cambio de aceite' },
+  { id: 'filtro_aceite', label: 'Filtro de aceite' },
+  { id: 'filtro_aire', label: 'Filtro de aire' },
+  { id: 'llantas', label: 'Llantas / rotación' },
+  { id: 'frenos', label: 'Frenos' },
+  { id: 'bateria', label: 'Batería' },
+  { id: 'alineacion', label: 'Alineación y balanceo' },
+  { id: 'soat', label: 'SOAT' },
+  { id: 'matricula', label: 'Matrícula' },
+  { id: 'revision_tecnica', label: 'Revisión técnica' },
+  { id: 'lavado', label: 'Lavado' },
+  { id: 'combustible', label: 'Combustible' },
+  { id: 'otro', label: 'Otro' },
 ];
 
-const CATEGORIAS = ['oficina', 'mantenimiento', 'servicios', 'logistica', 'varios'];
+export const getGastos = async () =>
+  parseResponse(await fetch('/api/gastos', { headers: getHeaders() }));
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+export const saveGasto = async (gasto) => {
+  const isEdit = Boolean(gasto.id);
+  const url = isEdit ? `/api/gastos/${gasto.id}` : '/api/gastos';
+  return parseResponse(
+    await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(gasto) })
+  );
+};
 
-export async function getGastos() {
-  await delay(200);
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK));
-    return [...MOCK];
-  } catch {
-    return [...MOCK];
+export const deleteGasto = async (id) =>
+  parseResponse(await fetch(`/api/gastos/${id}`, { method: 'DELETE', headers: getHeaders() }));
+
+export const getVehiculos = async () =>
+  parseResponse(await fetch('/api/gastos/vehiculos', { headers: getHeaders() }));
+
+export const saveVehiculo = async (vehiculo) => {
+  const isEdit = Boolean(vehiculo.id);
+  const url = isEdit ? `/api/gastos/vehiculos/${vehiculo.id}` : '/api/gastos/vehiculos';
+  return parseResponse(
+    await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(vehiculo) })
+  );
+};
+
+export const deleteVehiculo = async (id) =>
+  parseResponse(await fetch(`/api/gastos/vehiculos/${id}`, { method: 'DELETE', headers: getHeaders() }));
+
+export const saveMantenimiento = async (vehiculoId, mantenimiento) => {
+  const isEdit = Boolean(mantenimiento.id);
+  const url = isEdit
+    ? `/api/gastos/vehiculos/${vehiculoId}/mantenimientos/${mantenimiento.id}`
+    : `/api/gastos/vehiculos/${vehiculoId}/mantenimientos`;
+  return parseResponse(
+    await fetch(url, {
+      method: isEdit ? 'PUT' : 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ ...mantenimiento, vehiculoId }),
+    })
+  );
+};
+
+export const deleteMantenimiento = async (id) =>
+  parseResponse(await fetch(`/api/gastos/mantenimientos/${id}`, { method: 'DELETE', headers: getHeaders() }));
+
+export const labelTipoMantenimiento = (tipo) =>
+  TIPOS_MANTENIMIENTO.find((t) => t.id === tipo)?.label ?? tipo;
+
+export const estadoMantenimiento = (mant, kmActual = 0) => {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  if (mant.fechaProxima) {
+    const prox = new Date(`${mant.fechaProxima}T12:00:00`);
+    if (prox < hoy) return 'vencido';
+    const dias = Math.ceil((prox - hoy) / (1000 * 60 * 60 * 24));
+    if (dias <= 30) return 'proximo';
   }
-}
-
-export async function saveGasto(gasto) {
-  await delay(200);
-  const list = await getGastos();
-  const idx = list.findIndex(g => g.id === gasto.id);
-  if (idx >= 0) {
-    list[idx] = { ...list[idx], ...gasto };
-  } else {
-    const maxNum = list.reduce((max, g) => {
-      const n = parseInt(g.id.replace('GTO-', ''), 10);
-      return n > max ? n : max;
-    }, 0);
-    gasto.id = `GTO-${String(maxNum + 1).padStart(3, '0')}`;
-    list.push(gasto);
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  return gasto;
-}
-
-export async function deleteGasto(id) {
-  await delay(200);
-  const list = await getGastos();
-  const filtered = list.filter(g => g.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-}
-
-export { CATEGORIAS };
+  if (mant.kmProximo != null && kmActual >= mant.kmProximo) return 'vencido';
+  if (mant.kmProximo != null && kmActual >= mant.kmProximo - 2000) return 'proximo';
+  return 'ok';
+};
