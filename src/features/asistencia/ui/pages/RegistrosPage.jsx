@@ -22,6 +22,21 @@ function getWeekRange(date) {
   return { lunes, domingo };
 }
 
+function getWeekDaysForDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDay();
+  const lunes = new Date(d);
+  lunes.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const x = new Date(lunes);
+    x.setDate(lunes.getDate() + i);
+    days.push(x);
+  }
+  return days;
+}
+
 function toISODate(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
@@ -431,6 +446,22 @@ const AdminView = () => {
     }
   };
 
+  const weekDays = useMemo(() => {
+    return getWeekDaysForDate(fechaFiltro);
+  }, [fechaFiltro]);
+
+  const handlePrevWeek = () => {
+    const d = new Date(fechaFiltro + 'T12:00:00');
+    d.setDate(d.getDate() - 7);
+    setFechaFiltro(toISODate(d));
+  };
+
+  const handleNextWeek = () => {
+    const d = new Date(fechaFiltro + 'T12:00:00');
+    d.setDate(d.getDate() + 7);
+    setFechaFiltro(toISODate(d));
+  };
+
   const rows = useMemo(() => {
     return empleados.map(emp => {
       const marcaciones = asistencias.filter(a => a.empleadoId === emp.id);
@@ -537,6 +568,8 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         .kpi-card.asistencias::before { background: linear-gradient(90deg, #10b981, #34d399); }
         .kpi-card.faltas::before { background: linear-gradient(90deg, #ef4444, #f87171); }
         .kpi-card.permisos::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
       {/* Header Panel */}
@@ -546,16 +579,6 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           <p className="text-sm text-slate-500">Supervisión diaria, control de ausencias y asignación de permisos.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha:</span>
-            <input
-              type="date"
-              value={fechaFiltro}
-              onChange={e => setFechaFiltro(e.target.value)}
-              className="px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-            />
-          </div>
-          
           <button onClick={descargarExcel}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-gray-50 transition-all shadow-sm cursor-pointer border-solid">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -563,6 +586,91 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             </svg>
             Exportar Día
           </button>
+        </div>
+      </div>
+
+      {/* Selector de Semana / Fecha en forma de Cards Navigables */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-5 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handlePrevWeek} 
+              className="w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 font-bold transition-all cursor-pointer"
+              title="Semana Anterior"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            
+            <button 
+              onClick={() => setFechaFiltro(new Date().toISOString().split('T')[0])} 
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
+            >
+              Hoy
+            </button>
+
+            <button 
+              onClick={handleNextWeek} 
+              className="w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 font-bold transition-all cursor-pointer"
+              title="Semana Siguiente"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+
+            <span className="text-sm font-bold text-slate-700 ml-2">
+              Semana del {weekDays[0] && formatFecha(weekDays[0])} al {weekDays[6] && formatFecha(weekDays[6])}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ir a fecha / cambiar mes o año:</span>
+              <input
+                type="date"
+                value={fechaFiltro}
+                onChange={e => setFechaFiltro(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Tarjetas de Días de la Semana */}
+        <div className="flex justify-start md:justify-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {weekDays.map((d, i) => {
+            const iso = toISODate(d);
+            const isSelected = iso === fechaFiltro;
+            const isToday = iso === new Date().toISOString().split('T')[0];
+            
+            return (
+              <button 
+                key={i} 
+                onClick={() => setFechaFiltro(iso)}
+                className={`flex flex-col items-center p-3 rounded-2xl text-[10px] font-bold transition-all min-w-[70px] shrink-0 border cursor-pointer ${
+                  isSelected 
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-md transform scale-[1.02]' 
+                    : isToday
+                    ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                    : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <span className={`uppercase tracking-wider text-[9px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                  {DIAS_LABEL[d.getDay() === 0 ? 6 : d.getDay() - 1]}
+                </span>
+                <span className="text-lg font-black mt-1 leading-none">
+                  {d.getDate()}
+                </span>
+                {isToday && (
+                  <span className={`text-[7px] font-bold mt-1 px-1 rounded-sm ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-200/50 text-blue-700'}`}>
+                    HOY
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -613,7 +721,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </div>
       </div>
 
-      {/* Main List */}
+      {/* Main List Table */}
       {loading ? (
         <div className="flex justify-center items-center py-16">
           <div className="flex flex-col items-center gap-2">
@@ -630,155 +738,148 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Prueba ajustando el filtro de búsqueda o el estado seleccionado.</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-100 rounded-2xl shadow-card overflow-hidden divide-y divide-slate-100">
-          {/* Header de tabla visible en pantallas medianas y grandes */}
-          <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3.5 bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            <div className="col-span-3">Colaborador</div>
-            <div className="col-span-2 text-center">Estado</div>
-            <div className="col-span-5 text-center">Línea de Tiempo (Marcaciones)</div>
-            <div className="col-span-2 text-right">Acción / Detalles</div>
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left">
+                  <th className="px-6 py-4">Colaborador / Cargo</th>
+                  <th className="px-6 py-4 text-center">Estado</th>
+                  <th className="px-4 py-4 text-center">Entrada</th>
+                  <th className="px-4 py-4 text-center">Salida Almuerzo</th>
+                  <th className="px-4 py-4 text-center">Regreso Almuerzo</th>
+                  <th className="px-4 py-4 text-center">Salida</th>
+                  <th className="px-6 py-4 text-center">Total Horas</th>
+                  <th className="px-6 py-4 text-right">Acción / Mapa</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rowsFiltrados.map(({ emp, marcaciones, estado }) => {
+                  const entrada = marcaciones.find(m => m.tipo === 'ENTRADA');
+                  const inicioAlm = marcaciones.find(m => m.tipo === 'INICIO_ALMUERZO');
+                  const finAlm = marcaciones.find(m => m.tipo === 'FIN_ALMUERZO');
+                  const salida = marcaciones.find(m => m.tipo === 'SALIDA');
+                  
+                  const isFalto = estado === 'FALTO';
+                  const isPermiso = estado === 'PERMISO';
+                  const isAsistio = estado === 'ASISTIO';
+
+                  const mapsUrl = (entrada?.ubicacionLat && entrada?.ubicacionLng) 
+                    ? `https://www.google.com/maps/search/?api=1&query=${entrada.ubicacionLat},${entrada.ubicacionLng}` 
+                    : null;
+                  
+                  const initials = emp.nombre ? emp.nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'EMP';
+                  
+                  let lapsos = { trabajo: '—', almuerzo: '—' };
+                  if (isAsistio) {
+                    lapsos = calculateLapses(marcaciones);
+                  }
+
+                  return (
+                    <tr key={emp.id} className="hover:bg-slate-50/40 transition-colors">
+                      {/* Colaborador / Cargo */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-xs text-blue-600 shrink-0">
+                            {initials}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-slate-800 truncate">{emp.nombre}</p>
+                            <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Estado */}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {isAsistio && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-xl">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Asistió
+                          </span>
+                        )}
+                        {isFalto && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-red-700 bg-red-50 border border-red-200/60 px-2.5 py-1 rounded-xl">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            Faltó
+                          </span>
+                        )}
+                        {isPermiso && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-2.5 py-1 rounded-xl">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                            Permiso Pagado
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Entrada */}
+                      <td className={`px-4 py-4 whitespace-nowrap text-center font-mono text-xs font-bold ${entrada ? 'text-slate-800' : 'text-slate-300'}`}>
+                        {formatTime(entrada?.fechaHora)}
+                      </td>
+
+                      {/* Salida Almuerzo */}
+                      <td className={`px-4 py-4 whitespace-nowrap text-center font-mono text-xs font-bold ${inicioAlm ? 'text-slate-800' : 'text-slate-300'}`}>
+                        {formatTime(inicioAlm?.fechaHora)}
+                      </td>
+
+                      {/* Regreso Almuerzo */}
+                      <td className={`px-4 py-4 whitespace-nowrap text-center font-mono text-xs font-bold ${finAlm ? 'text-slate-800' : 'text-slate-300'}`}>
+                        {formatTime(finAlm?.fechaHora)}
+                      </td>
+
+                      {/* Salida */}
+                      <td className={`px-4 py-4 whitespace-nowrap text-center font-mono text-xs font-bold ${salida ? 'text-slate-800' : 'text-slate-300'}`}>
+                        {formatTime(salida?.fechaHora)}
+                      </td>
+
+                      {/* Total Horas */}
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-xs font-semibold text-slate-600">
+                        {isAsistio ? (
+                          <div className="flex flex-col items-center">
+                            <span className="font-bold text-slate-800">{lapsos.trabajo}</span>
+                            {lapsos.almuerzo !== '—' && (
+                              <span className="text-[9px] text-slate-400 font-medium mt-0.5">Alm: {lapsos.almuerzo}</span>
+                            )}
+                          </div>
+                        ) : isPermiso ? (
+                          <span className="text-indigo-600 font-bold">Día Cobrado</span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+
+                      {/* Acción / Mapa */}
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        {isFalto ? (
+                          <button
+                            onClick={() => handleConcederPermiso(emp.id)}
+                            className="px-3 py-1.5 text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+                          >
+                            Conceder Permiso
+                          </button>
+                        ) : mapsUrl ? (
+                          <a
+                            href={mapsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
+                          >
+                            <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                            </svg>
+                            Ver Mapa
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-
-          {rowsFiltrados.map(({ emp, marcaciones, estado }) => {
-            const entrada = marcaciones.find(m => m.tipo === 'ENTRADA');
-            const inicioAlm = marcaciones.find(m => m.tipo === 'INICIO_ALMUERZO');
-            const finAlm = marcaciones.find(m => m.tipo === 'FIN_ALMUERZO');
-            const salida = marcaciones.find(m => m.tipo === 'SALIDA');
-            const mapsUrl = (entrada?.ubicacionLat && entrada?.ubicacionLng) 
-              ? `https://www.google.com/maps/search/?api=1&query=${entrada.ubicacionLat},${entrada.ubicacionLng}` 
-              : null;
-            
-            const initials = emp.nombre ? emp.nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'EMP';
-            
-            // Calculo de tiempos e intervalos
-            let lapsos = { trabajo: '—', almuerzo: '—' };
-            if (estado === 'ASISTIO') {
-              lapsos = calculateLapses(marcaciones);
-            }
-
-            return (
-              <div key={emp.id} className="flex flex-col md:grid md:grid-cols-12 gap-4 px-6 py-4 items-stretch md:items-center hover:bg-slate-50/40 transition-colors">
-                {/* Colaborador Info */}
-                <div className="col-span-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-xs text-blue-600 shrink-0">
-                    {initials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-800 truncate">{emp.nombre}</p>
-                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
-                  </div>
-                </div>
-
-                {/* Estado Badge */}
-                <div className="col-span-2 flex justify-start md:justify-center">
-                  {estado === 'ASISTIO' && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-xl">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Asistió
-                    </span>
-                  )}
-                  {estado === 'FALTO' && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-red-700 bg-red-50 border border-red-200/60 px-2.5 py-1 rounded-xl">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                      Faltó
-                    </span>
-                  )}
-                  {estado === 'PERMISO' && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-2.5 py-1 rounded-xl">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                      Permiso Pagado
-                    </span>
-                  )}
-                </div>
-
-                {/* Marcaciones / Timeline */}
-                <div className="col-span-5">
-                  {estado === 'ASISTIO' ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-2 rounded-xl gap-1">
-                        <div className="flex flex-col items-center flex-1">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase">Entrada</span>
-                          <span className={`text-xs font-mono font-bold mt-0.5 ${entrada ? 'text-slate-800' : 'text-slate-300'}`}>{formatTime(entrada?.fechaHora)}</span>
-                        </div>
-                        <svg className="w-3.5 h-3.5 text-slate-200 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                        </svg>
-                        <div className="flex flex-col items-center flex-1">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase">Alm. Out</span>
-                          <span className={`text-xs font-mono font-bold mt-0.5 ${inicioAlm ? 'text-slate-800' : 'text-slate-300'}`}>{formatTime(inicioAlm?.fechaHora)}</span>
-                        </div>
-                        <svg className="w-3.5 h-3.5 text-slate-200 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                        </svg>
-                        <div className="flex flex-col items-center flex-1">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase">Alm. In</span>
-                          <span className={`text-xs font-mono font-bold mt-0.5 ${finAlm ? 'text-slate-800' : 'text-slate-300'}`}>{formatTime(finAlm?.fechaHora)}</span>
-                        </div>
-                        <svg className="w-3.5 h-3.5 text-slate-200 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                        </svg>
-                        <div className="flex flex-col items-center flex-1">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase">Salida</span>
-                          <span className={`text-xs font-mono font-bold mt-0.5 ${salida ? 'text-slate-800' : 'text-slate-300'}`}>{formatTime(salida?.fechaHora)}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between px-1 text-[10px] text-slate-400 font-semibold">
-                        <span>Almuerzo: <strong className="text-slate-600">{lapsos.almuerzo}</strong></span>
-                        <span>Trabajo: <strong className="text-slate-600">{lapsos.trabajo}</strong></span>
-                      </div>
-                    </div>
-                  ) : estado === 'PERMISO' ? (
-                    <div className="bg-indigo-50/40 border border-indigo-100 rounded-xl px-4 py-3 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                      <div>
-                        <p className="text-[11px] font-extrabold text-indigo-900 leading-none">Día Cobrado y Justificado</p>
-                        <p className="text-[9px] font-medium text-indigo-400 mt-0.5">Autorizado mediante permiso administrativo.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-red-50/30 border border-red-100/50 rounded-xl px-4 py-3 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                      </svg>
-                      <div>
-                        <p className="text-[11px] font-extrabold text-red-900 leading-none">Sin Marcaciones Registradas</p>
-                        <p className="text-[9px] font-medium text-red-400 mt-0.5">El colaborador no se presentó o no ha registrado asistencia hoy.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Acción / Detalles */}
-                <div className="col-span-2 flex items-center justify-start md:justify-end gap-2">
-                  {estado === 'FALTO' ? (
-                    <button
-                      onClick={() => handleConcederPermiso(emp.id)}
-                      className="w-full md:w-auto px-3 py-2 text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-sm hover:shadow transition-all text-center shrink-0 cursor-pointer"
-                    >
-                      Conceder Permiso
-                    </button>
-                  ) : mapsUrl ? (
-                    <a
-                      href={mapsUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
-                    >
-                      <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                      </svg>
-                      Ver Mapa
-                    </a>
-                  ) : (
-                    <span className="text-[10px] font-bold text-slate-400">—</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
     </div>
