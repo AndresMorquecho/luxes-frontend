@@ -199,3 +199,16 @@
     min-width: 0 !important;
   }
 }
+
+/* Kiosk Layout adjustments to prevent content being pushed off-screen on desktop */
+.layout-container.kiosk-layout {
+  flex-direction: column !important;
+}
+
+.layout-container.kiosk-layout .layout-main {
+  margin-left: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: calc(100vh - 70px) !important;
+}
