@@ -285,8 +285,12 @@ function PrestamoModal({ herramientas, onClose, onSave }) {
 // ── Main Page ──────────────────────────────────────────────────────────────
 export function InventarioPage() {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userRole = (user?.rol || 'visor').toUpperCase();
+  const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
+
   const [activeTab, setActiveTab] = useState('consumibles');
-  const [activeCategory, setActiveCategory] = useState(''); // '' | 'Taller' | 'Oficina'
+  const [activeCategory, setActiveCategory] = useState(isImpresion ? 'Impresión' : ''); // '' | 'Taller' | 'Oficina'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -345,7 +349,7 @@ export function InventarioPage() {
         page,
         limit: 10,
         search: debouncedSearch,
-        categoria: activeCategory,
+        categoria: isImpresion ? 'Impresión' : activeCategory,
       });
       setItems(res.items || []);
       setTotalItems(res.total || 0);
@@ -354,7 +358,7 @@ export function InventarioPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, debouncedSearch, activeCategory]);
+  }, [activeTab, page, debouncedSearch, activeCategory, isImpresion]);
 
   useEffect(() => {
     loadMaterials();
@@ -440,73 +444,82 @@ export function InventarioPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="inv-kpi-grid">
-        <div className="inv-kpi-card">
-          <div className="inv-kpi-icon blue"><Package size={20}/></div>
-          <div>
-            <span className="inv-kpi-value">{stats.totalMateriales}</span>
-            <span className="inv-kpi-label">Materiales</span>
+      {!isImpresion && (
+        <div className="inv-kpi-grid">
+          <div className="inv-kpi-card">
+            <div className="inv-kpi-icon blue"><Package size={20}/></div>
+            <div>
+              <span className="inv-kpi-value">{stats.totalMateriales}</span>
+              <span className="inv-kpi-label">Materiales</span>
+            </div>
+          </div>
+          <div className="inv-kpi-card">
+            <div className="inv-kpi-icon amber"><AlertTriangle size={20}/></div>
+            <div>
+              <span className="inv-kpi-value">{stats.totalLowStock}</span>
+              <span className="inv-kpi-label">Stock Bajo</span>
+            </div>
+          </div>
+          <div className="inv-kpi-card inv-kpi-card--link" onClick={() => navigate('/inventario/prestamos')}>
+            <div className="inv-kpi-icon teal"><ArrowRightLeft size={20}/></div>
+            <div>
+              <span className="inv-kpi-value">{stats.activeLoans}</span>
+              <span className="inv-kpi-label">Préstamos Activos</span>
+            </div>
+            <ExternalLink size={14} className="inv-kpi-link-icon"/>
+          </div>
+          <div className="inv-kpi-card inv-kpi-card--link" onClick={() => navigate('/inventario/prestamos')}>
+            <div className="inv-kpi-icon green"><CheckCircle2 size={20}/></div>
+            <div>
+              <span className="inv-kpi-value">{stats.returnedLoans}</span>
+              <span className="inv-kpi-label">Devueltos</span>
+            </div>
+            <ExternalLink size={14} className="inv-kpi-link-icon"/>
           </div>
         </div>
-        <div className="inv-kpi-card">
-          <div className="inv-kpi-icon amber"><AlertTriangle size={20}/></div>
-          <div>
-            <span className="inv-kpi-value">{stats.totalLowStock}</span>
-            <span className="inv-kpi-label">Stock Bajo</span>
-          </div>
-        </div>
-        <div className="inv-kpi-card inv-kpi-card--link" onClick={() => navigate('/inventario/prestamos')}>
-          <div className="inv-kpi-icon teal"><ArrowRightLeft size={20}/></div>
-          <div>
-            <span className="inv-kpi-value">{stats.activeLoans}</span>
-            <span className="inv-kpi-label">Préstamos Activos</span>
-          </div>
-          <ExternalLink size={14} className="inv-kpi-link-icon"/>
-        </div>
-        <div className="inv-kpi-card inv-kpi-card--link" onClick={() => navigate('/inventario/prestamos')}>
-          <div className="inv-kpi-icon green"><CheckCircle2 size={20}/></div>
-          <div>
-            <span className="inv-kpi-value">{stats.returnedLoans}</span>
-            <span className="inv-kpi-label">Devueltos</span>
-          </div>
-          <ExternalLink size={14} className="inv-kpi-link-icon"/>
-        </div>
-      </div>
+      )}
 
       <div className="inv-toolbar">
-        <div className="inv-tab-bar">
-          {TABS.map(t => (
-            <button key={t.id} className={`inv-tab ${activeTab===t.id?'active':''}`}
-              onClick={() => { setActiveTab(t.id); setSearch(''); }}>
-              <t.Icon size={15}/> {t.label}
+        {!isImpresion && (
+          <div className="inv-tab-bar">
+            {TABS.map(t => (
+              <button key={t.id} className={`inv-tab ${activeTab===t.id?'active':''}`}
+                onClick={() => { setActiveTab(t.id); setSearch(''); }}>
+                <t.Icon size={15}/> {t.label}
+              </button>
+            ))}
+            <button className="inv-tab inv-tab--external" onClick={() => navigate('/inventario/prestamos')}>
+              <ArrowRightLeft size={15}/> Préstamos
+              <ExternalLink size={11}/>
             </button>
-          ))}
-          <button className="inv-tab inv-tab--external" onClick={() => navigate('/inventario/prestamos')}>
-            <ArrowRightLeft size={15}/> Préstamos
-            <ExternalLink size={11}/>
-          </button>
-        </div>
-        <div className="inv-toolbar-right">
-          <div className="inv-select-wrap">
-            <Filter size={14} className="inv-select-ico"/>
-            <select
-              className="inv-select"
-              value={activeCategory}
-              onChange={e => setActiveCategory(e.target.value)}
-            >
-              <option value="">Todas las Categorías</option>
-              <option value="Taller">Taller</option>
-              <option value="Oficina">Oficina</option>
-            </select>
           </div>
-          <div className="inv-search-box">
+        )}
+        <div className="inv-toolbar-right" style={isImpresion ? { width: '100%', justifyContent: 'space-between' } : {}}>
+          {!isImpresion && (
+            <div className="inv-select-wrap">
+              <Filter size={14} className="inv-select-ico"/>
+              <select
+                className="inv-select"
+                value={activeCategory}
+                onChange={e => setActiveCategory(e.target.value)}
+              >
+                <option value="">Todas las Categorías</option>
+                <option value="Taller">Taller</option>
+                <option value="Oficina">Oficina</option>
+                <option value="Impresión">Impresión</option>
+              </select>
+            </div>
+          )}
+          <div className="inv-search-box" style={isImpresion ? { flex: 1, marginRight: 0 } : {}}>
             <Search size={15} className="inv-search-icon"/>
             <input className="inv-search-inp" placeholder="Buscar..." value={search}
               onChange={e=>setSearch(e.target.value)}/>
           </div>
-          <button className="inv-btn-primary" onClick={() => setMatModal('new')}>
-            <Plus size={16}/> Nuevo Material
-          </button>
+          {!isImpresion && (
+            <button className="inv-btn-primary" onClick={() => setMatModal('new')}>
+              <Plus size={16}/> Nuevo Material
+            </button>
+          )}
         </div>
       </div>
 
@@ -551,12 +564,16 @@ export function InventarioPage() {
                         <button className="inv-act-btn move" title="Movimiento" onClick={() => setMovModal(item)}>
                           <ArrowRightLeft size={14}/>
                         </button>
-                        <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                          <Edit2 size={14}/>
-                        </button>
-                        <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                          <Trash2 size={14}/>
-                        </button>
+                        {!isImpresion && (
+                          <>
+                            <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                              <Edit2 size={14}/>
+                            </button>
+                            <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                              <Trash2 size={14}/>
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}

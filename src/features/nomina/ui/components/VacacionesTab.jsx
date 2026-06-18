@@ -1,18 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useContext } from 'react';
 import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { DIAS_VACACIONES_POR_ANO } from '../../infrastructure/mock/vacacionesData';
-
-const STORAGE_KEY = 'luxes_vacaciones';
-
-function loadVacaciones() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch { return []; }
-}
-
-function saveVacaciones(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+import { NominaContext } from '../../application/context/NominaContext';
+import { toast } from '../../../../shared/ui/components/Toast';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const MESES_NOMBRES = [
@@ -168,18 +158,26 @@ export const VacacionesTab = () => {
   const [empleados, setEmpleados] = useState([]);
   const [vacaciones, setVacaciones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { adapter } = useContext(NominaContext);
 
   useEffect(() => {
     const load = async () => {
       try {
         const data = await getEmpleados();
         setEmpleados(data);
-      } catch { setEmpleados([]); }
-      setVacaciones(loadVacaciones());
-      setLoading(false);
+        if (adapter) {
+          const vacs = await adapter.getVacations();
+          setVacaciones(vacs);
+        }
+      } catch (err) {
+        console.error("Error al cargar datos:", err);
+        toast.error("Error al cargar vacaciones del servidor.");
+      } finally {
+        setLoading(false);
+      }
     };
     load();
-  }, []);
+  }, [adapter]);
 
   const [mesInicio, setMesInicio] = useState(0);
   const mesesVisibles = 3;
@@ -203,19 +201,56 @@ export const VacacionesTab = () => {
     [vacaciones, año]
   );
 
-  const handleToggleDia = (empleadoId, year, month, dia) => {
+  const handleToggleDia = async (empleadoId, year, month, dia) => {
     const fechaStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    
+    const vacEmp = vacaciones.find(v => v.empleadoId === empleadoId && v.año === year);
+    const diasTomadosActuales = vacEmp ? vacEmp.diasTomados : [];
+    
+    const esVacacionYa = diasTomadosActuales.includes(fechaStr);
+    const nuevosDiasTomados = esVacacionYa
+      ? diasTomadosActuales.filter(f => f !== fechaStr)
+      : [...diasTomadosActuales, fechaStr];
+
+    // Optimistic UI update
     setVacaciones(prev => {
       let next = [...prev];
-      const idx = next.findIndex(v => v.empleadoId === empleadoId && v.año === año);
+      const idx = next.findIndex(v => v.empleadoId === empleadoId && v.año === year);
       if (idx === -1) {
-        next.push({ empleadoId, año, diasTomados: [fechaStr] });
+        next.push({ empleadoId, año: year, diasTomados: nuevosDiasTomados });
       } else {
-        next[idx] = { ...next[idx], diasTomados: toggleFecha(next[idx].diasTomados, fechaStr) };
+        next[idx] = { ...next[idx], diasTomados: nuevosDiasTomados };
       }
-      saveVacaciones(next);
       return next;
     });
+
+    try {
+      if (adapter) {
+        await adapter.saveVacation(empleadoId, year, nuevosDiasTomados);
+        if (esVacacionYa) {
+          toast.success("Fecha de vacación eliminada.");
+        } else {
+          toast.success("Fecha de vacación registrada.");
+        }
+      }
+    } catch (error) {
+      console.error("Error al guardar vacación en el servidor:", error);
+      toast.error(`Error al guardar: ${error.message}`);
+      
+      // Revertir en caso de error
+      setVacaciones(prev => {
+        let next = [...prev];
+        const idx = next.findIndex(v => v.empleadoId === empleadoId && v.año === year);
+        if (idx !== -1) {
+          if (diasTomadosActuales.length === 0) {
+            next = next.filter(v => !(v.empleadoId === empleadoId && v.año === year));
+          } else {
+            next[idx] = { ...next[idx], diasTomados: diasTomadosActuales };
+          }
+        }
+        return next;
+      });
+    }
   };
 
   const avanzarMeses = () => setMesInicio(m => (m + mesesVisibles) % 12);

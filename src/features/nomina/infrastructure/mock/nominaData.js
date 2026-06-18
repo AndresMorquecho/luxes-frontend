@@ -18,7 +18,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 52.50, // (21 * 30) / 12 = 52.50
       horasExtras: 0,
       trabajosEnEmpresa: 120.00,
@@ -48,7 +48,7 @@ export const nominasMock = [
     diasLaborados: 28, // 28 días laborados
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 37.50,
       horasExtras: 25.00, // 10 horas
       trabajosEnEmpresa: 0,
@@ -78,7 +78,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 2,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 40.18,
       horasExtras: 12.50,
       trabajosEnEmpresa: 50.00,
@@ -106,7 +106,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 50.00,
       horasExtras: 0,
       trabajosEnEmpresa: 0,
@@ -134,7 +134,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 45.00,
       horasExtras: 37.50,
       trabajosEnEmpresa: 60.00,
@@ -165,7 +165,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 64.58,
       horasExtras: 50.00,
       trabajosEnEmpresa: 150.00,

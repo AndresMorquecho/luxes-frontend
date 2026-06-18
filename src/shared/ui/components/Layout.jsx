@@ -33,11 +33,21 @@ export const Layout = ({ children, user, onLogout }) => {
     { name: 'Relaciones: Proveedores', path: '/proveedores' },
     { name: 'Relaciones: Contactos', path: '/contactos' },
     { name: 'Configuración: Usuarios', path: '/usuarios' },
+    { name: 'Configuración: General', path: '/configuracion' },
   ];
+
+  const allowedModules = user?.rol === 'taller'
+    ? [
+        { name: 'Taller: Impresiones', path: '/impresiones' },
+        { name: 'Taller: Colas de Impresión', path: '/colas-impresion' },
+        { name: 'Instalaciones de Equipos', path: '/instalaciones' },
+        { name: 'Notificaciones', path: '/notificaciones' }
+      ]
+    : modules;
 
   const filteredModules = searchQuery.trim() === ''
     ? []
-    : modules.filter(m => 
+    : allowedModules.filter(m => 
         m.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
 

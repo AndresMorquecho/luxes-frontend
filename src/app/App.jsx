@@ -26,6 +26,10 @@ import { InstalacionesPage } from '../features/instalaciones/ui/InstalacionesPag
 import { MaterialesRequestPage } from '../features/instalaciones/ui/MaterialesRequestPage.jsx';
 import DashboardPage from '../features/dashboard/ui/pages/DashboardPage.jsx';
 import { NotificacionesPage } from '../features/notificaciones/ui/pages/NotificacionesPage';
+import { FormOrdenCompraPage } from '../features/compras/ui/pages/FormOrdenCompraPage';
+import { RecepcionInsumosListPage } from '../features/inventario/ui/recepcion/RecepcionInsumosListPage';
+import { RecepcionInsumosFormPage } from '../features/inventario/ui/recepcion/RecepcionInsumosFormPage';
+import ConfiguracionFeature from '../features/configuracion/ui';
 import { ToastContainer } from '../shared/ui/components/Toast';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
 import './index.css';
@@ -91,6 +95,11 @@ function App() {
   }
 
   const isAsistenciaMode = user?.rol === 'asistencia';
+  const isTallerMode = user?.rol?.toLowerCase() === 'taller';
+  const userRole = (user?.rol || '').toUpperCase();
+  const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
+  const isVentas = userRole === 'VENTAS';
+  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR';
 
   return (
     <>
@@ -104,26 +113,39 @@ function App() {
               <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
               <Route path="*" element={<Navigate to="/nomina/registro-asistencia" replace />} />
             </Routes>
+          ) : isTallerMode ? (
+            <Routes>
+              <Route path="/notificaciones" element={<NotificacionesPage />} />
+              <Route path="/instalaciones" element={<InstalacionesPage />} />
+              <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
+              <Route path="/compras/*" element={<ComprasFeature />} />
+              <Route path="/inventario/recepcion" element={<RecepcionInsumosListPage />} />
+              <Route path="/inventario/recepcion/:ordenId" element={<RecepcionInsumosFormPage />} />
+              <Route path="*" element={<Navigate to="/notificaciones" replace />} />
+            </Routes>
           ) : (
             <Routes>
-              <Route path="/" element={<DashboardPage />} />
+              <Route path="/" element={isImpresion ? <Navigate to="/colas-impresion" replace /> : <DashboardPage />} />
               <Route path="/notificaciones" element={<NotificacionesPage />} />
-              <Route path="/nomina/*" element={<NominaFeature />} />
-              <Route path="/impresiones" element={<ImpresionesPage />} />
-              <Route path="/colas-impresion" element={<ColasImpresionPage />} />
+              {!isImpresion && <Route path="/nomina/*" element={<NominaFeature />} />}
+              {!isImpresion && <Route path="/impresiones" element={<ImpresionesPage />} />}
+              {!isVentas && !isDisenador && <Route path="/colas-impresion" element={<ColasImpresionPage />} />}
               <Route path="/instalaciones" element={<InstalacionesPage />} />
               <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
               <Route path="/inventario/*" element={<InventarioFeature />} />
-              <Route path="/proyectos/*" element={<ProyectosFeature />} />
-              <Route path="/proformas/*" element={<ProformasFeature />} />
-              <Route path="/clientes/*" element={<ClientesFeature />} />
-              <Route path="/proveedores/*" element={<ProveedoresFeature />} />
-              <Route path="/contactos/*" element={<ContactosFeature />} />
-              <Route path="/usuarios/*" element={<UsuariosFeature />} />
+              {!isImpresion && <Route path="/proyectos/*" element={<ProyectosFeature />} />}
+              {!isImpresion && <Route path="/proformas/*" element={<ProformasFeature />} />}
+              {!isImpresion && <Route path="/clientes/*" element={<ClientesFeature />} />}
+              {!isImpresion && <Route path="/proveedores/*" element={<ProveedoresFeature />} />}
+              {!isImpresion && <Route path="/contactos/*" element={<ContactosFeature />} />}
+              {!isImpresion && !isVentas && !isDisenador && <Route path="/usuarios/*" element={<UsuariosFeature />} />}
+              {!isImpresion && !isVentas && !isDisenador && <Route path="/configuracion/*" element={<ConfiguracionFeature />} />}
               <Route path="/compras/*" element={<ComprasFeature />} />
-              <Route path="/ventas/*" element={<VentasFeature />} />
-              <Route path="/gastos/*" element={<GastosFeature />} />
-              <Route path="/tareas/*" element={<TareasFeature />} />
+              {!isImpresion && <Route path="/ventas/*" element={<VentasFeature />} />}
+              {!isImpresion && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
+              {!isImpresion && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
+              {!isImpresion && <Route path="/reportes-financieros/*" element={<GastosFeature defaultTab="reportes" />} />}
+              {!isImpresion && <Route path="/tareas/*" element={<TareasFeature />} />}
               {/* Redirección por defecto */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

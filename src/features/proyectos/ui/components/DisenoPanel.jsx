@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, Image as ImageIcon, CheckCircle, Clock, File, Trash2, Calendar, ShieldCheck, X } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
+import { uploadArchivoDiseno } from '../../application/proyectosService.js';
 
 export function DisenoPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
   
   const disenoFase = proyecto?.fases?.DISEÑO || {};
   const archivo = disenoFase.datos?.archivoArte || disenoFase.archivoArte || null;
@@ -38,23 +40,22 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
     }
   };
 
-  const handleFileSelect = (file) => {
-    // Save file metadata (lightweight) — persisted to localStorage
-    const mockFile = {
-      name: file.name,
-      size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-      type: file.type || 'application/pdf',
-      url: null, // Will be set below for preview
-    };
-
-    // Read as base64 for local preview only
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      // Save metadata + base64 url to state (includes preview)
-      const fileWithPreview = { ...mockFile, url: e.target.result };
-      updateFaseDatos('DISEÑO', { archivoArte: fileWithPreview });
-    };
-    reader.readAsDataURL(file);
+  const handleFileSelect = async (file) => {
+    if (!file) return;
+    
+    setUploading(true);
+    try {
+      // Subir el archivo al backend
+      const fileData = await uploadArchivoDiseno(proyectoId, file);
+      
+      // Actualizar el estado con los datos del archivo subido
+      updateFaseDatos('DISEÑO', { archivoArte: fileData });
+    } catch (error) {
+      console.error('Error al subir archivo:', error);
+      alert('Error al subir el archivo: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleRemoveFile = () => {
@@ -107,7 +108,7 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
               Archivos soportados: PDF, AI, PSD, JPG, PNG (Max 50MB)
             </p>
             <button className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
-              Seleccionar archivo
+              {uploading ? 'Subiendo...' : 'Seleccionar archivo'}
             </button>
           </div>
           )

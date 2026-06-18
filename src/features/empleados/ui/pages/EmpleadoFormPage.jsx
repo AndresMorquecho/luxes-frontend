@@ -24,6 +24,7 @@ const EMPTY_FORM = {
   cuentaBanco: '',
   banco: '',
   tipoContrato: 'Fijo',
+  tieneContrato: true,
   sueldoDiario: '',
   direccion: '',
   foto: '',
@@ -547,8 +548,9 @@ export const EmpleadoFormPage = () => {
   }, [id, isEdit]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    const val = type === 'checkbox' ? checked : value;
+    setForm((prev) => ({ ...prev, [name]: val }));
   };
 
   const handleFotoUpload = (e) => {
@@ -905,6 +907,37 @@ export const EmpleadoFormPage = () => {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+                        <div className="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                          <label className="flex items-center justify-between cursor-pointer">
+                            <div>
+                              <span className="text-xs font-bold text-slate-700 block">¿Tiene Contrato Formal?</span>
+                              <span className="text-[11px] text-slate-400 font-medium">Bajo relación de dependencia con todos los beneficios de ley</span>
+                            </div>
+                            <div className="relative inline-flex items-center cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                name="tieneContrato" 
+                                checked={form.tieneContrato} 
+                                onChange={handleChange} 
+                                className="sr-only peer" 
+                              />
+                              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            </div>
+                          </label>
+                          
+                          {form.tieneContrato ? (
+                            <div className="text-[11px] text-emerald-600 bg-emerald-50 rounded-lg px-2.5 py-1.5 font-semibold flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                              Aplica aportación IESS (9.45%), Décimo Tercero y Décimo Cuarto.
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5 font-semibold flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                              Sin relación de dependencia. No aplica IESS ni décimos. Cobro basado en asistencia.
+                            </div>
+                          )}
+                        </div>
+
                         <div>
                           <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Cargo</label>
                           <input name="cargo" value={form.cargo} onChange={handleChange} placeholder="Ej. Desarrollador" className="input-field" />
@@ -916,12 +949,14 @@ export const EmpleadoFormPage = () => {
                             {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Tipo de contrato</label>
-                          <select name="tipoContrato" value={form.tipoContrato} onChange={handleChange} className="input-field">
-                            {CONTRATOS.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </div>
+                        {form.tieneContrato && (
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Tipo de contrato</label>
+                            <select name="tipoContrato" value={form.tipoContrato} onChange={handleChange} className="input-field">
+                              {CONTRATOS.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                        )}
                         <div>
                           <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Sueldo diario ($)</label>
                           <input name="sueldoDiario" type="number" step="0.01" value={form.sueldoDiario} onChange={handleChange} placeholder="0.00" className="input-field" />

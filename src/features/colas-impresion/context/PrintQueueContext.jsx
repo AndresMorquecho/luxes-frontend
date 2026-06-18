@@ -49,108 +49,82 @@ const INITIAL_COMPLETED_JOBS = [
 ];
 
 export const PrintQueueProvider = ({ children }) => {
-  // Clear old state if version changes
-  const CURRENT_VERSION = '4';
-  const storedVersion = localStorage.getItem('luxes_print_version');
-  if (storedVersion !== CURRENT_VERSION) {
-    localStorage.removeItem('luxes_print_activeJob');
-    localStorage.removeItem('luxes_print_queue');
-    localStorage.removeItem('luxes_print_completedJobs');
-    localStorage.setItem('luxes_print_version', CURRENT_VERSION);
-  }
-
-  const [activeJob, setActiveJob] = useState(() => {
-    const stored = localStorage.getItem('luxes_print_activeJob');
-    if (stored !== null) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error('Error parsing activeJob from localStorage', e);
-      }
-    }
-    return INITIAL_ACTIVE_JOB;
-  });
-
-  const [queue, setQueue] = useState(() => {
-    const stored = localStorage.getItem('luxes_print_queue');
-    if (stored !== null) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error('Error parsing queue from localStorage', e);
-      }
-    }
-    return INITIAL_QUEUE;
-  });
-
-  const [completedJobs, setCompletedJobs] = useState(() => {
-    const stored = localStorage.getItem('luxes_print_completedJobs');
-    if (stored !== null) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error('Error parsing completedJobs from localStorage', e);
-      }
-    }
-    return INITIAL_COMPLETED_JOBS;
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('luxes_print_activeJob', JSON.stringify(activeJob));
-    } catch (e) {
-      console.error('Error saving activeJob to localStorage', e);
-    }
-  }, [activeJob]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('luxes_print_queue', JSON.stringify(queue));
-    } catch (e) {
-      console.error('Error saving queue to localStorage', e);
-    }
-  }, [queue]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('luxes_print_completedJobs', JSON.stringify(completedJobs));
-    } catch (e) {
-      console.error('Error saving completedJobs to localStorage', e);
-    }
-  }, [completedJobs]);
+  const [activeJob, setActiveJob] = useState(null);
+  const [queue, setQueue] = useState([]);
+  const [completedJobs, setCompletedJobs] = useState([]);
 
   // Modal states
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReasonText, setCancelReasonText] = useState('');
   const [prevStatus, setPrevStatus] = useState('Listo'); // To resume correct state if modal is closed
 
+  const getHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+    };
+  };
+
+  const fetchJobs = useCallback(async () => {
+    try {
+      const res = await fetch('/api/impresiones', { headers: getHeaders() });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActiveJob(data.data.activeJob);
+        setQueue(data.data.queue);
+        setCompletedJobs(data.data.completedJobs);
+      }
+    } catch (err) {
+      console.error('[PrintQueueContext] Error fetching jobs:', err);
+    }
+  }, []);
+
+  const notifyUpdate = () => {
+    window.dispatchEvent(new Event('print-queue-updated'));
+    localStorage.setItem('luxes_print_sync_trigger', Date.now().toString());
+  };
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
+
   // Sincronización de cola de impresión entre pestañas
   useEffect(() => {
     const handleStorage = (e) => {
-      try {
-        if (e.key === 'luxes_print_activeJob') {
-          setActiveJob(e.newValue ? JSON.parse(e.newValue) : null);
-        } else if (e.key === 'luxes_print_queue') {
-          setQueue(e.newValue ? JSON.parse(e.newValue) : []);
-        } else if (e.key === 'luxes_print_completedJobs') {
-          setCompletedJobs(e.newValue ? JSON.parse(e.newValue) : []);
-        }
-      } catch (err) {
-        console.error('Error syncing print queue on storage change', err);
+      if (e.key === 'luxes_print_sync_trigger') {
+        fetchJobs();
       }
     };
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+    window.addEventListener('print-queue-updated', fetchJobs);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('print-queue-updated', fetchJobs);
+    };
+  }, [fetchJobs]);
 
   // Timer simulation (counts up elapsed seconds only when status is "Imprimiendo")
   useEffect(() => {
-    const timer = setInterval(() => {
+    const timer = setInterval(async () => {
       if (activeJob && activeJob.status === "Imprimiendo") {
+        const nextSeconds = activeJob.elapsedSeconds + 1;
         setActiveJob(prev => ({
           ...prev,
-          elapsedSeconds: prev.elapsedSeconds + 1
+          elapsedSeconds: nextSeconds
         }));
+
+        if (nextSeconds % 5 === 0) {
+          try {
+            await fetch(`/api/impresiones/${activeJob.id}`, {
+              method: 'PUT',
+              headers: getHeaders(),
+              body: JSON.stringify({ elapsedSeconds: nextSeconds }),
+            });
+          } catch (e) {
+            console.error('Error saving elapsed seconds:', e);
+          }
+        }
       }
     }, 1000);
 
@@ -158,46 +132,61 @@ export const PrintQueueProvider = ({ children }) => {
   }, [activeJob]);
 
   // Start printing the active job (manual trigger)
-  const handleStartActiveJob = () => {
+  const handleStartActiveJob = async () => {
     if (!activeJob) return;
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const fullTimestamp = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-    
-    setActiveJob(prev => ({
-      ...prev,
-      status: "Imprimiendo",
-      startTime: timeString,
-      startedPrintingAt: fullTimestamp
-    }));
+    try {
+      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          status: 'Imprimiendo',
+          responsible: localStorage.getItem('userName') || 'ISAM',
+        }),
+      });
+      if (res.ok) {
+        notifyUpdate();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Toggle active job status between Imprimiendo and Pausado
-  const handleTogglePause = () => {
+  const handleTogglePause = async () => {
     if (!activeJob) return;
-    setActiveJob(prev => ({
-      ...prev,
-      status: prev.status === "Imprimiendo" ? "Pausado" : "Imprimiendo"
-    }));
+    const nextStatus = activeJob.status === 'Imprimiendo' ? 'Pausado' : 'Imprimiendo';
+    try {
+      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (res.ok) {
+        notifyUpdate();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Manually mark the active job as completed
-  const handleCompleteActiveJob = () => {
+  const handleCompleteActiveJob = async () => {
     if (!activeJob) return;
-
-    const now = new Date();
-    const fullTimestamp = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-    // Save to history list
-    const archivedJob = {
-      ...activeJob,
-      status: "Completado",
-      completedAt: fullTimestamp
-    };
-    setCompletedJobs(prev => [archivedJob, ...prev]);
-
-    // Do NOT automatically pull the next job from queue. Show placeholder.
-    setActiveJob(null);
+    try {
+      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          status: 'Completado',
+          responsible: localStorage.getItem('userName') || 'ISAM',
+        }),
+      });
+      if (res.ok) {
+        notifyUpdate();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Open the cancellation reason modal
@@ -213,28 +202,27 @@ export const PrintQueueProvider = ({ children }) => {
   };
 
   // Confirm cancel and archive with reason
-  const handleConfirmCancel = (e) => {
+  const handleConfirmCancel = async (e) => {
     e.preventDefault();
-    if (!cancelReasonText.trim()) return;
-
-    const now = new Date();
-    const fullTimestamp = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-    // Save to history list with "Cancelado" status and reason
-    const archivedJob = {
-      ...activeJob,
-      status: "Cancelado",
-      cancelReason: cancelReasonText,
-      completedAt: fullTimestamp
-    };
-    setCompletedJobs(prev => [archivedJob, ...prev]);
-
-    // Do NOT automatically pull the next job from queue. Show placeholder.
-    setActiveJob(null);
-
-    // Reset modal states
-    setShowCancelModal(false);
-    setCancelReasonText('');
+    if (!activeJob || !cancelReasonText.trim()) return;
+    try {
+      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          status: 'Cancelado',
+          cancelReason: cancelReasonText,
+          responsible: localStorage.getItem('userName') || 'ISAM',
+        }),
+      });
+      if (res.ok) {
+        setShowCancelModal(false);
+        setCancelReasonText('');
+        notifyUpdate();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Back out of cancellation modal (resumes previous state)
@@ -247,62 +235,101 @@ export const PrintQueueProvider = ({ children }) => {
   };
 
   // Cancel/Remove a job from the queue table
-  const handleCancelQueueJob = (id) => {
-    setQueue(prev => prev.filter(job => job.id !== id));
+  const handleCancelQueueJob = async (id) => {
+    try {
+      const res = await fetch(`/api/impresiones/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (res.ok) {
+        notifyUpdate();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Start printing a specific job from the queue immediately (promotes select job, sends active back to queue)
-  const handleStartQueueJob = (id) => {
-    const targetIndex = queue.findIndex(job => job.id === id);
-    if (targetIndex === -1) return;
-
-    const nextQueue = [...queue];
-    const selectedJob = nextQueue.splice(targetIndex, 1)[0];
-
-    if (activeJob) {
-      // Put current active job back to the top of the queue
-      const oldActive = {
-        ...activeJob,
-        status: "En espera"
-      };
-      setQueue([oldActive, ...nextQueue]);
-    } else {
-      setQueue(nextQueue);
+  const handleStartQueueJob = async (id, status = 'Listo', extraData = {}) => {
+    try {
+      if (activeJob) {
+        await fetch(`/api/impresiones/${activeJob.id}`, {
+          method: 'PUT',
+          headers: getHeaders(),
+          body: JSON.stringify({ status: 'En espera' }),
+        });
+      }
+      
+      const res = await fetch(`/api/impresiones/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ 
+          status, 
+          responsible: localStorage.getItem('userName') || 'ISAM',
+          ...extraData 
+        }),
+      });
+      if (res.ok) {
+        notifyUpdate();
+      }
+    } catch (e) {
+      console.error(e);
     }
-
-    // Set selected job as active in "Listo" (ready to be started) state
-    setActiveJob({
-      ...selectedJob,
-      responsible: "ISAM", // Active operator is ISAM
-      status: "Listo",
-      elapsedSeconds: selectedJob.elapsedSeconds || 0,
-      startTime: selectedJob.startTime || null
-    });
   };
 
   // Move a job up in the queue list (Prioritize)
-  const handleMoveUp = (index) => {
+  const handleMoveUp = async (index) => {
     if (index === 0) return;
-    setQueue(prev => {
-      const nextQueue = [...prev];
-      const temp = nextQueue[index];
-      nextQueue[index] = nextQueue[index - 1];
-      nextQueue[index - 1] = temp;
-      return nextQueue;
-    });
+    const nextQueue = [...queue];
+    const temp = nextQueue[index];
+    nextQueue[index] = nextQueue[index - 1];
+    nextQueue[index - 1] = temp;
+
+    try {
+      const res = await fetch('/api/impresiones/reorder', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ ids: nextQueue.map(j => j.id) }),
+      });
+      if (res.ok) {
+        notifyUpdate();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Return active job back to the top of the queue (only when status is "Listo")
-  const handleReturnToQueue = () => {
+  const handleReturnToQueue = async () => {
     if (!activeJob || activeJob.status !== "Listo") return;
-    const returnedJob = { ...activeJob, status: "En espera" };
-    setQueue(prev => [returnedJob, ...prev]);
-    setActiveJob(null);
+    try {
+      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ status: 'En espera' }),
+      });
+      if (res.ok) {
+        notifyUpdate();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Add a new job dispatched from Impresiones module
-  const addJobToQueue = (newJob) => {
-    setQueue(prev => [...prev, newJob]);
+  const addJobToQueue = async (newJob) => {
+    try {
+      const res = await fetch('/api/impresiones', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(newJob),
+      });
+      if (res.ok) {
+        notifyUpdate();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Get all jobs (active + queue + completed) linked to a specific project

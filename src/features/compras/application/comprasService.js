@@ -19,12 +19,13 @@ export async function getProveedores() {
 
 export async function getOrdenes(options = {}) {
   const params = new URLSearchParams();
-  const { page, limit, search, estado, estadoPago } = options;
+  const { page, limit, search, estado, estadoPago, creadorRol } = options;
   if (page) params.append('page', page);
   if (limit) params.append('limit', limit);
   if (search) params.append('search', search);
   if (estado) params.append('estado', estado);
   if (estadoPago) params.append('estadoPago', estadoPago);
+  if (creadorRol) params.append('creadorRol', creadorRol);
 
   const url = `/api/compras?${params.toString()}`;
   const res = await fetch(url, { headers: getHeaders() });

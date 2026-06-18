@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Calendar } from 'lucide-react';
+import { AlertTriangle, Calendar, Trash2 } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { FaseBadge } from './FaseBadge.jsx';
@@ -13,7 +13,7 @@ import { ProgressBar } from './ProgressBar.jsx';
  *
  * @param {{ proyecto: object, onEditarFase?: function }} props
  */
-export function ProyectoCard({ proyecto, onEditarFase }) {
+export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
   const navigate = useNavigate();
   const faseConfig = getFaseConfig(proyecto.faseActual);
   const prioridadConfig = PRIORIDADES_CONFIG[proyecto.prioridad] || PRIORIDADES_CONFIG.MEDIA;
@@ -43,12 +43,26 @@ export function ProyectoCard({ proyecto, onEditarFase }) {
           <h3 className="font-semibold text-slate-800 text-sm leading-tight line-clamp-2">
             {proyecto.nombre}
           </h3>
-          <span
-            className="text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0"
-            style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
-          >
-            {prioridadConfig.label}
-          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <span
+              className="text-xs font-bold px-1.5 py-0.5 rounded-md"
+              style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
+            >
+              {prioridadConfig.label}
+            </span>
+            {onEliminar && (
+              <button
+                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Eliminar proyecto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEliminar(proyecto);
+                }}
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Cliente */}

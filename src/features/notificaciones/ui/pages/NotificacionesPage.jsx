@@ -37,6 +37,11 @@ const getNotificationRoute = (notification) => {
     return '/tareas';
   }
   
+  // Impresión / Colas de Impresión
+  if (title.includes('impresi') || message.includes('impresi')) {
+    return '/colas-impresion';
+  }
+  
   return null;
 };
 
@@ -93,6 +98,10 @@ export const NotificacionesPage = () => {
       // Marcar como leída antes de navegar
       if (!notification.isRead) {
         handleMarkRead(notification.id);
+      }
+      if (route === '/colas-impresion') {
+        window.dispatchEvent(new Event('print-queue-updated'));
+        localStorage.setItem('luxes_print_sync_trigger', Date.now().toString());
       }
       navigate(route);
     }
@@ -165,7 +174,7 @@ export const NotificacionesPage = () => {
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                         </svg>
-                        Ir
+                        {(n.title?.toLowerCase().includes('impresi') || n.message?.toLowerCase().includes('impresi')) ? 'Ver' : 'Ir'}
                       </button>
                     )}
                     {!n.isRead && (

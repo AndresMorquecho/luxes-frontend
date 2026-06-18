@@ -67,10 +67,10 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/LogoGlobo.png',
-    badge: '/LogoGlobo.png',
+    icon: data.icon || '/LogoGlobo.png',
+    badge: data.badge || '/LogoGlobo.png',
     vibrate: [100, 50, 100],
-    data: {
+    data: data.data || {
       url: data.url || '/'
     }
   };

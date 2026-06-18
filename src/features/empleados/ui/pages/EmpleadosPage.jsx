@@ -522,8 +522,26 @@ export const EmpleadosPage = () => {
                         <p className="text-slate-800 font-semibold mt-0.5">{viewingEmpleado.cargo || '—'}</p>
                       </div>
                       <div>
+                        <p className="text-slate-400 font-medium">Contratación</p>
+                        <div className="mt-1">
+                          {viewingEmpleado.tieneContrato !== false ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-emerald-100">
+                              Bajo Relación
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-amber-100">
+                              Por Asistencia
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
                         <p className="text-slate-400 font-medium">Tipo de contrato</p>
-                        <p className="text-slate-800 font-semibold mt-0.5">{viewingEmpleado.tipoContrato || '—'}</p>
+                        <p className="text-slate-800 font-semibold mt-0.5">
+                          {viewingEmpleado.tieneContrato !== false 
+                            ? (viewingEmpleado.tipoContrato || 'Fijo') 
+                            : 'Sin contrato'}
+                        </p>
                       </div>
                       <div>
                         <p className="text-slate-400 font-medium">Sueldo Diario</p>

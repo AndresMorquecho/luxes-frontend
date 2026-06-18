@@ -111,6 +111,7 @@ export const saveEmpleado = async (empleado) => {
     cuentaBanco: empleado.cuentaBanco ?? '',
     banco: empleado.banco ?? '',
     tipoContrato: empleado.tipoContrato ?? 'Fijo',
+    tieneContrato: empleado.tieneContrato ?? true,
     sueldoDiario: Number(empleado.sueldoDiario) || 0,
     direccion: empleado.direccion ?? '',
     foto: empleado.foto ?? '',

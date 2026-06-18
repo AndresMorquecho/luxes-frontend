@@ -12,6 +12,7 @@ export const confirmDialog = (title, message, options = {}) => {
         message,
         confirmLabel: options.confirmLabel || 'Aceptar',
         cancelLabel: options.cancelLabel || 'Cancelar',
+        showCancel: options.showCancel !== false,
         type: options.type || 'danger', // danger, warning, info
         resolve
       });
@@ -29,6 +30,7 @@ export const ConfirmDialogContainer = () => {
     message: '',
     confirmLabel: 'Aceptar',
     cancelLabel: 'Cancelar',
+    showCancel: true,
     type: 'danger',
     resolve: null
   });
@@ -109,13 +111,20 @@ export const ConfirmDialogContainer = () => {
             <p className="confirm-message">{state.message}</p>
           </div>
           <div className="confirm-footer">
-            <button type="button" className="confirm-btn-cancel" onClick={handleCancel}>
-              {state.cancelLabel}
-            </button>
+            {state.showCancel && (
+              <button type="button" className="confirm-btn-cancel" onClick={handleCancel}>
+                {state.cancelLabel}
+              </button>
+            )}
             <button
               type="button"
               className="confirm-btn-action"
-              style={{ background: colors.btnBg, boxShadow: colors.btnShadow }}
+              style={{ 
+                background: colors.btnBg, 
+                boxShadow: colors.btnShadow,
+                width: state.showCancel ? 'auto' : '100%',
+                margin: state.showCancel ? '' : '0'
+              }}
               onClick={handleConfirm}
             >
               {state.confirmLabel}

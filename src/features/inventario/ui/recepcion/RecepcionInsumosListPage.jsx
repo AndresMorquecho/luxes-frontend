@@ -30,6 +30,10 @@ const mapOrdenToPDFFormat = (orden) => {
 
 export const RecepcionInsumosListPage = () => {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const userRole = (user?.rol || '').toUpperCase();
+  const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
+  const isTaller = userRole === 'TALLER';
   
   const [ordenes, setOrdenes] = useState([]);
   const [ordenPage, setOrdenPage] = useState(1);
@@ -51,7 +55,8 @@ export const RecepcionInsumosListPage = () => {
         page: ordenPage,
         limit: perPage,
         search: ordenSearch || undefined,
-        estado: 'aprobada' // Solo órdenes aprobadas
+        estado: 'aprobada', // Solo órdenes aprobadas
+        creadorRol: (isImpresion || isTaller) ? user?.rol : undefined
       });
       setOrdenes(data.items || []);
       setOrdenTotal(data.total || 0);
@@ -62,7 +67,7 @@ export const RecepcionInsumosListPage = () => {
     } finally {
       setOrdenLoading(false);
     }
-  }, [ordenPage, ordenSearch]);
+  }, [ordenPage, ordenSearch, isImpresion, isTaller, user]);
 
   useEffect(() => {
     loadOrdenes();
@@ -128,7 +133,7 @@ export const RecepcionInsumosListPage = () => {
                   <th>Solicitante</th>
                   <th>Fecha Aprobación</th>
                   <th>Concepto</th>
-                  <th className="text-right">Total</th>
+                  {!isTaller && <th className="text-right">Total</th>}
                   <th className="text-center">Items</th>
                   <th className="text-center w-48">Acciones</th>
                 </tr>
@@ -141,21 +146,23 @@ export const RecepcionInsumosListPage = () => {
                     <td className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
                     <td className="text-slate-500 text-xs">{fmtDate(o.fecha)}</td>
                     <td className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
-                    <td className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>
+                    {!isTaller && <td className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>}
                     <td className="text-center text-slate-600 text-sm font-semibold">{o.detalles?.length || 0}</td>
                     <td>
                       <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleVerOrden(o)}
-                          className="ri-btn-ver"
-                          title="Ver Orden de Compra"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                          </svg>
-                          Ver
-                        </button>
+                        {!isTaller && (
+                          <button
+                            onClick={() => handleVerOrden(o)}
+                            className="ri-btn-ver"
+                            title="Ver Orden de Compra"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                            Ver
+                          </button>
+                        )}
                         <button
                           onClick={() => handleRecepcionar(o.id)}
                           className="ri-btn-recepcionar"
@@ -172,7 +179,7 @@ export const RecepcionInsumosListPage = () => {
                 ))}
                 {ordenes.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="text-center py-16">
+                    <td colSpan={isTaller ? 7 : 8} className="text-center py-16">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
                           <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

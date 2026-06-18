@@ -12,6 +12,8 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'nume
 export const RecepcionInsumosFormPage = () => {
   const { ordenId } = useParams();
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const isTaller = user?.rol === 'taller';
 
   const [orden, setOrden] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -187,16 +189,18 @@ export const RecepcionInsumosFormPage = () => {
             <h2 className="text-xl font-bold mb-0.5">Recepción de Insumos</h2>
             <p className="text-sm opacity-90">Registra la cantidad recibida de cada item y observaciones</p>
           </div>
-          <button
-            type="button"
-            onClick={handleVerPDF}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-blue-300 bg-white/40 hover:bg-blue-50 text-blue-700 font-bold transition-all text-sm"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
-            </svg>
-            Ver Orden de Compra
-          </button>
+          {!isTaller && (
+            <button
+              type="button"
+              onClick={handleVerPDF}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-blue-300 bg-white/40 hover:bg-blue-50 text-blue-700 font-bold transition-all text-sm"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
+              </svg>
+              Ver Orden de Compra
+            </button>
+          )}
         </div>
         
         <div className="ri-info-grid">
@@ -228,10 +232,12 @@ export const RecepcionInsumosFormPage = () => {
               </div>
             </>
           )}
-          <div className="ri-info-item">
-            <label>Total Orden</label>
-            <p className="font-bold">{fmt(orden.total)}</p>
-          </div>
+          {!isTaller && (
+            <div className="ri-info-item">
+              <label>Total Orden</label>
+              <p className="font-bold">{fmt(orden.total)}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -253,11 +259,11 @@ export const RecepcionInsumosFormPage = () => {
             <table className="ri-items-table">
               <thead>
                 <tr>
-                  <th style={{ width: '35%' }}>Descripción</th>
+                  <th style={{ width: isTaller ? '40%' : '35%' }}>Descripción</th>
                   <th style={{ width: '15%', textAlign: 'center' }}>Solicitada</th>
                   <th style={{ width: '15%', textAlign: 'center' }}>Recibida</th>
-                  <th style={{ width: '15%', textAlign: 'right' }}>Precio Unit.</th>
-                  <th style={{ width: '20%' }}>Observaciones</th>
+                  {!isTaller && <th style={{ width: '15%', textAlign: 'right' }}>Precio Unit.</th>}
+                  <th style={{ width: isTaller ? '30%' : '20%' }}>Observaciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -276,7 +282,7 @@ export const RecepcionInsumosFormPage = () => {
                         style={{ maxWidth: '100px', textAlign: 'center', margin: '0 auto' }}
                       />
                     </td>
-                    <td style={{ textAlign: 'right' }} className="font-semibold text-slate-700">{fmt(detalle.precioUnitario)}</td>
+                    {!isTaller && <td style={{ textAlign: 'right' }} className="font-semibold text-slate-700">{fmt(detalle.precioUnitario)}</td>}
                     <td>
                       <input
                         type="text"
@@ -295,7 +301,7 @@ export const RecepcionInsumosFormPage = () => {
                   <td className="font-bold text-slate-800">TOTALES</td>
                   <td style={{ textAlign: 'center' }} className="font-bold text-slate-800">{totalSolicitado}</td>
                   <td style={{ textAlign: 'center' }} className="font-bold text-blue-700 text-lg">{totalRecibido}</td>
-                  <td colSpan={2}></td>
+                  <td colSpan={isTaller ? 1 : 2}></td>
                 </tr>
               </tfoot>
             </table>

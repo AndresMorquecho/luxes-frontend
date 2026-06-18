@@ -3,15 +3,24 @@ import { Search, FileText, Eye, X, CheckCircle, Clock, FileEdit, Calendar } from
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { getProformas } from '../../../proformas/application/proformasService.js';
 import { ProformaPDF } from '../../../proformas/ui/components/ProformaPDF.jsx';
+import { getProyectos } from '../../application/proyectosService.js';
 
 export function CotizacionPanel({ proyectoId, soloLectura }) {
-  const { proyecto } = useProyecto(proyectoId);
+  const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedCotizaciones, setSelectedCotizaciones] = useState(proyecto?.fases?.COTIZACION?.cotizacionesSeleccionadas || []);
+  const [selectedCotizaciones, setSelectedCotizaciones] = useState(proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas || []);
   const [previewOriginal, setPreviewOriginal] = useState(null);
   const [proformas, setProformas] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
   const searchRef = useRef(null);
+
+  // Actualizar selectedCotizaciones cuando cambie el proyecto (útil después de refrescar)
+  useEffect(() => {
+    if (proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas) {
+      setSelectedCotizaciones(proyecto.fases.COTIZACION.datos.cotizacionesSeleccionadas);
+    }
+  }, [proyecto]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -24,11 +33,29 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   }, []);
 
   useEffect(() => {
-    getProformas().then(all => setProformas(all));
+    getProformas().then(response => {
+      // Handle both response formats: {data: []} or direct array
+      const proformasData = response?.data || response || [];
+      setProformas(Array.isArray(proformasData) ? proformasData : []);
+    }).catch(err => {
+      console.error('Error loading proformas:', err);
+      setProformas([]);
+    });
+  }, []);
+
+  useEffect(() => {
+    getProyectos({ limit: 1000 }).then(response => {
+      const projectsData = response?.data || response || [];
+      setAllProjects(Array.isArray(projectsData) ? projectsData : []);
+    }).catch(err => {
+      console.error('Error loading all projects:', err);
+      setAllProjects([]);
+    });
   }, []);
 
   const normProformas = proformas.map(p => ({
     id: p.id,
+    clienteId: p.clienteId,
     cliente: p.cliente,
     creadoPor: '—',
     fecha: p.fecha,
@@ -38,21 +65,55 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
     iva: p.iva,
   }));
 
-  // Filtrar proformas que no estén ya seleccionadas
+  const isRelatedToClient = (c) => {
+    if (!proyecto) return false;
+    // Comparar por clienteId si ambos existen
+    if (c.clienteId && proyecto.clienteId) {
+      return c.clienteId === proyecto.clienteId;
+    }
+    // Si no, comparar nombres como respaldo
+    const profClient = (c.cliente || '').trim().toLowerCase();
+    const projClient = (proyecto.cliente?.nombre || proyecto.clienteNombre || '').trim().toLowerCase();
+    return profClient === projClient;
+  };
+
+  const isLinkedToOtherProject = (proformaId) => {
+    return allProjects.some(proj => 
+      proj.id !== proyectoId &&
+      proj.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas?.some(sc => sc.id === proformaId)
+    );
+  };
+
+  // Filtrar proformas: solo Aprobadas, del mismo cliente, que no estén ya seleccionadas ni vinculadas a otros proyectos, y que coincidan con la búsqueda
   const filteredProformas = normProformas.filter(c => 
+    c.estado === 'Aprobada' &&
+    isRelatedToClient(c) &&
     !selectedCotizaciones.find(sc => sc.id === c.id) &&
+    !isLinkedToOtherProject(c.id) &&
     (c.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
      c.cliente.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleSelect = (cotizacion) => {
-    setSelectedCotizaciones([...selectedCotizaciones, cotizacion]);
+    const nuevasCotizaciones = [...selectedCotizaciones, cotizacion];
+    setSelectedCotizaciones(nuevasCotizaciones);
     setSearchTerm('');
     setIsDropdownOpen(false);
+    
+    // Guardar automáticamente en el backend
+    if (!soloLectura) {
+      updateFaseDatos('COTIZACION', { cotizacionesSeleccionadas: nuevasCotizaciones });
+    }
   };
 
   const handleRemove = (id) => {
-    setSelectedCotizaciones(selectedCotizaciones.filter(c => c.id !== id));
+    const nuevasCotizaciones = selectedCotizaciones.filter(c => c.id !== id);
+    setSelectedCotizaciones(nuevasCotizaciones);
+    
+    // Guardar automáticamente en el backend
+    if (!soloLectura) {
+      updateFaseDatos('COTIZACION', { cotizacionesSeleccionadas: nuevasCotizaciones });
+    }
   };
 
   const getEstadoIcon = (estado) => {
@@ -90,7 +151,11 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
             <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-80 overflow-y-auto">
               {filteredProformas.length === 0 ? (
                 <div className="p-6 text-center text-slate-500">
-                  {proformas.length === 0 ? 'No hay proformas disponibles.' : `No se encontraron proformas para "${searchTerm}"`}
+                  {proformas.length === 0 
+                    ? 'No hay proformas disponibles.' 
+                    : normProformas.filter(p => p.estado === 'Aprobada').length === 0
+                    ? 'No hay proformas aprobadas disponibles.'
+                    : `No se encontraron proformas aprobadas para "${searchTerm}"`}
                 </div>
               ) : (
                 filteredProformas.map(c => (

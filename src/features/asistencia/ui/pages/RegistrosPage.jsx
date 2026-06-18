@@ -182,12 +182,30 @@ const KioskView = () => {
   const [scanError, setScanError] = useState(null);
   const [lastScan, setLastScan] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [ubicacion, setUbicacion] = useState(null);
+  const [ubicacionError, setUbicacionError] = useState(null);
 
   // Reloj digital para Quiosco
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Solicitar ubicación al montar y cuando se activa la cámara
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUbicacion({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => { 
+          console.warn('Sin ubicación', err); 
+          setUbicacionError('Permiso de ubicación denegado.'); 
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      setUbicacionError('La geolocalización no es soportada.');
+    }
+  }, [isCameraActive]);
 
   const handleKioskScan = async (result) => {
     if (!result || result.length === 0 || isProcessingScan) return;
@@ -196,9 +214,21 @@ const KioskView = () => {
     setScanError(null);
 
     try {
+      let ubicacionFinal = ubicacion;
+      if (!ubicacionFinal && navigator.geolocation) {
+        ubicacionFinal = await new Promise((resolve) =>
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 3000 }
+          )
+        );
+      }
+      if (!ubicacionFinal) ubicacionFinal = { lat: -2.19616, lng: -79.88621 }; // Fallback predeterminado
+
       const registro = await registrarAsistencia({
         empleadoId: empleadoId.trim(),
-        ubicacion: { lat: -2.19616, lng: -79.88621 },
+        ubicacion: ubicacionFinal,
       });
 
       const marcaciones = await getTodayMarcaciones(empleadoId.trim());
@@ -270,13 +300,26 @@ const KioskView = () => {
       <div className="w-full max-w-md bg-slate-900/60 border border-slate-800 rounded-3xl p-8 flex flex-col items-center space-y-6 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         
         {/* Reloj y Fecha */}
-        <div className="text-center">
+        <div className="text-center flex flex-col items-center">
           <p className="text-6xl font-black text-white tracking-tight leading-none drop-shadow-md">
             {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </p>
           <p className="text-xs font-bold text-slate-400 mt-3.5 uppercase tracking-widest leading-relaxed">
             {currentTime.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
           </p>
+          {ubicacionError ? (
+            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-amber-400 bg-amber-950/40 border border-amber-500/25 rounded-full inline-flex items-center gap-1 animate-pulse">
+              ⚠️ Sin GPS: {ubicacionError}
+            </span>
+          ) : ubicacion ? (
+            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 rounded-full inline-flex items-center gap-1">
+              📍 GPS Activo y Listo
+            </span>
+          ) : (
+            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-slate-400 bg-slate-900 border border-slate-800 rounded-full inline-flex items-center gap-1">
+              ⌛ Buscando GPS...
+            </span>
+          )}
         </div>
 
         {/* Contenido Dinámico: Cámara o Pantalla de Espera */}
@@ -589,6 +632,21 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </div>
       </div>
 
+      {/* KPIs Grid - placed above calendar selector, in a single row */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6">
+        {[
+          { label: 'Colaboradores', value: kpis.total, cssClass: 'total', color: 'text-blue-600' },
+          { label: 'Asistencias', value: kpis.asistieron, cssClass: 'asistencias', color: 'text-emerald-600' },
+          { label: 'Faltas', value: kpis.faltaron, cssClass: 'faltas', color: 'text-red-600' },
+          { label: 'Permisos', value: kpis.permisos, cssClass: 'permisos', color: 'text-indigo-600' },
+        ].map(s => (
+          <div key={s.label} className={`bg-white shadow-card kpi-card ${s.cssClass} rounded-xl p-2.5 sm:px-4 sm:py-3.5 border border-gray-100`}>
+            <p className="text-[8px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider truncate">{s.label}</p>
+            <p className={`text-base sm:text-2xl font-black mt-0.5 sm:mt-1 ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Selector de Semana / Fecha en forma de Cards Navigables */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-5 border-b border-slate-100">
@@ -674,21 +732,6 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </div>
       </div>
 
-      {/* KPIs Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Colaboradores Totales', value: kpis.total, cssClass: 'total', color: 'text-blue-600' },
-          { label: 'Asistencias', value: kpis.asistieron, cssClass: 'asistencias', color: 'text-emerald-600' },
-          { label: 'Faltas detectadas', value: kpis.faltaron, cssClass: 'faltas', color: 'text-red-600' },
-          { label: 'Permisos Pagados', value: kpis.permisos, cssClass: 'permisos', color: 'text-indigo-600' },
-        ].map(s => (
-          <div key={s.label} className={`bg-white shadow-card kpi-card ${s.cssClass} rounded-xl px-4 py-3.5 border border-gray-100`}>
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{s.label}</p>
-            <p className={`text-2xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
-
       {/* Buscador y Filtros de Estado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="relative flex-1 max-w-md">
@@ -764,8 +807,9 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                   const isPermiso = estado === 'PERMISO';
                   const isAsistio = estado === 'ASISTIO';
 
-                  const mapsUrl = (entrada?.ubicacionLat && entrada?.ubicacionLng) 
-                    ? `https://www.google.com/maps/search/?api=1&query=${entrada.ubicacionLat},${entrada.ubicacionLng}` 
+                  const anyMarcacionConUbicacion = marcaciones.find(m => m.ubicacionLat && m.ubicacionLng);
+                  const mapsUrl = anyMarcacionConUbicacion 
+                    ? `https://www.google.com/maps/search/?api=1&query=${anyMarcacionConUbicacion.ubicacionLat},${anyMarcacionConUbicacion.ubicacionLng}` 
                     : null;
                   
                   const initials = emp.nombre ? emp.nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'EMP';

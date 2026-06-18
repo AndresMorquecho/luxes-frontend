@@ -44,10 +44,6 @@ export function InstalacionesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('TODAS'); // TODAS, PENDIENTES, ACTIVAS, COMPLETADAS
 
-  // Modal de Completar Instalación
-  const [selectedProyecto, setSelectedProyecto] = useState(null);
-  const [notasCierre, setNotasCierre] = useState('');
-
   // Filtrar proyectos que requieren instalación
   const proyectosInstalacion = todosLosProyectos.filter(p => p.requiereInstalacion === true);
 
@@ -86,62 +82,6 @@ export function InstalacionesPage() {
 
     return matchesSearch && matchesTab;
   });
-
-  // Iniciar la instalación (Guardar fecha y hora)
-  function handleIniciarInstalacion(proyecto) {
-    const now = new Date();
-    const fecha = now.toISOString().split('T')[0];
-    const hora = now.toTimeString().slice(0, 5);
-
-    const datosInstalacion = proyecto.fases?.INSTALACION?.datos || {};
-
-    const cambios = {
-      fases: {
-        ...proyecto.fases,
-        INSTALACION: {
-          ...proyecto.fases?.INSTALACION,
-          datos: {
-            ...datosInstalacion,
-            fechaInstalacion: fecha,
-            horaInstalacion: hora,
-            direccionInstalacion: datosInstalacion.direccionInstalacion || proyecto.cliente?.direccion || '',
-          }
-        }
-      }
-    };
-
-    updateProyecto(proyecto.id, cambios);
-  }
-
-  // Guardar y avanzar fase a Entrega
-  function handleGuardarCierreInstalacion() {
-    if (!selectedProyecto) return;
-
-    const datosInstalacion = selectedProyecto.fases?.INSTALACION?.datos || {};
-
-    const cambios = {
-      fases: {
-        ...selectedProyecto.fases,
-        INSTALACION: {
-          ...selectedProyecto.fases?.INSTALACION,
-          completada: true,
-          fechaCompletada: new Date().toISOString().split('T')[0],
-          datos: {
-            ...datosInstalacion,
-            instalacionCompletada: true,
-            notasCierre: notasCierre,
-          }
-        }
-      }
-    };
-
-    updateProyecto(selectedProyecto.id, cambios);
-    avanzarFaseProyecto(selectedProyecto.id);
-
-    // Resetear modal
-    setSelectedProyecto(null);
-    setNotasCierre('');
-  }
 
   // Obtener iniciales de los empleados
   function getInitials(name = '') {
@@ -248,7 +188,7 @@ export function InstalacionesPage() {
         </div>
       </div>
 
-      {/* Grid List */}
+      {/* List layout */}
       {filteredInstallations.length === 0 ? (
         <div className="instalaciones-empty-state">
           <div className="empty-state-icon-box">
@@ -260,7 +200,7 @@ export function InstalacionesPage() {
           </p>
         </div>
       ) : (
-        <div className="instalaciones-cards-grid">
+        <div className="instalaciones-list-container">
           {filteredInstallations.map((proyecto) => {
             const datosInstalacion = proyecto.fases?.INSTALACION?.datos || {};
             const isStarted = !!(datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion);
@@ -272,84 +212,65 @@ export function InstalacionesPage() {
             const priorityClass = PRIORIDAD_COLORS[proyecto.prioridad] || 'media';
             const progressColor = FASE_COLORS[proyecto.faseActual] || '#6366f1';
 
-            const ocDelProyecto = ordenesCompra.filter(oc => oc.proyectoId === proyecto.id);
+            const ocDelProyecto = proyecto.ordenesCompra || [];
             const ocPendiente = ocDelProyecto.find(oc => oc.estado === 'PENDIENTE');
             const ocAprobada = ocDelProyecto.find(oc => oc.estado === 'APROBADA');
 
             return (
-              <div key={proyecto.id} className="instalacion-card">
-                {/* Header */}
-                <div className="instalacion-card-header">
-                  <h3 className="instalacion-card-title">{proyecto.nombre}</h3>
-                  <span className={`badge-priority ${priorityClass}`}>
-                    {proyecto.prioridad}
-                  </span>
+              <div key={proyecto.id} className="instalacion-list-row">
+                {/* Columna 1: Proyecto e Info Principal */}
+                <div className="list-col col-main">
+                  <div className="list-proj-header">
+                    <span className={`badge-priority ${priorityClass}`}>
+                      {proyecto.prioridad}
+                    </span>
+                    <span className="list-proj-id">{proyecto.id}</span>
+                  </div>
+                  <h3 className="list-proj-title">{proyecto.nombre}</h3>
+                  <div className="instalacion-progress-box min-w-[120px] mt-2">
+                    <div className="progress-bar-container">
+                      <div 
+                        className="progress-bar-fill" 
+                        style={{ 
+                          width: `${proyecto.progreso}%`, 
+                          backgroundColor: progressColor 
+                        }}
+                      />
+                    </div>
+                    <div className="progress-labels mt-1" style={{ fontSize: '10px' }}>
+                      <span>Progreso: {proyecto.progreso}%</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Body */}
-                <div className="instalacion-card-body">
-                  {/* Client Box */}
-                  <div className="instalacion-client-info">
-                    <span className="instalacion-client-company">{proyecto.cliente.empresa}</span>
-                    <span className="instalacion-client-contact">Contacto: {proyecto.cliente.nombre}</span>
-                  </div>
+                {/* Columna 2: Cliente */}
+                <div className="list-col col-client">
+                  <span className="list-client-empresa">{proyecto.cliente.empresa}</span>
+                  <span className="list-client-contacto">Contacto: {proyecto.cliente.nombre}</span>
+                </div>
 
-                  {/* Address */}
-                  <div className="instalacion-detail-row">
-                    <MapPin size={15} className="instalacion-detail-icon" />
-                    <span className="instalacion-detail-text" title={datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}>
+                {/* Columna 3: Dirección & Programación */}
+                <div className="list-col col-details">
+                  <div className="list-detail-item">
+                    <MapPin size={14} className="list-detail-icon" />
+                    <span className="list-detail-text" title={datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}>
                       {datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}
                     </span>
                   </div>
+                  <div className="list-detail-item mt-1.5">
+                    <Calendar size={14} className="list-detail-icon" />
+                    <span className="list-detail-text">
+                      {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion
+                        ? `${datosInstalacion.fechaInstalacion} a las ${datosInstalacion.horaInstalacion}`
+                        : 'Pendiente de arranque'
+                      }
+                    </span>
+                  </div>
+                </div>
 
-                  {/* Purchase Order Status */}
-                  {ocDelProyecto.length > 0 && (
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', margin: '0.5rem 0' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Solicitud:</span>
-                      {ocPendiente ? (
-                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '9999px', textTransform: 'uppercase', background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a' }}>
-                          OC {ocPendiente.id} Pendiente
-                        </span>
-                      ) : ocAprobada ? (
-                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '9999px', textTransform: 'uppercase', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>
-                          OC {ocAprobada.id} Aprobada
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '9999px', textTransform: 'uppercase', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
-                          OC Rechazada
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Status Block */}
-                  {isFinished ? (
-                    <div className="instalacion-state-block completed flex items-center gap-1.5">
-                      <CheckCircle size={15} />
-                      <span>Instalación Finalizada ({proyecto.fases?.INSTALACION?.fechaCompletada || 'Completada'})</span>
-                    </div>
-                  ) : proyecto.faseActual === 'INSTALACION' ? (
-                    isStarted ? (
-                      <div className="instalacion-state-block started flex items-center gap-1.5">
-                        <Clock size={15} />
-                        <span>Instalación iniciada: {datosInstalacion.fechaInstalacion} a las {datosInstalacion.horaInstalacion}</span>
-                      </div>
-                    ) : (
-                      <div className="instalacion-state-block idle flex items-center gap-1.5">
-                        <AlertTriangle size={15} />
-                        <span>Fase activa: Requiere registrar arranque</span>
-                      </div>
-                    )
-                  ) : (
-                    <div className="instalacion-state-block idle flex items-center gap-1.5" style={{ background: '#f1f5f9', borderColor: '#cbd5e1', color: '#475569' }}>
-                      <ClipboardList size={15} />
-                      <span>Fase actual del proyecto: {FASE_LABELS[proyecto.faseActual]}</span>
-                    </div>
-                  )}
-
-                  {/* Team List */}
-                  <div className="instalacion-team-group">
-                    <span className="team-label">Equipo Asignado:</span>
+                {/* Columna 4: Equipo y Materiales */}
+                <div className="list-col col-team-materials">
+                  <div className="list-team-avatars">
                     {personalAsignado.length > 0 ? (
                       <div className="team-avatars-list">
                         {personalAsignado.map((p, i) => (
@@ -366,143 +287,74 @@ export function InstalacionesPage() {
                       <span className="team-empty-msg">Sin personal asignado</span>
                     )}
                   </div>
-
-                  {/* Materials Count */}
-                  <div className="instalacion-detail-row">
-                    <Wrench size={15} className="instalacion-detail-icon" />
-                    <span className="instalacion-detail-text">
+                  <div className="list-materials-count mt-2">
+                    <Wrench size={13} style={{ color: '#94a3b8' }} />
+                    <span>
                       {materiales.length > 0 
-                        ? `${materiales.length} materiales/herramientas enlistados`
-                        : 'Sin lista de materiales registrada'
+                        ? `${materiales.length} materiales`
+                        : 'Sin materiales'
                       }
                     </span>
                   </div>
-
-                  {/* Progress bar */}
-                  <div className="instalacion-progress-box">
-                    <div className="progress-labels">
-                      <span>Progreso General</span>
-                      <span>{proyecto.progreso}%</span>
-                    </div>
-                    <div className="progress-bar-container">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          width: `${proyecto.progreso}%`, 
-                          backgroundColor: progressColor 
-                        }}
-                      />
-                    </div>
-                  </div>
                 </div>
 
-                {/* Footer Actions */}
-                <div className="instalacion-card-actions">
+                {/* Columna 5: Estado / Orden de Compra */}
+                <div className="list-col col-status">
+                  {/* Estado Montaje */}
+                  {isFinished ? (
+                    <span className="list-state-badge completed">
+                      <CheckCircle size={12} /> Completada
+                    </span>
+                  ) : proyecto.faseActual === 'INSTALACION' ? (
+                    isStarted ? (
+                      <span className="list-state-badge started">
+                        <Clock size={12} /> En Montaje
+                      </span>
+                    ) : (
+                      <span className="list-state-badge idle">
+                        <AlertTriangle size={12} /> Iniciar Montaje
+                      </span>
+                    )
+                  ) : (
+                    <span className="list-state-badge queue" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>
+                      <ClipboardList size={12} /> {FASE_LABELS[proyecto.faseActual]}
+                    </span>
+                  )}
+
+                  {/* Orden de Compra */}
+                  {ocDelProyecto.length > 0 && (
+                    <div className="mt-2">
+                      {ocPendiente ? (
+                        <span className="list-oc-badge pending">
+                          OC Pendiente
+                        </span>
+                      ) : ocAprobada ? (
+                        <span className="list-oc-badge approved">
+                          OC Aprobada
+                        </span>
+                      ) : (
+                        <span className="list-oc-badge rejected">
+                          OC Rechazada
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Columna 6: Acciones */}
+                <div className="list-col col-actions">
                   <button
                     onClick={() => navigate(`/instalaciones/${proyecto.id}/materiales`)}
-                    className="card-action-btn secondary"
+                    className="card-action-btn primary list-btn"
                     title="Ver ficha del proyecto"
                   >
-                    <Eye size={15} />
+                    <Eye size={14} />
                     Ver Proyecto
                   </button>
-
-                  {!isFinished && proyecto.faseActual === 'INSTALACION' && (
-                    !isStarted ? (
-                      <button
-                        onClick={() => handleIniciarInstalacion(proyecto)}
-                        className="card-action-btn primary"
-                      >
-                        <Play size={15} />
-                        Iniciar Montaje
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setSelectedProyecto(proyecto)}
-                        className="card-action-btn success"
-                      >
-                        <CheckCircle size={15} />
-                        Completar
-                      </button>
-                    )
-                  )}
-
-                  {!isFinished && proyecto.faseActual !== 'INSTALACION' && (
-                    <button
-                      className="card-action-btn secondary"
-                      disabled
-                      style={{ opacity: 0.6, cursor: 'not-allowed', backgroundColor: '#f8fafc', borderColor: '#cbd5e1' }}
-                    >
-                      En Cola
-                    </button>
-                  )}
-
-                  {isFinished && (
-                    <button
-                      className="card-action-btn secondary"
-                      disabled
-                      style={{ opacity: 0.7, cursor: 'not-allowed', color: '#059669', borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' }}
-                    >
-                      <CheckCircle size={15} />
-                      Completada
-                    </button>
-                  )}
                 </div>
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Completion Modal */}
-      {selectedProyecto && (
-        <div className="modal-overlay" onClick={() => setSelectedProyecto(null)}>
-          <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Finalizar Instalación</h3>
-              <button 
-                onClick={() => setSelectedProyecto(null)}
-                className="modal-close-btn"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <p className="text-sm text-slate-500">
-                Confirmas que la instalación en sitio para <strong>{selectedProyecto.nombre}</strong> ha concluido de forma satisfactoria.
-              </p>
-
-              <div className="form-field-group">
-                <label className="form-label">Notas de Cierre</label>
-                <textarea
-                  className="form-textarea"
-                  rows={4}
-                  placeholder="Observaciones de entrega, conformidad del cliente, problemas resueltos..."
-                  value={notasCierre}
-                  onChange={(e) => setNotasCierre(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                onClick={() => setSelectedProyecto(null)}
-                className="card-action-btn secondary"
-                style={{ flex: 'none', width: 'auto', px: '1.25rem' }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleGuardarCierreInstalacion}
-                className="card-action-btn success"
-                style={{ flex: 'none', width: 'auto', px: '1.5rem' }}
-              >
-                <CheckCircle size={15} />
-                Guardar y Avanzar Fase
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

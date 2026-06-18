@@ -48,6 +48,8 @@ export const ComprasPage = () => {
   const [currentUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
   const userRole = (currentUser?.rol || '').toLowerCase();
   const isAdmin = userRole === 'admin' || userRole === 'administrador';
+  const isImpresion = userRole === 'impresión' || userRole === 'impresion';
+  const isTaller = userRole === 'taller';
 
   const [stats, setStats] = useState({ totalOrdenes: 0, pendientes: 0, totalGastado: 0, totalDeuda: 0 });
 
@@ -102,12 +104,17 @@ export const ComprasPage = () => {
   const loadOrdenes = useCallback(async () => {
     setOrdenLoading(true);
     try {
-      const data = await getOrdenes({ page: ordenPage, limit: perPage, search: ordenSearch || undefined });
+      const data = await getOrdenes({
+        page: ordenPage,
+        limit: perPage,
+        search: ordenSearch || undefined,
+        creadorRol: (isImpresion || isTaller) ? currentUser?.rol : undefined
+      });
       setOrdenes(data.items || []);
       setOrdenTotal(data.total || 0);
     } catch { setOrdenes([]); setOrdenTotal(0); }
     finally { setOrdenLoading(false); }
-  }, [ordenPage, ordenSearch]);
+  }, [ordenPage, ordenSearch, isImpresion, isTaller, currentUser]);
 
   const loadMetodos = useCallback(async () => {
     try { const m = await getMetodosPago(); setMetodos(m); } catch {}
@@ -229,8 +236,10 @@ export const ComprasPage = () => {
         {[
           { label: 'Total Órdenes', value: stats.totalOrdenes, color: '#3b82f6', icon: 'M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12a1.125 1.125 0 0 1 1.263-1.123h12.974c.576 0 1.059.435 1.119 1.007z' },
           { label: 'Pendientes Aprobación', value: stats.pendientes, color: '#f59e0b', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-          { label: 'Total Gastado', value: fmt(stats.totalGastado), color: '#10b981', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-          { label: 'Deuda Pendiente', value: fmt(stats.totalDeuda), color: '#ef4444', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
+          ...(!isImpresion ? [
+            { label: 'Total Gastado', value: fmt(stats.totalGastado), color: '#10b981', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+            { label: 'Deuda Pendiente', value: fmt(stats.totalDeuda), color: '#ef4444', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' }
+          ] : [])
         ].map((kpi, i) => (
           <div key={i} className="co-card co-kpi-card">
             <div className="co-kpi-icon" style={{ background: `${kpi.color}15` }}>
@@ -321,7 +330,7 @@ export const ComprasPage = () => {
                             </svg>
                           </button>
                         )}
-                        {o.estadoPago !== 'pagado' && (
+                        {o.estadoPago !== 'pagado' && !isImpresion && (
                           <button onClick={() => openAbonoModal(o)} className="co-action-btn co-action-green" title="Registrar Abono">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Eye, PenLine } from 'lucide-react';
+import { AlertTriangle, Eye, PenLine, Trash2 } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { FaseBadge } from './FaseBadge.jsx';
@@ -13,7 +13,7 @@ import { ProgressBar } from './ProgressBar.jsx';
  *
  * @param {{ proyecto: object, onEditarFase?: function }} props
  */
-export function ProyectoRow({ proyecto, onEditarFase }) {
+export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
   const navigate = useNavigate();
   const faseConfig = getFaseConfig(proyecto.faseActual);
   const prioridadConfig = PRIORIDADES_CONFIG[proyecto.prioridad] || PRIORIDADES_CONFIG.MEDIA;
@@ -131,6 +131,15 @@ export function ProyectoRow({ proyecto, onEditarFase }) {
               onClick={() => onEditarFase(proyecto)}
             >
               <PenLine size={15} />
+            </button>
+          )}
+          {onEliminar && (
+            <button
+              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600 transition-colors"
+              title="Eliminar proyecto"
+              onClick={() => onEliminar(proyecto)}
+            >
+              <Trash2 size={15} />
             </button>
           )}
         </div>

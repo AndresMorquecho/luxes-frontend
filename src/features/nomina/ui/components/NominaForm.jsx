@@ -487,6 +487,7 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
         </form>
 
       </div>
+      </div>
     </>,
     document.body
   );

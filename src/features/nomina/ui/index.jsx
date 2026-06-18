@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { NominaProvider } from '../application/context/NominaContext';
-import { NominaMockAdapter } from '../infrastructure/adapters/nominaMockAdapter';
+import { NominaApiAdapter } from '../infrastructure/adapters/nominaApiAdapter';
 import { CredencialesPage } from '../../asistencia/ui/pages/CredencialesPage';
 import { RegistrosPage } from '../../asistencia/ui/pages/RegistrosPage';
 import { VacacionesPage } from './pages/VacacionesPage';
@@ -11,7 +11,7 @@ import { NominaMesPage } from './pages/NominaMesPage';
 import EmpleadosFeature from '../../empleados/ui';
 import './styles/Nomina.css';
 
-const defaultAdapter = new NominaMockAdapter();
+const defaultAdapter = new NominaApiAdapter();
 
 export default function NominaFeature() {
   return (
