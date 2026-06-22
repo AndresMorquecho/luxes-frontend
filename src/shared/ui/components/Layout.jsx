@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Sidebar } from '../../../features/navigation/infrastructure/ui/Sidebar';
+import { getUnreadCount } from '../../../features/notificaciones/application/notificationsService';
 import './Layout.css';
 
 export const Layout = ({ children, user, onLogout }) => {
@@ -36,12 +37,13 @@ export const Layout = ({ children, user, onLogout }) => {
     { name: 'Configuración: General', path: '/configuracion' },
   ];
 
-  const allowedModules = user?.rol === 'taller'
+  const allowedModules = user?.rol?.toLowerCase() === 'taller'
     ? [
-        { name: 'Taller: Impresiones', path: '/impresiones' },
-        { name: 'Taller: Colas de Impresión', path: '/colas-impresion' },
+        { name: 'Notificaciones', path: '/notificaciones' },
         { name: 'Instalaciones de Equipos', path: '/instalaciones' },
-        { name: 'Notificaciones', path: '/notificaciones' }
+        { name: 'Tareas', path: '/tareas' },
+        { name: 'Recepción de Insumos', path: '/inventario/recepcion' },
+        { name: 'Compras de Materiales', path: '/compras' }
       ]
     : modules;
 
@@ -71,9 +73,41 @@ export const Layout = ({ children, user, onLogout }) => {
   }, [location]);
 
   const isAsistenciaMode = user?.rol === 'asistencia';
+  const isTallerMobile = isMobile && user?.rol?.toLowerCase() === 'taller';
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await getUnreadCount();
+      setUnreadCount(data.count || 0);
+    } catch (err) {
+      console.error('Error fetching unread count:', err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.rol?.toLowerCase() === 'taller') {
+      fetchUnreadCount();
+      window.addEventListener('notifications-updated', fetchUnreadCount);
+      const interval = setInterval(fetchUnreadCount, 15000);
+      return () => {
+        window.removeEventListener('notifications-updated', fetchUnreadCount);
+        clearInterval(interval);
+      };
+    }
+  }, [user, fetchUnreadCount]);
+
+  const isTabActive = (path) => {
+    if (path === '/notificaciones') {
+      return location.pathname === '/notificaciones';
+    }
+    return location.pathname.startsWith(path);
+  };
 
   return (
-    <div className={`layout-container ${isMobile ? 'mobile' : ''} ${isMobileOpen ? 'mobile-open' : ''} ${(!isMobile && isCollapsed) ? 'collapsed' : ''} ${isAsistenciaMode ? 'kiosk-layout' : ''}`}>
+    <div className={`layout-container ${isMobile ? 'mobile' : ''} ${isMobileOpen ? 'mobile-open' : ''} ${(!isMobile && isCollapsed) ? 'collapsed' : ''} ${isAsistenciaMode ? 'kiosk-layout' : ''} ${isTallerMobile ? 'mobile-taller-layout' : ''}`}>
       {isAsistenciaMode ? (
         <header className="w-full flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white" style={{ height: '70px', fontFamily: "'Inter', sans-serif" }}>
           <div className="flex items-center gap-3">
@@ -92,6 +126,33 @@ export const Layout = ({ children, user, onLogout }) => {
             </svg>
             Cerrar Sesión
           </button>
+        </header>
+      ) : isTallerMobile ? (
+        <header className="mobile-taller-header">
+          <div className="mobile-taller-logo-box">
+            <img src="/LogoGlobo.png" alt="Luxes Logo" className="mobile-taller-logo" />
+            <div className="mobile-taller-user-info">
+              <span className="mobile-taller-brand">Luxes Taller</span>
+              <span className="mobile-taller-username">{user?.nombre || 'Taller'}</span>
+            </div>
+          </div>
+          <div className="mobile-taller-header-actions">
+            <Link to="/notificaciones" className={`mobile-taller-notif-btn ${isTabActive('/notificaciones') ? 'active' : ''}`} aria-label="Notificaciones">
+              <div className="mobile-nav-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-taller-notif-icon">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="mobile-nav-badge" style={{ top: '-8px', right: '-10px' }}>{unreadCount}</span>
+                )}
+              </div>
+            </Link>
+            <button onClick={onLogout} className="mobile-taller-logout-btn" aria-label="Cerrar sesión">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="logout-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+              </svg>
+            </button>
+          </div>
         </header>
       ) : (
         /* Top mobile header */
@@ -145,14 +206,14 @@ export const Layout = ({ children, user, onLogout }) => {
       )}
 
       {/* Backdrop overlay for mobile drawer */}
-      {isMobile && isMobileOpen && (
+      {isMobile && isMobileOpen && !isTallerMobile && (
         <div 
           className="sidebar-overlay"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      {!isAsistenciaMode && (
+      {!isAsistenciaMode && !isTallerMobile && (
         <Sidebar 
           isCollapsed={isMobile ? false : isCollapsed} 
           onMouseEnter={() => {
@@ -165,9 +226,50 @@ export const Layout = ({ children, user, onLogout }) => {
           onLogout={onLogout}
         />
       )}
+      
       <main className="layout-main" style={isAsistenciaMode ? { margin: 0, padding: 0, width: '100%', maxWidth: '100%', height: 'calc(100vh - 70px)', overflowY: 'auto' } : undefined}>
         {children}
       </main>
+
+      {isTallerMobile && (
+        <nav className="mobile-bottom-nav">
+          <Link to="/instalaciones" className={`mobile-nav-item ${isTabActive('/instalaciones') ? 'active' : ''}`}>
+            <div className="mobile-nav-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+              </svg>
+            </div>
+            <span className="mobile-nav-label">Instalaciones</span>
+          </Link>
+
+          <Link to="/tareas" className={`mobile-nav-item ${isTabActive('/tareas') ? 'active' : ''}`}>
+            <div className="mobile-nav-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+              </svg>
+            </div>
+            <span className="mobile-nav-label">Tareas</span>
+          </Link>
+          
+          <Link to="/inventario/recepcion" className={`mobile-nav-item ${isTabActive('/inventario/recepcion') ? 'active' : ''}`}>
+            <div className="mobile-nav-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+              </svg>
+            </div>
+            <span className="mobile-nav-label">Recepción</span>
+          </Link>
+          
+          <Link to="/compras" className={`mobile-nav-item ${isTabActive('/compras') ? 'active' : ''}`}>
+            <div className="mobile-nav-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12a1.125 1.125 0 0 1 1.263-1.123h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0z" />
+              </svg>
+            </div>
+            <span className="mobile-nav-label">Compras</span>
+          </Link>
+        </nav>
+      )}
     </div>
   );
 };

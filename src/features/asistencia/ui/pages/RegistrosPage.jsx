@@ -462,8 +462,10 @@ const AdminView = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await getAsistencias(fechaFiltro, fechaFiltro);
-      const emps = await getEmpleados();
+      const [data, emps] = await Promise.all([
+        getAsistencias(fechaFiltro, fechaFiltro),
+        getEmpleados()
+      ]);
       setAsistencias(data);
       setEmpleados(emps);
     } catch (err) {

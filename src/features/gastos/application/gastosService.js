@@ -8,8 +8,12 @@ const getHeaders = () => {
 
 export const CATEGORIAS = ['oficina', 'mantenimiento', 'servicios', 'logistica', 'vehiculos', 'varios'];
 
-export async function getMetodosPago() {
-  const res = await fetch('/api/compras/metodos-pago', { headers: getHeaders() });
+export async function getMetodosPago(desde, hasta) {
+  const params = new URLSearchParams();
+  if (desde) params.append('desde', desde);
+  if (hasta) params.append('hasta', hasta);
+  const url = `/api/compras/metodos-pago${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener métodos de pago');
   return data.data;
@@ -159,6 +163,19 @@ export async function getFinancialDashboard(desde = '', hasta = '') {
   const res = await fetch(url, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener reportes financieros');
+  return data.data;
+}
+
+export async function getDashboardSummary(desde = '', hasta = '') {
+  let url = '/api/gastos/reportes/dashboard-summary';
+  const params = [];
+  if (desde) params.push(`desde=${desde}`);
+  if (hasta) params.push(`hasta=${hasta}`);
+  if (params.length) url += `?${params.join('&')}`;
+
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener resumen de operaciones');
   return data.data;
 }
 

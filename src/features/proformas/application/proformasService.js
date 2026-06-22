@@ -68,3 +68,50 @@ export const updateProformaEstado = async (id, estado, metodoPagoId = null) => {
   }
   return data.data;
 };
+
+export const getProformaById = async (id) => {
+  const res = await fetch(`/api/proformas/${id}`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al obtener proforma');
+  }
+  return data.data;
+};
+
+export const aprobarProforma = async (id, { monto, metodoPagoId, referencia }) => {
+  const res = await fetch(`/api/proformas/${id}/aprobar`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ monto, metodoPagoId, referencia }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al aprobar proforma');
+  }
+  return data.data;
+};
+
+export const rechazarProforma = async (id) => {
+  const res = await fetch(`/api/proformas/${id}/rechazar`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al rechazar proforma');
+  }
+  return data.data;
+};
+
+export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referencia }) => {
+  const res = await fetch(`/api/proformas/${id}/abonos`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ monto, metodoPagoId, referencia }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al registrar abono');
+  }
+  return data.data;
+};

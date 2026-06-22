@@ -219,6 +219,7 @@ export default function TareasPage() {
       await updateTarea(tarea.id, { estado: newEstado });
       fetchTareas();
       fetchStats();
+      window.dispatchEvent(new Event('notifications-updated'));
     } catch (err) {
       alert(err.message);
     }

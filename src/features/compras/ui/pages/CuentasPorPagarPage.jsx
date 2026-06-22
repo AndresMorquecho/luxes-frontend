@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats
 } from '../../application/comprasService';
@@ -69,7 +70,7 @@ export const CuentasPorPagarPage = () => {
       });
       setAbonoModalOpen(false);
       loadStats(); loadCxP();
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setAbonoSaving(false); }
   };
 
@@ -210,15 +211,27 @@ export const CuentasPorPagarPage = () => {
                     <select className="co-input" value={abonoForm.metodoPagoId}
                       onChange={e => setAbonoForm(p => ({ ...p, metodoPagoId: e.target.value }))} required>
                       <option value="">Seleccionar método…</option>
-                      {metodos.filter(m => m.activo).map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                      {metodos.filter(m => m.activo).map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre} ({fmt(m.saldoActual || 0)})
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className="co-label">Monto ($)</label>
                     <input type="number" className="co-input" step="0.01" min="0.01"
-                      max={abonoOrden?.cuentaPorPagar?.saldo || 999999}
+                      max={abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 999999}
                       value={abonoForm.monto}
-                      onChange={e => setAbonoForm(p => ({ ...p, monto: e.target.value }))} required />
+                      onChange={e => {
+                        const val = e.target.value;
+                        const maxVal = abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 0;
+                        if (parseFloat(val) > maxVal) {
+                          setAbonoForm(p => ({ ...p, monto: maxVal.toString() }));
+                        } else {
+                          setAbonoForm(p => ({ ...p, monto: val }));
+                        }
+                      }} required />
                   </div>
                   <div>
                     <label className="co-label">Referencia (Nro. cheque, transferencia, etc.)</label>
@@ -227,7 +240,7 @@ export const CuentasPorPagarPage = () => {
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
                     <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={abonoSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
+                    <button type="submit" disabled={abonoSaving || !abonoForm.monto || parseFloat(abonoForm.monto) <= 0 || parseFloat(abonoForm.monto) > (abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 0)} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
                       {abonoSaving && <div className="co-spinner-sm" />}
                       Registrar Abono
                     </button>

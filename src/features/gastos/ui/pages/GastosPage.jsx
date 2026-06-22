@@ -7,6 +7,7 @@ import {
   addMantenimiento, updateMantenimiento, deleteMantenimiento 
 } from '../../application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { 
   Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus, 
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
@@ -252,6 +253,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   // --- ESTADOS REPORTES ---
   const [reportData, setReportData] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [metodosReport, setMetodosReport] = useState([]);
+  const [loadingMetodosReport, setLoadingMetodosReport] = useState(false);
   const [reportDates, setReportDates] = useState({
     desde: (() => {
       const d = new Date();
@@ -300,13 +303,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   const loadFinancialReport = async () => {
     setLoadingReport(true);
+    setLoadingMetodosReport(true);
     try {
-      const data = await getFinancialDashboard(reportDates.desde, reportDates.hasta);
+      const [data, metodos] = await Promise.all([
+        getFinancialDashboard(reportDates.desde, reportDates.hasta),
+        getMetodosPago(reportDates.desde, reportDates.hasta)
+      ]);
       setReportData(data);
+      setMetodosReport(metodos || []);
     } catch (err) {
       toast.error('Error al cargar reportes financieros: ' + err.message);
     } finally {
       setLoadingReport(false);
+      setLoadingMetodosReport(false);
     }
   };
 
@@ -1308,25 +1317,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   <Calendar size={16} className="text-blue-500" />
                   Rango de Fecha para Cierre de Caja
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Desde</label>
-                    <input 
-                      type="date" 
-                      value={cierreDates.desde} 
-                      onChange={e => setCierreDates(prev => ({ ...prev, desde: e.target.value }))}
-                      className="ga-input" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Hasta</label>
-                    <input 
-                      type="date" 
-                      value={cierreDates.hasta} 
-                      onChange={e => setCierreDates(prev => ({ ...prev, hasta: e.target.value }))}
-                      className="ga-input" 
-                    />
-                  </div>
+                <div className="mb-4">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Fecha de Cierre</label>
+                  <DateRangePicker 
+                    value={{ start: cierreDates.desde, end: cierreDates.hasta }} 
+                    onChange={val => setCierreDates({ desde: val.start, hasta: val.end })}
+                    placeholder="Seleccionar rango de cierre"
+                  />
                 </div>
               </div>
 
@@ -1495,24 +1492,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </h3>
               <p className="text-xs text-slate-400 font-medium mt-0.5">Analiza el rendimiento, rentabilidad y egresos por canal</p>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <div>
-                <input 
-                  type="date" 
-                  value={reportDates.desde} 
-                  onChange={e => setReportDates(prev => ({ ...prev, desde: e.target.value }))}
-                  className="ga-input text-xs" 
-                />
-              </div>
-              <span className="text-slate-400 text-xs font-bold">a</span>
-              <div>
-                <input 
-                  type="date" 
-                  value={reportDates.hasta} 
-                  onChange={e => setReportDates(prev => ({ ...prev, hasta: e.target.value }))}
-                  className="ga-input text-xs" 
-                />
-              </div>
+            <div className="flex items-center gap-3 flex-wrap" style={{ minWidth: '240px' }}>
+              <DateRangePicker 
+                value={{ start: reportDates.desde, end: reportDates.hasta }} 
+                onChange={val => setReportDates({ desde: val.start, hasta: val.end })}
+                placeholder="Rango de reporte"
+              />
             </div>
           </div>
 
@@ -1605,59 +1590,84 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 </div>
               </div>
 
-              {/* Fila de Métodos de Pago */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Ingresos por Método de Pago */}
-                <div className="ga-card p-6 space-y-4">
-                  <h3 className="text-sm font-extrabold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                    <CheckCircle size={16} className="text-emerald-500" />
-                    Ingresos por Método de Pago
+              {/* Detalle de Cuentas */}
+              <div className="ga-card p-6 space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                    <TrendingUp size={16} className="text-blue-500" />
+                    Detalle de Cuentas (Métodos de Pago)
                   </h3>
-                  <div className="divide-y divide-slate-100">
-                    {reportData.breakdownIngresosMetodo?.map((m) => {
-                      const totalIng = reportData.kpi.ingresos || 1;
-                      const pct = (m.value / totalIng) * 100;
-                      return (
-                        <div key={m.label} className="py-3 flex justify-between items-center">
-                          <div className="space-y-0.5">
-                            <span className="text-xs font-bold text-slate-700">{m.label}</span>
-                            <div className="text-[10px] text-slate-400">{pct.toFixed(1)}% del total</div>
-                          </div>
-                          <span className="text-xs font-black text-slate-800">{fmt(m.value)}</span>
-                        </div>
-                      );
-                    })}
-                    {(!reportData.breakdownIngresosMetodo || reportData.breakdownIngresosMetodo.length === 0) && (
-                      <div className="text-xs text-slate-400 italic py-6 text-center">Sin ingresos en este periodo.</div>
-                    )}
-                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Resumen consolidado por periodo
+                  </span>
                 </div>
 
-                {/* Egresos por Método de Pago */}
-                <div className="ga-card p-6 space-y-4">
-                  <h3 className="text-sm font-extrabold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                    <AlertTriangle size={16} className="text-red-500" />
-                    Egresos por Método de Pago
-                  </h3>
-                  <div className="divide-y divide-slate-100">
-                    {reportData.breakdownEgresosMetodo?.map((m) => {
-                      const totalEgr = reportData.kpi.egresos || 1;
-                      const pct = (m.value / totalEgr) * 100;
-                      return (
-                        <div key={m.label} className="py-3 flex justify-between items-center">
-                          <div className="space-y-0.5">
-                            <span className="text-xs font-bold text-slate-700">{m.label}</span>
-                            <div className="text-[10px] text-slate-400">{pct.toFixed(1)}% del total</div>
-                          </div>
-                          <span className="text-xs font-black text-slate-800">{fmt(m.value)}</span>
-                        </div>
-                      );
-                    })}
-                    {(!reportData.breakdownEgresosMetodo || reportData.breakdownEgresosMetodo.length === 0) && (
-                      <div className="text-xs text-slate-400 italic py-6 text-center">Sin egresos en este periodo.</div>
-                    )}
+                {loadingMetodosReport ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-blue-600" />
                   </div>
-                </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-100">
+                    <table className="w-full text-xs text-left text-slate-500 border-collapse">
+                      <thead className="text-[10px] uppercase tracking-wider text-slate-400 bg-slate-50/75 border-b border-slate-100 font-bold font-mono">
+                        <tr>
+                          <th className="px-5 py-3">Nombre</th>
+                          <th className="px-5 py-3">Tipo</th>
+                          <th className="px-5 py-3 text-right">Saldo Actual</th>
+                          <th className="px-5 py-3 text-right text-emerald-600">Ingresos (P)</th>
+                          <th className="px-5 py-3 text-right text-red-500">Egresos (P)</th>
+                          <th className="px-5 py-3 text-right">Neto (P)</th>
+                          <th className="px-5 py-3 text-center">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {metodosReport.map(m => {
+                          const isEfectivo = m.tipo === 'EFECTIVO';
+                          return (
+                            <tr key={m.id} className="ga-tr">
+                              <td className="px-5 py-3.5 font-semibold text-slate-700">{m.nombre}</td>
+                              <td className="px-5 py-3.5">
+                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase border ${
+                                  isEfectivo 
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                                }`}>
+                                  {m.tipo || 'EFECTIVO'}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3.5 text-right font-medium text-slate-800">{fmt(m.saldoActual || 0)}</td>
+                              <td className="px-5 py-3.5 text-right font-bold text-emerald-600">
+                                {m.ingresosPeriod > 0 ? `+${fmt(m.ingresosPeriod)}` : '—'}
+                              </td>
+                              <td className="px-5 py-3.5 text-right font-bold text-red-500">
+                                {m.egresosPeriod > 0 ? `-${fmt(m.egresosPeriod)}` : '—'}
+                              </td>
+                              <td className={`px-5 py-3.5 text-right font-extrabold ${m.netoPeriod >= 0 ? 'text-slate-800' : 'text-amber-700'}`}>
+                                {fmt(m.netoPeriod || 0)}
+                              </td>
+                              <td className="px-5 py-3.5 text-center">
+                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold ${
+                                  m.activo 
+                                    ? 'bg-green-50 text-green-700' 
+                                    : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                  {m.activo ? 'ACTIVA' : 'INACTIVA'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {metodosReport.length === 0 && (
+                          <tr>
+                            <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
+                              No hay cuentas o métodos de pago registrados en el sistema.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </>
           ) : null}

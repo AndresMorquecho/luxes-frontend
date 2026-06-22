@@ -30,6 +30,7 @@ import { FormOrdenCompraPage } from '../features/compras/ui/pages/FormOrdenCompr
 import { RecepcionInsumosListPage } from '../features/inventario/ui/recepcion/RecepcionInsumosListPage';
 import { RecepcionInsumosFormPage } from '../features/inventario/ui/recepcion/RecepcionInsumosFormPage';
 import ConfiguracionFeature from '../features/configuracion/ui';
+import { MovimientosPage } from '../features/gastos/ui/pages/MovimientosPage';
 import { ToastContainer } from '../shared/ui/components/Toast';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
 import './index.css';
@@ -44,6 +45,18 @@ function App() {
   });
 
   const { subscribeUser, unsubscribeUser } = usePushNotifications();
+
+  // Sync user state on custom updates (e.g. sidebar customized)
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      const storedUser = localStorage.getItem('user');
+      setUser(storedUser ? JSON.parse(storedUser) : null);
+    };
+    window.addEventListener('user-updated', handleUserUpdate);
+    return () => {
+      window.removeEventListener('user-updated', handleUserUpdate);
+    };
+  }, []);
 
   // Auto-subscribe authenticated users on mount
   useEffect(() => {
@@ -98,8 +111,8 @@ function App() {
   const isTallerMode = user?.rol?.toLowerCase() === 'taller';
   const userRole = (user?.rol || '').toUpperCase();
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
-  const isVentas = userRole === 'VENTAS';
-  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR';
+  const isVentas = userRole === 'VENTAS' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
+  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
 
   return (
     <>
@@ -118,6 +131,7 @@ function App() {
               <Route path="/notificaciones" element={<NotificacionesPage />} />
               <Route path="/instalaciones" element={<InstalacionesPage />} />
               <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
+              <Route path="/tareas/*" element={<TareasFeature />} />
               <Route path="/compras/*" element={<ComprasFeature />} />
               <Route path="/inventario/recepcion" element={<RecepcionInsumosListPage />} />
               <Route path="/inventario/recepcion/:ordenId" element={<RecepcionInsumosFormPage />} />
@@ -145,7 +159,8 @@ function App() {
               {!isImpresion && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
               {!isImpresion && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
               {!isImpresion && <Route path="/reportes-financieros/*" element={<GastosFeature defaultTab="reportes" />} />}
-              {!isImpresion && <Route path="/tareas/*" element={<TareasFeature />} />}
+              {!isImpresion && <Route path="/movimientos/*" element={<MovimientosPage />} />}
+              <Route path="/tareas/*" element={<TareasFeature />} />
               {/* Redirección por defecto */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

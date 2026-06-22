@@ -17,11 +17,12 @@ export function validarCamposFase(faseConfig, datosFase = {}) {
   if (faseConfig.id === 'INSTALACION') {
     const datos = datosFase.datos || datosFase || {};
     if (!datos.fechaInstalacion) faltantes.push('Fecha de instalación');
-    if (!datos.direccionInstalacion && !datos.direccion) faltantes.push('Dirección de instalación');
     if (!datos.personalAsignado || datos.personalAsignado.length === 0)
       faltantes.push('Personal asignado');
     if (!datos.materiales || datos.materiales.length === 0)
       faltantes.push('Materiales de instalación');
+    if (!datos.evidencias || datos.evidencias.length === 0)
+      faltantes.push('Evidencias fotográficas');
   } else if (faseConfig.id === 'DISEÑO') {
     const datos = datosFase.datos || datosFase || {};
     if (!datos.fechaAprobacionDiseno && !datosFase.fechaAprobacionDiseno) {

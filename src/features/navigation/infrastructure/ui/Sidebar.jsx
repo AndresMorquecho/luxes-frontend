@@ -11,9 +11,34 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const hasAprobacionPermission = user?.permissions?.includes('aprobacion_ordenes_compra') || isAdmin;
 
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
-  const isVentas = userRole === 'VENTAS';
-  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR';
+  const isVentas = userRole === 'VENTAS' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
+  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
   const isTaller = userRole === 'TALLER';
+
+  const [showAll, setShowAll] = useState(() => {
+    const saved = localStorage.getItem('luxes_sidebar_show_all');
+    return saved === 'true';
+  });
+
+  let hiddenModules = ['relaciones', 'instalaciones', 'inventario'];
+  if (user?.sidebarConfig) {
+    try {
+      const configObj = typeof user.sidebarConfig === 'string'
+        ? JSON.parse(user.sidebarConfig)
+        : user.sidebarConfig;
+      if (configObj && Array.isArray(configObj.hiddenModules)) {
+        hiddenModules = configObj.hiddenModules;
+        if (hiddenModules.includes('cierreCaja') || hiddenModules.includes('reportesFinancieros')) {
+          hiddenModules = hiddenModules.filter(h => h !== 'cierreCaja' && h !== 'reportesFinancieros');
+          if (!hiddenModules.includes('finanzas')) {
+            hiddenModules.push('finanzas');
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing sidebarConfig:', e);
+    }
+  }
 
   const canViewDashboard = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
   const canViewNomina = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
@@ -24,11 +49,19 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const canViewGastos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
   const canViewCierreCaja = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
   const canViewReportesFinancieros = isAdmin;
-  const canViewTareas = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
+  const canViewFinanzas = canViewReportesFinancieros || canViewCierreCaja || (!isImpresion && !isTaller);
+  const canViewTareas = true;
   const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
   const canViewInstalaciones = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller;
   const canViewCompras = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion || isTaller;
   const canViewRelaciones = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
+
+  const shouldShowModule = (moduleKey, originalCanView) => {
+    if (!originalCanView) return false;
+    if (!isAdmin) return true;
+    if (showAll) return true;
+    return !hiddenModules.includes(moduleKey);
+  };
 
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
@@ -36,6 +69,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const [isRelacionesOpen, setIsRelacionesOpen] = useState(false);
   const [isInventarioOpen, setIsInventarioOpen] = useState(false);
   const [isComprasOpen, setIsComprasOpen] = useState(false);
+  const [isFinanzasOpen, setIsFinanzasOpen] = useState(false);
   const location = useLocation();
   const currentPath = location.pathname;
 
@@ -83,7 +117,9 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
     if (currentPath.startsWith('/inventario')) {
       setIsInventarioOpen(true);
     }
-    if (currentPath.startsWith('/compras')) {
+    if (currentPath === '/compras/metodos-pago' || currentPath.startsWith('/reportes-financieros') || currentPath.startsWith('/cierre-caja')) {
+      setIsFinanzasOpen(true);
+    } else if (currentPath.startsWith('/compras')) {
       setIsComprasOpen(true);
     }
   }, [currentPath]);
@@ -106,6 +142,44 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
       {/* Navigation menu list */}
       <nav className="sidebar-nav">
+        {isAdmin && (
+          <div className="sidebar-layout-customizer-box">
+            {isCollapsed ? (
+              <button
+                type="button"
+                title={showAll ? "Ver Módulos Principales" : "Ver Todos los Módulos"}
+                className={`sidebar-switch-toggle ${showAll ? 'active' : ''}`}
+                onClick={() => {
+                  const newValue = !showAll;
+                  setShowAll(newValue);
+                  localStorage.setItem('luxes_sidebar_show_all', String(newValue));
+                }}
+                style={{ cursor: 'pointer', border: 'none' }}
+              >
+                <div className="sidebar-switch-handle" />
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
+                  {showAll ? 'Ver todo' : 'Módulos Principales'}
+                </span>
+                <button
+                  type="button"
+                  className={`sidebar-switch-toggle ${showAll ? 'active' : ''}`}
+                  onClick={() => {
+                    const newValue = !showAll;
+                    setShowAll(newValue);
+                    localStorage.setItem('luxes_sidebar_show_all', String(newValue));
+                  }}
+                  style={{ cursor: 'pointer', border: 'none' }}
+                >
+                  <div className="sidebar-switch-handle" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="sidebar-category">
           <span className="sidebar-category-title">PRINCIPAL</span>
           <ul>
@@ -141,7 +215,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
         <div className="sidebar-category">
           <span className="sidebar-category-title">MÓDULOS</span>
           <ul>
-            {canViewNomina && (
+            {shouldShowModule('nomina', canViewNomina) && (
               <li className={`sidebar-has-submenu ${isNominaOpen ? 'submenu-open' : ''} ${currentPath.startsWith('/nomina') ? 'active' : ''}`}>
                 <button
                   type="button"
@@ -154,6 +228,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                       setIsInventarioOpen(false);
                       setIsComprasOpen(false);
                       setIsConfigOpen(false);
+                      setIsFinanzasOpen(false);
                     }
                   }}
                   className="sidebar-submenu-toggle"
@@ -232,7 +307,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {canViewProformas && (
+            {shouldShowModule('proformas', canViewProformas) && (
               <li className={currentPath.startsWith('/proformas') ? 'active' : ''}>
                 <Link to="/proformas">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
@@ -248,7 +323,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {canViewInventario && (
+            {shouldShowModule('inventario', canViewInventario) && (
               <li className={`sidebar-has-submenu ${isInventarioOpen ? 'submenu-open' : ''} ${currentPath.startsWith('/inventario') ? 'active' : ''}`}>
                 <button
                   type="button"
@@ -261,6 +336,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                       setIsRelacionesOpen(false);
                       setIsComprasOpen(false);
                       setIsConfigOpen(false);
+                      setIsFinanzasOpen(false);
                     }
                   }}
                   className="sidebar-submenu-toggle"
@@ -321,7 +397,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {canViewTallerImpresion && (
+            {shouldShowModule('tallerImpresion', canViewTallerImpresion) && (
               <li className={`sidebar-has-submenu ${isPrintOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/impresiones') || currentPath.startsWith('/colas-impresion')) ? 'active' : ''}`}>
                 <button
                   type="button"
@@ -334,6 +410,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                       setIsInventarioOpen(false);
                       setIsComprasOpen(false);
                       setIsConfigOpen(false);
+                      setIsFinanzasOpen(false);
                     }
                   }}
                   className="sidebar-submenu-toggle"
@@ -383,7 +460,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {canViewGastos && (
+            {shouldShowModule('gastos', canViewGastos) && (
               <li className={currentPath.startsWith('/gastos') ? 'active' : ''}>
                 <Link to="/gastos" onClick={() => {
                   setIsNominaOpen(false);
@@ -392,6 +469,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   setIsInventarioOpen(false);
                   setIsComprasOpen(false);
                   setIsConfigOpen(false);
+                  setIsFinanzasOpen(false);
                 }}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
@@ -406,53 +484,90 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {canViewCierreCaja && (
-              <li className={currentPath.startsWith('/cierre-caja') ? 'active' : ''}>
-                <Link to="/cierre-caja" onClick={() => {
-                  setIsNominaOpen(false);
-                  setIsPrintOpen(false);
-                  setIsRelacionesOpen(false);
-                  setIsInventarioOpen(false);
-                  setIsComprasOpen(false);
-                  setIsConfigOpen(false);
-                }}>
+            {shouldShowModule('finanzas', canViewFinanzas) && (
+              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/reportes-financieros') || currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos')) ? 'active' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFinanzasOpen(prev => !prev);
+                    // Contraer los demás módulos
+                    if (!isFinanzasOpen) {
+                      setIsNominaOpen(false);
+                      setIsPrintOpen(false);
+                      setIsRelacionesOpen(false);
+                      setIsInventarioOpen(false);
+                      setIsComprasOpen(false);
+                      setIsConfigOpen(false);
+                    }
+                  }}
+                  className="sidebar-submenu-toggle"
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
-                  <span className="sidebar-link-text">Cierre de Caja</span>
+                  <span className="sidebar-link-text">Finanzas</span>
                   {!isCollapsed && (
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className={`chevron-icon submenu-chevron ${isFinanzasOpen ? 'rotated' : ''}`}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                     </svg>
                   )}
-                </Link>
+                </button>
+
+                {!isCollapsed && isFinanzasOpen && (
+                  <ul className="sidebar-submenu">
+                    {canViewReportesFinancieros && (
+                      <li className={currentPath.startsWith('/reportes-financieros') ? 'submenu-active' : ''}>
+                        <Link to="/reportes-financieros" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Reportes Financieros</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canViewReportesFinancieros && (
+                      <li className={currentPath.startsWith('/movimientos') ? 'submenu-active' : ''}>
+                        <Link to="/movimientos" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 7l5-5 5 5M7 17l5 5 5-5M12 2v20" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Movimientos</span>
+                        </Link>
+                      </li>
+                    )}
+                    {(!isImpresion && !isTaller) && (
+                      <li className={currentPath === '/compras/metodos-pago' ? 'submenu-active' : ''}>
+                        <Link to="/compras/metodos-pago" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Métodos de Pago</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canViewCierreCaja && (
+                      <li className={currentPath.startsWith('/cierre-caja') ? 'submenu-active' : ''}>
+                        <Link to="/cierre-caja" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Cierre de Caja</span>
+                        </Link>
+                      </li>
+                    )}
+                  </ul>
+                )}
               </li>
             )}
 
-            {canViewReportesFinancieros && (
-              <li className={currentPath.startsWith('/reportes-financieros') ? 'active' : ''}>
-                <Link to="/reportes-financieros" onClick={() => {
-                  setIsNominaOpen(false);
-                  setIsPrintOpen(false);
-                  setIsRelacionesOpen(false);
-                  setIsInventarioOpen(false);
-                  setIsComprasOpen(false);
-                  setIsConfigOpen(false);
-                }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                  </svg>
-                  <span className="sidebar-link-text">Reportes Financieros</span>
-                  {!isCollapsed && (
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  )}
-                </Link>
-              </li>
-            )}
-
-            {canViewTareas && (
+            {shouldShowModule('tareas', canViewTareas) && (
               <li className={currentPath.startsWith('/tareas') ? 'active' : ''}>
                 <Link to="/tareas" onClick={() => {
                   setIsNominaOpen(false);
@@ -461,6 +576,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   setIsInventarioOpen(false);
                   setIsComprasOpen(false);
                   setIsConfigOpen(false);
+                  setIsFinanzasOpen(false);
                 }}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -475,7 +591,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {canViewProyectos && (
+            {shouldShowModule('proyectos', canViewProyectos) && (
               <li className={currentPath.startsWith('/proyectos') ? 'active' : ''}>
                 <Link to="/proyectos">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
@@ -491,7 +607,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {canViewInstalaciones && (
+            {shouldShowModule('instalaciones', canViewInstalaciones) && (
               <li className={currentPath.startsWith('/instalaciones') ? 'active' : ''}>
                 <Link to="/instalaciones">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
@@ -523,7 +639,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {canViewCompras && (
+            {shouldShowModule('compras', canViewCompras) && (
               <li className={`sidebar-has-submenu ${isComprasOpen ? 'submenu-open' : ''} ${currentPath.startsWith('/compras') ? 'active' : ''}`}>
                 <button
                   type="button"
@@ -536,6 +652,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                       setIsRelacionesOpen(false);
                       setIsInventarioOpen(false);
                       setIsConfigOpen(false);
+                      setIsFinanzasOpen(false);
                     }
                   }}
                   className="sidebar-submenu-toggle"
@@ -588,22 +705,12 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         </Link>
                       </li>
                     )}
-                    {!isImpresion && !isTaller && (
-                      <li className={currentPath === '/compras/metodos-pago' ? 'submenu-active' : ''}>
-                        <Link to="/compras/metodos-pago" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Métodos de Pago</span>
-                        </Link>
-                      </li>
-                    )}
                   </ul>
                 )}
               </li>
             )}
 
-            {userRole !== 'TALLER' && !isImpresion && (
+            {shouldShowModule('ventas', userRole !== 'TALLER' && !isImpresion) && (
               <li className={currentPath.startsWith('/ventas') ? 'active' : ''}>
                 <Link to="/ventas">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
@@ -620,7 +727,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
             )}
 
             {/* Módulo: Relaciones */}
-            {canViewRelaciones && (
+            {shouldShowModule('relaciones', canViewRelaciones) && (
               <li className={`sidebar-has-submenu ${isRelacionesOpen ? 'submenu-open' : ''}`}>
                 <button
                   type="button"
@@ -633,6 +740,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                       setIsInventarioOpen(false);
                       setIsComprasOpen(false);
                       setIsConfigOpen(false);
+                      setIsFinanzasOpen(false);
                     }
                   }}
                   className="sidebar-submenu-toggle"
@@ -706,6 +814,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                       setIsRelacionesOpen(false);
                       setIsInventarioOpen(false);
                       setIsComprasOpen(false);
+                      setIsFinanzasOpen(false);
                     }
                   }}
                   className="sidebar-submenu-toggle"

@@ -543,12 +543,13 @@ export function InventarioPage() {
                     <th>Mínimo</th>
                     <th>Estado</th>
                     <th>Costo Unit.</th>
+                    <th>CPP</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.length === 0 && (
-                    <tr><td colSpan={7} className="inv-empty">Sin consumibles registrados.</td></tr>
+                    <tr><td colSpan={8} className="inv-empty">Sin consumibles registrados.</td></tr>
                   )}
                   {items.map(item => (
                     <tr key={item.id} className={item.stockActual <= item.stockMinimo ? 'inv-row-warn' : ''}>
@@ -560,6 +561,9 @@ export function InventarioPage() {
                       <td className="inv-td-min">{item.stockMinimo}</td>
                       <td>{stockBadge(item)}</td>
                       <td>{fmt(item.precioCosto)}</td>
+                      <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
+                        {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
+                      </td>
                       <td className="inv-td-actions">
                         <button className="inv-act-btn move" title="Movimiento" onClick={() => setMovModal(item)}>
                           <ArrowRightLeft size={14}/>

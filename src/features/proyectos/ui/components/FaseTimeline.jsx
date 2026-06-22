@@ -15,7 +15,10 @@ const ICON_MAP = { FileText, Pen, Printer, Wrench, CheckCircle, Star };
  * @param {{ faseActual: string, fases: object, onFaseClick?: function, faseVista?: string }} props
  */
 export function FaseTimeline({ faseActual, fases = {}, onFaseClick, faseVista, requiereInstalacion = true }) {
-  const filteredFases = FASES.filter(f => f.id !== 'INSTALACION' || requiereInstalacion);
+  const filteredFases = FASES.filter(f => 
+    (f.id !== 'INSTALACION' || requiereInstalacion) && 
+    (f.id !== 'ENTREGA' || !requiereInstalacion)
+  );
 
   return (
     <div className="w-full overflow-x-auto">

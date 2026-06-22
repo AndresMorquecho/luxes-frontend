@@ -7,10 +7,12 @@ import {
   getEmpleadoById,
   saveEmpleado,
   getEmpleadoDocumentos,
+  uploadEmpleadoDocumento,
   uploadEmpleadoDocumentos,
   deleteEmpleadoDocumento,
   DOCUMENTO_TIPOS
 } from '../../application/empleadosService';
+import { getRoles } from '../../../usuarios/application/usuariosService';
 
 const EMPTY_FORM = {
   nombre: '',
@@ -21,6 +23,8 @@ const EMPTY_FORM = {
   correo: '',
   username: '',
   contraseña: '123456',
+  rol: '',
+  roleId: '',
   cuentaBanco: '',
   banco: '',
   tipoContrato: 'Fijo',
@@ -357,6 +361,17 @@ const DOC_META = {
   otro: { desc: 'Cualquier otro documento relevante', group: 'optional' },
 };
 
+const generateUsername = (fullName) => {
+  if (!fullName) return '';
+  const normalized = fullName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const parts = normalized.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  const firstName = parts[0];
+  const secondPart = parts[1] || '';
+  const initial = secondPart ? secondPart[0] : '';
+  return firstName + initial;
+};
+
 const isImageMime = (mime) => mime?.startsWith('image/');
 const isImageName = (name) => /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(name || '');
 
@@ -519,8 +534,34 @@ export const EmpleadoFormPage = () => {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('personal');
   const [documentos, setDocumentos] = useState([]);
-  const [pendingDocs, setPendingDocs] = useState({});
+  const [pendingDocs, setPendingDocs] = useState([]);
   const [successInfo, setSuccessInfo] = useState(null); // Para mostrar la pantalla de éxito
+  const [docFile, setDocFile] = useState(null);
+  const [docComment, setDocComment] = useState('');
+  const [activePreviewDoc, setActivePreviewDoc] = useState(null); // { nombre: string, url: string, isPdf: boolean, isImg: boolean }
+  const [roles, setRoles] = useState([]);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const list = await getRoles();
+        setRoles(list);
+        if (!isEdit) {
+          const defRole = list.find(r => ['user', 'colaborador', 'visor'].includes(r.name.toLowerCase())) || list[0];
+          if (defRole) {
+            setForm(prev => ({
+              ...prev,
+              roleId: defRole.id,
+              rol: defRole.name
+            }));
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchRoles();
+  }, [isEdit]);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -528,13 +569,17 @@ export const EmpleadoFormPage = () => {
     const fetchEmpleado = async () => {
       setLoading(true);
       try {
-        const emp = await getEmpleadoById(id);
+        const [emp, docs] = await Promise.all([
+          getEmpleadoById(id),
+          getEmpleadoDocumentos(id)
+        ]);
         setForm({
           ...emp,
           contraseña: emp.contraseña || '123456',
           username: emp.username || emp.correo?.split('@')[0] || '',
+          rol: emp.rol || '',
+          roleId: emp.roleId || '',
         });
-        const docs = await getEmpleadoDocumentos(id);
         setDocumentos(docs);
       } catch (err) {
         console.error(err);
@@ -550,7 +595,20 @@ export const EmpleadoFormPage = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const val = type === 'checkbox' ? checked : value;
-    setForm((prev) => ({ ...prev, [name]: val }));
+    
+    if (name === 'nombre' && !isEdit) {
+      const username = generateUsername(value);
+      const email = username ? `${username}@luxes.com` : '';
+      setForm((prev) => ({ 
+        ...prev, 
+        nombre: value,
+        username: username,
+        correo: email,
+        contraseña: prev.contraseña || '123456'
+      }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: val }));
+    }
   };
 
   const handleFotoUpload = (e) => {
@@ -573,16 +631,20 @@ export const EmpleadoFormPage = () => {
     }, 150);
   };
 
-  const handleDocumentSelect = (tipo, file) => {
+  const handleDocumentSelect = (file) => {
     if (!file) return;
-    setPendingDocs((prev) => ({ ...prev, [tipo]: file }));
+    setDocFile(file);
+    const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+    setDocComment(nameWithoutExt);
   };
 
-  const handleRemovePendingDoc = (tipo) => {
+  const handleRemovePendingDoc = (tempId) => {
     setPendingDocs((prev) => {
-      const next = { ...prev };
-      delete next[tipo];
-      return next;
+      const target = prev.find(d => d.tempId === tempId);
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((d) => d.tempId !== tempId);
     });
   };
 
@@ -597,24 +659,76 @@ export const EmpleadoFormPage = () => {
     try {
       await deleteEmpleadoDocumento(id, docId);
       setDocumentos((prev) => prev.filter((d) => d.id !== docId));
+      toast.success('Documento eliminado con éxito');
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'No se pudo eliminar el documento');
     }
   };
 
-  const getDocForTipo = (tipo) => documentos.find((d) => d.tipo === tipo);
-
   const validateRequiredDocs = () => {
-    const required = DOCUMENTO_TIPOS.filter((d) => d.required);
-    for (const doc of required) {
-      const hasPending = !!pendingDocs[doc.id];
-      const hasExisting = !!getDocForTipo(doc.id);
-      if (!hasPending && !hasExisting) {
-        return doc.id;
-      }
-    }
     return null;
+  };
+
+  const handleAddDocToList = async () => {
+    if (!docFile) {
+      toast.error('Por favor, selecciona o arrastra un archivo.');
+      return;
+    }
+    if (!docComment.trim()) {
+      toast.error('Por favor, ingresa un comentario o descripción del documento.');
+      return;
+    }
+
+    if (isEdit) {
+      setSaving(true);
+      try {
+        const doc = await uploadEmpleadoDocumento(id, {
+          tipo: 'otro',
+          nombre: docComment.trim(),
+          file: docFile
+        });
+        setDocumentos(prev => [...prev, doc]);
+        toast.success('Documento subido correctamente');
+        setDocFile(null);
+        setDocComment('');
+      } catch (err) {
+        toast.error('No se pudo subir el documento: ' + err.message);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      const isPdf = docFile.type === 'application/pdf' || /\.pdf$/i.test(docFile.name);
+      const isImg = docFile.type.startsWith('image/');
+      
+      let previewUrl = null;
+      if (isImg || isPdf) {
+        previewUrl = URL.createObjectURL(docFile);
+      }
+
+      const newPending = {
+        tempId: Date.now().toString(),
+        file: docFile,
+        nombre: docComment.trim(),
+        previewUrl,
+        isPdf,
+        isImg
+      };
+
+      setPendingDocs(prev => [...prev, newPending]);
+      setDocFile(null);
+      setDocComment('');
+      toast.success('Documento añadido a la lista');
+    }
+  };
+
+  const getDocPreviewDetails = (doc) => {
+    if (doc.archivoUrl) {
+      const isPdf = doc.mimeType === 'application/pdf' || /\.pdf$/i.test(doc.archivoUrl) || /\.pdf$/i.test(doc.nombre);
+      const isImg = doc.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(doc.archivoUrl);
+      return { url: doc.archivoUrl, isPdf, isImg, nombre: doc.nombre };
+    }
+    return { url: doc.previewUrl, isPdf: doc.isPdf, isImg: doc.isImg, nombre: doc.nombre };
   };
 
   const handleSave = async (e) => {
@@ -644,21 +758,15 @@ export const EmpleadoFormPage = () => {
 
     if (!form.correo.trim()) {
       toast.error('El correo electrónico es obligatorio');
-      setTab('credenciales');
-      focusField('correo');
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(form.correo.trim())) {
       toast.error('El formato del correo electrónico no es válido');
-      setTab('credenciales');
-      focusField('correo');
       return;
     }
     if (!form.username.trim()) {
       toast.error('El nombre de usuario es obligatorio');
-      setTab('credenciales');
-      focusField('username');
       return;
     }
 
@@ -678,10 +786,10 @@ export const EmpleadoFormPage = () => {
         sueldoDiario: Number(form.sueldoDiario) || 0,
       });
 
-      const docsToUpload = Object.entries(pendingDocs).map(([tipo, file]) => ({
-        tipo,
-        file,
-        nombre: DOCUMENTO_TIPOS.find((d) => d.id === tipo)?.label || file.name,
+      const docsToUpload = pendingDocs.map((doc) => ({
+        tipo: 'otro',
+        file: doc.file,
+        nombre: doc.nombre,
       }));
 
       if (docsToUpload.length > 0) {
@@ -976,110 +1084,302 @@ export const EmpleadoFormPage = () => {
               )}
 
               {tab === 'credenciales' && (
-                <div className="max-w-lg space-y-6">
+                <div className="space-y-8 animate-slide-up">
                   <div>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                       <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
-                      Acceso y Credenciales del Sistema
+                      Credenciales y Permisos de Acceso
                     </h3>
-                    <p className="text-sm text-slate-500">
-                      Configure el correo y el nombre de usuario. Al crear el colaborador, el sistema creará automáticamente una cuenta de usuario con la contraseña genérica <strong>123456</strong>.
+                    <p className="text-xs text-slate-400 mb-6 font-medium">
+                      Configure el acceso del colaborador al sistema. Las credenciales se generan automáticamente, pero puede modificarlas si es necesario.
                     </p>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Correo electrónico *</label>
-                      <input
-                        name="correo"
-                        type="email"
-                        value={form.correo}
-                        onChange={handleChange}
-                        placeholder="correo@luxes.com"
-                        className="input-field"
-                      />
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-5 shadow-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nombre de Usuario *</label>
+                        <input 
+                          name="username" 
+                          value={form.username} 
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setForm(prev => ({
+                              ...prev,
+                              username: val,
+                              correo: val ? `${val}@luxes.com` : prev.correo
+                            }));
+                          }} 
+                          placeholder="Ej. carlosm" 
+                          className="input-field" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Correo Electrónico *</label>
+                        <input 
+                          name="correo" 
+                          value={form.correo} 
+                          onChange={handleChange} 
+                          placeholder="Ej. carlosm@luxes.com" 
+                          className="input-field" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Contraseña Temporal *</label>
+                        <input 
+                          name="contraseña" 
+                          type="text" 
+                          value={form.contraseña} 
+                          onChange={handleChange} 
+                          placeholder="Contraseña" 
+                          className="input-field font-mono" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Rol en el Sistema *</label>
+                        <select 
+                          name="roleId" 
+                          value={form.roleId} 
+                          onChange={(e) => {
+                            const rId = e.target.value;
+                            const rObj = roles.find(r => r.id === rId);
+                            setForm(prev => ({
+                              ...prev,
+                              roleId: rId,
+                              rol: rObj ? rObj.name : ''
+                            }));
+                          }} 
+                          className="input-field"
+                        >
+                          <option value="">Seleccionar rol...</option>
+                          {roles.map(r => (
+                            <option key={r.id} value={r.id}>{r.name} - {r.description || 'Sin descripción'}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nombre de usuario *</label>
-                      <input
-                        name="username"
-                        type="text"
-                        value={form.username}
-                        onChange={handleChange}
-                        placeholder="Ej. carlos.mendoza"
-                        className="input-field"
-                      />
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-100 text-xs text-blue-800 space-y-1">
-                      <p className="font-bold">Contraseña predeterminada:</p>
-                      <p>
-                        La contraseña inicial asignada será <strong className="font-mono">123456</strong>. El colaborador podrá cambiarla una vez que inicie sesión en su portal.
-                      </p>
+                    <div className="rounded-xl bg-blue-50/70 border border-blue-200/50 p-4 text-xs text-blue-800 flex gap-3">
+                      <svg className="w-5 h-5 shrink-0 text-blue-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                      </svg>
+                      <div>
+                        <span className="font-bold block mb-0.5">Nota de Seguridad:</span>
+                        <span>Las credenciales se utilizan para el acceso al sistema y para que el colaborador pueda registrar su asistencia. Al guardar, se creará/actualizará su cuenta vinculada.</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {tab === 'documentos' && (() => {
-                const requiredDocs = DOCUMENTO_TIPOS.filter(d => d.required);
-                const optionalDocs = DOCUMENTO_TIPOS.filter(d => !d.required);
+              {tab === 'documentos' && (
+                <div className="space-y-8 animate-slide-up">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <span className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+                      Expediente Digital del Colaborador
+                    </h3>
+                    <p className="text-xs text-slate-400 mb-6 font-medium">
+                      Sube los documentos de soporte (Cédula, Contrato, Hojas de Vida, etc.) del colaborador. Escribe un comentario describiendo el documento antes de agregarlo.
+                    </p>
+                  </div>
 
-                return (
-                  <div className="space-y-8">
-                    {/* Obligatorios */}
-                    {requiredDocs.length > 0 && (
-                      <div>
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                          <span className="w-1.5 h-4 bg-amber-400 rounded-full" />
-                          Documentos obligatorios
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-                          {requiredDocs.map(({ id, label, required }) => (
-                            <DocUploadCard
-                              key={id}
-                              id={id}
-                              label={label}
-                              required={required}
-                              existing={getDocForTipo(id)}
-                              pending={pendingDocs[id]}
-                              onSelect={handleDocumentSelect}
-                              onRemovePending={handleRemovePendingDoc}
-                              onDeleteExisting={handleDeleteExistingDoc}
-                              canDelete={isEdit}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Opcionales */}
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span className="w-1.5 h-4 bg-slate-300 rounded-full" />
-                        {requiredDocs.length > 0 ? 'Otros Documentos (Planilla de luz, etc.)' : 'Documentos y Expediente Digital (Cédula, planilla de luz, contrato, etc.)'}
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                        {optionalDocs.map(({ id, label, required }) => (
-                          <DocUploadCard
-                            key={id}
-                            id={id}
-                            label={label}
-                            required={required}
-                            existing={getDocForTipo(id)}
-                            pending={pendingDocs[id]}
-                            onSelect={handleDocumentSelect}
-                            onRemovePending={handleRemovePendingDoc}
-                            onDeleteExisting={handleDeleteExistingDoc}
-                            canDelete={isEdit}
-                          />
-                        ))}
+                  {/* Zona de Carga y Comentario */}
+                  <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.5fr] gap-6 bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
+                    {/* Dropzone */}
+                    <div className="flex flex-col">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5 block">
+                        Seleccionar Archivo (Imagen o PDF)
+                      </label>
+                      <div 
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) handleDocumentSelect(file);
+                        }}
+                        className={`border border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-all cursor-pointer h-40 ${
+                          docFile 
+                            ? 'border-emerald-300 bg-emerald-50/20' 
+                            : 'border-slate-300 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input 
+                          type="file" 
+                          accept="image/*,.pdf" 
+                          className="hidden" 
+                          id="empleado-doc-picker"
+                          onChange={(e) => handleDocumentSelect(e.target.files?.[0])}
+                        />
+                        <label htmlFor="empleado-doc-picker" className="cursor-pointer flex flex-col items-center justify-center w-full">
+                          {docFile ? (
+                            <>
+                              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-7.5" />
+                                </svg>
+                              </div>
+                              <span className="font-bold text-slate-700 text-xs truncate max-w-xs">{docFile.name}</span>
+                              <span className="text-[10px] text-slate-400 mt-0.5">{(docFile.size / 1024).toFixed(1)} KB • Clic para cambiar</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-10 h-10 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+                              </svg>
+                              <span className="font-semibold text-slate-600 text-xs">Arrastra tu archivo aquí o haz clic</span>
+                              <span className="text-[10px] text-slate-400 mt-1">Formatos: JPG, PNG, WEBP, PDF</span>
+                            </>
+                          )}
+                        </label>
                       </div>
                     </div>
+
+                    {/* Inputs */}
+                    <div className="flex flex-col justify-between gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5 block">
+                          Comentario / Descripción de qué trata
+                        </label>
+                        <input
+                          type="text"
+                          value={docComment}
+                          onChange={(e) => setDocComment(e.target.value)}
+                          placeholder="Ej. Cédula de Identidad, Certificado de Curso, etc."
+                          className="input-field"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleAddDocToList}
+                        disabled={saving}
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 mt-4 disabled:opacity-60 cursor-pointer"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Agregar Documento
+                      </button>
+                    </div>
                   </div>
-                );
-              })()}
+
+                  {/* Listado de Documentos */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      Documentos en Expediente ({documentos.length + pendingDocs.length})
+                    </h4>
+
+                    {documentos.length === 0 && pendingDocs.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-slate-400 italic text-xs flex flex-col items-center justify-center gap-2">
+                        <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                        </svg>
+                        <span>No hay documentos cargados en el expediente de este colaborador.</span>
+                      </div>
+                    ) : (
+                      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                        <table className="w-full border-collapse text-left">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              <th className="px-4 py-3">Tipo</th>
+                              <th className="px-4 py-3">Comentario / Descripción</th>
+                              <th className="px-4 py-3">Archivo Original</th>
+                              <th className="px-4 py-3">Estado</th>
+                              <th className="px-4 py-3 text-right">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-xs">
+                            {/* DB Guardados */}
+                            {documentos.map((doc) => {
+                              const preview = getDocPreviewDetails(doc);
+                              return (
+                                <tr key={doc.id} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-3">
+                                    {preview.isPdf ? (
+                                      <span className="text-[10px] font-black text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded uppercase">PDF</span>
+                                    ) : (
+                                      <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase">IMG</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 font-bold text-slate-700">{doc.nombre}</td>
+                                  <td className="px-4 py-3 text-slate-400 truncate max-w-xs">{doc.archivoUrl.split('/').pop()}</td>
+                                  <td className="px-4 py-3">
+                                    <span className="text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Guardado</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="flex gap-2 justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => setActivePreviewDoc(preview)}
+                                        className="px-2.5 py-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer"
+                                      >
+                                        Ver
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteExistingDoc(doc.id)}
+                                        className="px-2.5 py-1 text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg cursor-pointer"
+                                      >
+                                        Quitar
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+
+                            {/* Pendientes locales */}
+                            {pendingDocs.map((doc) => {
+                              const preview = getDocPreviewDetails(doc);
+                              return (
+                                <tr key={doc.tempId} className="hover:bg-slate-50/50 bg-indigo-50/10">
+                                  <td className="px-4 py-3">
+                                    {preview.isPdf ? (
+                                      <span className="text-[10px] font-black text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded uppercase">PDF</span>
+                                    ) : (
+                                      <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase">IMG</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 font-bold text-slate-700">{doc.nombre}</td>
+                                  <td className="px-4 py-3 text-slate-400 truncate max-w-xs">{doc.file.name}</td>
+                                  <td className="px-4 py-3">
+                                    <span className="text-[9px] font-bold uppercase bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Por Guardar</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="flex gap-2 justify-end">
+                                      {preview.url && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setActivePreviewDoc(preview)}
+                                          className="px-2.5 py-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer"
+                                        >
+                                          Ver
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemovePendingDoc(doc.tempId)}
+                                        className="px-2.5 py-1 text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg cursor-pointer"
+                                      >
+                                        Quitar
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
 
             </div>
@@ -1144,6 +1444,67 @@ export const EmpleadoFormPage = () => {
               </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Modal Visor de Documentos */}
+      {activePreviewDoc && (
+        <div 
+          className="fixed inset-0 z-[1100] flex items-center justify-center p-6 md:p-12 bg-slate-950/70 backdrop-blur-md cursor-zoom-out"
+          onClick={() => setActivePreviewDoc(null)}
+        >
+          <div 
+            className="relative bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-4xl w-full max-h-[80vh] flex flex-col overflow-hidden cursor-default animate-in fade-in zoom-in duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header modal */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm sm:text-base">{activePreviewDoc.nombre}</h3>
+              </div>
+              <button
+                onClick={() => setActivePreviewDoc(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors hover:bg-slate-50 rounded-lg cursor-pointer focus:outline-none"
+                title="Cerrar"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Contenido modal */}
+            <div className="p-6 bg-slate-50/50 flex-1 overflow-auto flex items-center justify-center min-h-[300px]">
+              {activePreviewDoc.isImg ? (
+                <img 
+                  src={activePreviewDoc.url} 
+                  alt={activePreviewDoc.nombre} 
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-sm border border-slate-200"
+                />
+              ) : activePreviewDoc.isPdf ? (
+                <iframe 
+                  src={activePreviewDoc.url} 
+                  title={activePreviewDoc.nombre}
+                  className="w-full h-[65vh] rounded-lg border border-slate-200 bg-white"
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-4 py-12 text-slate-500">
+                  <svg className="w-16 h-16 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                  </svg>
+                  <p className="text-sm font-medium">Este tipo de archivo no se puede previsualizar directamente.</p>
+                  <a 
+                    href={activePreviewDoc.url} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+                  >
+                    Descargar/Ver en pestaña nueva
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

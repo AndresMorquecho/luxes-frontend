@@ -2,7 +2,7 @@
 
 import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
-import { validarCamposFase } from '../../domain/use-cases/avanzarFase.js';
+import { validarCamposFase, avanzarFase as avanzarFaseUseCase, retrocederFase as retrocederFaseUseCase } from '../../domain/use-cases/avanzarFase.js';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 
@@ -22,7 +22,6 @@ export function useProyecto(id) {
     if (!proyecto) return;
     
     // Calcular el siguiente estado antes de hacer dispatch
-    const { avanzarFase: avanzarFaseUseCase } = await import('../../domain/use-cases/avanzarFase.js');
     const proyectoActualizado = avanzarFaseUseCase(proyecto);
     
     // Actualizar localmente
@@ -40,7 +39,6 @@ export function useProyecto(id) {
     if (!proyecto) return;
     
     // Calcular el estado anterior antes de hacer dispatch
-    const { retrocederFase: retrocederFaseUseCase } = await import('../../domain/use-cases/avanzarFase.js');
     const proyectoActualizado = retrocederFaseUseCase(proyecto);
     
     dispatch({ type: ACTIONS.RETROCEDER_FASE, payload: { id } });

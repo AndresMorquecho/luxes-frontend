@@ -39,19 +39,20 @@ export const FormOrdenCompraPage = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const matResult = await getMateriales({ limit: 100 });
-      const matList = matResult.items || matResult || [];
-      setMateriales(matList);
-
-      try {
-        const projResult = await getProyectos({ limit: 200 });
-        setProyectos(projResult.data || projResult || []);
-      } catch (pErr) {
-        console.error('Error al cargar proyectos:', pErr);
-      }
-
       if (isEdit) {
-        const o = await getOrdenById(id);
+        const [matResult, projResult, o] = await Promise.all([
+          getMateriales({ limit: 100 }),
+          getProyectos({ limit: 200 }),
+          getOrdenById(id).catch(err => {
+            console.error('Error al cargar la orden:', err);
+            return null;
+          })
+        ]);
+
+        const matList = matResult.items || matResult || [];
+        setMateriales(matList);
+        setProyectos(projResult.data || projResult || []);
+
         if (o) {
           setForm({
             fecha: o.fecha ? new Date(o.fecha).toISOString().split('T')[0] : '',
@@ -68,6 +69,15 @@ export const FormOrdenCompraPage = () => {
             proyectoId: o.proyectoId || '',
           });
         }
+      } else {
+        const [matResult, projResult] = await Promise.all([
+          getMateriales({ limit: 100 }),
+          getProyectos({ limit: 200 })
+        ]);
+
+        const matList = matResult.items || matResult || [];
+        setMateriales(matList);
+        setProyectos(projResult.data || projResult || []);
       }
     } catch (err) {
       toast.error('Error al cargar datos: ' + err.message);

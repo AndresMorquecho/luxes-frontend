@@ -23,6 +23,7 @@ export const RecepcionInsumosFormPage = () => {
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [recepcionData, setRecepcionData] = useState(null);
   const [showOrdenPDF, setShowOrdenPDF] = useState(false);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
   useEffect(() => {
     loadOrden();
@@ -184,60 +185,71 @@ export const RecepcionInsumosFormPage = () => {
 
       {/* Info Card */}
       <div className="ri-info-card">
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-4 flex-wrap gap-4">
           <div>
-            <h2 className="text-xl font-bold mb-0.5">Recepción de Insumos</h2>
-            <p className="text-sm opacity-90">Registra la cantidad recibida de cada item y observaciones</p>
+            <h2 className="text-xl font-bold mb-0.5" style={{ color: '#1e293b' }}>Recepción de Insumos</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Registra la cantidad recibida de cada item y observaciones</p>
           </div>
-          {!isTaller && (
-            <button
+          <div className="flex items-center gap-2">
+            {!isTaller && (
+              <button
+                type="button"
+                onClick={handleVerPDF}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold transition-all text-xs cursor-pointer shadow-sm"
+              >
+                <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
+                </svg>
+                Ver OC
+              </button>
+            )}
+            <button 
               type="button"
-              onClick={handleVerPDF}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-blue-300 bg-white/40 hover:bg-blue-50 text-blue-700 font-bold transition-all text-sm"
+              onClick={() => setIsDetailsExpanded(!isDetailsExpanded)} 
+              className="ri-toggle-details-btn px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors cursor-pointer"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
-              </svg>
-              Ver Orden de Compra
+              {isDetailsExpanded ? 'Ocultar detalles ▲' : 'Ver detalles ▼'}
             </button>
-          )}
+          </div>
         </div>
         
-        <div className="ri-info-grid">
-          <div className="ri-info-item">
-            <label>Orden de Compra</label>
-            <p className="font-mono">{orden.numero}</p>
-          </div>
-          <div className="ri-info-item">
-            <label>Proveedor</label>
-            <p>{orden.proveedor?.nombre || '—'}</p>
-          </div>
-          <div className="ri-info-item">
-            <label>Solicitante</label>
-            <p>{orden.usuario?.nombre || '—'}</p>
-          </div>
-          <div className="ri-info-item">
-            <label>Fecha Orden</label>
-            <p>{fmtDate(orden.fecha)}</p>
-          </div>
-          {orden.fechaAprobacion && (
-            <>
-              <div className="ri-info-item">
-                <label>Aprobada el</label>
-                <p className="font-semibold text-green-700">{fmtDate(orden.fechaAprobacion)}</p>
-              </div>
-              <div className="ri-info-item">
-                <label>Aprobada por</label>
-                <p className="font-semibold text-green-700">{orden.aprobadoPor?.nombre || '—'}</p>
-              </div>
-            </>
-          )}
-          {!isTaller && (
+        <div className={`ri-details-container ${isDetailsExpanded ? 'expanded' : 'collapsed'}`}>
+          <div className="ri-info-grid">
             <div className="ri-info-item">
-              <label>Total Orden</label>
-              <p className="font-bold">{fmt(orden.total)}</p>
+              <label>Orden de Compra</label>
+              <p className="font-mono">{orden.numero}</p>
             </div>
-          )}
+            <div className="ri-info-item">
+              <label>Proveedor</label>
+              <p>{orden.proveedor?.nombre || '—'}</p>
+            </div>
+            <div className="ri-info-item">
+              <label>Solicitante</label>
+              <p>{orden.usuario?.nombre || '—'}</p>
+            </div>
+            <div className="ri-info-item">
+              <label>Fecha Orden</label>
+              <p>{fmtDate(orden.fecha)}</p>
+            </div>
+            {orden.fechaAprobacion && (
+              <>
+                <div className="ri-info-item">
+                  <label>Aprobada el</label>
+                  <p className="font-semibold text-emerald-600">{fmtDate(orden.fechaAprobacion)}</p>
+                </div>
+                <div className="ri-info-item">
+                  <label>Aprobada por</label>
+                  <p className="font-semibold text-emerald-600">{orden.aprobadoPor?.nombre || '—'}</p>
+                </div>
+              </>
+            )}
+            {!isTaller && (
+              <div className="ri-info-item">
+                <label>Total Orden</label>
+                <p className="font-bold text-slate-800">{fmt(orden.total)}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -269,9 +281,9 @@ export const RecepcionInsumosFormPage = () => {
               <tbody>
                 {detalles.map((detalle, index) => (
                   <tr key={index}>
-                    <td className="font-semibold text-slate-700">{detalle.descripcion}</td>
-                    <td style={{ textAlign: 'center' }} className="font-bold text-slate-600">{detalle.cantidadSolicitada}</td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Descripción" className="font-semibold text-slate-700">{detalle.descripcion}</td>
+                    <td data-label="Solicitada" style={{ textAlign: 'center' }} className="font-bold text-slate-600">{detalle.cantidadSolicitada}</td>
+                    <td data-label="Recibida" style={{ textAlign: 'center' }}>
                       <input
                         type="number"
                         min="0"
@@ -282,8 +294,8 @@ export const RecepcionInsumosFormPage = () => {
                         style={{ maxWidth: '100px', textAlign: 'center', margin: '0 auto' }}
                       />
                     </td>
-                    {!isTaller && <td style={{ textAlign: 'right' }} className="font-semibold text-slate-700">{fmt(detalle.precioUnitario)}</td>}
-                    <td>
+                    {!isTaller && <td data-label="Precio Unit." style={{ textAlign: 'right' }} className="font-semibold text-slate-700">{fmt(detalle.precioUnitario)}</td>}
+                    <td data-label="Observaciones">
                       <input
                         type="text"
                         value={detalle.observacion}

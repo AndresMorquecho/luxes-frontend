@@ -7,7 +7,7 @@ import { ACTIONS } from '../../proyectos/application/store/proyectosStore.js';
 import { 
   ArrowLeft, Search, Plus, Trash2, MapPin, 
   Package, ShoppingCart, Clock, CheckCircle, AlertTriangle,
-  Wrench, User, Calendar, HelpCircle, Eye, Play, Save
+  Wrench, User, Calendar, HelpCircle, Eye, Play, Save, Camera, UploadCloud, X
 } from 'lucide-react';
 import { PDFPreviewModal } from '../../../shared/ui/components/PDFPreviewModal.jsx';
 import { useProyecto } from '../../proyectos/application/hooks/useProyecto.js';
@@ -25,14 +25,15 @@ export function MaterialesRequestPage() {
 
   const datosInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
   const materialesExistentes = datosInstalacion.materiales || [];
+  const esSoloLectura = datosInstalacion.instalacionCompletada === true;
 
   // Pestaña Activa
   const [activeTab, setActiveTab] = useState('equipo'); // 'equipo' | 'bodega' | 'distribucion' | 'compras' | 'cierre'
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
   // Estados locales para edición y guardado explícito
   const [personalLocal, setPersonalLocal] = useState([]);
-  const [materialesTemporalesStock, setMaterialesTemporalesStock] = useState([]);
-  const [materialesDistribucion, setMaterialesDistribucion] = useState([]);
+  const [materialesLocales, setMaterialesLocales] = useState([]);
 
   // Estados de control de inventario local
   const [inventarioDb, setInventarioDb] = useState([]);
@@ -60,10 +61,10 @@ export function MaterialesRequestPage() {
     }
   }, [datosInstalacion.personalAsignado]);
 
-  // Sincronizar materialesDistribucion cuando cambien los materiales en la base de datos
+  // Sincronizar materialesLocales cuando cambien los materiales en la base de datos
   useEffect(() => {
     if (materialesExistentes) {
-      setMaterialesDistribucion(materialesExistentes.map(m => ({
+      setMaterialesLocales(materialesExistentes.map(m => ({
         nombre: m.nombre,
         sku: m.sku,
         cantidad: m.cantidad,
@@ -71,16 +72,19 @@ export function MaterialesRequestPage() {
         observacion: m.observacion || '',
         origen: m.origen || 'inventario',
         cantidadLlevada: m.cantidadLlevada !== undefined ? m.cantidadLlevada : m.cantidad,
-        responsable: m.responsable || ''
+        responsable: m.responsable || '',
+        tipo: m.tipo || 'consumible',
+        precioUnitario: m.precioUnitario || 0
       })));
     } else {
-      setMaterialesDistribucion([]);
+      setMaterialesLocales([]);
     }
   }, [proyecto]);
 
   // Estados de modales y PDF
   const [isPDFOpen, setIsPDFOpen] = useState(false);
   const [previewOC, setPreviewOC] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: '',
@@ -93,17 +97,20 @@ export function MaterialesRequestPage() {
   const fetchInventario = async () => {
     try {
       setLoadingInventario(true);
-      const data = await getMateriales();
+      const data = await getMateriales({ categoria: 'Taller' });
       const items = Array.isArray(data) ? data : (data.items || []);
-      const mapped = items.map(item => ({
-        id: item.id,
-        nombre: item.nombre,
-        sku: item.codigo || 'SIN-CODIGO',
-        stock: item.stockActual || 0,
-        precioUnitario: item.precioCosto || 0,
-        unidad: item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unidad',
-        categoria: item.categoria || 'Taller'
-      }));
+      const mapped = items
+        .filter(item => item.categoria === 'Taller')
+        .map(item => ({
+          id: item.id,
+          nombre: item.nombre,
+          sku: item.codigo || 'SIN-CODIGO',
+          stock: item.stockActual || 0,
+          precioUnitario: item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : (item.precioCosto || 0),
+          unidad: item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unidad',
+          categoria: item.categoria || 'Taller',
+          tipo: item.tipo || 'consumible'
+        }));
       setInventarioDb(mapped);
     } catch (err) {
       console.error('Error al cargar inventario:', err);
@@ -186,11 +193,11 @@ export function MaterialesRequestPage() {
     );
   }
 
-  // Filtrar artículos en inventario
+  // Filtrar artículos en inventario (limitado a los primeros 6 para mejorar UX y rendimiento)
   const matchedInventory = inventarioDb.filter(item => 
     item.nombre.toLowerCase().includes(materialSearch.toLowerCase()) || 
     item.sku.toLowerCase().includes(materialSearch.toLowerCase())
-  );
+  ).slice(0, 6);
 
   // Filtrar órdenes de compra asociadas a este proyecto
   const ordenesProyecto = proyecto.ordenesCompra || [];
@@ -216,23 +223,26 @@ export function MaterialesRequestPage() {
   function handleAddToDraft() {
     if (!selectedItem || qty <= 0) return;
 
-    const index = materialesTemporalesStock.findIndex(item => item.id === selectedItem.id);
+    const index = materialesLocales.findIndex(item => item.sku === selectedItem.sku);
     if (index > -1) {
-      const nuevaCant = materialesTemporalesStock[index].cantidad + qty;
-      setMaterialesTemporalesStock(prev => prev.map((item, idx) => 
-        idx === index ? { ...item, cantidad: nuevaCant } : item
+      const nuevaCant = materialesLocales[index].cantidad + qty;
+      setMaterialesLocales(prev => prev.map((item, idx) => 
+        idx === index ? { ...item, cantidad: nuevaCant, cantidadLlevada: nuevaCant } : item
       ));
     } else {
-      setMaterialesTemporalesStock(prev => [
+      setMaterialesLocales(prev => [
         ...prev,
         {
-          id: selectedItem.id,
           nombre: selectedItem.nombre,
           sku: selectedItem.sku,
           cantidad: qty,
           unidad: selectedItem.unidad,
-          stock: selectedItem.stock,
-          precioUnitario: selectedItem.precioUnitario
+          observacion: 'Anotado para la Instalación',
+          origen: 'inventario',
+          cantidadLlevada: qty,
+          responsable: '',
+          tipo: selectedItem.tipo || 'consumible',
+          precioUnitario: selectedItem.precioUnitario || 0
         }
       ]);
     }
@@ -244,47 +254,30 @@ export function MaterialesRequestPage() {
   }
 
   // Quitar item del Borrador (Tab 2)
-  function handleRemoveFromDraft(itemId) {
-    setMaterialesTemporalesStock(prev => prev.filter(item => item.id !== itemId));
+  function handleRemoveFromDraft(itemSku) {
+    setMaterialesLocales(prev => prev.filter(item => item.sku !== itemSku));
   }
 
   // Guardar Consumo de Bodega completo (Tab 2)
   async function handleConfirmarConsumo() {
-    if (materialesTemporalesStock.length === 0) return;
-
     showModal(
       'Registrar Materiales para Instalación',
-      `¿Estás seguro de que deseas registrar estos ${materialesTemporalesStock.length} materiales para esta instalación?`,
+      `¿Estás seguro de que deseas registrar y guardar estos ${materialesLocales.length} materiales para esta instalación?`,
       'confirm',
       async () => {
         try {
-          // 1. Mapear y añadir al proyecto
-          const nuevosMaterialesMapeados = materialesTemporalesStock.map(item => ({
-            nombre: item.nombre,
-            sku: item.sku,
-            cantidad: item.cantidad,
-            unidad: item.unidad,
-            observacion: 'Anotado para la Instalación',
-            origen: 'inventario',
-            cantidadLlevada: item.cantidad, // por defecto se asume que se lleva todo lo tomado
-            responsable: ''
-          }));
-
-          const nuevosMateriales = [...materialesExistentes, ...nuevosMaterialesMapeados];
-
           await updateFaseDatos('INSTALACION', {
-            materiales: nuevosMateriales
+            materiales: materialesLocales
           });
 
-          // 2. Recargar inventario local y limpiar borrador
+          // Recargar inventario local
           await fetchInventario();
-          setMaterialesTemporalesStock([]);
 
           if (reloadProyectos) {
             reloadProyectos();
           }
 
-          toast.success('Materiales registrados para la instalación con éxito');
+          toast.success('Materiales y carga guardados con éxito');
         } catch (err) {
           toast.error('No se pudo registrar los materiales: ' + err.message);
         }
@@ -292,28 +285,14 @@ export function MaterialesRequestPage() {
     );
   }
 
-  // Guardar Distribución y Carga (Tab 3)
-  async function handleGuardarDistribucion() {
-    try {
-      await updateFaseDatos('INSTALACION', {
-        materiales: materialesDistribucion
-      });
-      if (reloadProyectos) {
-        reloadProyectos();
-      }
-      toast.success('Distribución de materiales guardada con éxito');
-    } catch (err) {
-      toast.error('No se pudo guardar la distribución de materiales: ' + err.message);
-    }
-  }
-
   // Modificar distribución local
-  const handleLocalCarryChange = (index, field, value) => {
-    setMaterialesDistribucion(prev => prev.map((m, idx) => {
+  const handleLocalMaterialChange = (index, field, value) => {
+    setMaterialesLocales(prev => prev.map((m, idx) => {
       if (idx === index) {
         return {
           ...m,
-          [field]: value
+          [field]: value,
+          ...(field === 'cantidad' ? { cantidadLaveada: value } : {})
         };
       }
       return m;
@@ -322,9 +301,23 @@ export function MaterialesRequestPage() {
 
   // Iniciar montaje / instalación en sitio
   async function handleIniciarInstalacion() {
+    const hasTeam = personalLocal && personalLocal.length > 0;
+    const hasMaterials = materialesLocales && materialesLocales.length > 0;
+
+    if (!hasTeam || !hasMaterials) {
+      if (!hasTeam && !hasMaterials) {
+        toast.error('No se puede iniciar la instalación: debes asignar al menos un miembro al Equipo de trabajo y agregar Materiales.');
+      } else if (!hasTeam) {
+        toast.error('No se puede iniciar la instalación: debes asignar al menos un miembro al Equipo de trabajo.');
+      } else {
+        toast.error('No se puede iniciar la instalación: debes agregar al menos un Material para la obra.');
+      }
+      return;
+    }
+
     showModal(
       'Iniciar Instalación',
-      '¿Estás seguro? Se notificará a la administración que empezó la instalación.',
+      '¿Estás seguro? Se notificará a la administración que empezó la instalación y se guardará el equipo y materiales seleccionados.',
       'confirm',
       async () => {
         const now = new Date();
@@ -332,14 +325,16 @@ export function MaterialesRequestPage() {
           await updateFaseDatos('INSTALACION', {
             fechaInstalacion: now.toISOString().split('T')[0],
             horaInstalacion: now.toTimeString().slice(0, 5),
-            direccionInstalacion: datosInstalacion.direccionInstalacion || proyecto.cliente?.direccion || ''
+            direccionInstalacion: datosInstalacion.direccionInstalacion || proyecto.cliente?.direccion || '',
+            personalAsignado: personalLocal,
+            materiales: materialesLocales
           });
           
           if (reloadProyectos) {
             reloadProyectos();
           }
 
-          toast.success('Instalación iniciada con éxito y administración notificada');
+          toast.success('Instalación iniciada con éxito, equipo/materiales guardados y administración notificada');
         } catch (err) {
           toast.error('No se pudo iniciar la instalación: ' + err.message);
         }
@@ -347,8 +342,110 @@ export function MaterialesRequestPage() {
     );
   }
 
+  const compressAndConvertImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1024;
+          const MAX_HEIGHT = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => {
+          reject(err);
+        };
+      };
+      reader.onerror = (err) => {
+        reject(err);
+      };
+    });
+  };
+
+  const handleUploadEvidencias = async (files) => {
+    if (esSoloLectura) return;
+    const fileList = Array.from(files);
+    if (fileList.length === 0) return;
+
+    toast.info('Procesando y comprimiendo imágenes...');
+    try {
+      const nuevasEvidenciasPromises = fileList.map(file => compressAndConvertImage(file));
+      const nuevasEvidencias = await Promise.all(nuevasEvidenciasPromises);
+
+      const evidenciasActuales = datosInstalacion.evidencias || [];
+      const updatedEvidencias = [...evidenciasActuales, ...nuevasEvidencias];
+
+      await updateFaseDatos('INSTALACION', {
+        evidencias: updatedEvidencias
+      });
+
+      if (reloadProyectos) {
+        reloadProyectos();
+      }
+      toast.success('Evidencia(s) cargada(s) con éxito');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al procesar las imágenes: ' + err.message);
+    }
+  };
+
+  const handleDeleteEvidencia = async (indexToDelete) => {
+    if (esSoloLectura) return;
+    showModal(
+      'Eliminar Evidencia',
+      '¿Estás seguro de que deseas eliminar esta imagen?',
+      'confirm',
+      async () => {
+        try {
+          const evidenciasActuales = datosInstalacion.evidencias || [];
+          const updatedEvidencias = evidenciasActuales.filter((_, idx) => idx !== indexToDelete);
+
+          await updateFaseDatos('INSTALACION', {
+            evidencias: updatedEvidencias
+          });
+
+          if (reloadProyectos) {
+            reloadProyectos();
+          }
+          toast.success('Evidencia eliminada con éxito');
+        } catch (err) {
+          toast.error('No se pudo eliminar la evidencia: ' + err.message);
+        }
+      }
+    );
+  };
+
   // Finalizar instalación en sitio
   const handleCompletarInstalacion = async () => {
+    const evidencias = datosInstalacion.evidencias || [];
+    if (evidencias.length === 0) {
+      toast.error('No se puede finalizar la instalación: debes subir al menos una evidencia fotográfica en el Cierre de Obra.');
+      return;
+    }
+
     showModal(
       'Confirmar Finalización',
       '¿Estás seguro de que deseas marcar la instalación como completada en sitio? Esto notificará a la administración.',
@@ -364,6 +461,7 @@ export function MaterialesRequestPage() {
             reloadProyectos();
           }
           toast.success('¡Instalación Completada! Se ha registrado el cierre.');
+          navigate('/instalaciones');
         } catch (err) {
           toast.error('No se pudo completar la instalación: ' + err.message);
         }
@@ -373,12 +471,32 @@ export function MaterialesRequestPage() {
 
   // Definición de las pestañas
   const tabs = [
-    { id: 'equipo', label: 'Equipo Técnico', Icon: User },
-    { id: 'bodega', label: 'Consumo de Bodega', Icon: Package },
-    { id: 'distribucion', label: 'Distribución de Carga', Icon: CheckCircle },
-    { id: 'compras', label: 'Órdenes de Compra', Icon: ShoppingCart },
-    { id: 'cierre', label: 'Cierre de Obra', Icon: Wrench }
+    { id: 'equipo', label: 'Equipo Técnico', shortLabel: 'Equipo', Icon: User },
+    { id: 'bodega', label: 'Materiales de Bodega', shortLabel: 'Materiales', Icon: Package },
+    { id: 'compras', label: 'Órdenes de Compra', shortLabel: 'Compras', Icon: ShoppingCart },
+    { id: 'cierre', label: 'Cierre de Obra', shortLabel: 'Cierre', Icon: Wrench }
   ];
+
+  const isTabSaved = (tabId) => {
+    if (tabId === 'equipo') {
+      return datosInstalacion.personalAsignado && datosInstalacion.personalAsignado.length > 0;
+    }
+    if (tabId === 'bodega') {
+      return datosInstalacion.materiales && datosInstalacion.materiales.length > 0;
+    }
+    if (tabId === 'cierre') {
+      return !!datosInstalacion.instalacionCompletada;
+    }
+    return false;
+  };
+
+  const materialesConStock = (materialesLocales || []).map(m => {
+    const invItem = inventarioDb.find(item => item.sku === m.sku);
+    return {
+      ...m,
+      stock: invItem ? invItem.stock : 0
+    };
+  });
 
   return (
     <div className="request-page-container">
@@ -399,82 +517,93 @@ export function MaterialesRequestPage() {
       {/* Hero Banner general (Datos Generales de la Obra) */}
       <div className="request-hero-banner bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6 flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center print:hidden">
         <div className="flex-1 space-y-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-              <Package size={20} />
-            </span>
-            <div>
-              <h2 className="text-lg font-black text-slate-800">Ficha de Instalación: {proyecto.nombre}</h2>
-              <p className="text-xs text-slate-400">Cliente: <strong className="text-slate-600">{proyecto.cliente.empresa}</strong> • Contacto: {proyecto.cliente.nombre}</p>
-            </div>
-            <div className="flex items-center gap-1.5 ml-0 lg:ml-4">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Estado:</span>
-              {datosInstalacion.instalacionCompletada ? (
-                <span className="oc-history-badge aprobada">Completada</span>
-              ) : datosInstalacion.fechaInstalacion ? (
-                <span className="oc-history-badge pendiente">En Montaje</span>
-              ) : (
-                <span className="oc-history-badge" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>En Cola</span>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3 border-t border-slate-100 text-xs">
-            {/* Dirección */}
-            <div className="flex items-start gap-2 text-slate-600">
-              <MapPin size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                <Package size={20} />
+              </span>
               <div>
-                <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Dirección de Instalación</p>
-                <p className="font-medium mt-0.5">{datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}</p>
+                <h2 className="text-lg font-black text-slate-800">Ficha de Instalación: {proyecto.nombre}</h2>
+                <p className="text-xs text-slate-400">Cliente: <strong className="text-slate-600">{proyecto.cliente.empresa}</strong> • Contacto: {proyecto.cliente.nombre}</p>
               </div>
-            </div>
-
-            {/* Fecha Programada */}
-            <div className="flex items-start gap-2 text-slate-600">
-              <Calendar size={16} className="text-indigo-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Programación</p>
-                <p className="font-medium mt-0.5">
-                  {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion 
-                    ? `${datosInstalacion.fechaInstalacion} a las ${datosInstalacion.horaInstalacion}`
-                    : 'Pendiente de arranque en obra'
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* Equipo Resumen */}
-            <div className="flex items-start gap-2 text-slate-600">
-              <Wrench size={16} className="text-indigo-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Equipo Técnico</p>
-                {datosInstalacion.personalAsignado && datosInstalacion.personalAsignado.length > 0 ? (
-                  <div className="flex gap-1 mt-1">
-                    {datosInstalacion.personalAsignado.map((p, idx) => (
-                      <div 
-                        key={idx} 
-                        className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[9px]"
-                        title={`${p.nombre} (${p.rol})`}
-                      >
-                        {getInitials(p.nombre)}
-                      </div>
-                    ))}
-                  </div>
+              <div className="flex items-center gap-1.5 ml-0 lg:ml-4">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Estado:</span>
+                {datosInstalacion.instalacionCompletada ? (
+                  <span className="oc-history-badge aprobada">Completada</span>
+                ) : datosInstalacion.fechaInstalacion ? (
+                  <span className="oc-history-badge pendiente">En Montaje</span>
                 ) : (
-                  <p className="font-medium mt-0.5 italic text-slate-400">Sin personal asignado</p>
+                  <span className="oc-history-badge" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>En Cola</span>
                 )}
               </div>
             </div>
+            <button 
+              type="button"
+              onClick={() => setIsDetailsExpanded(!isDetailsExpanded)} 
+              className="lg:hidden px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors"
+            >
+              {isDetailsExpanded ? 'Ocultar detalles ▲' : 'Ver detalles ▼'}
+            </button>
           </div>
 
-        {/* Notas Especiales */}
-        {datosInstalacion.notasInstalacion && (
-          <div className="bg-amber-50/70 border border-amber-100 rounded-xl p-3 text-xs text-amber-800 flex gap-2 items-start mt-2">
-            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
-            <span><strong>Instrucciones Especiales:</strong> {datosInstalacion.notasInstalacion}</span>
+          <div className={`hero-details-container ${isDetailsExpanded ? 'expanded' : 'collapsed'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3 border-t border-slate-100 text-xs">
+              {/* Dirección */}
+              <div className="flex items-start gap-2 text-slate-600">
+                <MapPin size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Dirección de Instalación</p>
+                  <p className="font-medium mt-0.5">{datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}</p>
+                </div>
+              </div>
+
+              {/* Fecha Programada */}
+              <div className="flex items-start gap-2 text-slate-600">
+                <Calendar size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Programación</p>
+                  <p className="font-medium mt-0.5">
+                    {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion 
+                      ? `${datosInstalacion.fechaInstalacion} a las ${datosInstalacion.horaInstalacion}`
+                      : 'Pendiente de arranque en obra'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Equipo Resumen */}
+              <div className="flex items-start gap-2 text-slate-600">
+                <Wrench size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Equipo Técnico</p>
+                  {datosInstalacion.personalAsignado && datosInstalacion.personalAsignado.length > 0 ? (
+                    <div className="flex gap-1 mt-1">
+                      {datosInstalacion.personalAsignado.map((p, idx) => (
+                        <div 
+                          key={idx} 
+                          className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[9px]"
+                          title={`${p.nombre} (${p.rol})`}
+                        >
+                          {getInitials(p.nombre)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="font-medium mt-0.5 italic text-slate-400">Sin personal asignado</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Notas Especiales */}
+            {datosInstalacion.notasInstalacion && (
+              <div className="bg-amber-50/70 border border-amber-100 rounded-xl p-3 text-xs text-amber-800 flex gap-2 items-start mt-2">
+                <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
+                <span><strong>Instrucciones Especiales:</strong> {datosInstalacion.notasInstalacion}</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
       {!datosInstalacion.instalacionCompletada && !datosInstalacion.fechaInstalacion && (
         <button
           onClick={handleIniciarInstalacion}
@@ -497,7 +626,15 @@ export function MaterialesRequestPage() {
               className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
             >
               <Icon size={15} />
-              {tab.label}
+              <span className="tab-label-desktop">{tab.label}</span>
+              <span className="tab-label-mobile">{tab.shortLabel}</span>
+              {isTabSaved(tab.id) && (
+                <CheckCircle 
+                  size={14} 
+                  className="tab-saved-check text-emerald-500 shrink-0" 
+                  style={{ fill: '#e6fffa', color: '#10b981' }} 
+                />
+              )}
             </button>
           );
         })}
@@ -523,179 +660,237 @@ export function MaterialesRequestPage() {
               empleados={empleados}
               personalAsignado={personalLocal}
               onChange={(nuevasAsignaciones) => setPersonalLocal(nuevasAsignaciones)}
+              soloLectura={esSoloLectura}
             />
 
-            <div className="flex justify-end mt-4 pt-4 border-t border-slate-100">
-              <button
-                onClick={handleGuardarEquipo}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-sm shadow-indigo-100 transition-all cursor-pointer"
-              >
-                <Save size={16} />
-                Guardar Equipo de Trabajo
-              </button>
-            </div>
+            {!esSoloLectura && (
+              <div className="flex justify-end mt-4 pt-4 border-t border-slate-100">
+                <button
+                  onClick={handleGuardarEquipo}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-sm shadow-indigo-100 transition-all cursor-pointer"
+                >
+                  <Save size={16} />
+                  Guardar Equipo de Trabajo
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        {/* --- PESTAÑA 2: CONSUMO DE BODEGA --- */}
+        {/* --- PESTAÑA 2: MATERIALES DE BODEGA --- */}
         {activeTab === 'bodega' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-up">
             
             {/* Buscador de Stock */}
-            <div className="lg:col-span-5">
-              <div className="request-section-card glass-panel h-full">
-                <div>
-                  <h2 className="request-card-title flex items-center gap-2">
-                    <Search size={18} className="text-indigo-600" />
-                    Consultar Inventario Central (Bodega)
-                  </h2>
-                  <p className="text-xs text-slate-400 -mt-2">
-                    Consulta el catálogo de inventario e ingresa los insumos que vas a utilizar en la instalación.
-                  </p>
-                </div>
-
-                <div className="material-search-section">
-                  <label className="form-label">Buscar Material en Stock</label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      className="inv-search-input"
-                      style={{ background: '#ffffff' }}
-                      placeholder="Escribe para buscar (ej. Acrílico, LED, Perno...)"
-                      value={materialSearch}
-                      onChange={(e) => {
-                        setMaterialSearch(e.target.value);
-                        setShowDropdown(true);
-                      }}
-                      onFocus={() => setShowDropdown(true)}
-                    />
-                    {showDropdown && materialSearch.trim().length > 0 && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-                        <div className="search-results-dropdown z-20">
-                          {matchedInventory.length > 0 ? (
-                            matchedInventory.map(item => (
-                              <div 
-                                key={item.id} 
-                                className="search-result-item"
-                                onClick={() => {
-                                  setSelectedItem(item);
-                                  setShowDropdown(false);
-                                  setMaterialSearch(item.nombre);
-                                }}
-                              >
-                                <div className="result-item-info">
-                                  <span className="result-item-name">{item.nombre}</span>
-                                  <span className="result-item-meta">SKU: {item.sku} • Stock: {item.stock} {item.unidad}s</span>
-                                </div>
-                                <span className="badge-category">{item.categoria}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
-                              Sin resultados en inventario. ¿No hay stock?{' '}
-                              <button 
-                                type="button" 
-                                onClick={() => setActiveTab('compras')}
-                                className="text-blue-600 font-bold hover:underline"
-                              >
-                                Generar Orden de Compra
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
+            {!esSoloLectura && (
+              <div className="lg:col-span-5" style={{ position: 'relative', zIndex: 20 }}>
+                <div className="request-section-card glass-panel h-full">
+                  <div>
+                    <h2 className="request-card-title flex items-center gap-2">
+                      <Search size={18} className="text-indigo-600" />
+                      Consultar Inventario Central (Bodega)
+                    </h2>
+                    <p className="text-xs text-slate-400 -mt-2">
+                      Consulta el catálogo de inventario e ingresa los insumos que vas a utilizar en la instalación.
+                    </p>
                   </div>
-                </div>
 
-                {/* Selección y Cantidad */}
-                {selectedItem && (
-                  <div className="item-add-control-panel mt-2 animate-slide-up">
-                    <div className="selected-item-display">
-                      <span className="font-bold text-slate-800">{selectedItem.nombre}</span>
-                      <span className="text-xs text-slate-500">Stock: {selectedItem.stock} {selectedItem.unidad}s</span>
-                    </div>
-
-                    <div className="qty-inputs-box">
-                      <span className="form-label">Cantidad a llevar:</span>
+                  <div className="material-search-section">
+                    <label className="form-label">Buscar Material en Stock</label>
+                    <div style={{ position: 'relative', zIndex: 10 }}>
                       <input
-                        type="number"
-                        min="1"
-                        max={selectedItem.stock}
-                        className="qty-input-field"
-                        value={qty}
-                        onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        type="text"
+                        className="inv-search-input"
+                        style={{ background: '#ffffff' }}
+                        placeholder="Escribe para buscar (ej. Acrílico, LED, Perno...)"
+                        value={materialSearch}
+                        onChange={(e) => {
+                          setMaterialSearch(e.target.value);
+                          setShowDropdown(true);
+                        }}
+                        onFocus={() => setShowDropdown(true)}
                       />
-                      <span className="font-semibold text-slate-600 text-sm">
-                        {selectedItem.unidad}s
-                      </span>
+                      {showDropdown && materialSearch.trim().length > 0 && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
+                          <div className="search-results-dropdown z-20">
+                            {matchedInventory.length > 0 ? (
+                              matchedInventory.map(item => (
+                                <div 
+                                  key={item.id} 
+                                  className="search-result-item"
+                                  onClick={() => {
+                                    setSelectedItem(item);
+                                    setShowDropdown(false);
+                                    setMaterialSearch(item.nombre);
+                                  }}
+                                >
+                                  <div className="result-item-info">
+                                    <span className="result-item-name">{item.nombre}</span>
+                                    <span className="result-item-meta">SKU: {item.sku} • Stock: {item.stock} {item.unidad}s</span>
+                                  </div>
+                                  <span className="badge-category">{item.categoria}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                                Sin resultados en inventario. ¿No hay stock?{' '}
+                                <button 
+                                  type="button" 
+                                  onClick={() => setActiveTab('compras')}
+                                  className="text-blue-600 font-bold hover:underline"
+                                >
+                                  Generar Orden de Compra
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
-
-                    <button
-                      onClick={handleAddToDraft}
-                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                    >
-                      <Plus size={16} />
-                      Agregar a la Lista Temporal
-                    </button>
                   </div>
-                )}
-              </div>
-            </div>
 
-            {/* Borrador Temporal */}
-            <div className="lg:col-span-7">
+                  {/* Selección y Cantidad */}
+                  {selectedItem && (
+                    <div className="item-add-control-panel mt-2 animate-slide-up">
+                      <div className="selected-item-display">
+                        <span className="font-bold text-slate-800">{selectedItem.nombre}</span>
+                        <span className="text-xs text-slate-500">Stock: {selectedItem.stock} {selectedItem.unidad}s</span>
+                      </div>
+
+                      <div className="qty-inputs-box">
+                        <span className="form-label">Cantidad a llevar:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          className="qty-input-field"
+                          value={qty}
+                          onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                        <span className="font-semibold text-slate-600 text-sm">
+                          {selectedItem.unidad}s
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={handleAddToDraft}
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <Plus size={16} />
+                        Agregar a la Lista de Obra
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Panel de Materiales Asignados */}
+            <div className={esSoloLectura ? "lg:col-span-12" : "lg:col-span-7"} style={{ position: 'relative', zIndex: 10 }}>
               <div className="request-section-card glass-panel min-h-[350px] flex flex-col justify-between">
                 <div>
                   <h2 className="request-card-title flex items-center gap-2">
                     <Package size={18} className="text-indigo-600" />
-                    Borrador de Consumo (Lista Temporal)
+                    Materiales y Herramientas Asignados
                   </h2>
                   <p className="text-xs text-slate-400 -mt-2">
-                    Estos materiales se guardarán y descontarán del inventario central una vez que confirmes con el botón "Guardar Consumo de Bodega".
+                    Anota los materiales y herramientas que se llevarán a la obra. Asigna responsable solo para las herramientas no consumibles.
                   </p>
 
-                  {materialesTemporalesStock.length === 0 ? (
+                  {materialesConStock.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-slate-400 italic text-sm">
                       <Package size={36} className="text-slate-300 mb-2" />
-                      <span>No has agregado materiales a la lista temporal aún.</span>
+                      <span>No has asignado materiales aún. Búscar e agregar en el panel izquierdo.</span>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto mt-4">
+                    <div className="overflow-x-auto mt-4 mobile-table-cards">
                       <table className="materials-list-table">
                         <thead>
                           <tr>
-                            <th>Material</th>
-                            <th style={{ textAlign: 'center' }}>Cantidad</th>
-                            <th style={{ textAlign: 'center' }}>Stock Disponible</th>
-                            <th style={{ textAlign: 'center', width: '80px' }}>Acción</th>
+                            <th style={{ width: '30%' }}>Material / Herramienta</th>
+                            <th style={{ width: '15%', textAlign: 'center' }}>Stock</th>
+                            <th style={{ width: '15%', textAlign: 'center' }}>Cantidad</th>
+                            <th style={{ width: '20%' }}>Responsable</th>
+                            <th style={{ width: '15%' }}>Notas</th>
+                            {!esSoloLectura && <th style={{ width: '5%', textAlign: 'center' }}></th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {materialesTemporalesStock.map((item) => (
-                            <tr key={item.id}>
-                              <td>
+                          {materialesConStock.map((m, i) => (
+                            <tr key={m.sku}>
+                              <td data-label="Material">
                                 <div className="flex flex-col">
-                                  <span className="font-bold text-slate-800">{item.nombre}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono">SKU: {item.sku}</span>
+                                  <span className="font-bold text-slate-800">{m.nombre}</span>
+                                  <span className="text-[10px] text-slate-400 font-mono">SKU: {m.sku}</span>
+                                  <span className={`origin-badge w-max mt-1 ${m.origen === 'compra' ? 'compra' : 'inventario'}`}>
+                                    {m.origen === 'compra' ? 'Compra' : 'Stock'}
+                                  </span>
                                 </div>
                               </td>
-                              <td style={{ textAlign: 'center' }} className="font-extrabold text-indigo-600">
-                                {item.cantidad} {item.unidad}s
+                              <td style={{ textAlign: 'center' }} className="text-slate-500 font-medium" data-label="Stock">
+                                {m.stock} {m.unidad}s
                               </td>
-                              <td style={{ textAlign: 'center' }} className="text-slate-500 font-medium">
-                                {item.stock} {item.unidad}s
+                              <td style={{ textAlign: 'center' }} data-label="Cantidad">
+                                {esSoloLectura ? (
+                                  <span className="font-bold text-slate-700">{m.cantidad} {m.unidad}s</span>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    className="qty-input-field"
+                                    style={{ width: '65px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                    value={m.cantidad}
+                                    onChange={(e) => {
+                                      const val = Math.max(1, parseInt(e.target.value) || 1);
+                                      handleLocalMaterialChange(i, 'cantidad', val);
+                                    }}
+                                  />
+                                )}
                               </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <button
-                                  onClick={() => handleRemoveFromDraft(item.id)}
-                                  className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Eliminar de la lista"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
+                              <td data-label="Responsable">
+                                {esSoloLectura ? (
+                                  <span className="text-slate-700 font-medium">{m.responsable || 'Sin asignar'}</span>
+                                ) : (
+                                  m.tipo === 'herramienta' ? (
+                                    <select
+                                      className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                                      value={m.responsable || ''}
+                                      onChange={(e) => handleLocalMaterialChange(i, 'responsable', e.target.value)}
+                                    >
+                                      <option value="">Seleccionar...</option>
+                                      {(personalLocal || []).map((p, idx) => (
+                                        <option key={idx} value={p.nombre}>{p.nombre}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <span className="text-slate-400 text-xs italic">Consumible</span>
+                                  )
+                                )}
                               </td>
+                              <td data-label="Notas">
+                                {esSoloLectura ? (
+                                  <span className="text-slate-600 italic">{m.observacion || 'Sin notas'}</span>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                                    placeholder="Notas..."
+                                    value={m.observacion || ''}
+                                    onChange={(e) => handleLocalMaterialChange(i, 'observacion', e.target.value)}
+                                  />
+                                )}
+                              </td>
+                              {!esSoloLectura && (
+                                <td style={{ textAlign: 'center' }} data-label="Acción">
+                                  <button
+                                    onClick={() => handleRemoveFromDraft(m.sku)}
+                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Eliminar material"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -704,119 +899,19 @@ export function MaterialesRequestPage() {
                   )}
                 </div>
 
-                {materialesTemporalesStock.length > 0 && (
+                {!esSoloLectura && materialesConStock.length > 0 && (
                   <div className="flex justify-end mt-6 pt-4 border-t border-slate-100">
                     <button
                       onClick={handleConfirmarConsumo}
                       className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-sm shadow-emerald-100 transition-all cursor-pointer"
                     >
                       <Save size={16} />
-                      Guardar Consumo de Bodega
+                      Guardar Materiales y Carga
                     </button>
                   </div>
                 )}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* --- PESTAÑA 3: DISTRIBUCIÓN DE CARGA --- */}
-        {activeTab === 'distribucion' && (
-          <div className="request-section-card glass-panel animate-slide-up">
-            <div>
-              <h2 className="request-card-title flex items-center gap-2">
-                <CheckCircle size={18} className="text-emerald-500" />
-                Distribución de Materiales a Llevar
-              </h2>
-              <p className="text-xs text-slate-400 -mt-2">
-                Especifica la cantidad que se llevará de cada material a obra y selecciona el responsable de su traslado. Haz clic en guardar para confirmar en base de datos.
-              </p>
-            </div>
-
-            {materialesDistribucion.length === 0 ? (
-              <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>
-                Aún no hay materiales registrados en esta instalación. Consume del stock de bodega (Pestaña 2) o solicita compras externas (Pestaña 4).
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="materials-list-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '25%' }}>Material</th>
-                        <th style={{ width: '15%', textAlign: 'center' }}>Disponible</th>
-                        <th style={{ width: '20%', textAlign: 'center' }}>Cant. a Llevar</th>
-                        <th style={{ width: '20%' }}>Responsable</th>
-                        <th style={{ width: '20%' }}>Observaciones / Notas</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {materialesDistribucion.map((m, i) => (
-                        <tr key={i}>
-                          <td style={{ fontWeight: '700' }}>
-                            <div className="flex flex-col">
-                              <span>{m.nombre}</span>
-                              <span className="text-[10px] text-slate-400 font-mono">SKU: {m.sku || 'N/D'}</span>
-                              <span className={`origin-badge w-max mt-1 ${m.origen === 'compra' ? 'compra' : 'inventario'}`}>
-                                {m.origen === 'compra' ? 'Compra' : 'Stock'}
-                              </span>
-                            </div>
-                          </td>
-                          <td style={{ textAlign: 'center' }} className="font-bold text-slate-500">
-                            {m.cantidad} {m.unidad}s
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <input
-                              type="number"
-                              min="0"
-                              max={m.cantidad}
-                              className="qty-input-field"
-                              style={{ width: '70px', padding: '0.35rem' }}
-                              value={m.cantidadLlevada}
-                              onChange={(e) => {
-                                const val = Math.min(m.cantidad, Math.max(0, parseInt(e.target.value) || 0));
-                                handleLocalCarryChange(i, 'cantidadLlevada', val);
-                              }}
-                            />
-                          </td>
-                          <td>
-                            <select
-                              className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-                              value={m.responsable || ''}
-                              onChange={(e) => handleLocalCarryChange(i, 'responsable', e.target.value)}
-                            >
-                              <option value="">Seleccionar responsable...</option>
-                              {(personalLocal || []).map((p, idx) => (
-                                <option key={idx} value={p.nombre}>{p.nombre} ({p.rol})</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-                              placeholder="Notas (ej. Caja 1)..."
-                              value={m.observacion || ''}
-                              onChange={(e) => handleLocalCarryChange(i, 'observacion', e.target.value)}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex justify-end mt-4 pt-4 border-t border-slate-100">
-                  <button
-                    onClick={handleGuardarDistribucion}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-sm shadow-indigo-100 transition-all cursor-pointer"
-                  >
-                    <Save size={16} />
-                    Guardar Distribución y Carga
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         )}
 
@@ -847,7 +942,7 @@ export function MaterialesRequestPage() {
                 Ninguna solicitud de compra registrada aún para este proyecto.
               </div>
             ) : (
-              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm mt-2">
+              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm mt-2 mobile-table-cards">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
@@ -864,13 +959,13 @@ export function MaterialesRequestPage() {
                       const statusClass = oc.estado.toLowerCase();
                       return (
                         <tr key={oc.id} className="border-b border-slate-100 text-slate-600 hover:bg-slate-50/50">
-                          <td className="p-3 font-bold text-slate-800">
+                          <td className="p-3 font-bold text-slate-800" data-label="Nº Orden">
                             {oc.numero || oc.id}
                           </td>
-                          <td className="p-3 text-slate-500">
+                          <td className="p-3 text-slate-500" data-label="Fecha">
                             {oc.fechaCreacion || oc.fecha}
                           </td>
-                          <td className="p-3">
+                          <td className="p-3" data-label="Detalle de Insumos">
                             <div className="space-y-1">
                               {(oc.items || []).map((item, idx) => (
                                 <div key={idx} className="flex justify-between max-w-xs text-[11px]">
@@ -885,15 +980,15 @@ export function MaterialesRequestPage() {
                               ))}
                             </div>
                           </td>
-                          <td className="p-3 text-slate-400 italic">
+                          <td className="p-3 text-slate-400 italic" data-label="Obs. Administración">
                             {oc.comentarios || '—'}
                           </td>
-                          <td className="p-3 text-center">
+                          <td className="p-3 text-center" data-label="Estado">
                             <span className={`oc-history-badge ${statusClass}`}>
                               {oc.estado}
                             </span>
                           </td>
-                          <td className="p-3 text-right">
+                          <td className="p-3 text-right" data-label="Acciones">
                             <div className="flex gap-2 justify-end">
                               <button
                                 onClick={() => {
@@ -931,57 +1026,187 @@ export function MaterialesRequestPage() {
           <div className="space-y-6 animate-slide-up">
             
             {datosInstalacion.fechaInstalacion ? (
-              <div className="request-section-card glass-panel">
-                <h2 className={`request-card-title flex items-center gap-2 ${
-                  datosInstalacion.instalacionCompletada ? 'text-emerald-800' : 'text-amber-800'
-                }`}>
-                  <CheckCircle size={18} className={datosInstalacion.instalacionCompletada ? 'text-emerald-600' : 'text-amber-600'} />
-                  Cierre de la Instalación
-                </h2>
+              <div className="space-y-6">
+                
+                {/* Evidencia Fotográfica en Cierre */}
+                <div className="request-section-card glass-panel">
+                  <div>
+                    <h2 className="request-card-title flex items-center gap-2">
+                      <Camera size={18} className="text-indigo-600" />
+                      Evidencia Fotográfica de la Instalación
+                    </h2>
+                    <p className="text-xs text-slate-400 -mt-2">
+                      Sube fotos de la obra realizada. Se requiere al menos una foto para poder finalizar la instalación. Las imágenes se guardan automáticamente al subirse.
+                    </p>
+                  </div>
 
-                {datosInstalacion.instalacionCompletada ? (
-                  <div className="space-y-3">
-                    <p className="text-xs text-slate-500">
-                      Los trabajos de montaje en el sitio han sido finalizados.
-                    </p>
-                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-xs text-emerald-800">
-                      <p className="font-bold">Montaje Completado</p>
-                      <p className="mt-1">Finalizó el {datosInstalacion.fechaFin || 'recientemente'}.</p>
-                      {datosInstalacion.notasCierre ? (
-                        <p className="mt-2 pt-2 border-t border-emerald-100 italic">
-                          Notas: "{datosInstalacion.notasCierre}"
-                        </p>
-                      ) : null}
+                  {!esSoloLectura ? (
+                    <div className="flex flex-col sm:flex-row gap-4 w-full">
+                      {/* Elegir de Galería o Archivos */}
+                      <div 
+                        className="evidencias-dropzone flex-1"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (e.dataTransfer.files) {
+                            handleUploadEvidencias(e.dataTransfer.files);
+                          }
+                        }}
+                      >
+                        <input
+                          type="file"
+                          id="evidencias-input-gallery"
+                          multiple
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            if (e.target.files) {
+                              handleUploadEvidencias(e.target.files);
+                            }
+                          }}
+                        />
+                        <label htmlFor="evidencias-input-gallery" className="dropzone-label cursor-pointer flex flex-col items-center justify-center">
+                          <UploadCloud size={36} className="text-indigo-500 mb-2 animate-bounce" />
+                          <span className="font-bold text-slate-700 text-xs sm:text-sm">Elegir de Galería</span>
+                          <span className="text-[10px] text-slate-400 mt-1">Arrastra aquí o haz clic para buscar</span>
+                        </label>
+                      </div>
+
+                      {/* Abrir Cámara */}
+                      <div className="evidencias-dropzone flex-1">
+                        <input
+                          type="file"
+                          id="evidencias-input-camera"
+                          accept="image/*"
+                          capture="environment"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            if (e.target.files) {
+                              handleUploadEvidencias(e.target.files);
+                            }
+                          }}
+                        />
+                        <label htmlFor="evidencias-input-camera" className="dropzone-label cursor-pointer flex flex-col items-center justify-center">
+                          <Camera size={36} className="text-emerald-500 mb-2" />
+                          <span className="font-bold text-slate-700 text-xs sm:text-sm">Abrir Cámara</span>
+                          <span className="text-[10px] text-slate-400 mt-1">Toma una foto directamente</span>
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-xs text-slate-500">
-                      Una vez completados todos los trabajos de instalación en obra, ingresa las observaciones finales y marca el proyecto como completado para notificar al administrador.
-                    </p>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                        Notas y Observaciones de Cierre
-                      </label>
-                      <textarea
-                        value={observacionesCierre}
-                        onChange={(e) => setObservacionesCierre(e.target.value)}
-                        placeholder="Ingresa detalles sobre los resultados de la obra, comentarios del cliente o incidentes..."
-                        className="w-full border border-slate-200 rounded-xl p-3 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-                        rows={4}
-                      />
+                  ) : (
+                    <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-4 text-xs text-slate-500 flex items-center gap-2">
+                      <Eye size={16} className="text-slate-400" />
+                      <span>Modo de solo lectura: Las evidencias fotográficas no se pueden modificar.</span>
                     </div>
+                  )}
+
+                  {/* Galería de Evidencias */}
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">
+                      Fotos Guardadas ({datosInstalacion.evidencias?.length || 0})
+                    </h3>
                     
-                    <button
-                      type="button"
-                      onClick={handleCompletarInstalacion}
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
-                    >
-                      <CheckCircle size={16} />
-                      Marcar Instalación como Completada en Sitio
-                    </button>
+                    {!datosInstalacion.evidencias || datosInstalacion.evidencias.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-slate-400 italic text-sm border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                        <Camera size={32} className="text-slate-300 mb-2" />
+                        <span>No hay imágenes cargadas aún.</span>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {datosInstalacion.evidencias.map((imgBase64, idx) => (
+                          <div 
+                            key={idx} 
+                            onClick={() => setPreviewImage(imgBase64)}
+                            className="group relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm aspect-video flex items-center justify-center cursor-pointer"
+                          >
+                            <img 
+                              src={imgBase64} 
+                              alt={`Evidencia ${idx + 1}`} 
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            
+                            {/* Botón de eliminar siempre accesible arriba a la derecha */}
+                            {!esSoloLectura && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Evitar abrir el preview
+                                  handleDeleteEvidencia(idx);
+                                }}
+                                className="absolute top-2 right-2 p-1.5 bg-red-600/95 hover:bg-red-600 text-white rounded-full shadow-md transition-colors cursor-pointer z-10"
+                                title="Eliminar imagen"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                            
+                            {/* Overlay de hover para desktop */}
+                            <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                              <span className="px-2 py-1 bg-white/90 text-slate-800 text-[10px] font-bold rounded-lg shadow flex items-center gap-1">
+                                <Eye size={12} /> Ampliar
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+
+                {/* Cierre de la Instalación */}
+                <div className="request-section-card glass-panel">
+                  <h2 className={`request-card-title flex items-center gap-2 ${
+                    datosInstalacion.instalacionCompletada ? 'text-emerald-800' : 'text-amber-800'
+                  }`}>
+                    <CheckCircle size={18} className={datosInstalacion.instalacionCompletada ? 'text-emerald-600' : 'text-amber-600'} />
+                    Cierre de la Instalación
+                  </h2>
+
+                  {datosInstalacion.instalacionCompletada ? (
+                    <div className="space-y-3">
+                      <p className="text-xs text-slate-500">
+                        Los trabajos de montaje en el sitio han sido finalizados.
+                      </p>
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-xs text-emerald-800">
+                        <p className="font-bold">Montaje Completado</p>
+                        <p className="mt-1">Finalizó el {datosInstalacion.fechaFin || 'recientemente'}.</p>
+                        {datosInstalacion.notasCierre ? (
+                          <p className="mt-2 pt-2 border-t border-emerald-100 italic">
+                            Notas: "{datosInstalacion.notasCierre}"
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500">
+                        Una vez completados todos los trabajos de instalación en obra, ingresa las observaciones finales y marca el proyecto como completado para notificar al administrador.
+                      </p>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
+                          Notas y Observaciones de Cierre
+                        </label>
+                        <textarea
+                          value={observacionesCierre}
+                          onChange={(e) => setObservacionesCierre(e.target.value)}
+                          placeholder="Ingresa detalles sobre los resultados de la obra, comentarios del cliente o incidentes..."
+                          className="w-full border border-slate-200 rounded-xl p-3 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                          rows={4}
+                        />
+                      </div>
+                      
+                      <button
+                        type="button"
+                        onClick={handleCompletarInstalacion}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                      >
+                        <CheckCircle size={16} />
+                        Marcar Instalación como Completada en Sitio
+                      </button>
+                    </div>
+                  )}
+                </div>
+
               </div>
             ) : (
               <div className="request-section-card glass-panel p-6 text-center text-slate-400 italic text-sm">
@@ -1042,6 +1267,32 @@ export function MaterialesRequestPage() {
                 Aceptar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Visor de Imagen */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div 
+            className="relative max-w-4xl w-full max-h-[85vh] flex items-center justify-center bg-transparent cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-10 right-0 p-1.5 text-white hover:text-slate-300 transition-colors bg-black/40 hover:bg-black/60 rounded-full cursor-pointer focus:outline-none z-10"
+              title="Cerrar"
+            >
+              <X size={20} />
+            </button>
+            <img 
+              src={previewImage} 
+              alt="Evidencia Ampliada" 
+              className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border border-white/10"
+            />
           </div>
         </div>
       )}

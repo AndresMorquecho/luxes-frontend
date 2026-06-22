@@ -104,8 +104,12 @@ export async function getCuentasPorPagar(options = {}) {
 
 // ── Métodos de Pago ─────────────────────────────────────────────────────────
 
-export async function getMetodosPago() {
-  const res = await fetch('/api/compras/metodos-pago', { headers: getHeaders() });
+export async function getMetodosPago(desde, hasta) {
+  const params = new URLSearchParams();
+  if (desde) params.append('desde', desde);
+  if (hasta) params.append('hasta', hasta);
+  const url = `/api/compras/metodos-pago${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener métodos de pago');
   return data.data;

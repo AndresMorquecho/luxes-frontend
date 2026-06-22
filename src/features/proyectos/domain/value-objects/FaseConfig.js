@@ -44,7 +44,6 @@ export const FASES = [
       'personalInstalacion',
       'materialesInstalacion',
       'fechaInstalacion',
-      'direccionInstalacion',
     ],
     esInstalacion: true,
   },
@@ -84,6 +83,9 @@ export const getSiguienteFase = (faseId, requiereInstalacion = true) => {
   if (siguiente.id === 'INSTALACION' && !requiereInstalacion) {
     return getSiguienteFase(siguiente.id, requiereInstalacion);
   }
+  if (siguiente.id === 'ENTREGA' && requiereInstalacion) {
+    return getSiguienteFase(siguiente.id, requiereInstalacion);
+  }
   return siguiente;
 };
 
@@ -93,6 +95,9 @@ export const getFaseAnterior = (faseId, requiereInstalacion = true) => {
   if (idx <= 0) return null;
   const anterior = FASES[idx - 1];
   if (anterior.id === 'INSTALACION' && !requiereInstalacion) {
+    return getFaseAnterior(anterior.id, requiereInstalacion);
+  }
+  if (anterior.id === 'ENTREGA' && requiereInstalacion) {
     return getFaseAnterior(anterior.id, requiereInstalacion);
   }
   return anterior;

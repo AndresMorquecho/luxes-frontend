@@ -108,6 +108,8 @@ export const saveEmpleado = async (empleado) => {
     correo: empleado.correo ?? '',
     username: empleado.username ?? '',
     contraseña: empleado.contraseña ?? '123456',
+    rol: empleado.rol ?? '',
+    roleId: empleado.roleId ?? '',
     cuentaBanco: empleado.cuentaBanco ?? '',
     banco: empleado.banco ?? '',
     tipoContrato: empleado.tipoContrato ?? 'Fijo',

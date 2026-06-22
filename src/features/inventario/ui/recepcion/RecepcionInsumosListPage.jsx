@@ -30,7 +30,7 @@ const mapOrdenToPDFFormat = (orden) => {
 
 export const RecepcionInsumosListPage = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const [user] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
   const userRole = (user?.rol || '').toUpperCase();
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
   const isTaller = userRole === 'TALLER';
@@ -141,14 +141,14 @@ export const RecepcionInsumosListPage = () => {
               <tbody>
                 {ordenes.map(o => (
                   <tr key={o.id} className="ri-tr">
-                    <td className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
-                    <td className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
-                    <td className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
-                    <td className="text-slate-500 text-xs">{fmtDate(o.fecha)}</td>
-                    <td className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
-                    {!isTaller && <td className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>}
-                    <td className="text-center text-slate-600 text-sm font-semibold">{o.detalles?.length || 0}</td>
-                    <td>
+                    <td data-label="Orden" className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
+                    <td data-label="Proveedor" className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
+                    <td data-label="Solicitante" className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
+                    <td data-label="Fecha" className="text-slate-500 text-xs">{fmtDate(o.fecha)}</td>
+                    <td data-label="Concepto" className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
+                    {!isTaller && <td data-label="Total" className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>}
+                    <td data-label="Items" className="text-center text-slate-600 text-sm font-semibold">{o.detalles?.length || 0}</td>
+                    <td data-label="Acciones">
                       <div className="flex items-center justify-center gap-2">
                         {!isTaller && (
                           <button

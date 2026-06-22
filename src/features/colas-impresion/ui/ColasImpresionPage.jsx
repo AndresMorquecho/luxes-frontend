@@ -1454,7 +1454,7 @@ export const ColasImpresionPage = () => {
               <div className="prep-right-section">
                 <span className="section-mini-label" style={{ color: 'var(--color-primary-blue)', fontWeight: 700 }}>Lista de Insumos a Descontar</span>
                 
-                <div style={{ flexGrow: 1, overflowY: 'auto', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                <div style={{ flexGrow: 1, overflow: 'auto', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
                   {cartItems.length > 0 ? (
                     <table className="cart-table">
                       <thead>

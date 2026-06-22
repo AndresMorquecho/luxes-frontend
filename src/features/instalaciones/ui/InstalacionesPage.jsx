@@ -53,9 +53,12 @@ export function InstalacionesPage() {
     pendientes: proyectosInstalacion.filter(p => 
       ['COTIZACION', 'DISEÑO', 'PRODUCCION'].includes(p.faseActual)
     ).length,
-    activas: proyectosInstalacion.filter(p => p.faseActual === 'INSTALACION').length,
+    activas: proyectosInstalacion.filter(p => 
+      p.faseActual === 'INSTALACION' && p.fases?.INSTALACION?.datos?.instalacionCompletada !== true
+    ).length,
     completadas: proyectosInstalacion.filter(p => 
-      ['ENTREGA', 'COMPLETADO'].includes(p.faseActual)
+      ['ENTREGA', 'COMPLETADO'].includes(p.faseActual) || 
+      p.fases?.INSTALACION?.datos?.instalacionCompletada === true
     ).length,
   };
 
@@ -72,12 +75,15 @@ export function InstalacionesPage() {
 
     // 2. Filtro de Pestaña/Estado
     let matchesTab = true;
+    const isInstalacionCompletada = p.fases?.INSTALACION?.datos?.instalacionCompletada === true;
+    const isProyectoCompletado = ['ENTREGA', 'COMPLETADO'].includes(p.faseActual);
+
     if (activeTab === 'PENDIENTES') {
       matchesTab = ['COTIZACION', 'DISEÑO', 'PRODUCCION'].includes(p.faseActual);
     } else if (activeTab === 'ACTIVAS') {
-      matchesTab = p.faseActual === 'INSTALACION';
+      matchesTab = p.faseActual === 'INSTALACION' && !isInstalacionCompletada;
     } else if (activeTab === 'COMPLETADAS') {
-      matchesTab = ['ENTREGA', 'COMPLETADO'].includes(p.faseActual);
+      matchesTab = isProyectoCompletado || isInstalacionCompletada;
     }
 
     return matchesSearch && matchesTab;
@@ -204,7 +210,7 @@ export function InstalacionesPage() {
           {filteredInstallations.map((proyecto) => {
             const datosInstalacion = proyecto.fases?.INSTALACION?.datos || {};
             const isStarted = !!(datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion);
-            const isFinished = ['ENTREGA', 'COMPLETADO'].includes(proyecto.faseActual);
+            const isFinished = ['ENTREGA', 'COMPLETADO'].includes(proyecto.faseActual) || datosInstalacion.instalacionCompletada === true;
             
             const personalAsignado = datosInstalacion.personalAsignado || [];
             const materiales = datosInstalacion.materiales || [];
@@ -215,6 +221,8 @@ export function InstalacionesPage() {
             const ocDelProyecto = proyecto.ordenesCompra || [];
             const ocPendiente = ocDelProyecto.find(oc => oc.estado === 'PENDIENTE');
             const ocAprobada = ocDelProyecto.find(oc => oc.estado === 'APROBADA');
+            const ocRecibida = ocDelProyecto.find(oc => oc.estado === 'RECIBIDA');
+            const ocRechazada = ocDelProyecto.find(oc => oc.estado === 'RECHAZADA');
 
             return (
               <div key={proyecto.id} className="instalacion-list-row">
@@ -227,20 +235,6 @@ export function InstalacionesPage() {
                     <span className="list-proj-id">{proyecto.id}</span>
                   </div>
                   <h3 className="list-proj-title">{proyecto.nombre}</h3>
-                  <div className="instalacion-progress-box min-w-[120px] mt-2">
-                    <div className="progress-bar-container">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          width: `${proyecto.progreso}%`, 
-                          backgroundColor: progressColor 
-                        }}
-                      />
-                    </div>
-                    <div className="progress-labels mt-1" style={{ fontSize: '10px' }}>
-                      <span>Progreso: {proyecto.progreso}%</span>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Columna 2: Cliente */}
@@ -332,11 +326,15 @@ export function InstalacionesPage() {
                         <span className="list-oc-badge approved">
                           OC Aprobada
                         </span>
-                      ) : (
+                      ) : ocRecibida ? (
+                        <span className="list-oc-badge approved">
+                          OC Recibida
+                        </span>
+                      ) : ocRechazada ? (
                         <span className="list-oc-badge rejected">
                           OC Rechazada
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>

@@ -7,7 +7,7 @@ import { getConfiguracion } from '../../../configuracion/application/configuraci
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
 
-const ESTADOS = ['Pendiente', 'Aprobada', 'Rechazada', 'Pagada'];
+const ESTADOS = ['Pendiente', 'Aprobada', 'Rechazada'];
 
 export const ProformasPage = () => {
   const navigate = useNavigate();
@@ -284,16 +284,21 @@ export const ProformasPage = () => {
                     <td className="px-5 py-3 text-slate-600">{p.fecha}</td>
                     <td className="px-5 py-3 text-right font-bold text-slate-800">{formatUSD(calcularTotal(p.items, p.iva))}</td>
                     <td className="px-5 py-3 text-center">
-                      <select 
-                        value={p.estado} 
-                        onChange={e => handleEstado(p.id, e.target.value)}
-                        className={`text-xs font-semibold px-3 py-1 rounded-full border cursor-pointer outline-none ${badgeStyle(p.estado)}`}
-                      >
-                        {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
-                      </select>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${badgeStyle(p.estado === 'Pagada' ? 'Aprobada' : p.estado)}`}>
+                        {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
+                      </span>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => navigate(`/proformas/detalle/${p.id}`)} 
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" 
+                          title="Ver Detalles"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                          </svg>
+                        </button>
                         <button 
                           onClick={() => setPreview(p)} 
                           className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" 

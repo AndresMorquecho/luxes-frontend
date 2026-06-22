@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import {
@@ -118,7 +119,7 @@ export const EmpleadosPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const perPage = 5;
+  const [perPage, setPerPage] = useState(20);
 
   const [viewingEmpleado, setViewingEmpleado] = useState(null);
   const [viewingDocs, setViewingDocs] = useState([]);
@@ -382,44 +383,63 @@ export const EmpleadosPage = () => {
         )}
 
         {/* Paginación */}
-        {totalPages > 1 && (
+        {filteredAll.length > 0 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
-            <span className="text-[11px] font-medium text-gray-400">
-              Página {page} de {totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              >
-                Anterior
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                <button
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${n === page ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+            <div className="flex items-center gap-4">
+              <span className="text-[11px] font-medium text-gray-400">
+                Página {page} de {totalPages}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-gray-400">Mostrar:</span>
+                <select
+                  value={perPage}
+                  onChange={(e) => {
+                    setPerPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="px-2 py-1 text-[11px] font-semibold text-gray-500 border border-gray-200 rounded-lg outline-none bg-white focus:border-blue-300 transition-colors cursor-pointer"
                 >
-                  {n}
-                </button>
-              ))}
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              >
-                Siguiente
-              </button>
+                  <option value={20}>20 por página</option>
+                  <option value={50}>50 por página</option>
+                  <option value={100}>100 por página</option>
+                </select>
+              </div>
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Anterior
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setPage(n)}
+                    className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${n === page ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Modal de Detalle de Colaborador */}
-      {viewingEmpleado && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 animate-fade-in">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
+      {viewingEmpleado && createPortal(
+        <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-md z-[10000] flex items-center justify-center p-6 md:p-12 animate-fade-in">
+          <div className="relative w-full max-w-4xl max-h-[82vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-2">
@@ -572,41 +592,42 @@ export const EmpleadosPage = () => {
                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-slate-500 mb-2" />
                         <p className="text-[11px] font-medium text-slate-400">Cargando expediente digital...</p>
                       </div>
+                    ) : viewingDocs.length === 0 ? (
+                      <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-slate-400 italic text-xs flex flex-col items-center justify-center gap-2">
+                        <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                        </svg>
+                        <span>No hay documentos cargados en el expediente de este colaborador.</span>
+                      </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        {DOCUMENTO_TIPOS.map((docType) => {
-                          const doc = viewingDocs.find((d) => d.tipo === docType.id);
+                        {viewingDocs.map((doc) => {
+                          const isPdf = doc.mimeType === 'application/pdf' || /\.pdf$/i.test(doc.archivoUrl || doc.nombre || '');
                           return (
                             <div
-                              key={docType.id}
-                              className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all ${
-                                doc
-                                  ? 'border-emerald-100 bg-emerald-50/20 hover:bg-emerald-50/40 cursor-pointer hover:scale-[1.01] hover:shadow-sm'
-                                  : 'border-slate-100 bg-slate-50/30 opacity-60'
-                              }`}
-                              onClick={() => doc && handlePreview(doc, docType.label)}
+                              key={doc.id}
+                              className="flex items-center gap-2.5 p-3 rounded-xl border border-emerald-100 bg-emerald-50/20 hover:bg-emerald-50/40 cursor-pointer hover:scale-[1.01] hover:shadow-sm transition-all"
+                              onClick={() => handlePreview(doc, doc.nombre)}
                             >
-                              <div
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                  doc ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                                }`}
-                              >
-                                <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                                </svg>
+                              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                                {isPdf ? (
+                                  <span className="text-[9px] font-black uppercase text-center block w-full text-emerald-800">PDF</span>
+                                ) : (
+                                  <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                  </svg>
+                                )}
                               </div>
                               <div className="min-w-0 flex-1 text-left">
-                                <p className="text-xs font-bold text-slate-700 leading-tight truncate">{docType.label}</p>
+                                <p className="text-xs font-bold text-slate-700 leading-tight truncate">{doc.nombre}</p>
                                 <p className="text-[10px] font-medium text-slate-400 leading-normal truncate mt-0.5">
-                                  {doc ? doc.nombre : 'No cargado'}
+                                  {doc.archivoUrl.split('/').pop()}
                                 </p>
                               </div>
-                              {doc && (
-                                <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                </svg>
-                              )}
+                              <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                              </svg>
                             </div>
                           );
                         })}
@@ -628,13 +649,14 @@ export const EmpleadosPage = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de Vista Previa de Documento */}
-      {previewDoc && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[10050] flex items-center justify-center p-4 animate-fade-in">
-          <div className="relative w-full max-w-4xl h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
+      {previewDoc && createPortal(
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[10050] flex items-center justify-center p-6 md:p-12 animate-fade-in">
+          <div className="relative w-full max-w-4xl max-h-[80vh] h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-2">
@@ -722,7 +744,8 @@ export const EmpleadosPage = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

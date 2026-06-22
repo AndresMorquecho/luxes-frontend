@@ -39,7 +39,7 @@ export default function ProyectoDetallePage() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const userRole = (user?.rol || '').toLowerCase();
   const isAdmin = userRole === 'admin' || userRole === 'administrador';
-  const isVentasODisenador = userRole === 'ventas' || userRole === 'diseñador' || userRole === 'disenador';
+  const isVentasODisenador = userRole === 'ventas' || userRole === 'diseñador' || userRole === 'disenador' || userRole === 'ventas / diseñador' || userRole === 'ventas / disenador';
   const canViewGastos = !isVentasODisenador;
 
   React.useEffect(() => {
@@ -79,7 +79,7 @@ export default function ProyectoDetallePage() {
   );
 
   const handleAvanzar = () => {
-    if (proyecto.faseActual === 'ENTREGA') {
+    if (proyecto.faseActual === 'ENTREGA' || (proyecto.faseActual === 'INSTALACION' && proyecto.requiereInstalacion)) {
       setIsSurveyModalOpen(true);
     } else {
       avanzar();
@@ -379,8 +379,24 @@ export default function ProyectoDetallePage() {
                   <div className="flex items-center gap-3">
                     <DollarSign size={16} className="text-slate-400 shrink-0" />
                     <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Monto estimado</p>
-                      <p className="text-sm font-bold text-slate-700">${proyecto.montoEstimado.toLocaleString()}</p>
+                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">
+                        {(() => {
+                            const cotizacionesSeleccionadas = proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas || [];
+                            const ingresoVenta = cotizacionesSeleccionadas.length > 0
+                                ? cotizacionesSeleccionadas.reduce((sum, c) => sum + (Number(c.total) || 0), 0)
+                                : (Number(proyecto?.montoEstimado) || 0);
+                            return ingresoVenta;
+                        })() > 0 && (proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas?.length > 0) ? 'Ingreso por venta (Proformas)' : 'Monto estimado'}
+                      </p>
+                      <p className="text-sm font-bold text-slate-700">
+                        ${(() => {
+                            const cotizacionesSeleccionadas = proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas || [];
+                            const ingresoVenta = cotizacionesSeleccionadas.length > 0
+                                ? cotizacionesSeleccionadas.reduce((sum, c) => sum + (Number(c.total) || 0), 0)
+                                : (Number(proyecto?.montoEstimado) || 0);
+                            return ingresoVenta.toLocaleString('es-EC', { minimumFractionDigits: 2 });
+                        })()}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -523,9 +539,21 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
     setModalConfig(prev => ({ ...prev, isOpen: false }));
   };
 
-  // Totales
-  const totalEstimado = Number(proyecto.montoEstimado) || 0;
-  const totalGastos = (proyecto.gastos || []).reduce((sum, g) => sum + Number(g.monto), 0);
+  // Totales (Ingreso por venta de proformas si existen, de lo contrario fallback al presupuesto estimado del proyecto)
+  const cotizacionesSeleccionadas = proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas || [];
+  const totalEstimado = cotizacionesSeleccionadas.length > 0
+    ? cotizacionesSeleccionadas.reduce((sum, c) => sum + (Number(c.total) || 0), 0)
+    : (Number(proyecto.montoEstimado) || 0);
+
+  // Consumo Estimado de Bodega
+  const materialesBodega = proyecto?.fases?.INSTALACION?.datos?.materiales || [];
+  const costoMaterialesBodega = materialesBodega.reduce((sum, m) => {
+    const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
+    const price = Number(m.precioUnitario || 0);
+    return sum + (cant * price);
+  }, 0);
+
+  const totalGastos = (proyecto.gastos || []).reduce((sum, g) => sum + Number(g.monto), 0) + costoMaterialesBodega;
   const balance = totalEstimado - totalGastos;
   const porcentajeGastado = totalEstimado > 0 ? Math.min(100, (totalGastos / totalEstimado) * 100) : 0;
 
@@ -677,7 +705,9 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
         {/* Estimado */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Presupuesto Estimado</p>
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">
+              {cotizacionesSeleccionadas.length > 0 ? 'Ingreso por Venta' : 'Presupuesto Estimado'}
+            </p>
             <h3 className="text-2xl font-black text-slate-800 mt-1">${totalEstimado.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
           </div>
           <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
@@ -821,7 +851,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
         )}
 
         <div className="p-6">
-          {(!proyecto.gastos || proyecto.gastos.length === 0) ? (
+          {((!proyecto.gastos || proyecto.gastos.length === 0) && costoMaterialesBodega === 0) ? (
             <p className="text-xs text-slate-400 italic py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
               No hay gastos registrados en este proyecto.
             </p>
@@ -838,8 +868,8 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                   </tr>
                 </thead>
                 <tbody>
-                  {proyecto.gastos.map((gasto, idx) => (
-                    <tr key={gasto.id || idx} className="border-b border-slate-100 text-slate-600 hover:bg-slate-50/50">
+                  {proyecto.gastos && proyecto.gastos.map((gasto, idx) => (
+                    <tr key={gasto.id || idx} className="border-b border-slate-100 text-slate-650 hover:bg-slate-50/50">
                       <td className="p-3 font-semibold text-slate-700">
                         <div className="flex items-center gap-2">
                           <span>{gasto.concepto}</span>
@@ -866,7 +896,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       </td>
                       <td className="p-3">{gasto.proveedor || '—'}</td>
                       <td className="p-3 text-slate-400">{gasto.fecha}</td>
-                      <td className="p-3 text-right font-extrabold text-red-600">${gasto.monto.toFixed(2)}</td>
+                      <td className="p-3 text-right font-extrabold text-red-650">${gasto.monto.toFixed(2)}</td>
                       {isAdmin && (
                         <td className="p-3 text-center">
                           {gasto.id && gasto.id.startsWith('G-OC-') ? (
@@ -885,6 +915,23 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       )}
                     </tr>
                   ))}
+                  
+                  {costoMaterialesBodega > 0 && (
+                    <tr className="border-b border-slate-100 text-slate-650 hover:bg-slate-50/50">
+                      <td className="p-3 font-semibold text-slate-700">
+                        <div className="flex items-center gap-2">
+                          <span>Consumo de Bodega (Materiales)</span>
+                          <span className="text-[10px] text-slate-455 font-bold bg-slate-100 px-1.5 py-0.5 rounded cursor-help" title="Costo estimado de los materiales retirados de bodega para la instalación.">Bodega</span>
+                        </div>
+                      </td>
+                      <td className="p-3">Bodega Interna</td>
+                      <td className="p-3 text-slate-400">—</td>
+                      <td className="p-3 text-right font-extrabold text-red-650">${costoMaterialesBodega.toFixed(2)}</td>
+                      {isAdmin && (
+                        <td className="p-3 text-center text-slate-400">—</td>
+                      )}
+                    </tr>
+                  )}
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-50/80 font-bold text-slate-800 border-t border-slate-200">
@@ -896,6 +943,46 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                   </tr>
                 </tfoot>
               </table>
+            </div>
+          )}
+
+          {costoMaterialesBodega > 0 && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Consumo Estimado de Bodega (Materiales)</h3>
+              <div className="overflow-x-auto border border-slate-100 rounded-xl bg-slate-50/50">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100/50 text-slate-500 border-b border-slate-200">
+                      <th className="p-2.5 font-bold uppercase tracking-wider">Material</th>
+                      <th className="p-2.5 font-bold uppercase tracking-wider text-center">Cantidad</th>
+                      <th className="p-2.5 font-bold uppercase tracking-wider text-right">Costo Promedio (CPP)</th>
+                      <th className="p-2.5 font-bold uppercase tracking-wider text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {materialesBodega.map((m, idx) => {
+                      const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
+                      const price = Number(m.precioUnitario || 0);
+                      const sub = cant * price;
+                      if (cant <= 0) return null;
+                      return (
+                        <tr key={idx} className="border-b border-slate-100 text-slate-600">
+                          <td className="p-2.5 font-medium text-slate-700">{m.nombre}</td>
+                          <td className="p-2.5 text-center">{cant} {m.unidad || 'unid'}</td>
+                          <td className="p-2.5 text-right">${price.toFixed(2)}</td>
+                          <td className="p-2.5 text-right font-semibold text-slate-700">${sub.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-100/30 font-bold text-slate-700">
+                      <td colSpan="3" className="p-2.5 text-right uppercase tracking-wider text-[9px]">Total Estimado Bodega:</td>
+                      <td className="p-2.5 text-right text-indigo-700">${costoMaterialesBodega.toFixed(2)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           )}
         </div>

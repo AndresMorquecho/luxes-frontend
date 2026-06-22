@@ -815,3 +815,150 @@
     flex-direction: row;
   }
 }
+
+@media (max-width: 768px) {
+  .instalaciones-container {
+    padding: 0.75rem 0.75rem 2rem 0.75rem !important;
+  }
+
+  .instalaciones-header-box {
+    margin-bottom: 1rem;
+  }
+
+  .instalaciones-title {
+    font-size: 1.35rem;
+  }
+
+  .instalaciones-subtitle {
+    font-size: 0.8rem;
+  }
+
+  /* Stats cards: 2x2 grid */
+  .instalaciones-stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+    margin-bottom: 1.25rem !important;
+    padding: 0 !important;
+    overflow-x: visible !important;
+  }
+
+  .instalaciones-stat-card {
+    flex: none !important;
+    padding: 0.5rem 0.75rem !important;
+    border-radius: 0.75rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  }
+
+  .instalaciones-stat-card:hover {
+    transform: none !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  }
+
+  .stat-icon-wrapper {
+    display: none !important; /* Hide bulky icon wrapper on mobile */
+  }
+
+  .stat-data {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .stat-value {
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    line-height: 1.2 !important;
+  }
+
+  .stat-label {
+    font-size: 0.625rem !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.025em !important;
+    margin-top: 0.05rem !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    text-align: left !important;
+  }
+
+  /* Clean up control bar card container */
+  .instalaciones-control-bar {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .instalaciones-search-wrapper {
+    max-width: 100% !important;
+  }
+
+  .search-input-field {
+    background-color: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+  }
+
+  /* Tabs filters: 2x2 grid */
+  .instalaciones-tabs {
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+    overflow-x: visible !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .tab-pill-btn {
+    flex: none !important;
+    width: 100% !important;
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .tab-pill-btn:hover {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+  }
+
+  .tab-pill-btn.active {
+    background: var(--color-primary-blue, #02188E) !important;
+    color: #ffffff !important;
+    border-color: var(--color-primary-blue, #02188E) !important;
+    box-shadow: 0 3px 8px rgba(2, 24, 142, 0.15) !important;
+    font-weight: 700 !important;
+  }
+
+  /* Compact installation row items */
+  .instalacion-list-row {
+    padding: 1rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .list-proj-title {
+    font-size: 0.9rem !important;
+  }
+}
+
