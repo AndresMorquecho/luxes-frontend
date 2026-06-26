@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Send, X, Smartphone, MessageCircle, Copy, Star } from 'lucide-react';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
-import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 
 function formatWhatsAppNumber(telefono) {
   const fallback = '593968982380';
@@ -22,6 +22,9 @@ export function SendSurveyModal({
   onSend,
   variant = 'proyecto',
 }) {
+  const [visible, setVisible] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+
   const urlEncuesta = `${window.location.origin}/encuesta/${proyecto?.id || 'demo'}`;
   const nombreCliente = typeof proyecto?.cliente === 'object'
     ? proyecto?.cliente?.nombre
@@ -38,14 +41,23 @@ export function SendSurveyModal({
   ), [nombreCliente, proyecto?.nombre, urlEncuesta]);
 
   const [mensaje, setMensaje] = useState(mensajeDefault);
-  const [enviando, setEnviando] = useState(false);
   const numeroWA = formatWhatsAppNumber(telefonoCliente);
 
   useEffect(() => {
-    if (isOpen) setMensaje(mensajeDefault);
-  }, [isOpen, mensajeDefault]);
+    if (isOpen && proyecto) {
+      setVisible(true);
+      setMensaje(mensajeDefault);
+    }
+  }, [isOpen, proyecto, mensajeDefault]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen && visible) {
+      const frame = window.requestAnimationFrame(() => setVisible(false));
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [isOpen, visible]);
+
+  if (!visible || !proyecto) return null;
 
   const subtitle = variant === 'instalacion'
     ? 'La obra fue completada — envía el link para que el cliente califique con estrellas'
@@ -55,13 +67,15 @@ export function SendSurveyModal({
     ? 'Enviar WhatsApp al cliente'
     : 'Enviar WhatsApp y Finalizar';
 
+  const handleClose = () => deferClose(() => onClose?.());
+
   const handleSendAndComplete = async () => {
     setEnviando(true);
     try {
       if (onSend) await onSend();
       const waLink = `https://wa.me/${numeroWA}?text=${encodeURIComponent(mensaje)}`;
       window.open(waLink, '_blank');
-      onConfirm?.();
+      deferClose(() => onConfirm?.());
     } catch (err) {
       toast.error(err?.message || 'No se pudo registrar el envío de la encuesta');
     } finally {
@@ -95,7 +109,7 @@ export function SendSurveyModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="text-slate-400 hover:text-slate-600 transition-colors p-1"
           >
             <X size={20} />
@@ -167,7 +181,7 @@ export function SendSurveyModal({
         <div className="bg-slate-50 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-xl transition-colors"
           >
             Omitir por ahora

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import {
   getUsuarios,
   createUsuario,
@@ -1051,7 +1051,8 @@ export const UsuariosPage = () => {
       )}
 
       {/* --- MODAL CREAR/EDITAR USUARIO --- */}
-      {userModalOpen && createPortal(
+      {userModalOpen && (
+        <ModalPortal>
         <>
           <div className="us-modal-overlay" onClick={() => setUserModalOpen(false)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
@@ -1217,12 +1218,13 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
 
       {/* --- MODAL CAMBIAR CONTRASEÑA --- */}
-      {passwordModalOpen && createPortal(
+      {passwordModalOpen && (
+        <ModalPortal>
         <>
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
             onClick={() => setPasswordModalOpen(false)} />
@@ -1288,12 +1290,13 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
 
       {/* --- MODAL CREAR/EDITAR ROL --- */}
-      {roleModalOpen && createPortal(
+      {roleModalOpen && (
+        <ModalPortal>
         <>
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
             onClick={() => setRoleModalOpen(false)} />
@@ -1366,8 +1369,8 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
     </div>
   );

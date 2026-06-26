@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 function getOrCreateRoot(id) {
@@ -21,33 +21,68 @@ export function getOverlayRoot() {
   return getOrCreateRoot('overlay-root');
 }
 
-function usePortalRoot(getRoot) {
-  const [mounted, setMounted] = useState(false);
+/**
+ * Cada instancia de portal usa su propio nodo DOM dentro de modal-root/overlay-root.
+ * Evita NotFoundError insertBefore cuando varios modales comparten el mismo padre (React 19).
+ */
+function useIsolatedPortalContainer(parentGetter) {
+  const [container] = useState(() => {
+    if (typeof document === 'undefined') return null;
+    const parent = parentGetter();
+    if (!parent) return null;
+    const el = document.createElement('div');
+    el.setAttribute('data-portal-layer', '');
+    parent.appendChild(el);
+    return el;
+  });
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => () => {
+    if (container?.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+  }, [container]);
 
-  if (!mounted) return null;
-  return getRoot();
+  return container;
 }
 
 export function ModalPortal({ children }) {
-  const root = usePortalRoot(getModalRoot);
-  if (!root || children == null || children === false) return null;
-  return createPortal(children, root);
+  const container = useIsolatedPortalContainer(getModalRoot);
+  if (!container || children == null || children === false) return null;
+  return createPortal(children, container);
 }
 
 export function OverlayPortal({ children }) {
-  const root = usePortalRoot(getOverlayRoot);
-  if (!root || children == null || children === false) return null;
-  return createPortal(children, root);
+  const container = useIsolatedPortalContainer(getOverlayRoot);
+  if (!container || children == null || children === false) return null;
+  return createPortal(children, container);
 }
 
-/** Cierra en el siguiente frame de pintura para no pelear con React 19 al desmontar portales */
+/** Retraso de desmontaje para animar cierre sin romper el árbol de portales */
+export function useModalVisibility(isOpen) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setVisible(true);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen && visible) {
+      const frame = requestAnimationFrame(() => setVisible(false));
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [isOpen, visible]);
+
+  return visible;
+}
+
+/**
+ * Diferir cierre/navegación hasta después del commit de React.
+ * Evita pantalla en blanco por insertBefore al desmontar portales.
+ */
 export function deferClose(callback) {
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
+  if (typeof callback !== 'function') return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       callback();
     });
   });

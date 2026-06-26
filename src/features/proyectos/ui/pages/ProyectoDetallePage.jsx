@@ -21,6 +21,7 @@ import { ProduccionPanel } from '../components/ProduccionPanel.jsx';
 import { EntregaPanel } from '../components/EntregaPanel.jsx';
 import { CompletadoPanel } from '../components/CompletadoPanel.jsx';
 import { SendSurveyModal } from '../components/SendSurveyModal.jsx';
+import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { PRIORIDADES_CONFIG, ESTADOS_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { getFaseConfig, FASES } from '../../domain/value-objects/FaseConfig.js';
 
@@ -513,7 +514,7 @@ export default function ProyectoDetallePage() {
         }}
         onConfirm={() => {
           setIsSurveyModalOpen(false);
-          avanzar();
+          deferClose(() => avanzar());
         }}
       />
     </div>

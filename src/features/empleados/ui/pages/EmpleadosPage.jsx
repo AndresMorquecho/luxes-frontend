@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate } from 'react-router-dom';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import {
@@ -437,7 +437,8 @@ export const EmpleadosPage = () => {
       </div>
 
       {/* Modal de Detalle de Colaborador */}
-      {viewingEmpleado && createPortal(
+      {viewingEmpleado && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-md z-[10000] flex items-center justify-center p-6 md:p-12 animate-fade-in">
           <div className="relative w-full max-w-4xl max-h-[82vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
             {/* Header */}
@@ -649,12 +650,13 @@ export const EmpleadosPage = () => {
               </button>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
+        </ModalPortal>
       )}
 
       {/* Modal de Vista Previa de Documento */}
-      {previewDoc && createPortal(
+      {previewDoc && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[10050] flex items-center justify-center p-6 md:p-12 animate-fade-in">
           <div className="relative w-full max-w-4xl max-h-[80vh] h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
             {/* Header */}
@@ -744,8 +746,8 @@ export const EmpleadosPage = () => {
               </button>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
+        </ModalPortal>
       )}
     </div>
   );

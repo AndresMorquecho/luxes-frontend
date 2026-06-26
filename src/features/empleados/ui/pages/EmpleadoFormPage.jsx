@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -191,7 +191,8 @@ const BankSelect = ({ value, onChange, light = false }) => {
 
   const label = value || 'Seleccionar banco...';
 
-  const dropdownMenu = open && menuStyle ? createPortal(
+  const dropdownMenu = open && menuStyle ? (
+    <ModalPortal>
     <div
       ref={menuRef}
       style={menuStyle}
@@ -248,8 +249,8 @@ const BankSelect = ({ value, onChange, light = false }) => {
           );
         })}
       </ul>
-    </div>,
-    document.body
+    </div>
+    </ModalPortal>
   ) : null;
 
   return (

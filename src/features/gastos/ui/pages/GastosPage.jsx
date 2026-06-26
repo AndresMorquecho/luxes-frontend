@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { 
   getGastos, saveGasto, deleteGasto, CATEGORIAS,
   getMetodosPago, getCierrePreview, saveCierre, getCierres, getFinancialDashboard,
@@ -1677,7 +1677,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* --- PORTALES Y MODALES --- */}
 
       {/* 1. MODAL CRUD GASTO */}
-      {formOpen && createPortal(
+      {formOpen && (
+        <ModalPortal>
         <>
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
             onClick={() => setFormOpen(false)} />
@@ -1744,12 +1745,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
 
       {/* 2. MODAL REGISTRO/EDICION VEHICULO */}
-      {vehiculoFormOpen && createPortal(
+      {vehiculoFormOpen && (
+        <ModalPortal>
         <>
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
             onClick={() => setVehiculoFormOpen(false)} />
@@ -1821,12 +1823,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
 
       {/* 3. MODAL REGISTRO/EDICION MANTENIMIENTO */}
-      {maintFormOpen && createPortal(
+      {maintFormOpen && (
+        <ModalPortal>
         <>
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
             onClick={() => setMaintFormOpen(false)} />
@@ -1912,8 +1915,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
 
     </div>

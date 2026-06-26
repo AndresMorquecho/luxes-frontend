@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { NominaContext } from '../../application/context/NominaContext';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 import { registrarAbono } from '../../domain/use-cases/registrarAbono';
@@ -1508,7 +1508,8 @@ export const NominaMesTab = () => {
         )}
       </div>
 
-      {payTarget && createPortal(
+      {payTarget && (
+        <ModalPortal>
         <PayModal
           emp={payTarget.emp}
           monto={payTarget.monto}
@@ -1519,11 +1520,12 @@ export const NominaMesTab = () => {
           onClose={() => setPayTarget(null)}
           onConfirm={handleConfirmPago}
           onMontoChange={handleMontoChange}
-        />,
-        document.body
+        />
+        </ModalPortal>
       )}
 
-      {activeEgresoModal && createPortal(
+      {activeEgresoModal && (
+        <ModalPortal>
         <DetalleEgresosModal
           empleadoId={activeEgresoModal.empleadoId}
           empleadoNombre={activeEgresoModal.empleadoNombre}
@@ -1532,11 +1534,12 @@ export const NominaMesTab = () => {
           adapter={adapter}
           onClose={() => setActiveEgresoModal(null)}
           onUpdate={loadAll}
-        />,
-        document.body
+        />
+        </ModalPortal>
       )}
 
-      {activeIngresoModal && createPortal(
+      {activeIngresoModal && (
+        <ModalPortal>
         <DetalleIngresosModal
           empleadoId={activeIngresoModal.empleadoId}
           empleadoNombre={activeIngresoModal.empleadoNombre}
@@ -1545,8 +1548,8 @@ export const NominaMesTab = () => {
           adapter={adapter}
           onClose={() => setActiveIngresoModal(null)}
           onUpdate={loadAll}
-        />,
-        document.body
+        />
+        </ModalPortal>
       )}
     </div>
   );

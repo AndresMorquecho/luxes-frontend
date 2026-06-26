@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate } from 'react-router-dom';
 import { getProformas, deleteProforma, updateProformaEstado } from '../../application/proformasService';
 import { ProformaPDF } from '../components/ProformaPDF';
@@ -383,10 +383,11 @@ export const ProformasPage = () => {
         />
       )}
 
-      {paymentMethodModal && createPortal(
+      {paymentMethodModal && (
+        <ModalPortal>
         <>
           <div className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm"
-            onClick={() => setPaymentMethodModal(null)} />
+            onClick={() => deferClose(() => setPaymentMethodModal(null))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden border border-slate-100 animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
@@ -425,8 +426,8 @@ export const ProformasPage = () => {
               </form>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
     </div>
   );

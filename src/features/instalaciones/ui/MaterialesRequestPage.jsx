@@ -15,6 +15,7 @@ import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../
 import { PersonalSelector } from '../../proyectos/ui/components/PersonalSelector.jsx';
 import { SendSurveyModal } from '../../proyectos/ui/components/SendSurveyModal.jsx';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
+import { deferClose, ModalPortal } from '../../../shared/ui/components/ModalPortal.jsx';
 import {
   isInstalacionIniciada,
   getInstalacionCompletionBlockers,
@@ -169,7 +170,7 @@ export function MaterialesRequestPage() {
   };
 
   const closeModal = () => {
-    setModalConfig(prev => ({ ...prev, isOpen: false }));
+    deferClose(() => setModalConfig(prev => ({ ...prev, isOpen: false })));
   };
 
   function getInitials(name = '') {
@@ -493,10 +494,12 @@ export function MaterialesRequestPage() {
   const handleCerrarEncuesta = () => {
     setIsSurveyModalOpen(false);
     setProyectoParaEncuesta(null);
-    if (reloadProyectos) {
-      reloadProyectos();
-    }
-    navigate('/instalaciones');
+    deferClose(() => {
+      if (reloadProyectos) {
+        reloadProyectos();
+      }
+      navigate('/instalaciones');
+    });
   };
 
   const marcarEncuestaEnviada = async () => {
@@ -508,17 +511,21 @@ export function MaterialesRequestPage() {
 
   const proyectoEncuesta = proyectoParaEncuesta || proyecto;
 
+  const surveyModalEl = (
+    <SendSurveyModal
+      isOpen={isSurveyModalOpen && !!proyectoEncuesta}
+      onClose={handleCerrarEncuesta}
+      proyecto={proyectoEncuesta}
+      variant="instalacion"
+      onSend={marcarEncuestaEnviada}
+      onConfirm={handleCerrarEncuesta}
+    />
+  );
+
   if (!proyecto) {
     return (
       <>
-        <SendSurveyModal
-          isOpen={isSurveyModalOpen && !!proyectoParaEncuesta}
-          onClose={handleCerrarEncuesta}
-          proyecto={proyectoParaEncuesta}
-          variant="instalacion"
-          onSend={marcarEncuestaEnviada}
-          onConfirm={handleCerrarEncuesta}
-        />
+        {surveyModalEl}
         <div className="request-page-container flex flex-col items-center justify-center py-12 gap-4">
           <p className="text-slate-500">Proyecto no encontrado</p>
           <button onClick={() => navigate('/instalaciones')} className="text-blue-600 underline">
@@ -1322,17 +1329,11 @@ export function MaterialesRequestPage() {
         title="Vista Previa de Orden de Compra"
       />
 
-      <SendSurveyModal
-        isOpen={isSurveyModalOpen}
-        onClose={handleCerrarEncuesta}
-        proyecto={proyectoEncuesta}
-        variant="instalacion"
-        onSend={marcarEncuestaEnviada}
-        onConfirm={handleCerrarEncuesta}
-      />
+      {surveyModalEl}
 
       {/* Modal Dialog de Alertas (Reemplazo de alert nativo) */}
       {modalConfig.isOpen && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in duration-150">
             <div className="flex items-center gap-3 mb-4">
@@ -1361,10 +1362,9 @@ export function MaterialesRequestPage() {
               )}
               <button
                 onClick={async () => {
+                  const confirm = modalConfig.onConfirm;
                   closeModal();
-                  if (modalConfig.onConfirm) {
-                    await modalConfig.onConfirm();
-                  }
+                  if (confirm) deferClose(async () => { await confirm(); });
                 }}
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"
               >
@@ -1373,13 +1373,15 @@ export function MaterialesRequestPage() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal Visor de Imagen */}
       {previewImage && (
+        <ModalPortal>
         <div 
           className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm cursor-zoom-out"
-          onClick={() => setPreviewImage(null)}
+          onClick={() => deferClose(() => setPreviewImage(null))}
         >
           <div 
             className="relative max-w-4xl w-full max-h-[85vh] flex items-center justify-center bg-transparent cursor-default"
@@ -1399,6 +1401,7 @@ export function MaterialesRequestPage() {
             />
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

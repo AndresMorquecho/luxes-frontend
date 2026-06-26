@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import {
   getTareas,
   getMisTareas,
@@ -519,7 +519,8 @@ export default function TareasPage() {
       )}
 
       {/* ── Create/Edit Modal ─────────────────────────────────────────────── */}
-      {showModal && createPortal(
+      {showModal && (
+        <ModalPortal>
         <div className="tareas-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="tareas-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -658,8 +659,8 @@ export default function TareasPage() {
               </div>
             </form>
           </div>
-        </div>,
-        document.body
+        </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats
@@ -177,7 +177,8 @@ export const CuentasPorPagarPage = () => {
       </div>
 
       {/* Registrar Abono Modal */}
-      {abonoModalOpen && createPortal(
+      {abonoModalOpen && (
+        <ModalPortal>
         <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
           <div className="co-modal-wrap">
@@ -249,8 +250,8 @@ export const CuentasPorPagarPage = () => {
               </div>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
+        </ModalPortal>
       )}
     </div>
   );

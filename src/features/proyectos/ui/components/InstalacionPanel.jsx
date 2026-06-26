@@ -12,6 +12,7 @@ import { useInstalacion } from '../../application/hooks/useInstalacion.js';
 import { useProyectosContext } from '../../application/context/ProyectosContext.jsx';
 import { ACTIONS } from '../../application/store/proyectosStore.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../domain/encuestaUtils.js';
 import { EncuestaResultadosView } from './EncuestaResultadosView.jsx';
 import { getInstalacionCompletionBlockers } from '../../domain/instalacionRules.js';
@@ -63,7 +64,7 @@ export function InstalacionPanel({ proyectoId }) {
   };
 
   const closeModal = () => {
-    setModalConfig(prev => ({ ...prev, isOpen: false }));
+    deferClose(() => setModalConfig(prev => ({ ...prev, isOpen: false })));
   };
 
   function handleRechazarOC(oc) {
@@ -486,6 +487,7 @@ export function InstalacionPanel({ proyectoId }) {
 
       {/* Modal Dialog de Alertas (Reemplazo de alert nativo) */}
       {modalConfig.isOpen && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in duration-150">
             <div className="flex items-center gap-3 mb-4">
@@ -516,10 +518,9 @@ export function InstalacionPanel({ proyectoId }) {
               <button
                 type="button"
                 onClick={() => {
+                  const confirm = modalConfig.onConfirm;
                   closeModal();
-                  if (modalConfig.onConfirm) {
-                    modalConfig.onConfirm();
-                  }
+                  if (confirm) deferClose(() => confirm());
                 }}
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"
               >
@@ -528,6 +529,7 @@ export function InstalacionPanel({ proyectoId }) {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );
