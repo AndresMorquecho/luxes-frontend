@@ -33,7 +33,11 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   }, []);
 
   useEffect(() => {
-    getProformas().then(response => {
+    const filters = { limit: 1000, estado: 'Aprobada' };
+    if (proyecto?.clienteId) {
+      filters.clienteId = proyecto.clienteId;
+    }
+    getProformas(filters).then(response => {
       // Handle both response formats: {data: []} or direct array
       const proformasData = response?.data || response || [];
       setProformas(Array.isArray(proformasData) ? proformasData : []);
@@ -41,7 +45,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
       console.error('Error loading proformas:', err);
       setProformas([]);
     });
-  }, []);
+  }, [proyecto?.clienteId]);
 
   useEffect(() => {
     getProyectos({ limit: 1000 }).then(response => {
@@ -80,13 +84,14 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   const isLinkedToOtherProject = (proformaId) => {
     return allProjects.some(proj => 
       proj.id !== proyectoId &&
+      (proj.estado === 'ACTIVO' || proj.estado === 'PAUSADO') &&
       proj.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas?.some(sc => sc.id === proformaId)
     );
   };
 
-  // Filtrar proformas: solo Aprobadas, del mismo cliente, que no estén ya seleccionadas ni vinculadas a otros proyectos, y que coincidan con la búsqueda
+  // Filtrar proformas: solo Aprobadas/Pagadas, del mismo cliente, que no estén ya seleccionadas ni vinculadas a otros proyectos activos, y que coincidan con la búsqueda
   const filteredProformas = normProformas.filter(c => 
-    c.estado === 'Aprobada' &&
+    (c.estado === 'Aprobada' || c.estado === 'Pagada') &&
     isRelatedToClient(c) &&
     !selectedCotizaciones.find(sc => sc.id === c.id) &&
     !isLinkedToOtherProject(c.id) &&
@@ -153,7 +158,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
                 <div className="p-6 text-center text-slate-500">
                   {proformas.length === 0 
                     ? 'No hay proformas disponibles.' 
-                    : normProformas.filter(p => p.estado === 'Aprobada').length === 0
+                    : normProformas.filter(p => p.estado === 'Aprobada' || p.estado === 'Pagada').length === 0
                     ? 'No hay proformas aprobadas disponibles.'
                     : `No se encontraron proformas aprobadas para "${searchTerm}"`}
                 </div>

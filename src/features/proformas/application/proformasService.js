@@ -15,6 +15,7 @@ export const getProformas = async (filters = {}) => {
   if (filters.estado) params.append('estado', filters.estado);
   if (filters.fechaDesde) params.append('fechaDesde', filters.fechaDesde);
   if (filters.fechaHasta) params.append('fechaHasta', filters.fechaHasta);
+  if (filters.clienteId) params.append('clienteId', filters.clienteId);
 
   const queryString = params.toString();
   const url = `/api/proformas${queryString ? `?${queryString}` : ''}`;
