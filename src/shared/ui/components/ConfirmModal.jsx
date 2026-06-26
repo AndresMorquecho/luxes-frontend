@@ -92,9 +92,8 @@ export const ConfirmDialogContainer = () => {
   const colors = getTypeStyle();
 
   return (
-    <OverlayPortal>
-      {state.isOpen ? (
-        <div className="confirm-portal-root" role="dialog" aria-modal="true">
+    <OverlayPortal open={state.isOpen}>
+      <div className="confirm-portal-root" role="dialog" aria-modal="true">
           <div
             className="confirm-overlay"
             onMouseDown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
@@ -147,7 +146,6 @@ export const ConfirmDialogContainer = () => {
             </div>
           </div>
         </div>
-      ) : null}
     </OverlayPortal>
   );
 };

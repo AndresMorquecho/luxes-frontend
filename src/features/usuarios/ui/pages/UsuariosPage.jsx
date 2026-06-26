@@ -154,26 +154,23 @@ export const UsuariosPage = () => {
       };
 
       if (editingUser) {
-        // Edit User
         const updated = await updateUsuario(editingUser.id, payload);
         setUsers(prev => prev.map(u => (u.id === editingUser.id ? updated : u)));
         toast.success('Usuario actualizado correctamente');
       } else {
-        // Create User
         const created = await createUsuario(payload);
         setUsers(prev => [created, ...prev]);
         toast.success('Usuario creado correctamente');
       }
+      setSaving(false);
       deferClose(() => setUserModalOpen(false));
-      // Reload logs to show audit record
       deferClose(async () => {
         const updatedLogs = await getAuditLogs();
         setAuditLogs(updatedLogs);
       });
     } catch (err) {
+      setSaving(false);
       toast.error(err instanceof Error ? err.message : 'Error al guardar el usuario');
-    } finally {
-      deferClose(() => setSaving(false));
     }
   };
 
@@ -1057,8 +1054,7 @@ export const UsuariosPage = () => {
       )}
 
       {/* --- MODAL CREAR/EDITAR USUARIO --- */}
-      {userModalOpen && (
-        <ModalPortal>
+      <ModalPortal open={userModalOpen}>
         <div className="us-modal-portal-root">
           <div className="us-modal-overlay" onClick={() => deferClose(() => setUserModalOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
@@ -1216,7 +1212,10 @@ export const UsuariosPage = () => {
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                     <button type="button" onClick={() => deferClose(() => setUserModalOpen(false))} className="us-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="us-btn-primary-purple">
-                      {saving && <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1.5" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!saving}
+                      />
                       {editingUser ? 'Guardar cambios' : 'Crear Usuario'}
                     </button>
                   </div>
@@ -1225,12 +1224,10 @@ export const UsuariosPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
-      )}
+      </ModalPortal>
 
       {/* --- MODAL CAMBIAR CONTRASEÑA --- */}
-      {passwordModalOpen && (
-        <ModalPortal>
+      <ModalPortal open={passwordModalOpen}>
         <div className="us-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
             onClick={() => deferClose(() => setPasswordModalOpen(false))} />
@@ -1297,12 +1294,10 @@ export const UsuariosPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
-      )}
+      </ModalPortal>
 
       {/* --- MODAL CREAR/EDITAR ROL --- */}
-      {roleModalOpen && (
-        <ModalPortal>
+      <ModalPortal open={roleModalOpen}>
         <div className="us-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
             onClick={() => deferClose(() => setRoleModalOpen(false))} />
@@ -1367,7 +1362,10 @@ export const UsuariosPage = () => {
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 shrink-0">
                     <button type="button" onClick={() => deferClose(() => setRoleModalOpen(false))} className="us-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="us-btn-primary-purple">
-                      {saving && <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!saving}
+                      />
                       {editingRole ? 'Guardar cambios' : 'Crear Rol'}
                     </button>
                   </div>
@@ -1376,8 +1374,7 @@ export const UsuariosPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
-      )}
+      </ModalPortal>
     </div>
   );
 };

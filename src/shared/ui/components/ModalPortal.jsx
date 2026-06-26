@@ -1,70 +1,59 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-function getOrCreateRoot(id) {
+function getRoot(id) {
   if (typeof document === 'undefined') return null;
-
-  let root = document.getElementById(id);
-  if (!root) {
-    root = document.createElement('div');
-    root.id = id;
-    document.body.appendChild(root);
-  }
-  return root;
+  return document.getElementById(id);
 }
 
 export function getModalRoot() {
-  return getOrCreateRoot('modal-root');
+  return getRoot('modal-root');
 }
 
 export function getOverlayRoot() {
-  return getOrCreateRoot('overlay-root');
+  return getRoot('overlay-root');
 }
 
 /**
- * Contenedor de portal estable por instancia, adjunto a document.body.
- * Sin removeChild sincrónico — evita NotFoundError insertBefore en React 19.
+ * Mantiene el portal montado un tick después de open=false
+ * para que React termine el commit antes de desmontar.
  */
-function usePortalContainer() {
-  const ref = useRef(null);
+function useDeferredUnmount(isOpen) {
+  const [mounted, setMounted] = useState(isOpen);
 
-  if (typeof document !== 'undefined' && !ref.current) {
-    const el = document.createElement('div');
-    el.setAttribute('data-portal-layer', '');
-    document.body.appendChild(el);
-    ref.current = el;
-  }
+  useEffect(() => {
+    if (isOpen) {
+      setMounted(true);
+      return undefined;
+    }
+    if (!mounted) return undefined;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setMounted(false));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isOpen, mounted]);
 
-  return ref.current;
+  return mounted;
 }
 
-export function ModalPortal({ children }) {
-  const container = usePortalContainer();
-  if (!container || children == null || children === false) return null;
-  return createPortal(children, container);
+export function ModalPortal({ open = true, children }) {
+  const mounted = useDeferredUnmount(open);
+  const root = getModalRoot();
+
+  if (!root || !mounted || children == null || children === false) return null;
+  return createPortal(children, root);
 }
 
-export function OverlayPortal({ children }) {
-  const container = usePortalContainer();
-  if (!container || children == null || children === false) return null;
-  return createPortal(children, container);
+export function OverlayPortal({ open = true, children }) {
+  const mounted = useDeferredUnmount(open);
+  const root = getOverlayRoot();
+
+  if (!root || !mounted || children == null || children === false) return null;
+  return createPortal(children, root);
 }
 
 export function useModalVisibility(isOpen) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) setVisible(true);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen && visible) {
-      const frame = requestAnimationFrame(() => setVisible(false));
-      return () => cancelAnimationFrame(frame);
-    }
-  }, [isOpen, visible]);
-
-  return visible;
+  return useDeferredUnmount(isOpen);
 }
 
 /**

@@ -44,7 +44,7 @@ export const ToastContainer = () => {
   }, []);
 
   return (
-    <OverlayPortal>
+    <OverlayPortal open={toasts.length > 0}>
       <div className="toast-container-root">
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onClose={() => removeToast(t.id)} />
