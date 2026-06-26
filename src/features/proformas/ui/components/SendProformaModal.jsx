@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Send, X, Smartphone, MessageCircle, Copy } from 'lucide-react';
-import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { enviarProforma } from '../../application/proformasService.js';
 
@@ -16,6 +16,9 @@ function formatWhatsAppNumber(telefono) {
 }
 
 export function SendProformaModal({ isOpen, onClose, proforma, onSent }) {
+  const [visible, setVisible] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+
   const total = useMemo(() => {
     const sub = (proforma?.items || []).reduce(
       (s, i) => s + Number(i.cantidad || 0) * Number(i.precioUnitario || 0),
@@ -32,14 +35,25 @@ export function SendProformaModal({ isOpen, onClose, proforma, onSent }) {
   ), [proforma, total]);
 
   const [mensaje, setMensaje] = useState(mensajeDefault);
-  const [enviando, setEnviando] = useState(false);
   const numeroWA = formatWhatsAppNumber(proforma?.telefono);
 
-  React.useEffect(() => {
-    if (isOpen) setMensaje(mensajeDefault);
-  }, [isOpen, mensajeDefault]);
+  useEffect(() => {
+    if (isOpen && proforma) {
+      setVisible(true);
+      setMensaje(mensajeDefault);
+    }
+  }, [isOpen, proforma, mensajeDefault]);
 
-  if (!isOpen || !proforma) return null;
+  useEffect(() => {
+    if (!isOpen && visible) {
+      const frame = window.requestAnimationFrame(() => setVisible(false));
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [isOpen, visible]);
+
+  if (!visible || !proforma) return null;
+
+  const handleClose = () => deferClose(() => onClose?.());
 
   const handleSend = async () => {
     setEnviando(true);
@@ -50,8 +64,10 @@ export function SendProformaModal({ isOpen, onClose, proforma, onSent }) {
         window.open(waLink, '_blank');
       }
       toast.success('Proforma registrada como enviada.');
-      onSent?.();
-      onClose();
+      deferClose(() => {
+        onSent?.();
+        onClose?.();
+      });
     } catch (err) {
       toast.error(err.message || 'No se pudo registrar el envío');
     } finally {
@@ -82,7 +98,7 @@ export function SendProformaModal({ isOpen, onClose, proforma, onSent }) {
                 <p className="text-xs text-blue-600 font-medium">{proforma.id} — {proforma.cliente}</p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+            <button type="button" onClick={handleClose} className="text-slate-400 hover:text-slate-600 p-1">
               <X size={20} />
             </button>
           </div>

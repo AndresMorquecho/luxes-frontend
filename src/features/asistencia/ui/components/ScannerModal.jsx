@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose, useModalVisibility } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { registrarAsistencia, getProximaMarcacion } from '../../application/asistenciaService';
 import { SECUENCIA_MARCACIONES } from '../../helpers/asistenciaHelpers';
@@ -82,15 +82,20 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
   const indexActual = SECUENCIA_MARCACIONES.findIndex(m => m.tipo === tipoActivo);
   const completadosCount = indexActual;
 
-  if (!isOpen) return null;
+  const visible = useModalVisibility(isOpen);
 
-  return createPortal(
+  if (!visible) return null;
+
+  const handleClose = () => deferClose(() => onClose?.());
+
+  return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative w-full max-w-[90vw] sm:max-w-sm md:max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-7 animate-modal-in max-h-[95vh] overflow-y-auto border border-gray-100">
 
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors text-gray-400 hover:text-gray-600"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -201,7 +206,7 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
         }
         .animate-modal-in { animation: modal-in 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
       `}} />
-    </div>,
-    document.body
+    </div>
+    </ModalPortal>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import {
   getMetodosPago, createMetodoPago, updateMetodoPago, deleteMetodoPago
 } from '../../application/comprasService';
@@ -291,7 +291,8 @@ export const MetodosPagoPage = () => {
       </div>
 
       {/* New/Edit Modal */}
-      {metodoFormOpen && createPortal(
+      {metodoFormOpen && (
+        <ModalPortal>
         <>
           <div className="co-overlay" onClick={() => setMetodoFormOpen(false)} />
           <div className="co-modal-wrap">
@@ -333,8 +334,8 @@ export const MetodosPagoPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
     </div>
   );

@@ -32,6 +32,7 @@ import ConfiguracionFeature from '../features/configuracion/ui';
 import { MovimientosPage } from '../features/gastos/ui/pages/MovimientosPage';
 import { ToastContainer } from '../shared/ui/components/Toast';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
+import { ErrorBoundary } from '../shared/ui/components/ErrorBoundary';
 
 function LegacyRecepcionRedirect() {
   const { ordenId } = useParams();
@@ -149,9 +150,11 @@ function App() {
   // Rutas públicas que no requieren autenticación
   if (location.pathname.startsWith('/encuesta/')) {
     return (
-      <Routes>
-        <Route path="/encuesta/:id" element={<EncuestaPage />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/encuesta/:id" element={<EncuestaPage />} />
+        </Routes>
+      </ErrorBoundary>
     );
   }
 
@@ -166,7 +169,7 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <>
+      <ErrorBoundary>
         <ToastContainer />
         <ConfirmDialogContainer />
         <Routes>
@@ -174,7 +177,7 @@ function App() {
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </>
+      </ErrorBoundary>
     );
   }
 
@@ -186,7 +189,7 @@ function App() {
   const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
 
   return (
-    <>
+    <ErrorBoundary>
       <ToastContainer />
       <ConfirmDialogContainer />
       <PrintQueueProvider>
@@ -240,7 +243,7 @@ function App() {
         </Layout>
       </ProyectosProvider>
       </PrintQueueProvider>
-    </>
+    </ErrorBoundary>
   );
 }
 

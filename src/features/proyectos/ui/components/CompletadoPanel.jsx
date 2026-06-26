@@ -8,6 +8,7 @@ import {
 } from '../../domain/encuestaUtils.js';
 import { EncuestaResultadosView } from './EncuestaResultadosView.jsx';
 import { SendSurveyModal } from './SendSurveyModal.jsx';
+import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 
 export function CompletadoPanel({ proyectoId, soloLectura = false }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
@@ -81,7 +82,7 @@ export function CompletadoPanel({ proyectoId, soloLectura = false }) {
         proyecto={proyecto}
         variant="instalacion"
         onSend={marcarEncuestaEnviada}
-        onConfirm={() => setShowSurveyModal(false)}
+        onConfirm={() => deferClose(() => setShowSurveyModal(false))}
       />
     </>
   );

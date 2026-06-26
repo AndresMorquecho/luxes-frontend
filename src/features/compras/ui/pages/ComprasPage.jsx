@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { getModalRoot } from '../../../../shared/ui/components/ModalPortal';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate } from 'react-router-dom';
 import {
   getOrdenes, updateOrden, deleteOrden, getComprasStats,
@@ -372,7 +371,8 @@ export const ComprasPage = () => {
       </div>
 
       {/* Registrar Abono Modal */}
-      {abonoModalOpen && createPortal(
+      {abonoModalOpen && (
+        <ModalPortal>
         <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
           <div className="co-modal-wrap">
@@ -432,12 +432,13 @@ export const ComprasPage = () => {
               </div>
             </div>
           </div>
-        </div>,
-        getModalRoot()
+        </div>
+        </ModalPortal>
       )}
 
       {/* Recepción de Insumos Modal */}
-      {recepcionModalOpen && createPortal(
+      {recepcionModalOpen && (
+        <ModalPortal>
         <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setRecepcionModalOpen(false)} />
           <div className="co-modal-wrap">
@@ -536,8 +537,8 @@ export const ComprasPage = () => {
               </div>
             </div>
           </div>
-        </div>,
-        getModalRoot()
+        </div>
+        </ModalPortal>
       )}
 
       {/* Visor Reutilizable de PDF */}
@@ -549,7 +550,8 @@ export const ComprasPage = () => {
       />
 
       {/* Modal Premium Ver Motivo de Rechazo */}
-      {viewReasonOpen && createPortal(
+      {viewReasonOpen && (
+        <ModalPortal>
         <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setViewReasonOpen(false)} />
           <div className="co-modal-wrap">
@@ -577,8 +579,8 @@ export const ComprasPage = () => {
               </div>
             </div>
           </div>
-        </div>,
-        getModalRoot()
+        </div>
+        </ModalPortal>
       )}
     </div>
   );

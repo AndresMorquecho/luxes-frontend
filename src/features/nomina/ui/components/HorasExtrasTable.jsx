@@ -1,7 +1,7 @@
 // c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/ui/components/HorasExtrasTable.jsx
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { HoraExtra } from '../../domain/entities/HoraExtra';
 import { calcularHorasExtras } from '../../domain/use-cases/calcularHorasExtras';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -276,7 +276,8 @@ export const HorasExtrasTable = ({ employees, initialOvertime, onSave, fechasAct
       </div>
 
       {/* Formulario Modal para Registro de Horas Extras */}
-      {isModalOpen && createPortal(
+      {isModalOpen && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
           <div className="fixed inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
           <div className="relative w-full max-w-[95vw] md:max-w-2xl lg:max-w-3xl bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-gray-100 max-h-[92vh] overflow-y-auto flex flex-col space-y-5 animate-modal-in">
@@ -413,8 +414,8 @@ export const HorasExtrasTable = ({ employees, initialOvertime, onSave, fechasAct
               </div>
             </form>
           </div>
-        </div>,
-        document.body
+        </div>
+        </ModalPortal>
       )}
 
       <style dangerouslySetInnerHTML={{ __html: `

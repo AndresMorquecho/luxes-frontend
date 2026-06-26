@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate } from 'react-router-dom';
 import { getVentas, registrarCobro } from '../../application/ventasService';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
@@ -403,7 +403,8 @@ export const VentasPage = () => {
       </div>
 
       {/* Abono Modal */}
-      {showAbonoModal && createPortal(
+      {showAbonoModal && (
+        <ModalPortal>
         <>
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
             onClick={() => setShowAbonoModal(false)} />
@@ -504,7 +505,8 @@ export const VentasPage = () => {
             </div>
           </div>
         </>
-      , document.body)}
+        </ModalPortal>
+      )}
 
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { Printer, X, ZoomIn, ZoomOut, FileText, Download } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import '../../../../shared/ui/components/PDFPreviewModal.css';
 
 const formatUSD = (val) =>
@@ -43,8 +43,9 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
     html2pdf().set(opt).from(element).save();
   };
 
-  return createPortal(
-    <div className="pdf-modal-overlay" onClick={onClose}>
+  return (
+    <ModalPortal>
+    <div className="pdf-modal-overlay" onClick={() => deferClose(onClose)}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         .lx-pdf * { font-family: 'Inter', Arial, sans-serif; box-sizing: border-box; }
@@ -419,7 +420,7 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
           </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
+    </ModalPortal>
   );
 };

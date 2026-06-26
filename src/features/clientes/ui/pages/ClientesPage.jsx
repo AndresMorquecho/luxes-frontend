@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { getClientes, saveCliente, deleteCliente } from '../../application/clientesService';
 
 const EMPTY_FORM = { nombre: '', cedulaRuc: '', telefono: '', email: '', direccion: '', tipo: 'Persona', notas: '' };
@@ -322,10 +322,11 @@ export const ClientesPage = () => {
       </div>
 
       {/* Modal */}
-      {formOpen && createPortal(
+      {formOpen && (
+        <ModalPortal>
         <>
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)', animation: 'overlay-in 0.2s ease' }}
-            onClick={() => setFormOpen(false)} />
+            onClick={() => deferClose(() => setFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-modal-in max-h-[90vh] flex flex-col border border-slate-100"
               style={{ boxShadow: '0 25px 60px rgba(15,23,42,0.15), 0 1px 4px rgba(0,0,0,0.04)' }}>
@@ -385,8 +386,8 @@ export const ClientesPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </>
+        </ModalPortal>
       )}
     </div>
   );
