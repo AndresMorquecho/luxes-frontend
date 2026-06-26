@@ -133,6 +133,10 @@ export const ImpresionesPage = () => {
     return fasesProduccion.includes(p.faseActual) && p.estado === 'ACTIVO';
   });
 
+  const selectedProyecto = selectedProyectoId
+    ? (proyectosState?.proyectos || []).find((p) => p.id === selectedProyectoId)
+    : null;
+
   // Get projects with approved designs (always stored in datos)
   const proyectosConDisenoAprobado = (proyectosState?.proyectos || []).filter(p => {
     const disenoFase = p.fases?.['DISEÑO'] || p.fases?.DISEÑO;
@@ -284,7 +288,6 @@ export const ImpresionesPage = () => {
     e.preventDefault();
     if (!file) return;
 
-    const selectedProyecto = (proyectosState?.proyectos || []).find(p => p.id === selectedProyectoId);
     const filesToSubmit = file.isMultiple ? file.files : [file];
     let fileUrl = '';
     let jobName = '';

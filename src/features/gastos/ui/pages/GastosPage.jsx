@@ -32,6 +32,25 @@ const CAT_BADGES = {
 
 const fmt = (n) => '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
+const PAGE_META = {
+  gastos: {
+    title: 'Control de Gastos',
+    subtitle: 'Control de egresos, compras y mantenimiento central de la empresa',
+  },
+  vehiculos: {
+    title: 'Gestión de Flota',
+    subtitle: 'Supervisión de vehículos corporativos, kilometrajes y alertas preventivas',
+  },
+  cierre: {
+    title: 'Cierre de Caja',
+    subtitle: 'Arqueo de caja, ingresos, egresos y cierres históricos',
+  },
+  reportes: {
+    title: 'Reportes Financieros',
+    subtitle: 'Análisis de rentabilidad, margen y flujos monetarios',
+  },
+};
+
 // Helpers para alertas de mantenimiento
 const getAlertStatus = (maint, currentKm, kmLimit, monthsLimit) => {
   if (!maint) {
@@ -375,8 +394,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       loadVehiculosData();
     } else if (activeTab === 'cierre') {
       loadCierreHistory();
-    } else if (activeTab === 'reportes') {
-      loadFinancialReport();
     }
   }, [activeTab]);
 
@@ -436,11 +453,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     try {
       const saved = await saveGasto(form);
       toast.success(editing ? 'Gasto actualizado correctamente' : 'Gasto registrado con éxito');
-      setFormOpen(false);
+      deferClose(() => {
+        setFormOpen(false);
+        setSaving(false);
+      });
       loadGastosData();
     } catch (err) {
       toast.error('No se pudo guardar el gasto: ' + err.message);
-    } finally {
       setSaving(false);
     }
   };
@@ -494,14 +513,16 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     try {
       await saveVehiculo(vehiculoForm);
       toast.success(editingVehiculo ? 'Vehículo actualizado correctamente' : 'Vehículo registrado con éxito');
-      setVehiculoFormOpen(false);
+      deferClose(() => {
+        setVehiculoFormOpen(false);
+        setSavingVehiculo(false);
+      });
       loadVehiculosData();
       if (selectedVehiculo && selectedVehiculo.id === vehiculoForm.id) {
         refreshSelectedVehiculo(selectedVehiculo.id);
       }
     } catch (err) {
       toast.error('Error al guardar vehículo: ' + err.message);
-    } finally {
       setSavingVehiculo(false);
     }
   };
@@ -563,11 +584,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         await addMantenimiento(selectedVehiculo.id, maintForm);
         toast.success('Mantenimiento registrado y guardado como gasto');
       }
-      setMaintFormOpen(false);
+      deferClose(() => {
+        setMaintFormOpen(false);
+        setSavingMaint(false);
+      });
       refreshSelectedVehiculo(selectedVehiculo.id);
     } catch (err) {
       toast.error('Error al guardar mantenimiento: ' + err.message);
-    } finally {
       setSavingMaint(false);
     }
   };
@@ -778,16 +801,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       <div className="ga-card px-6 py-5 flex items-center justify-between gap-4 flex-wrap mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2.5">
-            {activeTab === 'gastos' && 'Control de Gastos'}
-            {activeTab === 'vehiculos' && 'Gestión de Flota'}
-            {activeTab === 'cierre' && 'Cierre de Caja'}
-            {activeTab === 'reportes' && 'Reportes Financieros'}
+            {PAGE_META[activeTab]?.title || 'Finanzas'}
           </h1>
           <p className="text-sm text-slate-400 mt-0.5 font-medium">
-            {activeTab === 'gastos' && 'Control de egresos, compras y mantenimiento central de la empresa'}
-            {activeTab === 'vehiculos' && 'Supervisión de vehículos corporativos, kilometrajes y alertas preventivas'}
-            {activeTab === 'cierre' && 'Arqueo de caja, ingresos, egresos y cierres históricos'}
-            {activeTab === 'reportes' && 'Análisis de rentabilidad, margen y flujos monetarios'}
+            {PAGE_META[activeTab]?.subtitle || ''}
           </p>
         </div>
         <div className="flex gap-2">
@@ -1677,16 +1694,15 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* --- PORTALES Y MODALES --- */}
 
       {/* 1. MODAL CRUD GASTO */}
-      {formOpen && (
-        <ModalPortal>
-        <>
+      <ModalPortal open={formOpen}>
+        <div className="ga-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
-            onClick={() => setFormOpen(false)} />
+            onClick={() => deferClose(() => setFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editing ? 'Editar Gasto' : 'Nuevo Gasto'}</h2>
-                <button type="button" onClick={() => setFormOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setFormOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   ✕
                 </button>
@@ -1735,9 +1751,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     <textarea name="notas" value={form.notas} onChange={handleGastoChange} rows={2} placeholder="Observaciones…" className="ga-input resize-none" />
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
-                    <button type="button" onClick={() => setFormOpen(false)} className="ga-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setFormOpen(false))} className="ga-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="ga-btn-primary">
-                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1 ${saving ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!saving}
+                      />
                       {editing ? 'Guardar Cambios' : 'Registrar Gasto'}
                     </button>
                   </div>
@@ -1745,21 +1764,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
             </div>
           </div>
-        </>
-        </ModalPortal>
-      )}
+        </div>
+      </ModalPortal>
 
       {/* 2. MODAL REGISTRO/EDICION VEHICULO */}
-      {vehiculoFormOpen && (
-        <ModalPortal>
-        <>
+      <ModalPortal open={vehiculoFormOpen}>
+        <div className="ga-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
-            onClick={() => setVehiculoFormOpen(false)} />
+            onClick={() => deferClose(() => setVehiculoFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editingVehiculo ? 'Editar Vehículo' : 'Registrar Nuevo Vehículo'}</h2>
-                <button type="button" onClick={() => setVehiculoFormOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setVehiculoFormOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   ✕
                 </button>
@@ -1813,9 +1830,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     <textarea name="notas" value={vehiculoForm.notas} onChange={handleVehiculoChange} rows={2} placeholder="Detalles de aseguradora, historial de fallas, etc..." className="ga-input resize-none" />
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
-                    <button type="button" onClick={() => setVehiculoFormOpen(false)} className="ga-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setVehiculoFormOpen(false))} className="ga-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={savingVehiculo} className="ga-btn-primary">
-                      {savingVehiculo && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1 ${savingVehiculo ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!savingVehiculo}
+                      />
                       {editingVehiculo ? 'Guardar Cambios' : 'Registrar Vehículo'}
                     </button>
                   </div>
@@ -1823,21 +1843,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
             </div>
           </div>
-        </>
-        </ModalPortal>
-      )}
+        </div>
+      </ModalPortal>
 
       {/* 3. MODAL REGISTRO/EDICION MANTENIMIENTO */}
-      {maintFormOpen && (
-        <ModalPortal>
-        <>
+      <ModalPortal open={maintFormOpen}>
+        <div className="ga-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
-            onClick={() => setMaintFormOpen(false)} />
+            onClick={() => deferClose(() => setMaintFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editingMaint ? 'Editar Mantenimiento' : 'Registrar Mantenimiento / Gasto'}</h2>
-                <button type="button" onClick={() => setMaintFormOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setMaintFormOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   ✕
                 </button>
@@ -1878,7 +1896,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Kilometraje de Realización</label>
-                      <input name="kilometraje" type="number" value={maintForm.kilometraje} onChange={handleMaintChange} className="ga-input" placeholder={selectedVehiculo.kilometraje} />
+                      <input name="kilometraje" type="number" value={maintForm.kilometraje} onChange={handleMaintChange} className="ga-input" placeholder={selectedVehiculo?.kilometraje} />
                     </div>
                     <div>
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Kilometraje Próximo Maint.</label>
@@ -1905,9 +1923,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     <input name="notas" value={maintForm.notas} onChange={handleMaintChange} placeholder="Observaciones adicionales" className="ga-input" />
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
-                    <button type="button" onClick={() => setMaintFormOpen(false)} className="ga-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setMaintFormOpen(false))} className="ga-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={savingMaint} className="ga-btn-primary">
-                      {savingMaint && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1 ${savingMaint ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!savingMaint}
+                      />
                       {editingMaint ? 'Guardar Cambios' : 'Registrar Mantenimiento'}
                     </button>
                   </div>
@@ -1915,9 +1936,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
             </div>
           </div>
-        </>
-        </ModalPortal>
-      )}
+        </div>
+      </ModalPortal>
 
     </div>
   );
