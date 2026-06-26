@@ -11,9 +11,17 @@ import {
 } from 'lucide-react';
 import { PDFPreviewModal } from '../../../shared/ui/components/PDFPreviewModal.jsx';
 import { useProyecto } from '../../proyectos/application/hooks/useProyecto.js';
-import { getMateriales, registrarMovimiento } from '../../inventario/application/inventarioService.js';
+import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService.js';
 import { PersonalSelector } from '../../proyectos/ui/components/PersonalSelector.jsx';
+import { SendSurveyModal } from '../../proyectos/ui/components/SendSurveyModal.jsx';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
+import {
+  isInstalacionIniciada,
+  getInstalacionCompletionBlockers,
+  canCompletarInstalacion,
+} from '../../proyectos/domain/instalacionRules.js';
+import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../proyectos/domain/encuestaUtils.js';
+import { EncuestaResultadosView } from '../../proyectos/ui/components/EncuestaResultadosView.jsx';
 import './MaterialesRequestPage.css';
 
 
@@ -26,6 +34,15 @@ export function MaterialesRequestPage() {
   const datosInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
   const materialesExistentes = datosInstalacion.materiales || [];
   const esSoloLectura = datosInstalacion.instalacionCompletada === true;
+  const instalacionIniciada = isInstalacionIniciada(datosInstalacion);
+  const ordenesProyecto = proyecto?.ordenesCompra || [];
+  const bloqueosCierre = getInstalacionCompletionBlockers(datosInstalacion, {
+    ordenesCompra: ordenesProyecto,
+  });
+  const puedeCompletar = canCompletarInstalacion(datosInstalacion, {
+    ordenesCompra: ordenesProyecto,
+  });
+  const encuestaCliente = getEncuestaSatisfaccion(proyecto);
 
   // Pestaña Activa
   const [activeTab, setActiveTab] = useState('equipo'); // 'equipo' | 'bodega' | 'distribucion' | 'compras' | 'cierre'
@@ -85,6 +102,8 @@ export function MaterialesRequestPage() {
   const [isPDFOpen, setIsPDFOpen] = useState(false);
   const [previewOC, setPreviewOC] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false);
+  const [proyectoParaEncuesta, setProyectoParaEncuesta] = useState(null);
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: '',
@@ -97,7 +116,7 @@ export function MaterialesRequestPage() {
   const fetchInventario = async () => {
     try {
       setLoadingInventario(true);
-      const data = await getMateriales({ categoria: 'Taller' });
+      const data = await getMateriales(buildMaterialesQuery({ categoria: 'Taller' }));
       const items = Array.isArray(data) ? data : (data.items || []);
       const mapped = items
         .filter(item => item.categoria === 'Taller')
@@ -182,25 +201,11 @@ export function MaterialesRequestPage() {
     };
   };
 
-  if (!proyecto) {
-    return (
-      <div className="request-page-container flex flex-col items-center justify-center py-12 gap-4">
-        <p className="text-slate-500">Proyecto no encontrado</p>
-        <button onClick={() => navigate('/instalaciones')} className="text-blue-600 underline">
-          Volver a Instalaciones
-        </button>
-      </div>
-    );
-  }
-
   // Filtrar artículos en inventario (limitado a los primeros 6 para mejorar UX y rendimiento)
   const matchedInventory = inventarioDb.filter(item => 
     item.nombre.toLowerCase().includes(materialSearch.toLowerCase()) || 
     item.sku.toLowerCase().includes(materialSearch.toLowerCase())
   ).slice(0, 6);
-
-  // Filtrar órdenes de compra asociadas a este proyecto
-  const ordenesProyecto = proyecto.ordenesCompra || [];
 
   // --- Manejadores de Guardado Explícito ---
 
@@ -387,6 +392,10 @@ export function MaterialesRequestPage() {
 
   const handleUploadEvidencias = async (files) => {
     if (esSoloLectura) return;
+    if (!instalacionIniciada) {
+      toast.error('Debes iniciar la instalación en obra antes de subir evidencias.');
+      return;
+    }
     const fileList = Array.from(files);
     if (fileList.length === 0) return;
 
@@ -440,9 +449,8 @@ export function MaterialesRequestPage() {
 
   // Finalizar instalación en sitio
   const handleCompletarInstalacion = async () => {
-    const evidencias = datosInstalacion.evidencias || [];
-    if (evidencias.length === 0) {
-      toast.error('No se puede finalizar la instalación: debes subir al menos una evidencia fotográfica en el Cierre de Obra.');
+    if (!puedeCompletar) {
+      toast.error(bloqueosCierre[0] || 'Aún no se cumplen los requisitos para finalizar la instalación.');
       return;
     }
 
@@ -451,23 +459,75 @@ export function MaterialesRequestPage() {
       '¿Estás seguro de que deseas marcar la instalación como completada en sitio? Esto notificará a la administración.',
       'confirm',
       async () => {
+        const snapshot = {
+          ...proyecto,
+          fases: {
+            ...proyecto.fases,
+            INSTALACION: {
+              ...(proyecto.fases?.INSTALACION || {}),
+              datos: {
+                ...(proyecto.fases?.INSTALACION?.datos || {}),
+                instalacionCompletada: true,
+                notasCierre: observacionesCierre,
+                fechaFin: new Date().toISOString().split('T')[0],
+              },
+            },
+          },
+        };
         try {
           await updateFaseDatos('INSTALACION', {
             instalacionCompletada: true,
             notasCierre: observacionesCierre,
             fechaFin: new Date().toISOString().split('T')[0]
           });
-          if (reloadProyectos) {
-            reloadProyectos();
-          }
-          toast.success('¡Instalación Completada! Se ha registrado el cierre.');
-          navigate('/instalaciones');
+          setProyectoParaEncuesta(snapshot);
+          toast.success('¡Instalación completada! Envía la encuesta al cliente.');
+          window.setTimeout(() => setIsSurveyModalOpen(true), 200);
         } catch (err) {
           toast.error('No se pudo completar la instalación: ' + err.message);
         }
       }
     );
   };
+
+  const handleCerrarEncuesta = () => {
+    setIsSurveyModalOpen(false);
+    setProyectoParaEncuesta(null);
+    if (reloadProyectos) {
+      reloadProyectos();
+    }
+    navigate('/instalaciones');
+  };
+
+  const marcarEncuestaEnviada = async () => {
+    await updateFaseDatos('INSTALACION', {
+      encuestaEnviada: true,
+      fechaEncuestaEnviada: new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const proyectoEncuesta = proyectoParaEncuesta || proyecto;
+
+  if (!proyecto) {
+    return (
+      <>
+        <SendSurveyModal
+          isOpen={isSurveyModalOpen && !!proyectoParaEncuesta}
+          onClose={handleCerrarEncuesta}
+          proyecto={proyectoParaEncuesta}
+          variant="instalacion"
+          onSend={marcarEncuestaEnviada}
+          onConfirm={handleCerrarEncuesta}
+        />
+        <div className="request-page-container flex flex-col items-center justify-center py-12 gap-4">
+          <p className="text-slate-500">Proyecto no encontrado</p>
+          <button onClick={() => navigate('/instalaciones')} className="text-blue-600 underline">
+            Volver a Instalaciones
+          </button>
+        </div>
+      </>
+    );
+  }
 
   // Definición de las pestañas
   const tabs = [
@@ -530,7 +590,7 @@ export function MaterialesRequestPage() {
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Estado:</span>
                 {datosInstalacion.instalacionCompletada ? (
                   <span className="oc-history-badge aprobada">Completada</span>
-                ) : datosInstalacion.fechaInstalacion ? (
+                ) : datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion ? (
                   <span className="oc-history-badge pendiente">En Montaje</span>
                 ) : (
                   <span className="oc-history-badge" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>En Cola</span>
@@ -604,7 +664,7 @@ export function MaterialesRequestPage() {
             )}
           </div>
         </div>
-      {!datosInstalacion.instalacionCompletada && !datosInstalacion.fechaInstalacion && (
+      {!datosInstalacion.instalacionCompletada && !instalacionIniciada && (
         <button
           onClick={handleIniciarInstalacion}
           className="px-5 py-3 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-md shadow-emerald-100 transition-all cursor-pointer shrink-0"
@@ -1002,7 +1062,7 @@ export function MaterialesRequestPage() {
                               </button>
                               {oc.estado === 'APROBADA' && (
                                 <button
-                                  onClick={() => navigate(`/inventario/recepcion/${oc.id}`)}
+                                  onClick={() => navigate(`/compras/recepcion/${oc.id}`)}
                                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <Package size={12} />
@@ -1025,7 +1085,7 @@ export function MaterialesRequestPage() {
         {activeTab === 'cierre' && (
           <div className="space-y-6 animate-slide-up">
             
-            {datosInstalacion.fechaInstalacion ? (
+            {instalacionIniciada ? (
               <div className="space-y-6">
                 
                 {/* Evidencia Fotográfica en Cierre */}
@@ -1172,10 +1232,27 @@ export function MaterialesRequestPage() {
                         <p className="mt-1">Finalizó el {datosInstalacion.fechaFin || 'recientemente'}.</p>
                         {datosInstalacion.notasCierre ? (
                           <p className="mt-2 pt-2 border-t border-emerald-100 italic">
-                            Notas: "{datosInstalacion.notasCierre}"
+                            Notas: &quot;{datosInstalacion.notasCierre}&quot;
                           </p>
                         ) : null}
                       </div>
+
+                      {encuestaCliente?.completada ? (
+                        <div className="pt-2">
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                            Calificaciones del cliente
+                          </p>
+                          <EncuestaResultadosView encuesta={encuestaCliente} />
+                        </div>
+                      ) : encuestaFueEnviada(proyecto) ? (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-500">
+                          Encuesta enviada — esperando respuesta del cliente.
+                        </div>
+                      ) : (
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
+                          Encuesta pendiente de envío al cliente.
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -1194,11 +1271,29 @@ export function MaterialesRequestPage() {
                           rows={4}
                         />
                       </div>
+
+                      {bloqueosCierre.length > 0 && (
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-800">
+                          <p className="font-bold mb-1.5 flex items-center gap-1.5">
+                            <AlertTriangle size={14} />
+                            Requisitos pendientes para finalizar:
+                          </p>
+                          <ul className="space-y-1 ml-1">
+                            {bloqueosCierre.map((msg) => (
+                              <li key={msg} className="flex items-start gap-1.5">
+                                <span className="text-amber-500 mt-0.5">•</span>
+                                <span>{msg}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       
                       <button
                         type="button"
                         onClick={handleCompletarInstalacion}
-                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                        disabled={!puedeCompletar}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
                       >
                         <CheckCircle size={16} />
                         Marcar Instalación como Completada en Sitio
@@ -1225,6 +1320,15 @@ export function MaterialesRequestPage() {
         oc={previewOC}
         proyecto={proyecto}
         title="Vista Previa de Orden de Compra"
+      />
+
+      <SendSurveyModal
+        isOpen={isSurveyModalOpen}
+        onClose={handleCerrarEncuesta}
+        proyecto={proyectoEncuesta}
+        variant="instalacion"
+        onSend={marcarEncuestaEnviada}
+        onConfirm={handleCerrarEncuesta}
       />
 
       {/* Modal Dialog de Alertas (Reemplazo de alert nativo) */}
@@ -1256,10 +1360,10 @@ export function MaterialesRequestPage() {
                 </button>
               )}
               <button
-                onClick={() => {
+                onClick={async () => {
                   closeModal();
                   if (modalConfig.onConfirm) {
-                    modalConfig.onConfirm();
+                    await modalConfig.onConfirm();
                   }
                 }}
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"

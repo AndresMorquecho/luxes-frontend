@@ -12,6 +12,9 @@ import { useInstalacion } from '../../application/hooks/useInstalacion.js';
 import { useProyectosContext } from '../../application/context/ProyectosContext.jsx';
 import { ACTIONS } from '../../application/store/proyectosStore.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../domain/encuestaUtils.js';
+import { EncuestaResultadosView } from './EncuestaResultadosView.jsx';
+import { getInstalacionCompletionBlockers } from '../../domain/instalacionRules.js';
 
 const SECCIONES = ['datos', 'personal', 'materiales', 'estado'];
 
@@ -186,7 +189,21 @@ export function InstalacionPanel({ proyectoId }) {
     { id: 'datos', label: 'Datos', Icon: MapPin },
     { id: 'personal', label: 'Personal', Icon: Users },
     { id: 'materiales', label: 'Materiales', Icon: Package },
+    { id: 'validacion', label: 'Validación', Icon: AlertTriangle },
     { id: 'estado', label: 'Estado', Icon: CheckCircle },
+  ];
+
+  const bloqueosCierre = getInstalacionCompletionBlockers(datosInstalacion, { ordenesCompra: ordenesProyecto });
+  const requisitosValidacion = [
+    { ok: Boolean(datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion), label: 'Instalación iniciada en obra' },
+    { ok: (datosInstalacion.personalAsignado?.length || 0) > 0, label: 'Equipo técnico asignado' },
+    { ok: (datosInstalacion.materiales?.length || 0) > 0, label: 'Materiales registrados' },
+    {
+      ok: ordenesProyecto.filter((oc) => (oc.estado || '').toUpperCase() === 'APROBADA').length === 0,
+      label: 'Órdenes de compra aprobadas recibidas',
+    },
+    { ok: (datosInstalacion.evidencias?.length || 0) > 0, label: 'Evidencias fotográficas cargadas' },
+    { ok: !datosInstalacion.instalacionCompletada, label: 'Instalación pendiente de cierre' },
   ];
 
   return (
@@ -356,7 +373,47 @@ export function InstalacionPanel({ proyectoId }) {
           </div>
         )}
 
-        {/* ── Sección 4: Estado ── */}
+        {/* ── Sección 4: Validación (admin) ── */}
+        {seccionActiva === 'validacion' && (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Requisitos que el taller debe cumplir antes de cerrar la obra en sitio.
+            </p>
+            <ul className="space-y-2">
+              {requisitosValidacion.map((req) => (
+                <li
+                  key={req.label}
+                  className={`flex items-center gap-2 text-sm rounded-xl px-3 py-2 border ${
+                    req.ok ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-amber-50 border-amber-100 text-amber-800'
+                  }`}
+                >
+                  {req.ok ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                  {req.label}
+                </li>
+              ))}
+            </ul>
+            {bloqueosCierre.length > 0 && !datosInstalacion.instalacionCompletada ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+                <p className="font-bold mb-2">Pendiente para cierre:</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  {bloqueosCierre.map((b) => (
+                    <li key={b}>{b}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : datosInstalacion.instalacionCompletada ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800 font-semibold">
+                Todos los requisitos de cierre fueron cumplidos.
+              </div>
+            ) : (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800 font-semibold">
+                El taller puede cerrar la instalación en obra.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Sección 5: Estado ── */}
         {seccionActiva === 'estado' && (
           <div className="space-y-4">
             <div className={`p-4 rounded-xl border flex items-center gap-3 ${
@@ -381,10 +438,39 @@ export function InstalacionPanel({ proyectoId }) {
               <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notas de Cierre (Taller)</h4>
                 <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-line italic">
-                  "{datosInstalacion.notasCierre}"
+                  &quot;{datosInstalacion.notasCierre}&quot;
                 </p>
               </div>
             )}
+
+            {(() => {
+              const encuesta = getEncuestaSatisfaccion(proyecto);
+              if (encuesta?.completada) {
+                return (
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Calificaciones del Cliente
+                    </h4>
+                    <EncuestaResultadosView encuesta={encuesta} />
+                  </div>
+                );
+              }
+              if (datosInstalacion.instalacionCompletada && encuestaFueEnviada(proyecto)) {
+                return (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-500">
+                    Encuesta enviada — esperando respuesta del cliente.
+                  </div>
+                );
+              }
+              if (datosInstalacion.instalacionCompletada) {
+                return (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
+                    La encuesta de satisfacción aún no ha sido enviada al cliente.
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         )}
       </div>

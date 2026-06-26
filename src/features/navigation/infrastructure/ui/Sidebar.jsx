@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getUnreadCount } from '../../../notificaciones/application/notificationsService';
+import { useUnreadNotifications } from '../../../../shared/hooks/useUnreadNotifications.js';
 import './Sidebar.css';
 
 export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogout }) => {
@@ -73,32 +73,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) return;
-    try {
-      const data = await getUnreadCount();
-      setUnreadCount(data.count || 0);
-    } catch (err) {
-      console.error('Error fetching unread count:', err);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchUnreadCount();
-
-    // Listen to custom notification updates (e.g. when marked as read)
-    window.addEventListener('notifications-updated', fetchUnreadCount);
-
-    // Polling count every 15 seconds
-    const interval = setInterval(fetchUnreadCount, 15000);
-
-    return () => {
-      window.removeEventListener('notifications-updated', fetchUnreadCount);
-      clearInterval(interval);
-    };
-  }, [user, fetchUnreadCount]);
+  const unreadCount = useUnreadNotifications(user);
 
   // Auto-open submenus based on current route
   React.useEffect(() => {
@@ -373,22 +348,22 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                       </Link>
                     </li>
                     {!isImpresion && (
-                      <li className={currentPath.startsWith('/inventario/recepcion') ? 'submenu-active' : ''}>
-                        <Link to="/inventario/recepcion" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Recepción de Insumos</span>
-                        </Link>
-                      </li>
-                    )}
-                    {!isImpresion && (
                       <li className={currentPath.startsWith('/inventario/prestamos') ? 'submenu-active' : ''}>
                         <Link to="/inventario/prestamos" className="sidebar-submenu-link">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
                           </svg>
                           <span className="sidebar-submenu-text">Préstamos</span>
+                        </Link>
+                      </li>
+                    )}
+                    {!isImpresion && !isTaller && (
+                      <li className={currentPath.startsWith('/inventario/devoluciones') ? 'submenu-active' : ''}>
+                        <Link to="/inventario/devoluciones" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Devoluciones</span>
                         </Link>
                       </li>
                     )}
@@ -607,13 +582,13 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {shouldShowModule('instalaciones', canViewInstalaciones) && (
-              <li className={currentPath.startsWith('/instalaciones') ? 'active' : ''}>
-                <Link to="/instalaciones">
+            {isTaller && (
+              <li className={currentPath.startsWith('/devoluciones') ? 'active' : ''}>
+                <Link to="/devoluciones">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
                   </svg>
-                  <span className="sidebar-link-text">Instalaciones</span>
+                  <span className="sidebar-link-text">Devoluciones</span>
                   {!isCollapsed && (
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -623,13 +598,13 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {userRole === 'TALLER' && (
-              <li className={currentPath.startsWith('/inventario/recepcion') ? 'active' : ''}>
-                <Link to="/inventario/recepcion">
+            {shouldShowModule('instalaciones', canViewInstalaciones) && (
+              <li className={currentPath.startsWith('/instalaciones') ? 'active' : ''}>
+                <Link to="/instalaciones">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                   </svg>
-                  <span className="sidebar-link-text">Recepción de Inventario</span>
+                  <span className="sidebar-link-text">Instalaciones</span>
                   {!isCollapsed && (
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -683,6 +658,14 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
                         </svg>
                         <span className="sidebar-submenu-text">Órdenes de Compra</span>
+                      </Link>
+                    </li>
+                    <li className={currentPath.startsWith('/compras/recepcion') ? 'submenu-active' : ''}>
+                      <Link to="/compras/recepcion" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                        </svg>
+        <span className="sidebar-submenu-text">Recibir productos</span>
                       </Link>
                     </li>
                     {hasAprobacionPermission && !isImpresion && !isTaller && (

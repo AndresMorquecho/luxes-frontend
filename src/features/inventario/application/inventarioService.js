@@ -6,6 +6,33 @@ const getHeaders = () => {
   };
 };
 
+/** Categoría de inventario según rol: Impresión, Taller o libre (admin). */
+export function getInventarioCategoriaPorRol(user) {
+  const rol = (user?.rol ?? JSON.parse(localStorage.getItem('user') || '{}')?.rol ?? '').toLowerCase();
+  if (rol === 'impresión' || rol === 'impresion') return 'Impresión';
+  if (rol === 'taller') return 'Taller';
+  return undefined;
+}
+
+/** Arma opciones de consulta respetando el inventario del rol. */
+export function buildMaterialesQuery(options = {}) {
+  const categoriaRol = getInventarioCategoriaPorRol();
+  const { categoria, ...rest } = options;
+  return {
+    page: 1,
+    limit: 500,
+    ...rest,
+    ...(categoriaRol ? { categoria: categoriaRol } : categoria ? { categoria } : {}),
+  };
+}
+
+/** Normaliza la respuesta del API (array plano o { items, total }). */
+export function normalizeMaterialesList(data) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
 // ── Materiales ─────────────────────────────────────────────────────────────
 
 export async function getMateriales(options = {}) {
@@ -107,9 +134,11 @@ export async function registrarPrestamo(body) {
   return data.data;
 }
 
-export async function devolverPrestamo(id) {
+export async function devolverPrestamo(id, body = {}) {
   const res = await fetch(`/api/inventario/prestamos/${id}/retorno`, {
-    method: 'PUT', headers: getHeaders(),
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar devolución');

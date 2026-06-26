@@ -1,12 +1,11 @@
 // Service Worker for Luxes PWA
 
-const CACHE_NAME = 'luxes-static-cache-v1';
+const CACHE_NAME = 'luxes-static-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/LogoGlobo.png',
+  '/favicon.svg',
   '/LogoBanner.png',
-  '/favicon.svg'
 ];
 
 // Install Event
@@ -31,25 +30,69 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event: network first for pages and APIs, falling back to cache
+// Fetch Event
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Skip APIs to keep dynamic content fresh, or use network first
+  // Only handle same-origin requests
+  if (url.origin !== self.location.origin) return;
+
+  // APIs: network only with JSON fallback
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            error: { message: 'Sin conexión con el servidor' },
+          }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
     );
     return;
   }
 
-  // Serve static assets or fallback
+  // SPA navigation: network first, fallback to cached index.html
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) return response;
+          return caches.match('/index.html');
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Vite dev assets and static files: network first (avoid stale HMR modules)
+  if (
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/node_modules/')
+  ) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Other static assets: stale-while-revalidate
   event.respondWith(
-    caches.match(event.request)
-      .then((cached) => cached || fetch(event.request))
+    caches.match(event.request).then((cached) => {
+      const networkFetch = fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => cached);
+
+      return cached || networkFetch;
+    })
   );
 });
 
@@ -59,7 +102,6 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : data;
   } catch (err) {
-    // If payload is plain text instead of json
     if (event.data) {
       data = { title: 'Luxes Portal', body: event.data.text() };
     }
@@ -67,12 +109,12 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || '/LogoGlobo.png',
-    badge: data.badge || '/LogoGlobo.png',
+    icon: data.icon || '/favicon.svg',
+    badge: data.badge || '/favicon.svg',
     vibrate: [100, 50, 100],
     data: data.data || {
-      url: data.url || '/'
-    }
+      url: data.url || '/',
+    },
   };
 
   event.waitUntil(
@@ -89,13 +131,11 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
-        // Check if there is already a window open with the same app, navigate or focus it
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
             return client.navigate(targetUrl).then((c) => c.focus());
           }
         }
-        // If no windows are open, open a new one
         if (clients.openWindow) {
           return clients.openWindow(targetUrl);
         }

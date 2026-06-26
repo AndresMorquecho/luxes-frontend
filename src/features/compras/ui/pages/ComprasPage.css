@@ -701,6 +701,18 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   z-index: 100;
 }
+.co-search-dropdown--compact {
+  max-height: none;
+  overflow-y: visible;
+}
+.co-search-hint {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  text-align: center;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
 .co-search-item {
   padding: 8px 12px;
   font-size: 12px;

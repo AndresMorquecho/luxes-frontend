@@ -9,12 +9,17 @@ import {
 import {
   getMateriales, createMaterial, updateMaterial, deleteMaterial,
   registrarMovimiento, getInventarioStats, getUnidadesMedida,
+  getInventarioCategoriaPorRol, buildMaterialesQuery,
 } from '../application/inventarioService.js';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
+import { confirmDialog } from '../../../shared/ui/components/ConfirmModal.jsx';
+import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
 import './InventarioPage.css';
+import { NuevoProductoModal } from './NuevoProductoModal.jsx';
 
 // ── Helper ─────────────────────────────────────────────────────────────────
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
+const fmtCompra = (d) => d ? new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const elapsed = (fechaSalida) => {
   const diff = Date.now() - new Date(fechaSalida).getTime();
   const h = Math.floor(diff / 3_600_000);
@@ -86,11 +91,12 @@ function MaterialModal({ item, onClose, onSave, unidades = [] }) {
   }
 
   return (
-    <div className="inv-overlay" onClick={onClose}>
-      <div className="inv-modal" onClick={e => e.stopPropagation()}>
+    <ModalPortal>
+      <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}>
+        <div className="inv-modal" onMouseDown={e => e.stopPropagation()}>
         <div className="inv-modal-header">
           <h3>{item ? 'Editar Material' : 'Nuevo Material'}</h3>
-          <button className="inv-close" onClick={onClose}><X size={18}/></button>
+          <button type="button" className="inv-close" onClick={() => deferClose(onClose)}><X size={18}/></button>
         </div>
         <form onSubmit={handleSubmit} className="inv-modal-body">
           <label>Nombre del Material *
@@ -179,40 +185,55 @@ function MaterialModal({ item, onClose, onSave, unidades = [] }) {
           )}
 
           <div className="inv-modal-footer">
-            <button type="button" className="inv-btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="button" className="inv-btn-ghost" onClick={() => deferClose(onClose)}>Cancelar</button>
             <button type="submit" className="inv-btn-primary">
               {item ? 'Guardar Cambios' : 'Crear Material'}
             </button>
           </div>
         </form>
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 
-// ── Movimiento Modal ───────────────────────────────────────────────────────
+// ── Movimiento rápido (desde fila de tabla) ────────────────────────────────
 function MovimientoModal({ material, onClose, onSave }) {
-  const [tipo, setTipo] = useState('salida');
-  const [cantidad, setCantidad] = useState(1);
+  const [tipo, setTipo] = useState('entrada');
+  const [cantidad, setCantidad] = useState('');
   const [motivo, setMotivo] = useState('');
+  const [saving, setSaving] = useState(false);
+  const unidad = material.unidadMedida?.abreviacion || material.unidadMedida?.nombre || 'unid';
 
   async function handleSubmit(e) {
     e.preventDefault();
-    await onSave({ tipo, cantidad, motivo });
+    const qty = parseFloat(cantidad);
+    if (!qty || qty <= 0) return;
+    setSaving(true);
+    try {
+      await onSave({
+        tipo,
+        cantidad: qty,
+        motivo: motivo.trim() || (tipo === 'entrada' ? 'Ajuste de stock' : 'Salida de stock'),
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <div className="inv-overlay" onClick={onClose}>
-      <div className="inv-modal inv-modal-sm" onClick={e => e.stopPropagation()}>
+    <ModalPortal>
+      <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}>
+        <div className="inv-modal inv-modal-sm" onMouseDown={e => e.stopPropagation()}>
         <div className="inv-modal-header">
-          <h3>Registrar Movimiento</h3>
-          <button className="inv-close" onClick={onClose}><X size={18}/></button>
+          <h3>Ajustar stock</h3>
+          <button type="button" className="inv-close" onClick={() => deferClose(onClose)}><X size={18}/></button>
         </div>
         <form onSubmit={handleSubmit} className="inv-modal-body">
           <div className="inv-material-info">
             <span className="inv-chip consumible">consumible</span>
             <strong>{material.nombre}</strong>
-            <span className="inv-stock-badge">Stock: {material.stockActual} {material.unidadMedida?.nombre || material.unidadMedida?.abreviacion || 'unid'}</span>
+            <span className="inv-stock-badge">Stock: {material.stockActual} {unidad}</span>
           </div>
           <div className="inv-tipo-toggle">
             <button type="button" className={`inv-tipo-btn ${tipo==='entrada'?'entrada':''}`} onClick={()=>setTipo('entrada')}>
@@ -222,23 +243,26 @@ function MovimientoModal({ material, onClose, onSave }) {
               <ArrowUp size={16}/> Salida
             </button>
           </div>
-          <label>Cantidad ({material.unidadMedida?.nombre || material.unidadMedida?.abreviacion || 'unid'}) *
-            <input type="number" min="0.01" step="0.01" required value={cantidad} onChange={e=>setCantidad(+e.target.value)} />
+          <label>Cantidad ({unidad}) *
+            <input type="number" min="0.01" step="0.01" required placeholder="0" value={cantidad} onChange={e=>setCantidad(e.target.value)} />
           </label>
-          <label>Motivo / Descripción *
-            <textarea required rows={3} value={motivo} onChange={e=>setMotivo(e.target.value)} placeholder="Ej: Uso en instalación cliente Banco del Pacífico" />
+          <label>Motivo (opcional)
+            <textarea rows={2} value={motivo} onChange={e=>setMotivo(e.target.value)} placeholder="Ej: Ajuste por conteo físico" />
           </label>
           <div className="inv-modal-footer">
-            <button type="button" className="inv-btn-ghost" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="inv-btn-primary">Registrar</button>
+            <button type="button" className="inv-btn-ghost" onClick={() => deferClose(onClose)} disabled={saving}>Cancelar</button>
+            <button type="submit" className="inv-btn-primary" disabled={saving}>
+              {saving ? 'Registrando…' : 'Registrar'}
+            </button>
           </div>
         </form>
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 
-// ── Préstamo Modal ─────────────────────────────────────────────────────────
+// ── Main Page ──────────────────────────────────────────────────────────────
 function PrestamoModal({ herramientas, onClose, onSave }) {
   const userId = JSON.parse(localStorage.getItem('user') || '{}').id;
   const [materialId, setMaterialId] = useState(herramientas[0]?.id || '');
@@ -252,11 +276,12 @@ function PrestamoModal({ herramientas, onClose, onSave }) {
   }
 
   return (
-    <div className="inv-overlay" onClick={onClose}>
-      <div className="inv-modal inv-modal-sm" onClick={e => e.stopPropagation()}>
+    <ModalPortal>
+      <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}>
+        <div className="inv-modal inv-modal-sm" onMouseDown={e => e.stopPropagation()}>
         <div className="inv-modal-header">
           <h3>Registrar Salida de Herramienta</h3>
-          <button className="inv-close" onClick={onClose}><X size={18}/></button>
+          <button type="button" className="inv-close" onClick={() => deferClose(onClose)}><X size={18}/></button>
         </div>
         <form onSubmit={handleSubmit} className="inv-modal-body">
           <label>Herramienta *
@@ -273,12 +298,13 @@ function PrestamoModal({ herramientas, onClose, onSave }) {
             <textarea required rows={3} value={comentarios} onChange={e=>setComentarios(e.target.value)} placeholder="Ej: Instalación letras en Mall del Sol" />
           </label>
           <div className="inv-modal-footer">
-            <button type="button" className="inv-btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="button" className="inv-btn-ghost" onClick={() => deferClose(onClose)}>Cancelar</button>
             <button type="submit" className="inv-btn-primary">Registrar Salida</button>
           </div>
         </form>
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 
@@ -288,9 +314,11 @@ export function InventarioPage() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (user?.rol || 'visor').toUpperCase();
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
+  const isTaller = userRole === 'TALLER';
+  const lockedCategory = getInventarioCategoriaPorRol(user);
 
   const [activeTab, setActiveTab] = useState('consumibles');
-  const [activeCategory, setActiveCategory] = useState(isImpresion ? 'Impresión' : ''); // '' | 'Taller' | 'Oficina'
+  const [activeCategory, setActiveCategory] = useState(lockedCategory || '');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -305,8 +333,9 @@ export function InventarioPage() {
   });
   const [unidades, setUnidades] = useState([]);
 
-  const [matModal, setMatModal] = useState(null);    // null | 'new' | item
-  const [movModal, setMovModal] = useState(null);    // null | item
+  const [matModal, setMatModal] = useState(null);       // null | 'new' | item
+  const [productoModal, setProductoModal] = useState(false);
+  const [movModal, setMovModal] = useState(null);       // null | item
 
   // ── Debounce Search ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -340,17 +369,21 @@ export function InventarioPage() {
     }
   }, []);
 
+  const visibleTabs = (isImpresion || isTaller)
+    ? TABS.filter(t => t.id !== 'herramientas')
+    : TABS;
+
   const loadMaterials = useCallback(async () => {
     setLoading(true);
     try {
       const tipo = activeTab === 'consumibles' ? 'consumible' : 'herramienta';
-      const res = await getMateriales({
+      const res = await getMateriales(buildMaterialesQuery({
         tipo,
         page,
         limit: 10,
         search: debouncedSearch,
-        categoria: isImpresion ? 'Impresión' : activeCategory,
-      });
+        ...(lockedCategory ? {} : { categoria: activeCategory || undefined }),
+      }));
       setItems(res.items || []);
       setTotalItems(res.total || 0);
     } catch (e) {
@@ -358,7 +391,7 @@ export function InventarioPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, debouncedSearch, activeCategory, isImpresion]);
+  }, [activeTab, page, debouncedSearch, activeCategory, lockedCategory]);
 
   useEffect(() => {
     loadMaterials();
@@ -392,9 +425,26 @@ export function InventarioPage() {
   }
 
   async function handleDeleteMaterial(item) {
+    const confirmed = await confirmDialog(
+      '¿Eliminar producto?',
+      `¿Eliminar "${item.nombre}" del inventario? Esta acción no se puede deshacer.`,
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' },
+    );
+    if (!confirmed) return;
     try {
       await deleteMaterial(item.id);
-      toast.success('Material eliminado.');
+      deferClose(() => {
+        toast.success('Material eliminado.');
+        loadAll();
+      });
+    } catch (e) { toast.error(e.message); }
+  }
+
+  async function handleNuevoProducto(form) {
+    try {
+      await createMaterial(form);
+      toast.success('Producto creado correctamente.');
+      setProductoModal(false);
       loadAll();
     } catch (e) { toast.error(e.message); }
   }
@@ -480,22 +530,22 @@ export function InventarioPage() {
       )}
 
       <div className="inv-toolbar">
-        {!isImpresion && (
-          <div className="inv-tab-bar">
-            {TABS.map(t => (
-              <button key={t.id} className={`inv-tab ${activeTab===t.id?'active':''}`}
-                onClick={() => { setActiveTab(t.id); setSearch(''); }}>
-                <t.Icon size={15}/> {t.label}
-              </button>
-            ))}
+        <div className="inv-tab-bar">
+          {visibleTabs.map(t => (
+            <button key={t.id} className={`inv-tab ${activeTab===t.id?'active':''}`}
+              onClick={() => { setActiveTab(t.id); setSearch(''); }}>
+              <t.Icon size={15}/> {t.label}
+            </button>
+          ))}
+          {!isImpresion && !isTaller && (
             <button className="inv-tab inv-tab--external" onClick={() => navigate('/inventario/prestamos')}>
               <ArrowRightLeft size={15}/> Préstamos
               <ExternalLink size={11}/>
             </button>
-          </div>
-        )}
-        <div className="inv-toolbar-right" style={isImpresion ? { width: '100%', justifyContent: 'space-between' } : {}}>
-          {!isImpresion && (
+          )}
+        </div>
+        <div className="inv-toolbar-right" style={(isImpresion || isTaller) ? { width: '100%', justifyContent: 'space-between' } : {}}>
+          {!isImpresion && !isTaller && (
             <div className="inv-select-wrap">
               <Filter size={14} className="inv-select-ico"/>
               <select
@@ -510,12 +560,17 @@ export function InventarioPage() {
               </select>
             </div>
           )}
-          <div className="inv-search-box" style={isImpresion ? { flex: 1, marginRight: 0 } : {}}>
+          <div className="inv-search-box" style={(isImpresion || isTaller) ? { flex: 1, marginRight: 0 } : {}}>
             <Search size={15} className="inv-search-icon"/>
             <input className="inv-search-inp" placeholder="Buscar..." value={search}
               onChange={e=>setSearch(e.target.value)}/>
           </div>
-          {!isImpresion && (
+          {activeTab === 'consumibles' && (
+            <button className="inv-btn-primary" onClick={() => setProductoModal(true)}>
+              <Plus size={16}/> Nuevo producto
+            </button>
+          )}
+          {!isImpresion && !isTaller && activeTab === 'herramientas' && (
             <button className="inv-btn-primary" onClick={() => setMatModal('new')}>
               <Plus size={16}/> Nuevo Material
             </button>
@@ -544,12 +599,13 @@ export function InventarioPage() {
                     <th>Estado</th>
                     <th>Costo Unit.</th>
                     <th>CPP</th>
+                    {!isTaller && <th>Últ. compra</th>}
                     <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.length === 0 && (
-                    <tr><td colSpan={8} className="inv-empty">Sin consumibles registrados.</td></tr>
+                    <tr><td colSpan={isTaller ? 8 : 9} className="inv-empty">Sin consumibles registrados.</td></tr>
                   )}
                   {items.map(item => (
                     <tr key={item.id} className={item.stockActual <= item.stockMinimo ? 'inv-row-warn' : ''}>
@@ -564,20 +620,21 @@ export function InventarioPage() {
                       <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
                         {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
                       </td>
+                      {!isTaller && (
+                        <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                          {fmtCompra(item.ultimaFechaCompra)}
+                        </td>
+                      )}
                       <td className="inv-td-actions">
                         <button className="inv-act-btn move" title="Movimiento" onClick={() => setMovModal(item)}>
                           <ArrowRightLeft size={14}/>
                         </button>
-                        {!isImpresion && (
-                          <>
-                            <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                              <Edit2 size={14}/>
-                            </button>
-                            <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                              <Trash2 size={14}/>
-                            </button>
-                          </>
-                        )}
+                        <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                          <Edit2 size={14}/>
+                        </button>
+                        <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                          <Trash2 size={14}/>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -738,6 +795,14 @@ export function InventarioPage() {
           unidades={unidades}
           onClose={() => setMatModal(null)}
           onSave={handleSaveMaterial}
+        />
+      )}
+      {productoModal && (
+        <NuevoProductoModal
+          unidades={unidades}
+          lockedCategory={lockedCategory}
+          onClose={() => setProductoModal(false)}
+          onSave={handleNuevoProducto}
         />
       )}
       {movModal && (

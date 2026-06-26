@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getNotifications, markAsRead } from '../../application/notificationsService';
+import { getNotifications, markAsRead, notifyNotificationsUpdated, AUTH_EXPIRED_ERROR } from '../../application/notificationsService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import './NotificacionesPage.css';
 
@@ -21,15 +21,17 @@ const getNotificationRoute = (notification) => {
   const title = (notification.title || '').toLowerCase();
   const message = (notification.message || '').toLowerCase();
   
-  // Nueva Orden de Compra -> Aprobaciones (Admin) o Recepción (Bodeguero)
+  // Orden aprobada → lista de compras del solicitante
+  if (title.includes('aprobada') || message.includes('ha sido aprobada')) {
+    return '/compras/recepcion';
+  }
+
+  // Nueva orden pendiente → aprobaciones (admin) o compras (solicitante)
   if (title.includes('orden de compra') || message.includes('orden de compra')) {
-    // Verificar el rol del usuario
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     const userRole = (user?.rol || '').toLowerCase();
     const isAdmin = userRole === 'admin' || userRole === 'administrador';
-    
-    // Admin va a aprobaciones, otros van a recepción en inventario
-    return isAdmin ? '/compras/aprobaciones' : '/inventario/recepcion';
+    return isAdmin ? '/compras/aprobaciones' : '/compras';
   }
   
   // Tareas -> Panel de tareas
@@ -41,9 +43,30 @@ const getNotificationRoute = (notification) => {
   if (title.includes('impresi') || message.includes('impresi')) {
     return '/colas-impresion';
   }
+
+  // Proformas (aprobación, rechazo, nueva pendiente)
+  if (title.includes('proforma') || message.includes('proforma')) {
+    const match = (notification.message || '').match(/PROF-\d+/i)
+      || (notification.title || '').match(/PROF-\d+/i);
+    if (match) return `/proformas/detalle/${match[0]}`;
+    return '/proformas';
+  }
+
+  // Instalación iniciada o completada
+  if (title.includes('instalación') || title.includes('instalacion')
+    || message.includes('instalación') || message.includes('instalacion')) {
+    const proyectoId = notification.proyectoId
+      || notification.data?.proyectoId
+      || (notification.message || '').match(/PROY-\d+/i)?.[0];
+    if (proyectoId) return `/proyectos/${proyectoId}`;
+    return '/instalaciones';
+  }
   
   return null;
 };
+
+const getSenderName = (notification) =>
+  notification.createdBy || notification.created_by || 'Sistema Luxes';
 
 export const NotificacionesPage = () => {
   const navigate = useNavigate();
@@ -55,38 +78,78 @@ export const NotificacionesPage = () => {
       const data = await getNotifications();
       setNotifications(data || []);
     } catch (err) {
-      toast.error('Error al cargar notificaciones: ' + err.message);
+      if (err.message !== AUTH_EXPIRED_ERROR) {
+        toast.error('Error al cargar notificaciones: ' + err.message);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadNotifications();
-  }, [loadNotifications]);
+    let cancelled = false;
+    let pollTimer = null;
+    let debounceTimer = null;
+
+    const load = async () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      try {
+        const data = await getNotifications();
+        if (!cancelled) setNotifications(data || []);
+      } catch (err) {
+        if (!cancelled && err.message !== AUTH_EXPIRED_ERROR) {
+          toast.error('Error al cargar notificaciones: ' + err.message);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    const scheduleReload = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(load, 400);
+    };
+
+    load();
+
+    pollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 120_000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+
+    window.addEventListener('notifications-updated', scheduleReload);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      cancelled = true;
+      clearInterval(pollTimer);
+      clearTimeout(debounceTimer);
+      window.removeEventListener('notifications-updated', scheduleReload);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   const handleMarkRead = async (id) => {
     try {
       await markAsRead(id);
-      setNotifications(prev => 
-        prev.filter(n => n.id !== id)
-      );
-      // Dispatch event to refresh Sidebar unread count
-      window.dispatchEvent(new Event('notifications-updated'));
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
     } catch (err) {
       toast.error('Error al actualizar notificación: ' + err.message);
     }
   };
 
   const handleMarkAllRead = async () => {
-    const unread = notifications.filter(n => !n.isRead);
+    const unread = notifications.filter((n) => !n.isRead);
     if (unread.length === 0) return;
     setNotifications([]);
     try {
-      await Promise.all(unread.map(n => markAsRead(n.id)));
+      await Promise.all(unread.map((n) => markAsRead(n.id, { silent: true })));
+      notifyNotificationsUpdated();
       toast.success('Todas las notificaciones marcadas como leídas');
       loadNotifications();
-      window.dispatchEvent(new Event('notifications-updated'));
     } catch (err) {
       toast.error('Error al actualizar notificaciones: ' + err.message);
     }
@@ -149,19 +212,17 @@ export const NotificacionesPage = () => {
                   {!n.isRead && <span className="nt-dot" />}
                   
                   <div className="nt-item-body">
-                    <div className="flex justify-between items-start">
+                    <div className="nt-item-header">
                       <h4 className="nt-item-title">{n.title}</h4>
                       <span className="nt-item-date">{fmtDate(n.createdAt)}</span>
                     </div>
                     <p className="nt-item-message">{n.message}</p>
-                    {n.createdBy && (
-                      <p className="nt-item-user">
-                        <svg className="w-3 h-3 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                        </svg>
-                        Enviado por: {n.createdBy}
-                      </p>
-                    )}
+                    <p className="nt-item-user">
+                      <svg className="w-3 h-3 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                      </svg>
+                      Enviado por: {getSenderName(n)}
+                    </p>
                   </div>
 
                   <div className="nt-actions-group">

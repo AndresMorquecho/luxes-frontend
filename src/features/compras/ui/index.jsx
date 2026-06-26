@@ -6,6 +6,10 @@ import { CuentasPorPagarPage } from './pages/CuentasPorPagarPage';
 import { MetodosPagoPage } from './pages/MetodosPagoPage';
 import { AprobacionOrdenesPage } from './pages/AprobacionOrdenesPage';
 import { DetalleAprobacionPage } from './pages/DetalleAprobacionPage';
+import { RecepcionInsumosListPage } from '../../inventario/ui/recepcion/RecepcionInsumosListPage';
+import { RecepcionInsumosFormPage } from '../../inventario/ui/recepcion/RecepcionInsumosFormPage';
+import { HistorialRecepcionesPage } from '../../inventario/ui/recepcion/HistorialRecepcionesPage';
+import { HistorialRecepcionDetallePage } from '../../inventario/ui/recepcion/HistorialRecepcionDetallePage';
 
 export default function ComprasFeature() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -21,6 +25,10 @@ export default function ComprasFeature() {
         <Route index element={<ComprasPage />} />
         <Route path="nueva" element={<FormOrdenCompraPage />} />
         <Route path="editar/:id" element={<FormOrdenCompraPage />} />
+        <Route path="recepcion/historial/:ordenId" element={<HistorialRecepcionDetallePage basePath="/compras/recepcion" />} />
+        <Route path="recepcion/historial" element={<HistorialRecepcionesPage basePath="/compras/recepcion" />} />
+        <Route path="recepcion" element={<RecepcionInsumosListPage basePath="/compras/recepcion" />} />
+        <Route path="recepcion/:ordenId" element={<RecepcionInsumosFormPage basePath="/compras/recepcion" />} />
         <Route path="*" element={<Navigate to="/compras" replace />} />
       </Routes>
     );
@@ -31,6 +39,10 @@ export default function ComprasFeature() {
       <Route index element={<ComprasPage />} />
       <Route path="nueva" element={<FormOrdenCompraPage />} />
       <Route path="editar/:id" element={<FormOrdenCompraPage />} />
+      <Route path="recepcion/historial/:ordenId" element={<HistorialRecepcionDetallePage basePath="/compras/recepcion" />} />
+      <Route path="recepcion/historial" element={<HistorialRecepcionesPage basePath="/compras/recepcion" />} />
+      <Route path="recepcion" element={<RecepcionInsumosListPage basePath="/compras/recepcion" />} />
+      <Route path="recepcion/:ordenId" element={<RecepcionInsumosFormPage basePath="/compras/recepcion" />} />
       <Route path="cuentas-por-pagar" element={<CuentasPorPagarPage />} />
       <Route path="metodos-pago" element={<MetodosPagoPage />} />
       <Route 

@@ -1,23 +1,25 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { getOrdenById, createOrden, updateOrden } from '../../application/comprasService';
-import { getMateriales } from '../../../inventario/application/inventarioService';
+import { getMateriales, buildMaterialesQuery, normalizeMaterialesList } from '../../../inventario/application/inventarioService';
 import { getProyectos } from '../../../proyectos/application/proyectosService';
 import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
+
+const MATERIAL_SEARCH_LIMIT = 5;
+const MIN_FILTER_CHARS = 2;
+const SEARCH_DEBOUNCE_MS = 350;
 
 export const FormOrdenCompraPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
 
-  const [materiales, setMateriales] = useState([]);
-  const [loading, setLoading] = useState(isEdit);
-  const [saving, setSaving] = useState(false);
-
   const [searchParams] = useSearchParams();
   const queryProyectoId = searchParams.get('proyectoId') || '';
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [proyectos, setProyectos] = useState([]);
   const [form, setForm] = useState({
     fecha: new Date().toISOString().split('T')[0],
@@ -26,32 +28,35 @@ export const FormOrdenCompraPage = () => {
     detalles: [],
     proyectoId: queryProyectoId,
   });
-
-  // Top Bar input state - SIN PRECIOS
   const [itemInput, setItemInput] = useState({
     materialId: '',
     descripcion: '',
     cantidad: '1',
   });
-
-  // Search combobox auto-suggest states
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchingMateriales, setSearchingMateriales] = useState(false);
+  const searchRequestRef = useRef(0);
 
   const loadData = useCallback(async () => {
+    setLoading(true);
     try {
+      const proyectosPromise = getProyectos({ limit: 100 }).catch(err => {
+        console.error('Error al cargar proyectos:', err);
+        return { data: [] };
+      });
+
       if (isEdit) {
-        const [matResult, projResult, o] = await Promise.all([
-          getMateriales({ limit: 100 }),
-          getProyectos({ limit: 200 }),
+        const [projResult, o] = await Promise.all([
+          proyectosPromise,
           getOrdenById(id).catch(err => {
             console.error('Error al cargar la orden:', err);
             return null;
-          })
+          }),
         ]);
 
-        const matList = matResult.items || matResult || [];
-        setMateriales(matList);
-        setProyectos(projResult.data || projResult || []);
+        setProyectos(Array.isArray(projResult?.data) ? projResult.data : []);
 
         if (o) {
           setForm({
@@ -70,14 +75,8 @@ export const FormOrdenCompraPage = () => {
           });
         }
       } else {
-        const [matResult, projResult] = await Promise.all([
-          getMateriales({ limit: 100 }),
-          getProyectos({ limit: 200 })
-        ]);
-
-        const matList = matResult.items || matResult || [];
-        setMateriales(matList);
-        setProyectos(projResult.data || projResult || []);
+        const projResult = await proyectosPromise;
+        setProyectos(Array.isArray(projResult?.data) ? projResult.data : []);
       }
     } catch (err) {
       toast.error('Error al cargar datos: ' + err.message);
@@ -89,6 +88,39 @@ export const FormOrdenCompraPage = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Al abrir: muestra 5 productos. Al escribir 2+ caracteres: filtra en servidor.
+  useEffect(() => {
+    if (!matDropdownOpen) return undefined;
+
+    const query = itemInput.descripcion.trim();
+    const requestId = ++searchRequestRef.current;
+    const delay = query.length >= MIN_FILTER_CHARS ? SEARCH_DEBOUNCE_MS : 0;
+
+    const timer = setTimeout(async () => {
+      setSearchingMateriales(true);
+      try {
+        const res = await getMateriales(buildMaterialesQuery({
+          ...(query.length >= MIN_FILTER_CHARS ? { search: query } : {}),
+          limit: MATERIAL_SEARCH_LIMIT,
+          page: 1,
+          tipo: 'consumible',
+        }));
+        if (requestId !== searchRequestRef.current) return;
+        setSearchResults(normalizeMaterialesList(res).slice(0, MATERIAL_SEARCH_LIMIT));
+      } catch (err) {
+        if (requestId !== searchRequestRef.current) return;
+        console.error('Error al buscar inventario:', err);
+        setSearchResults([]);
+      } finally {
+        if (requestId === searchRequestRef.current) {
+          setSearchingMateriales(false);
+        }
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [itemInput.descripcion, matDropdownOpen]);
 
   // Add Item from Top Line to Table - SIN PRECIOS
   const handleAddItem = () => {
@@ -284,32 +316,52 @@ export const FormOrdenCompraPage = () => {
                   setMatDropdownOpen(true);
                 }}
                 onFocus={() => setMatDropdownOpen(true)}
-                onBlur={() => setTimeout(() => setMatDropdownOpen(false), 200)}
+                onBlur={() => {
+                  window.setTimeout(() => {
+                    if (dropdownRef.current?.contains(document.activeElement)) return;
+                    setMatDropdownOpen(false);
+                  }, 120);
+                }}
               />
               {matDropdownOpen && (
-                <div className="co-search-dropdown">
-                  {materiales
-                    .filter(m => m.nombre.toLowerCase().includes(itemInput.descripcion.toLowerCase()))
-                    .map(m => (
-                      <div
-                        key={m.id}
-                        className="co-search-item"
-                        onMouseDown={() => {
-                          setItemInput(prev => ({
-                            ...prev,
-                            materialId: m.id,
-                            descripcion: m.nombre,
-                          }));
-                          setMatDropdownOpen(false);
-                        }}
-                      >
-                        <div className="font-semibold text-slate-800">{m.nombre}</div>
-                        <div className="text-slate-400 text-[10px]">Stock: {m.stockActual}</div>
-                      </div>
-                    ))}
-                  {materiales.filter(m => m.nombre.toLowerCase().includes(itemInput.descripcion.toLowerCase())).length === 0 && (
+                <div className="co-search-dropdown co-search-dropdown--compact" ref={dropdownRef}>
+                  {searchingMateriales ? (
                     <div className="px-3 py-2 text-xs text-slate-400 text-center">
-                      Material nuevo (texto libre)
+                      Cargando productos...
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <>
+                      {searchResults.map((m) => (
+                        <div
+                          key={m.id}
+                          className="co-search-item"
+                          onMouseDown={() => {
+                            setItemInput((prev) => ({
+                              ...prev,
+                              materialId: m.id,
+                              descripcion: m.nombre,
+                            }));
+                            setMatDropdownOpen(false);
+                          }}
+                        >
+                          <div className="font-semibold text-slate-800">{m.nombre}</div>
+                          <div className="text-slate-400 text-[10px]">
+                            Existencias: {m.stockActual ?? 0}
+                            {m.categoria ? ` · ${m.categoria}` : ''}
+                          </div>
+                        </div>
+                      ))}
+                      {itemInput.descripcion.trim().length < MIN_FILTER_CHARS && (
+                        <div className="co-search-hint">
+                          Escribe para buscar entre más productos
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-slate-400 text-center">
+                      {itemInput.descripcion.trim().length >= MIN_FILTER_CHARS
+                        ? 'Sin coincidencias — puedes usar el texto como material libre'
+                        : 'No hay productos en inventario para tu rol'}
                     </div>
                   )}
                 </div>

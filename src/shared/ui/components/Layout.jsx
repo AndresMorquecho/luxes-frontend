@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Sidebar } from '../../../features/navigation/infrastructure/ui/Sidebar';
-import { getUnreadCount } from '../../../features/notificaciones/application/notificationsService';
+import { useUnreadNotifications } from '../../hooks/useUnreadNotifications.js';
 import './Layout.css';
 
 export const Layout = ({ children, user, onLogout }) => {
@@ -42,7 +42,8 @@ export const Layout = ({ children, user, onLogout }) => {
         { name: 'Notificaciones', path: '/notificaciones' },
         { name: 'Instalaciones de Equipos', path: '/instalaciones' },
         { name: 'Tareas', path: '/tareas' },
-        { name: 'Recepción de Insumos', path: '/inventario/recepcion' },
+        { name: 'Devoluciones', path: '/devoluciones' },
+        { name: 'Recibir productos', path: '/compras/recepcion' },
         { name: 'Compras de Materiales', path: '/compras' }
       ]
     : modules;
@@ -75,29 +76,9 @@ export const Layout = ({ children, user, onLogout }) => {
   const isAsistenciaMode = user?.rol === 'asistencia';
   const isTallerMobile = isMobile && user?.rol?.toLowerCase() === 'taller';
 
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) return;
-    try {
-      const data = await getUnreadCount();
-      setUnreadCount(data.count || 0);
-    } catch (err) {
-      console.error('Error fetching unread count:', err);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user?.rol?.toLowerCase() === 'taller') {
-      fetchUnreadCount();
-      window.addEventListener('notifications-updated', fetchUnreadCount);
-      const interval = setInterval(fetchUnreadCount, 15000);
-      return () => {
-        window.removeEventListener('notifications-updated', fetchUnreadCount);
-        clearInterval(interval);
-      };
-    }
-  }, [user, fetchUnreadCount]);
+  const unreadCount = useUnreadNotifications(user, {
+    enabled: user?.rol?.toLowerCase() === 'taller',
+  });
 
   const isTabActive = (path) => {
     if (path === '/notificaciones') {
@@ -250,14 +231,23 @@ export const Layout = ({ children, user, onLogout }) => {
             </div>
             <span className="mobile-nav-label">Tareas</span>
           </Link>
+
+          <Link to="/devoluciones" className={`mobile-nav-item ${isTabActive('/devoluciones') ? 'active' : ''}`}>
+            <div className="mobile-nav-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
+              </svg>
+            </div>
+            <span className="mobile-nav-label">Devoluciones</span>
+          </Link>
           
-          <Link to="/inventario/recepcion" className={`mobile-nav-item ${isTabActive('/inventario/recepcion') ? 'active' : ''}`}>
+          <Link to="/compras/recepcion" className={`mobile-nav-item ${isTabActive('/compras/recepcion') ? 'active' : ''}`}>
             <div className="mobile-nav-icon-wrapper">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
               </svg>
             </div>
-            <span className="mobile-nav-label">Recepción</span>
+            <span className="mobile-nav-label">Recibir</span>
           </Link>
           
           <Link to="/compras" className={`mobile-nav-item ${isTabActive('/compras') ? 'active' : ''}`}>

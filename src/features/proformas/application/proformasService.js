@@ -103,6 +103,18 @@ export const rechazarProforma = async (id) => {
   return data.data;
 };
 
+export const enviarProforma = async (id) => {
+  const res = await fetch(`/api/proformas/${id}/enviar`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al enviar proforma');
+  }
+  return data.data;
+};
+
 export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referencia }) => {
   const res = await fetch(`/api/proformas/${id}/abonos`, {
     method: 'POST',

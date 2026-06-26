@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import './ColasImpresionPage.css';
 import { usePrintQueue } from '../context/PrintQueueContext';
-import { getMateriales, registrarMovimiento } from '../../inventario/application/inventarioService';
+import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService';
 import { createOrden } from '../../compras/application/comprasService';
 import { toast } from '../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../shared/ui/components/ConfirmModal';
@@ -281,7 +281,7 @@ export const ColasImpresionPage = () => {
     setShowPrepModal(true);
     setLoadingMaterials(true);
     try {
-      const data = await getMateriales({ categoria: 'Impresión' });
+      const data = await getMateriales(buildMaterialesQuery());
       const items = data.items || data || [];
       setMaterialesImpresion(items);
 
@@ -418,7 +418,7 @@ export const ColasImpresionPage = () => {
       toast.success(`Orden de compra ${res.numero} creada exitosamente.`);
       
       // Refresh materials stock in state
-      const data = await getMateriales({ categoria: 'Impresión' });
+      const data = await getMateriales(buildMaterialesQuery());
       const items = data.items || data || [];
       setMaterialesImpresion(items);
       

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { getModalRoot } from '../../../../shared/ui/components/ModalPortal';
 import { useNavigate } from 'react-router-dom';
 import {
   getOrdenes, updateOrden, deleteOrden, getComprasStats,
@@ -189,6 +190,7 @@ export const ComprasPage = () => {
       descripcion: d.descripcion,
       cantidadOriginal: d.cantidad,
       cantidadRecibida: String(d.cantidad),
+      descargableInventario: !!d.materialId,
     }));
     setRecepcionDetalles(details);
     setRecepcionModalOpen(true);
@@ -198,13 +200,19 @@ export const ComprasPage = () => {
     e.preventDefault();
     setRecepcionSaving(true);
     try {
-      const payload = recepcionDetalles.map(d => ({
-        materialId: d.materialId,
-        cantidad: parseFloat(d.cantidadRecibida) || 0,
-      }));
+      const items = recepcionDetalles.filter(d => (parseFloat(d.cantidadRecibida) || 0) > 0);
+      const payload = {
+        fechaRecepcion: new Date().toISOString().split('T')[0],
+        detalles: items.map(d => ({
+          detalleId: d.id,
+          materialId: d.materialId,
+          cantidad: parseFloat(d.cantidadRecibida) || 0,
+          descargableInventario: d.descargableInventario === true && !!d.materialId,
+        })),
+      };
 
       await recepcionarOrden(recepcionOrden.id, payload);
-      toast.success('Insumos recibidos e ingresados al inventario con éxito');
+      toast.success('Productos registrados con éxito');
       setRecepcionModalOpen(false);
       loadOrdenes(); loadStats();
     } catch (err) {
@@ -365,7 +373,7 @@ export const ComprasPage = () => {
 
       {/* Registrar Abono Modal */}
       {abonoModalOpen && createPortal(
-        <>
+        <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in">
@@ -424,19 +432,19 @@ export const ComprasPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </div>,
+        getModalRoot()
       )}
 
       {/* Recepción de Insumos Modal */}
       {recepcionModalOpen && createPortal(
-        <>
+        <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setRecepcionModalOpen(false)} />
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in" style={{ maxWidth: '720px', width: '95%' }}>
               <div className="co-modal-header">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">Recepción de Insumos e Inventario</h2>
+                  <h2 className="text-lg font-bold text-slate-800">Recibir productos</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Orden: <span className="font-semibold text-slate-700">{recepcionOrden?.numero}</span> &middot; Proveedor: <span className="font-semibold text-slate-700">{recepcionOrden?.proveedor?.nombre}</span>
                   </p>
@@ -455,6 +463,7 @@ export const ComprasPage = () => {
                           <th className="py-2 px-3 text-xs font-bold text-slate-500 text-center w-24">Tipo</th>
                           <th className="py-2 px-3 text-xs font-bold text-slate-500 text-right w-28">Cant. Pedida</th>
                           <th className="py-2 px-3 text-xs font-bold text-slate-500 text-right w-36">Cant. Recibida</th>
+                          <th className="py-2 px-3 text-xs font-bold text-slate-500 text-center w-28">Inventario</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -488,6 +497,19 @@ export const ComprasPage = () => {
                                 required
                               />
                             </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <input
+                                type="checkbox"
+                                checked={det.descargableInventario && !!det.materialId}
+                                disabled={!det.materialId}
+                                title={det.materialId ? 'Suma al inventario' : 'Sin material vinculado'}
+                                onChange={(e) => {
+                                  setRecepcionDetalles(prev => prev.map((item, idx) =>
+                                    idx === index ? { ...item, descargableInventario: e.target.checked } : item
+                                  ));
+                                }}
+                              />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -499,7 +521,7 @@ export const ComprasPage = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div>
-                      <span className="font-bold">Nota importante:</span> Confirmar la recepción incrementará automáticamente el stock de los artículos marcados como <span className="font-bold text-slate-800">Insumo</span> y registrará movimientos de entrada en el inventario. Las órdenes recibidas cambiarán su estado a <span className="font-bold text-slate-800">"recibida"</span>.
+                      <span className="font-bold">Nota:</span> Solo los items con <span className="font-bold text-slate-800">Inventario</span> marcado y vinculados a un material ingresarán al stock (lona, vinil por metro). Desmarca para tinta u otros que no se controlan así.
                     </div>
                   </div>
 
@@ -507,15 +529,15 @@ export const ComprasPage = () => {
                     <button type="button" onClick={() => setRecepcionModalOpen(false)} className="co-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={recepcionSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', boxShadow: '0 4px 14px rgba(139,92,246,0.3)' }}>
                       {recepcionSaving && <div className="co-spinner-sm" />}
-                      Confirmar Recepción de Insumos
+                      Confirmar productos recibidos
                     </button>
                   </div>
                 </form>
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </div>,
+        getModalRoot()
       )}
 
       {/* Visor Reutilizable de PDF */}
@@ -528,7 +550,7 @@ export const ComprasPage = () => {
 
       {/* Modal Premium Ver Motivo de Rechazo */}
       {viewReasonOpen && createPortal(
-        <>
+        <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setViewReasonOpen(false)} />
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in" style={{ maxWidth: '480px' }}>
@@ -555,8 +577,8 @@ export const ComprasPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </div>,
+        getModalRoot()
       )}
     </div>
   );

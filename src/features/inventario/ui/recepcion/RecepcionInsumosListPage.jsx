@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { getOrdenes } from '../../../compras/application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal';
+import { RecepcionNav } from './RecepcionNav';
 import './RecepcionInsumos.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -28,7 +28,7 @@ const mapOrdenToPDFFormat = (orden) => {
   };
 };
 
-export const RecepcionInsumosListPage = () => {
+export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) => {
   const navigate = useNavigate();
   const [user] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
   const userRole = (user?.rol || '').toUpperCase();
@@ -55,7 +55,7 @@ export const RecepcionInsumosListPage = () => {
         page: ordenPage,
         limit: perPage,
         search: ordenSearch || undefined,
-        estado: 'aprobada', // Solo órdenes aprobadas
+        pendienteRecepcion: true,
         creadorRol: (isImpresion || isTaller) ? user?.rol : undefined
       });
       setOrdenes(data.items || []);
@@ -80,13 +80,16 @@ export const RecepcionInsumosListPage = () => {
   };
 
   const handleRecepcionar = (ordenId) => {
-    navigate(`/inventario/recepcion/${ordenId}`);
+    navigate(`${basePath}/${ordenId}`);
   };
 
   const handleVerOrden = (orden) => {
     setPreviewOC(mapOrdenToPDFFormat(orden));
     setIsPDFOpen(true);
   };
+
+  const countRecibidos = (orden) =>
+    (orden.detalles || []).filter(d => (d.cantidadRecibida ?? 0) > 0).length;
 
   const ordenTotalPages = Math.max(1, Math.ceil(ordenTotal / perPage));
 
@@ -95,8 +98,8 @@ export const RecepcionInsumosListPage = () => {
       {/* Header */}
       <div className="ri-card ri-header">
         <div>
-          <h1 className="ri-title">Recepción de Insumos</h1>
-          <p className="ri-subtitle">Registra la entrada de materiales al almacén desde órdenes de compra aprobadas</p>
+          <h1 className="ri-title">Recibir productos</h1>
+          <p className="ri-subtitle">Órdenes aprobadas con productos pendientes — registra cantidades, fecha de llegada e inventario</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="ri-stat-badge">
@@ -107,6 +110,8 @@ export const RecepcionInsumosListPage = () => {
           </div>
         </div>
       </div>
+
+      <RecepcionNav basePath={basePath} />
 
       {/* Table Card */}
       <div className="ri-card ri-table-card">
@@ -135,6 +140,7 @@ export const RecepcionInsumosListPage = () => {
                   <th>Concepto</th>
                   {!isTaller && <th className="text-right">Total</th>}
                   <th className="text-center">Items</th>
+                  <th className="text-center">Progreso</th>
                   <th className="text-center w-48">Acciones</th>
                 </tr>
               </thead>
@@ -144,10 +150,19 @@ export const RecepcionInsumosListPage = () => {
                     <td data-label="Orden" className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
                     <td data-label="Proveedor" className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
                     <td data-label="Solicitante" className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
-                    <td data-label="Fecha" className="text-slate-500 text-xs">{fmtDate(o.fecha)}</td>
+                    <td data-label="Fecha" className="text-slate-500 text-xs">{fmtDate(o.fechaAprobacion || o.fecha)}</td>
                     <td data-label="Concepto" className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
                     {!isTaller && <td data-label="Total" className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>}
                     <td data-label="Items" className="text-center text-slate-600 text-sm font-semibold">{o.detalles?.length || 0}</td>
+                    <td data-label="Progreso" className="text-center">
+                      {o.estado === 'parcialmente_recibida' ? (
+                        <span className="ri-badge-parcial">
+                          {countRecibidos(o)}/{o.detalles?.length || 0}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">0/{o.detalles?.length || 0}</span>
+                      )}
+                    </td>
                     <td data-label="Acciones">
                       <div className="flex items-center justify-center gap-2">
                         {!isTaller && (
@@ -166,12 +181,12 @@ export const RecepcionInsumosListPage = () => {
                         <button
                           onClick={() => handleRecepcionar(o.id)}
                           className="ri-btn-recepcionar"
-                          title="Recepcionar Insumos"
+                          title="Recibir productos de la orden"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                           </svg>
-                          Recepcionar
+                          Recibir productos
                         </button>
                       </div>
                     </td>
@@ -179,7 +194,7 @@ export const RecepcionInsumosListPage = () => {
                 ))}
                 {ordenes.length === 0 && (
                   <tr>
-                    <td colSpan={isTaller ? 7 : 8} className="text-center py-16">
+                    <td colSpan={isTaller ? 8 : 9} className="text-center py-16">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
                           <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -187,7 +202,7 @@ export const RecepcionInsumosListPage = () => {
                           </svg>
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-slate-600">No hay órdenes pendientes de recepción</p>
+                          <p className="text-sm font-semibold text-slate-600">No hay órdenes con productos pendientes</p>
                           <p className="text-xs text-slate-400 mt-1">Las órdenes aprobadas aparecerán aquí</p>
                         </div>
                       </div>
@@ -213,8 +228,11 @@ export const RecepcionInsumosListPage = () => {
 
       {/* PDF Preview Modal */}
       <PDFPreviewModal
-        isOpen={isPDFOpen}
-        onClose={() => setIsPDFOpen(false)}
+        isOpen={isPDFOpen && !!previewOC}
+        onClose={() => {
+          setIsPDFOpen(false);
+          window.setTimeout(() => setPreviewOC(null), 0);
+        }}
         oc={previewOC}
         title="Orden de Compra"
       />

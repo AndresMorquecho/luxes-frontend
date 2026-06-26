@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { OverlayPortal, deferClose } from './ModalPortal';
 import './Toast.css';
 
 const toastListeners = new Set();
@@ -7,7 +8,7 @@ export const toast = {
   show(message, type = 'info', duration = 4000) {
     const id = Math.random().toString(36).substring(2, 9);
     const newToast = { id, message, type, duration };
-    toastListeners.forEach(listener => listener(prev => [...prev, newToast]));
+    toastListeners.forEach((listener) => listener((prev) => [...prev, newToast]));
   },
   success(message, duration) {
     this.show(message, 'success', duration);
@@ -20,7 +21,7 @@ export const toast = {
   },
   warning(message, duration) {
     this.show(message, 'warning', duration);
-  }
+  },
 };
 
 export const ToastContainer = () => {
@@ -34,26 +35,28 @@ export const ToastContainer = () => {
     };
   }, []);
 
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  const removeToast = useCallback((id) => {
+    deferClose(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    });
+  }, []);
 
   return (
-    <div className="toast-container-root">
-      {toasts.map(t => (
-        <ToastItem key={t.id} toast={t} onClose={() => removeToast(t.id)} />
-      ))}
-    </div>
+    <OverlayPortal>
+      <div className="toast-container-root">
+        {toasts.map((t) => (
+          <ToastItem key={t.id} toast={t} onClose={() => removeToast(t.id)} />
+        ))}
+      </div>
+    </OverlayPortal>
   );
 };
 
 const ToastItem = ({ toast, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, toast.duration);
-    return () => clearTimeout(timer);
-  }, [toast, onClose]);
+    const timer = window.setTimeout(onClose, toast.duration);
+    return () => window.clearTimeout(timer);
+  }, [toast.duration, onClose]);
 
   const getIcon = () => {
     switch (toast.type) {

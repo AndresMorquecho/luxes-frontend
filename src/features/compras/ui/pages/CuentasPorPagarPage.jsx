@@ -178,7 +178,7 @@ export const CuentasPorPagarPage = () => {
 
       {/* Registrar Abono Modal */}
       {abonoModalOpen && createPortal(
-        <>
+        <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in">
@@ -249,7 +249,7 @@ export const CuentasPorPagarPage = () => {
               </div>
             </div>
           </div>
-        </>,
+        </div>,
         document.body
       )}
     </div>

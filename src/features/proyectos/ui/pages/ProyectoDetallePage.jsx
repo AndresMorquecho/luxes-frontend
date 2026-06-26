@@ -28,7 +28,7 @@ export default function ProyectoDetallePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { reloadProyectos } = useProyectosContext();
-  const { proyecto, avanzar, retroceder, updateProyecto, validacionFaseActual } = useProyecto(id);
+  const { proyecto, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual } = useProyecto(id);
   const [faseVista, setFaseVista] = useState(null);
   const [subTab, setSubTab] = useState('fases'); // 'fases' | 'gastos'
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
@@ -47,6 +47,12 @@ export default function ProyectoDetallePage() {
       setSubTab('fases');
     }
   }, [subTab, canViewGastos]);
+
+  React.useEffect(() => {
+    if (reloadProyectos && id) {
+      reloadProyectos();
+    }
+  }, [id, reloadProyectos]);
 
   if (!proyecto) {
     return (
@@ -498,6 +504,13 @@ export default function ProyectoDetallePage() {
         isOpen={isSurveyModalOpen}
         onClose={() => setIsSurveyModalOpen(false)}
         proyecto={proyecto}
+        variant="proyecto"
+        onSend={async () => {
+          await updateFaseDatos('INSTALACION', {
+            encuestaEnviada: true,
+            fechaEncuestaEnviada: new Date().toISOString().split('T')[0],
+          });
+        }}
         onConfirm={() => {
           setIsSurveyModalOpen(false);
           avanzar();

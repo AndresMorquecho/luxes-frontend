@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getClientes } from '../../../clientes/application/clientesService';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
-import { saveProforma, getProformas } from '../../application/proformasService';
+import { saveProforma, getProformaById } from '../../application/proformasService';
 import { ProformaPDF } from '../components/ProformaPDF';
 import { toast } from '../../../../shared/ui/components/Toast';
 import '../../../compras/ui/pages/ComprasPage.css';
@@ -62,8 +62,7 @@ export const NuevaProformaPage = () => {
         setConfiguracion(config);
 
         if (isEdit) {
-          const allProformas = await getProformas();
-          const existing = allProformas.find(p => p.id === id);
+          const existing = await getProformaById(id);
           if (existing) {
             const related = cList.find(c => c.nombre === existing.cliente);
             setForm({

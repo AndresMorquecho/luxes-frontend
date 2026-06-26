@@ -19,13 +19,14 @@ export async function getProveedores() {
 
 export async function getOrdenes(options = {}) {
   const params = new URLSearchParams();
-  const { page, limit, search, estado, estadoPago, creadorRol } = options;
+  const { page, limit, search, estado, estadoPago, creadorRol, pendienteRecepcion } = options;
   if (page) params.append('page', page);
   if (limit) params.append('limit', limit);
   if (search) params.append('search', search);
   if (estado) params.append('estado', estado);
   if (estadoPago) params.append('estadoPago', estadoPago);
   if (creadorRol) params.append('creadorRol', creadorRol);
+  if (pendienteRecepcion) params.append('pendienteRecepcion', 'true');
 
   const url = `/api/compras?${params.toString()}`;
   const res = await fetch(url, { headers: getHeaders() });
@@ -153,13 +154,13 @@ export async function getComprasStats() {
 
 // ── Recepción de Orden ──────────────────────────────────────────────────────
 
-export async function recepcionarOrden(id, detalles) {
+export async function recepcionarOrden(id, body) {
   const res = await fetch(`/api/compras/${id}/recepcion`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ detalles }),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al recepcionar orden');
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar productos recibidos');
   return data.data;
 }

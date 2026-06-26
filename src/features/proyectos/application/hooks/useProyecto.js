@@ -81,6 +81,7 @@ export function useProyecto(id) {
       });
     } catch (error) {
       console.error('Error al guardar datos de fase:', error);
+      throw error;
     }
   }
 

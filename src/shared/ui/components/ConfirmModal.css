@@ -1,3 +1,7 @@
+.confirm-portal-root {
+  position: relative;
+}
+
 .confirm-overlay {
   position: fixed;
   inset: 0;

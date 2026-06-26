@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { usePushNotifications } from '../shared/hooks/usePushNotifications';
 import { Login } from '../features/auth/infrastructure/ui/Login';
 import { LandingPage } from '../features/auth/infrastructure/ui/LandingPage';
@@ -20,6 +20,7 @@ import ComprasFeature from '../features/compras/ui';
 import VentasFeature from '../features/ventas/ui';
 import GastosFeature from '../features/gastos/ui';
 import InventarioFeature from '../features/inventario/ui';
+import { DevolucionesPage } from '../features/inventario/ui/DevolucionesPage.jsx';
 import TareasFeature from '../features/tareas/ui';
 import { EncuestaPage } from '../features/proyectos/ui/pages/EncuestaPage.jsx';
 import { InstalacionesPage } from '../features/instalaciones/ui/InstalacionesPage.jsx';
@@ -27,12 +28,15 @@ import { MaterialesRequestPage } from '../features/instalaciones/ui/MaterialesRe
 import DashboardPage from '../features/dashboard/ui/pages/DashboardPage.jsx';
 import { NotificacionesPage } from '../features/notificaciones/ui/pages/NotificacionesPage';
 import { FormOrdenCompraPage } from '../features/compras/ui/pages/FormOrdenCompraPage';
-import { RecepcionInsumosListPage } from '../features/inventario/ui/recepcion/RecepcionInsumosListPage';
-import { RecepcionInsumosFormPage } from '../features/inventario/ui/recepcion/RecepcionInsumosFormPage';
 import ConfiguracionFeature from '../features/configuracion/ui';
 import { MovimientosPage } from '../features/gastos/ui/pages/MovimientosPage';
 import { ToastContainer } from '../shared/ui/components/Toast';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
+
+function LegacyRecepcionRedirect() {
+  const { ordenId } = useParams();
+  return <Navigate to={ordenId ? `/compras/recepcion/${ordenId}` : '/compras/recepcion'} replace />;
+}
 import './index.css';
 
 function App() {
@@ -43,8 +47,60 @@ function App() {
     const storedUser = localStorage.getItem('user');
     return storedUser ? JSON.parse(storedUser) : null;
   });
+  const [sessionChecked, setSessionChecked] = useState(() => !localStorage.getItem('token'));
 
   const { subscribeUser, unsubscribeUser } = usePushNotifications();
+
+  const clearSession = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  // Validar token almacenado al iniciar la app
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setSessionChecked(true);
+      return;
+    }
+
+    const validateSession = async () => {
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.status === 401) {
+          clearSession();
+          return;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.data) {
+            localStorage.setItem('user', JSON.stringify(data.data));
+            setUser(data.data);
+            setIsAuthenticated(true);
+          }
+        }
+      } catch {
+        // Si el backend no responde, mantener la sesión local temporalmente
+      } finally {
+        setSessionChecked(true);
+      }
+    };
+
+    validateSession();
+  }, []);
+
+  // Cerrar sesión cuando cualquier API reporta token inválido
+  useEffect(() => {
+    const onSessionExpired = () => clearSession();
+    window.addEventListener('auth-session-expired', onSessionExpired);
+    return () => window.removeEventListener('auth-session-expired', onSessionExpired);
+  }, []);
 
   // Sync user state on custom updates (e.g. sidebar customized)
   useEffect(() => {
@@ -58,27 +114,33 @@ function App() {
     };
   }, []);
 
-  // Auto-subscribe authenticated users on mount
+  // Auto-subscribe authenticated users on mount (production only)
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (!import.meta.env.DEV && isAuthenticated && user) {
       subscribeUser(user);
     }
   }, [isAuthenticated, user, subscribeUser]);
+
+  // En desarrollo: quitar service workers viejos que rompen rutas de Vite
+  useEffect(() => {
+    if (!import.meta.env.DEV || !('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((reg) => reg.unregister());
+    });
+  }, []);
 
   const handleLogin = (token, user) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
     setIsAuthenticated(true);
+    setSessionChecked(true);
     subscribeUser(user);
   };
 
   const handleLogout = () => {
     unsubscribeUser(user);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    setIsAuthenticated(false);
+    clearSession();
   };
 
   const location = useLocation();
@@ -90,6 +152,15 @@ function App() {
       <Routes>
         <Route path="/encuesta/:id" element={<EncuestaPage />} />
       </Routes>
+    );
+  }
+
+  if (!sessionChecked) {
+    return (
+      <>
+        <ToastContainer />
+        <ConfirmDialogContainer />
+      </>
     );
   }
 
@@ -133,8 +204,9 @@ function App() {
               <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
               <Route path="/tareas/*" element={<TareasFeature />} />
               <Route path="/compras/*" element={<ComprasFeature />} />
-              <Route path="/inventario/recepcion" element={<RecepcionInsumosListPage />} />
-              <Route path="/inventario/recepcion/:ordenId" element={<RecepcionInsumosFormPage />} />
+              <Route path="/devoluciones" element={<DevolucionesPage />} />
+              <Route path="/inventario/recepcion" element={<Navigate to="/compras/recepcion" replace />} />
+              <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
               <Route path="*" element={<Navigate to="/notificaciones" replace />} />
             </Routes>
           ) : (

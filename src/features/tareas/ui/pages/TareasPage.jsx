@@ -10,6 +10,7 @@ import {
   getUsers,
 } from '../../application/tareasService';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { notifyNotificationsUpdated } from '../../../notificaciones/application/notificationsService';
 import './TareasPage.css';
 
 const PRIORIDAD_CONFIG = {
@@ -182,7 +183,7 @@ export default function TareasPage() {
       setShowModal(false);
       fetchTareas();
       fetchStats();
-      window.dispatchEvent(new Event('notifications-updated'));
+      notifyNotificationsUpdated();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -219,7 +220,7 @@ export default function TareasPage() {
       await updateTarea(tarea.id, { estado: newEstado });
       fetchTareas();
       fetchStats();
-      window.dispatchEvent(new Event('notifications-updated'));
+      notifyNotificationsUpdated();
     } catch (err) {
       alert(err.message);
     }

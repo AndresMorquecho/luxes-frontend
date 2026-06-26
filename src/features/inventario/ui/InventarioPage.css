@@ -244,6 +244,27 @@
   white-space: nowrap;
 }
 .inv-btn-primary:hover { background: #1e40af; transform: translateY(-1px); }
+.inv-btn-secondary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.125rem;
+  background: #fff;
+  color: #15803d;
+  border: 1px solid #86efac;
+  border-radius: 0.625rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.inv-btn-secondary:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  transform: translateY(-1px);
+}
 .inv-btn-ghost {
   padding: 0.5rem 1.125rem;
   background: transparent;
