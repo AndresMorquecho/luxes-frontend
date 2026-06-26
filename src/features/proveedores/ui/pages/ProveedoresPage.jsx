@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { getProveedores, saveProveedor, deleteProveedor } from '../../application/proveedoresService';
 
 const EMPTY_FORM = { nombre: '', cedulaRuc: '', telefono: '', email: '', direccion: '', contacto: '', tipo: 'Persona', notas: '' };
@@ -61,9 +62,14 @@ export const ProveedoresPage = () => {
         }
         return [...prev, saved];
       });
-      deferClose(() => setFormOpen(false));
-    } finally {
+      deferClose(() => {
+        setFormOpen(false);
+        setSaving(false);
+        toast.success(editing ? 'Proveedor actualizado correctamente' : 'Proveedor registrado correctamente');
+      });
+    } catch (err) {
       deferClose(() => setSaving(false));
+      toast.error(err instanceof Error ? err.message : 'Error al guardar el proveedor');
     }
   };
 
@@ -74,8 +80,13 @@ export const ProveedoresPage = () => {
       { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
     );
     if (!confirmed) return;
-    await deleteProveedor(id);
-    setItems(prev => prev.filter(p => p.id !== id));
+    try {
+      await deleteProveedor(id);
+      setItems(prev => prev.filter(p => p.id !== id));
+      deferClose(() => toast.success('Proveedor eliminado correctamente'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar el proveedor');
+    }
   };
 
   const q = search.toLowerCase();

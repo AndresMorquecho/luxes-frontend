@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { getContactos, saveContacto, deleteContacto } from '../../application/contactosService';
 
 const EMPTY_FORM = { nombre: '', telefono: '', email: '', empresa: '', cargo: '', notas: '' };
@@ -60,9 +61,14 @@ export const ContactosPage = () => {
         }
         return [...prev, saved];
       });
-      deferClose(() => setFormOpen(false));
-    } finally {
+      deferClose(() => {
+        setFormOpen(false);
+        setSaving(false);
+        toast.success(editing ? 'Contacto actualizado correctamente' : 'Contacto registrado correctamente');
+      });
+    } catch (err) {
       deferClose(() => setSaving(false));
+      toast.error(err instanceof Error ? err.message : 'Error al guardar el contacto');
     }
   };
 
@@ -73,8 +79,13 @@ export const ContactosPage = () => {
       { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
     );
     if (!confirmed) return;
-    await deleteContacto(id);
-    setItems(prev => prev.filter(c => c.id !== id));
+    try {
+      await deleteContacto(id);
+      setItems(prev => prev.filter(c => c.id !== id));
+      deferClose(() => toast.success('Contacto eliminado correctamente'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar el contacto');
+    }
   };
 
   const q = search.toLowerCase();

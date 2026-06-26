@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { getClientes, saveCliente, deleteCliente } from '../../application/clientesService';
 
 const EMPTY_FORM = { nombre: '', cedulaRuc: '', telefono: '', email: '', direccion: '', tipo: 'Persona', notas: '' };
@@ -61,9 +62,14 @@ export const ClientesPage = () => {
         }
         return [...prev, saved];
       });
-      deferClose(() => setFormOpen(false));
-    } finally {
+      deferClose(() => {
+        setFormOpen(false);
+        setSaving(false);
+        toast.success(editing ? 'Cliente actualizado correctamente' : 'Cliente registrado correctamente');
+      });
+    } catch (err) {
       deferClose(() => setSaving(false));
+      toast.error(err instanceof Error ? err.message : 'Error al guardar el cliente');
     }
   };
 
@@ -74,8 +80,13 @@ export const ClientesPage = () => {
       { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
     );
     if (!confirmed) return;
-    await deleteCliente(id);
-    setClientes(prev => prev.filter(c => c.id !== id));
+    try {
+      await deleteCliente(id);
+      setClientes(prev => prev.filter(c => c.id !== id));
+      deferClose(() => toast.success('Cliente eliminado correctamente'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar el cliente');
+    }
   };
 
   const q = search.toLowerCase();
