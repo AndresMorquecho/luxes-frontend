@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { OverlayPortal, deferClose } from './ModalPortal';
 import './Toast.css';
 
 const toastListeners = new Set();
 
 export const toast = {
   show(message, type = 'info', duration = 4000) {
-    deferClose(() => {
-      const id = Math.random().toString(36).substring(2, 9);
-      const newToast = { id, message, type, duration };
-      toastListeners.forEach((listener) => listener((prev) => [...prev, newToast]));
-    });
+    const id = Math.random().toString(36).substring(2, 9);
+    const newToast = { id, message, type, duration };
+    toastListeners.forEach((listener) => listener((prev) => [...prev, newToast]));
   },
   success(message, duration) {
     this.show(message, 'success', duration);
@@ -38,19 +35,15 @@ export const ToastContainer = () => {
   }, []);
 
   const removeToast = useCallback((id) => {
-    deferClose(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    });
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   return (
-    <OverlayPortal open>
-      <div className="toast-container-root">
-        {toasts.map((t) => (
-          <ToastItem key={t.id} toast={t} onClose={() => removeToast(t.id)} />
-        ))}
-      </div>
-    </OverlayPortal>
+    <div className="toast-container-root" aria-live="polite" aria-atomic="false">
+      {toasts.map((t) => (
+        <ToastItem key={t.id} toast={t} onClose={() => removeToast(t.id)} />
+      ))}
+    </div>
   );
 };
 
@@ -71,7 +64,7 @@ const ToastItem = ({ toast, onClose }) => {
       case 'error':
         return (
           <svg className="toast-icon text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
       case 'warning':

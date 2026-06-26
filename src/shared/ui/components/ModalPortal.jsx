@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 function getRoot(id) {
@@ -15,31 +15,32 @@ export function getOverlayRoot() {
 }
 
 /**
- * Contenedor DOM propio por instancia de portal.
- * Evita insertBefore cuando varios portales comparten modal-root/overlay-root.
+ * Contenedor DOM propio por instancia de portal, montado antes del primer paint.
  */
 function usePortalContainer(rootId) {
   const containerRef = useRef(null);
+  const [ready, setReady] = useState(false);
 
-  if (!containerRef.current && typeof document !== 'undefined') {
-    containerRef.current = document.createElement('div');
-    containerRef.current.dataset.portalHost = 'true';
-  }
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = getRoot(rootId);
-    const container = containerRef.current;
-    if (!root || !container) return undefined;
+    if (!root) return undefined;
 
-    root.appendChild(container);
+    const el = document.createElement('div');
+    el.dataset.portalHost = 'true';
+    root.appendChild(el);
+    containerRef.current = el;
+    setReady(true);
+
     return () => {
-      if (container.parentNode === root) {
-        root.removeChild(container);
+      if (el.parentNode === root) {
+        root.removeChild(el);
       }
+      containerRef.current = null;
+      setReady(false);
     };
   }, [rootId]);
 
-  return containerRef.current;
+  return ready ? containerRef.current : null;
 }
 
 function useDeferredUnmount(isOpen) {
@@ -80,7 +81,7 @@ export function useModalVisibility(isOpen) {
 }
 
 /**
- * Diferir cierre/navegación/toasts hasta después del commit de React.
+ * Diferir cierre/navegación hasta después del commit de React.
  */
 export function deferClose(callback) {
   if (typeof callback !== 'function') return;

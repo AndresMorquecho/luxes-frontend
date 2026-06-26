@@ -3,13 +3,14 @@
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
+  z-index: 99999;
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 90%;
   max-width: 420px;
   pointer-events: none;
+  isolation: isolate;
 }
 
 .toast-item-root {

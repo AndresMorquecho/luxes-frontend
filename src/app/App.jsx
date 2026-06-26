@@ -150,11 +150,15 @@ function App() {
   // Rutas públicas que no requieren autenticación
   if (location.pathname.startsWith('/encuesta/')) {
     return (
-      <ErrorBoundary>
-        <Routes>
-          <Route path="/encuesta/:id" element={<EncuestaPage />} />
-        </Routes>
-      </ErrorBoundary>
+      <>
+        <ToastContainer />
+        <ConfirmDialogContainer />
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/encuesta/:id" element={<EncuestaPage />} />
+          </Routes>
+        </ErrorBoundary>
+      </>
     );
   }
 
@@ -169,15 +173,17 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <ErrorBoundary>
+      <>
         <ToastContainer />
         <ConfirmDialogContainer />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login onLogin={handleLogin} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </ErrorBoundary>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<Login onLogin={handleLogin} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ErrorBoundary>
+      </>
     );
   }
 
@@ -189,9 +195,10 @@ function App() {
   const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
 
   return (
-    <ErrorBoundary>
+    <>
       <ToastContainer />
       <ConfirmDialogContainer />
+      <ErrorBoundary>
       <PrintQueueProvider>
       <ProyectosProvider>
         <Layout user={user} onLogout={handleLogout}>
@@ -243,7 +250,8 @@ function App() {
         </Layout>
       </ProyectosProvider>
       </PrintQueueProvider>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </>
   );
 }
 
