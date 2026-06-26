@@ -141,7 +141,9 @@ export const ImpresionesPage = () => {
 
     // Auto-load design file
     const disenoFase = proyecto.fases?.['DISEÑO'] || proyecto.fases?.DISEÑO;
-    const archivoArte = disenoFase?.datos?.archivoArte;
+    const datos = disenoFase?.datos || {};
+    const archivosArte = datos.archivosArte || [];
+    const archivoArte = archivosArte[0] || datos.archivoArte;
     if (archivoArte) {
       // Create a mock File-like object from the project design
       const mockFile = {
@@ -154,6 +156,9 @@ export const ImpresionesPage = () => {
       };
       setFile(mockFile);
       setFileFromProject(true);
+    } else {
+      setFile(null);
+      setFileFromProject(false);
     }
   };
 
@@ -484,7 +489,9 @@ export const ImpresionesPage = () => {
                               borderRadius: '4px',
                               textTransform: 'uppercase'
                             }}>
-                              {archD ? '1 Archivo' : '0 Archivos'}
+                              {datosD.archivosArte && Array.isArray(datosD.archivosArte)
+                                ? `${datosD.archivosArte.length} Archivo${datosD.archivosArte.length === 1 ? '' : 's'}`
+                                : (archD ? '1 Archivo' : '0 Archivos')}
                             </span>
                           </div>
                           
@@ -600,7 +607,95 @@ export const ImpresionesPage = () => {
                 )}
               </div>
             </div>
-            
+
+            {/* Select Design from Project if selected */}
+            {selectedProyecto && (() => {
+              const disenoFase = selectedProyecto.fases?.['DISEÑO'] || selectedProyecto.fases?.DISEÑO;
+              const datosD = disenoFase?.datos || {};
+              const archivosArte = datosD.archivosArte || (datosD.archivoArte ? [datosD.archivoArte] : []);
+              if (archivosArte.length === 0) return null;
+
+              return (
+                <div className="form-field" style={{ marginBottom: '1rem' }}>
+                  <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a4.125 4.125 0 015.83 0l5.661 5.66m4.75-8.25l-5.159 5.159a4.125 4.125 0 01-5.83 0L2.25 9.75M3.75 20.25h16.5A1.5 1.5 0 0022 18.75V5.25A1.5 1.5 0 0020.25 3.75H3.75A1.5 1.5 0 002.25 5.25v13.5A1.5 1.5 0 003.75 20.25z" />
+                    </svg>
+                    <span>Seleccionar Diseño del Proyecto ({archivosArte.length})</span>
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    {archivosArte.map((art, idx) => {
+                      const isSelected = file && file.fromProject && file.url === art.url;
+                      return (
+                        <button
+                          key={art.url || idx}
+                          type="button"
+                          onClick={() => {
+                            setFile({
+                              name: art.name,
+                              size: 0,
+                              sizeDisplay: art.size,
+                              type: art.type || 'application/pdf',
+                              url: art.url,
+                              fromProject: true
+                            });
+                            setFileFromProject(true);
+                          }}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0.5rem',
+                            border: isSelected ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                            borderRadius: '8px',
+                            backgroundColor: isSelected ? '#f5f3ff' : 'white',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            textAlign: 'center',
+                            gap: '0.25rem',
+                            position: 'relative'
+                          }}
+                          title={art.name}
+                        >
+                          <div style={{ width: '40px', height: '40px', borderRadius: '4px', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justify: 'center', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                            {art.type && art.type.includes('image') && art.url ? (
+                              <img src={art.url} alt="art preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '18px', height: '18px', color: '#64748b' }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                              </svg>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 600, color: isSelected ? '#7c3aed' : '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>
+                            {art.name}
+                          </span>
+                          {isSelected && (
+                            <span style={{
+                              position: 'absolute',
+                              top: '-6px',
+                              right: '-6px',
+                              backgroundColor: '#7c3aed',
+                              color: 'white',
+                              borderRadius: '50%',
+                              width: '14px',
+                              height: '14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '8px',
+                              fontWeight: 'bold',
+                              border: '1.5px solid white'
+                            }}>✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* File Dropzone */}
             <div className="form-field form-field-dropzone">
               <label className="field-label">Documento a Imprimir</label>
@@ -653,13 +748,11 @@ export const ImpresionesPage = () => {
                         Desde Diseño
                       </span>
                     )}
-                    {!fileFromProject && (
-                      <button type="button" onClick={() => setFile(null)} className="btn-remove-file" title="Remover archivo">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px' }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
+                    <button type="button" onClick={() => { setFile(null); setFileFromProject(false); }} className="btn-remove-file" title="Remover archivo">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               )}
@@ -1091,26 +1184,37 @@ export const ImpresionesPage = () => {
                   </div>
                 </div>
 
-                {archivoArte && (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', backgroundColor: '#f8fafc' }}>
-                    <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Archivo de Arte</span>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                      <div style={{ width: '50px', height: '50px', borderRadius: '6px', backgroundColor: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd6fe', flexShrink: 0 }}>
-                        {archivoArte.type && archivoArte.type.includes('image') && archivoArte.url ? (
-                          <img src={archivoArte.url} alt="Mini Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '5px' }} />
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '24px', height: '24px', color: '#7c3aed' }}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div style={{ overflow: 'hidden' }}>
-                        <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#1e293b', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{archivoArte.name}</span>
-                        <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b' }}>{archivoArte.size || 'Tamaño no especificado'}</span>
+                {(() => {
+                  const items = datosDiseno.archivosArte || (archivoArte ? [archivoArte] : []);
+                  if (items.length === 0) return null;
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Archivos de Arte ({items.length})</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                        {items.map((art, idx) => (
+                          <div key={art.url || idx} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', backgroundColor: '#f8fafc', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '6px', backgroundColor: '#ede9fe', display: 'flex', alignItems: 'center', justify: 'center', border: '1px solid #ddd6fe', flexShrink: 0 }}>
+                              {art.type && art.type.includes('image') && art.url ? (
+                                <img src={art.url} alt="Mini Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '5px' }} />
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '20px', height: '20px', color: '#7c3aed' }}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div style={{ overflow: 'hidden', flex: 1 }}>
+                              <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#1e293b', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{art.name}</span>
+                              <span style={{ display: 'block', fontSize: '0.65rem', color: '#64748b' }}>{art.size || 'Tamaño no especificado'}</span>
+                            </div>
+                            <a href={art.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: 'bold', textDecoration: 'none' }}>
+                              Ver
+                            </a>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>

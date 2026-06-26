@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Printer, PlayCircle, CheckCircle, Clock, AlertTriangle, Send, XCircle, User, 
-  UploadCloud, Plus, Minus, FileText, Lock 
+  UploadCloud, Plus, Minus, FileText, Lock, Image as ImageIcon
 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
@@ -39,7 +39,9 @@ export function ProduccionPanel({ proyectoId }) {
       
       // Auto-load design file if it exists in DISEÑO phase
       const disenoFase = proyecto.fases?.['DISEÑO'] || proyecto.fases?.DISEÑO;
-      const archivoArte = disenoFase?.datos?.archivoArte;
+      const datos = disenoFase?.datos || {};
+      const archivosArte = datos.archivosArte || [];
+      const archivoArte = archivosArte[0] || datos.archivoArte;
       if (archivoArte) {
         setFile({
           name: archivoArte.name,
@@ -379,6 +381,66 @@ export function ProduccionPanel({ proyectoId }) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Select Design from Project if available */}
+            {proyecto && (() => {
+              const disenoFase = proyecto.fases?.['DISEÑO'] || proyecto.fases?.DISEÑO;
+              const datosD = disenoFase?.datos || {};
+              const archivosArte = datosD.archivosArte || (datosD.archivoArte ? [datosD.archivoArte] : []);
+              if (archivosArte.length === 0) return null;
+
+              return (
+                <div className="flex flex-col gap-1.5 mb-2 animate-slide-up">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon size={14} className="text-blue-500" />
+                    <span>Seleccionar Diseño del Proyecto ({archivosArte.length})</span>
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-1">
+                    {archivosArte.map((art, idx) => {
+                      const isSelected = file && file.fromProject && file.url === art.url;
+                      return (
+                        <button
+                          key={art.url || idx}
+                          type="button"
+                          onClick={() => {
+                            setFile({
+                              name: art.name,
+                              sizeDisplay: art.size,
+                              type: art.type || 'application/pdf',
+                              url: art.url,
+                              fromProject: true
+                            });
+                            setFileFromProject(true);
+                          }}
+                          className={`flex flex-col items-center justify-center p-3 border rounded-xl cursor-pointer transition-all gap-1.5 relative ${
+                            isSelected 
+                              ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold shadow-sm' 
+                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                          }`}
+                          title={art.name}
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
+                            {art.type && art.type.includes('image') && art.url ? (
+                              <img src={art.url} alt="art preview" className="w-full h-full object-cover" />
+                            ) : (
+                              <FileText size={16} className="text-slate-400" />
+                            )}
+                          </div>
+                          <span className="text-[10px] truncate w-full text-center">
+                            {art.name}
+                          </span>
+                          {isSelected && (
+                            <span className="absolute -top-1.5 -right-1.5 bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold border border-white">
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* File Dropzone */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Documento a Imprimir</label>
