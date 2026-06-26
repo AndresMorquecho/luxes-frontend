@@ -37,19 +37,33 @@ export function ProduccionPanel({ proyectoId }) {
       setLoadedProyectoId(proyecto.id);
       setClient(proyecto.cliente?.empresa || proyecto.cliente?.nombre || proyecto.clienteNombre || '');
       
-      // Auto-load design file if it exists in DISEÑO phase
+      // Auto-load design files if they exist in DISEÑO phase
       const disenoFase = proyecto.fases?.['DISEÑO'] || proyecto.fases?.DISEÑO;
       const datos = disenoFase?.datos || {};
-      const archivosArte = datos.archivosArte || [];
-      const archivoArte = archivosArte[0] || datos.archivoArte;
-      if (archivoArte) {
-        setFile({
-          name: archivoArte.name,
-          sizeDisplay: archivoArte.size,
-          type: archivoArte.type || 'application/pdf',
-          url: archivoArte.url,
-          fromProject: true
-        });
+      const archivosArte = datos.archivosArte || (datos.archivoArte ? [datos.archivoArte] : []);
+      if (archivosArte.length > 0) {
+        if (archivosArte.length === 1) {
+          setFile({
+            name: archivosArte[0].name,
+            sizeDisplay: archivosArte[0].size,
+            type: archivosArte[0].type || 'application/pdf',
+            url: archivosArte[0].url,
+            fromProject: true
+          });
+        } else {
+          setFile({
+            name: `${archivosArte.length} archivos de diseño`,
+            isMultiple: true,
+            files: archivosArte.map(art => ({
+              name: art.name,
+              sizeDisplay: art.size,
+              type: art.type || 'application/pdf',
+              url: art.url,
+              fromProject: true
+            })),
+            fromProject: true
+          });
+        }
         setFileFromProject(true);
       } else {
         setFile(null);
@@ -78,7 +92,22 @@ export function ProduccionPanel({ proyectoId }) {
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const filesArray = Array.from(e.target.files);
+      if (filesArray.length === 1) {
+        setFile(filesArray[0]);
+      } else {
+        setFile({
+          name: `${filesArray.length} archivos locales`,
+          isMultiple: true,
+          files: filesArray.map(f => ({
+            name: f.name,
+            size: f.size,
+            type: f.type,
+            rawFile: f
+          })),
+          fromProject: false
+        });
+      }
       setFileFromProject(false);
     }
   };
@@ -97,7 +126,22 @@ export function ProduccionPanel({ proyectoId }) {
     setIsDragOver(false);
     if (fileFromProject) return;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFile(e.dataTransfer.files[0]);
+      const filesArray = Array.from(e.dataTransfer.files);
+      if (filesArray.length === 1) {
+        setFile(filesArray[0]);
+      } else {
+        setFile({
+          name: `${filesArray.length} archivos locales`,
+          isMultiple: true,
+          files: filesArray.map(f => ({
+            name: f.name,
+            size: f.size,
+            type: f.type,
+            rawFile: f
+          })),
+          fromProject: false
+        });
+      }
     }
   };
 
@@ -129,29 +173,37 @@ export function ProduccionPanel({ proyectoId }) {
       if (!confirmSend) return;
     }
 
-    const fileUrl = file.fromProject ? file.url : URL.createObjectURL(file);
-    const now = new Date();
-    const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-    const newJob = {
-      name: file.name,
-      copies: copies,
-      format: format,
-      sentBy: sentBy || 'ISAM',
-      sentAt: sentAtFormatted,
-      sentToQueueAt: sentAtFormatted,
-      fileUrl: fileUrl,
-      client: client,
-      urgency: urgency,
-      width: parseFloat(width) || 1.0,
-      height: parseFloat(height) || 1.0,
-      notes: notes.trim(),
-      proyectoId: proyecto.id,
-      proyectoNombre: proyecto.nombre
-    };
+    const filesToSubmit = file.isMultiple ? file.files : [file];
 
     try {
-      await addJobToQueue(newJob);
+      for (let i = 0; i < filesToSubmit.length; i++) {
+        const currentFile = filesToSubmit[i];
+        const fileUrl = currentFile.fromProject 
+          ? currentFile.url 
+          : URL.createObjectURL(currentFile.rawFile || currentFile);
+
+        const now = new Date(Date.now() + i * 1000); // add unique offset to avoid exact timestamp collision
+        const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+        const newJob = {
+          name: currentFile.name,
+          copies: copies,
+          format: format,
+          sentBy: sentBy || 'ISAM',
+          sentAt: sentAtFormatted,
+          sentToQueueAt: sentAtFormatted,
+          fileUrl: fileUrl,
+          client: client,
+          urgency: urgency,
+          width: parseFloat(width) || 1.0,
+          height: parseFloat(height) || 1.0,
+          notes: notes.trim(),
+          proyectoId: proyecto.id,
+          proyectoNombre: proyecto.nombre
+        };
+
+        await addJobToQueue(newJob);
+      }
 
       // Show Toast
       setSuccessJobName(file.name);
@@ -390,52 +442,37 @@ export function ProduccionPanel({ proyectoId }) {
 
               return (
                 <div className="flex flex-col gap-1.5 mb-2 animate-slide-up">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <ImageIcon size={14} className="text-blue-500" />
-                    <span>Seleccionar Diseño del Proyecto ({archivosArte.length})</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-purple-500" />
+                      <span>Archivos de Diseño Vinculados ({archivosArte.length})</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-100 animate-pulse">
+                      Se enviarán todos automáticamente
+                    </span>
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-1">
-                    {archivosArte.map((art, idx) => {
-                      const isSelected = file && file.fromProject && file.url === art.url;
-                      return (
-                        <button
-                          key={art.url || idx}
-                          type="button"
-                          onClick={() => {
-                            setFile({
-                              name: art.name,
-                              sizeDisplay: art.size,
-                              type: art.type || 'application/pdf',
-                              url: art.url,
-                              fromProject: true
-                            });
-                            setFileFromProject(true);
-                          }}
-                          className={`flex flex-col items-center justify-center p-3 border rounded-xl cursor-pointer transition-all gap-1.5 relative ${
-                            isSelected 
-                              ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold shadow-sm' 
-                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                          }`}
-                          title={art.name}
-                        >
-                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
-                            {art.type && art.type.includes('image') && art.url ? (
-                              <img src={art.url} alt="art preview" className="w-full h-full object-cover" />
-                            ) : (
-                              <FileText size={16} className="text-slate-400" />
-                            )}
-                          </div>
-                          <span className="text-[10px] truncate w-full text-center">
-                            {art.name}
-                          </span>
-                          {isSelected && (
-                            <span className="absolute -top-1.5 -right-1.5 bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold border border-white">
-                              ✓
-                            </span>
+                    {archivosArte.map((art, idx) => (
+                      <div
+                        key={art.url || idx}
+                        className="flex flex-col items-center justify-center p-3 border border-purple-200 bg-purple-50/30 rounded-xl gap-1.5 relative shadow-sm"
+                        title={art.name}
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-purple-100 shrink-0">
+                          {art.type && art.type.includes('image') && art.url ? (
+                            <img src={art.url} alt="art preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <FileText size={16} className="text-purple-400" />
                           )}
-                        </button>
-                      );
-                    })}
+                        </div>
+                        <span className="text-[10px] font-semibold text-slate-700 truncate w-full text-center">
+                          {art.name}
+                        </span>
+                        <span className="absolute -top-1.5 -right-1.5 bg-purple-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold border border-white">
+                          ✓
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
@@ -459,40 +496,56 @@ export function ProduccionPanel({ proyectoId }) {
                     id={`embedded-file-input-${proyectoId}`} 
                     onChange={handleFileChange} 
                     accept=".pdf,.png,.jpg,.jpeg,.ai,.eps" 
+                    multiple
                     style={{ display: 'none' }}
                   />
                   <UploadCloud size={32} className="text-slate-400" />
-                  <span className="text-sm font-semibold text-slate-700">Arrastra tu archivo o haz clic para buscar</span>
-                  <span className="text-xs text-slate-500">PDF, AI, PNG, JPG, EPS (Máx. 50MB)</span>
+                  <span className="text-sm font-semibold text-slate-700">Arrastra tus archivos o haz clic para buscar</span>
+                  <span className="text-xs text-slate-500">PDF, AI, PNG, JPG, EPS (Cualquier tamaño)</span>
                 </div>
               ) : (
-                <div className="flex justify-between items-center bg-blue-50 border border-blue-200 px-4 py-3 rounded-xl">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                      <FileText size={20} />
+                <div className="flex flex-col bg-blue-50 border border-blue-200 p-4 rounded-xl gap-3">
+                  <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                        <FileText size={20} />
+                      </div>
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-sm font-bold text-blue-800 truncate" title={file.name}>{file.name}</span>
+                        <span className="text-xs text-slate-500">
+                          {file.isMultiple ? 'Múltiples archivos listos para enviar' : (fileFromProject ? file.sizeDisplay || 'Archivo de diseño aprobado' : `${(file.size / 1024 / 1024).toFixed(2)} MB`)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="text-sm font-semibold text-blue-800 truncate" title={file.name}>{file.name}</span>
-                      <span className="text-xs text-slate-500">
-                        {fileFromProject ? file.sizeDisplay || 'Archivo de diseño aprobado' : `${(file.size / 1024 / 1024).toFixed(2)} MB`}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      {fileFromProject && (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                          Diseño
+                        </span>
+                      )}
+                      <button 
+                        type="button" 
+                        onClick={() => { setFile(null); setFileFromProject(false); }} 
+                        className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                        title="Remover archivos"
+                      >
+                        <XCircle size={18} />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {fileFromProject && (
-                      <span className="px-2 py-1 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-md uppercase tracking-wider">
-                        Diseño
-                      </span>
-                    )}
-                    <button 
-                      type="button" 
-                      onClick={() => { setFile(null); setFileFromProject(false); }} 
-                      className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                      title="Remover archivo"
-                    >
-                      <XCircle size={18} />
-                    </button>
-                  </div>
+                  {/* If multiple, display the list of files */}
+                  {(file.isMultiple || file.files) && (
+                    <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                      {file.files.map((f, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs text-slate-700 bg-white/60 px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
+                          <span className="truncate max-w-[70%] font-medium" title={f.name}>{f.name}</span>
+                          <span className="text-[10px] text-slate-500 shrink-0">
+                            {f.fromProject ? f.sizeDisplay || 'Diseño' : `${(f.size / 1024 / 1024).toFixed(2)} MB`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
