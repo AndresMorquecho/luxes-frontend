@@ -139,22 +139,35 @@ export const ImpresionesPage = () => {
     // Auto-fill client
     setClient(proyecto.cliente?.empresa || proyecto.cliente?.nombre || '');
 
-    // Auto-load design file
+    // Auto-load design files
     const disenoFase = proyecto.fases?.['DISEÑO'] || proyecto.fases?.DISEÑO;
     const datos = disenoFase?.datos || {};
-    const archivosArte = datos.archivosArte || [];
-    const archivoArte = archivosArte[0] || datos.archivoArte;
-    if (archivoArte) {
-      // Create a mock File-like object from the project design
-      const mockFile = {
-        name: archivoArte.name,
-        size: 0, // We don't have real size, will display from archivoArte.size string
-        sizeDisplay: archivoArte.size,
-        type: archivoArte.type || 'application/pdf',
-        url: archivoArte.url,
-        fromProject: true
-      };
-      setFile(mockFile);
+    const archivosArte = datos.archivosArte || (datos.archivoArte ? [datos.archivoArte] : []);
+    if (archivosArte.length > 0) {
+      if (archivosArte.length === 1) {
+        setFile({
+          name: archivosArte[0].name,
+          size: 0,
+          sizeDisplay: archivosArte[0].size,
+          type: archivosArte[0].type || 'application/pdf',
+          url: archivosArte[0].url,
+          fromProject: true
+        });
+      } else {
+        setFile({
+          name: `${archivosArte.length} archivos de diseño`,
+          isMultiple: true,
+          files: archivosArte.map(art => ({
+            name: art.name,
+            size: 0,
+            sizeDisplay: art.size,
+            type: art.type || 'application/pdf',
+            url: art.url,
+            fromProject: true
+          })),
+          fromProject: true
+        });
+      }
       setFileFromProject(true);
     } else {
       setFile(null);
@@ -181,7 +194,22 @@ export const ImpresionesPage = () => {
   // Handle file select
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const filesArray = Array.from(e.target.files);
+      if (filesArray.length === 1) {
+        setFile(filesArray[0]);
+      } else {
+        setFile({
+          name: `${filesArray.length} archivos locales`,
+          isMultiple: true,
+          files: filesArray.map(f => ({
+            name: f.name,
+            size: f.size,
+            type: f.type,
+            rawFile: f
+          })),
+          fromProject: false
+        });
+      }
       setFileFromProject(false);
     }
   };
@@ -200,7 +228,22 @@ export const ImpresionesPage = () => {
     setIsDragOver(false);
     if (fileFromProject) return; // Don't allow drop when file is from project
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFile(e.dataTransfer.files[0]);
+      const filesArray = Array.from(e.dataTransfer.files);
+      if (filesArray.length === 1) {
+        setFile(filesArray[0]);
+      } else {
+        setFile({
+          name: `${filesArray.length} archivos locales`,
+          isMultiple: true,
+          files: filesArray.map(f => ({
+            name: f.name,
+            size: f.size,
+            type: f.type,
+            rawFile: f
+          })),
+          fromProject: false
+        });
+      }
     }
   };
 
@@ -213,65 +256,75 @@ export const ImpresionesPage = () => {
   };
 
   // Submit print job
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) return;
 
-    // Create file blob URL for mock downloading (avoid storing huge base64 in print queue localStorage)
-    const fileUrl = file.fromProject ? null : URL.createObjectURL(file);
-
     const selectedProyecto = (proyectosState?.proyectos || []).find(p => p.id === selectedProyectoId);
-    const now = new Date();
-    const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const filesToSubmit = file.isMultiple ? file.files : [file];
 
-    const newJob = {
-      id: Date.now(),
-      name: file.name,
-      pages: pages,
-      copies: copies,
-      status: "En espera",
-      size: size,
-      format: format, // Sustrato
-      sentBy: sentBy || 'ISAM',
-      sentAt: sentAtFormatted,
-      sentToQueueAt: sentAtFormatted,
-      startedPrintingAt: null,
-      fileUrl: fileUrl,
-      client: client,
-      urgency: urgency,
-      finish: finish,
-      width: parseFloat(width) || 1.0,
-      height: parseFloat(height) || 1.0,
-      notes: notes.trim(),
-      proyectoId: selectedProyecto?.id || null,
-      proyectoNombre: selectedProyecto?.nombre || null
-    };
+    try {
+      for (let i = 0; i < filesToSubmit.length; i++) {
+        const currentFile = filesToSubmit[i];
+        const fileUrl = currentFile.fromProject 
+          ? currentFile.url 
+          : URL.createObjectURL(currentFile.rawFile || currentFile);
 
-    // Add to global context queue
-    addJobToQueue(newJob);
+        const now = new Date(Date.now() + i * 1000); // add unique offset to avoid exact timestamp collision
+        const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-    // Show toast
-    setSuccessJobName(file.name);
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-    }, 4000);
+        const newJob = {
+          id: Date.now() + i, // Unique ID for queue key/tracking
+          name: currentFile.name,
+          pages: pages,
+          copies: copies,
+          status: "En espera",
+          size: size,
+          format: format, // Sustrato
+          sentBy: sentBy || 'ISAM',
+          sentAt: sentAtFormatted,
+          sentToQueueAt: sentAtFormatted,
+          startedPrintingAt: null,
+          fileUrl: fileUrl,
+          client: client,
+          urgency: urgency,
+          finish: finish,
+          width: parseFloat(width) || 1.0,
+          height: parseFloat(height) || 1.0,
+          notes: notes.trim(),
+          proyectoId: selectedProyecto?.id || null,
+          proyectoNombre: selectedProyecto?.nombre || null
+        };
 
-    // Reset Form
-    setFile(null);
-    setFileFromProject(false);
-    setSelectedProyectoId('');
-    setProyectoSearch('');
-    setFormat('Papel Bond');
-    setSize('A4');
-    setClient('');
-    setUrgency('Media');
-    setFinish('Normal');
-    setCopies(1);
-    setPages(1);
-    setWidth('1.0');
-    setHeight('1.0');
-    setNotes('');
+        // Add to global context queue
+        await addJobToQueue(newJob);
+      }
+
+      // Show toast
+      setSuccessJobName(file.name);
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 4000);
+
+      // Reset Form
+      setFile(null);
+      setFileFromProject(false);
+      setSelectedProyectoId('');
+      setProyectoSearch('');
+      setFormat('Papel Bond');
+      setSize('A4');
+      setClient('');
+      setUrgency('Media');
+      setFinish('Normal');
+      setCopies(1);
+      setPages(1);
+      setWidth('1.0');
+      setHeight('1.0');
+      setNotes('');
+    } catch (err) {
+      console.error('[ImpresionesPage] Error submitting job:', err);
+    }
   };
 
   // Format file size
@@ -617,80 +670,66 @@ export const ImpresionesPage = () => {
 
               return (
                 <div className="form-field" style={{ marginBottom: '1rem' }}>
-                  <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a4.125 4.125 0 015.83 0l5.661 5.66m4.75-8.25l-5.159 5.159a4.125 4.125 0 01-5.83 0L2.25 9.75M3.75 20.25h16.5A1.5 1.5 0 0022 18.75V5.25A1.5 1.5 0 0020.25 3.75H3.75A1.5 1.5 0 002.25 5.25v13.5A1.5 1.5 0 003.75 20.25z" />
-                    </svg>
-                    <span>Seleccionar Diseño del Proyecto ({archivosArte.length})</span>
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.5rem', marginTop: '0.25rem' }}>
-                    {archivosArte.map((art, idx) => {
-                      const isSelected = file && file.fromProject && file.url === art.url;
-                      return (
-                        <button
-                          key={art.url || idx}
-                          type="button"
-                          onClick={() => {
-                            setFile({
-                              name: art.name,
-                              size: 0,
-                              sizeDisplay: art.size,
-                              type: art.type || 'application/pdf',
-                              url: art.url,
-                              fromProject: true
-                            });
-                            setFileFromProject(true);
-                          }}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '0.5rem',
-                            border: isSelected ? '2px solid #7c3aed' : '1px solid #cbd5e1',
-                            borderRadius: '8px',
-                            backgroundColor: isSelected ? '#f5f3ff' : 'white',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                            textAlign: 'center',
-                            gap: '0.25rem',
-                            position: 'relative'
-                          }}
-                          title={art.name}
-                        >
-                          <div style={{ width: '40px', height: '40px', borderRadius: '4px', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justify: 'center', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
-                            {art.type && art.type.includes('image') && art.url ? (
-                              <img src={art.url} alt="art preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '18px', height: '18px', color: '#64748b' }}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                              </svg>
-                            )}
-                          </div>
-                          <span style={{ fontSize: '0.65rem', fontWeight: 600, color: isSelected ? '#7c3aed' : '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>
-                            {art.name}
-                          </span>
-                          {isSelected && (
-                            <span style={{
-                              position: 'absolute',
-                              top: '-6px',
-                              right: '-6px',
-                              backgroundColor: '#7c3aed',
-                              color: 'white',
-                              borderRadius: '50%',
-                              width: '14px',
-                              height: '14px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '8px',
-                              fontWeight: 'bold',
-                              border: '1.5px solid white'
-                            }}>✓</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a4.125 4.125 0 015.83 0l5.661 5.66m4.75-8.25l-5.159 5.159a4.125 4.125 0 01-5.83 0L2.25 9.75M3.75 20.25h16.5A1.5 1.5 0 0022 18.75V5.25A1.5 1.5 0 0020.25 3.75H3.75A1.5 1.5 0 002.25 5.25v13.5A1.5 1.5 0 003.75 20.25z" />
+                      </svg>
+                      <span style={{ fontWeight: 700 }}>Archivos de Diseño Vinculados ({archivosArte.length})</span>
+                    </label>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#7c3aed', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                      Se enviarán todos automáticamente
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.5rem', marginTop: '0.35rem' }}>
+                    {archivosArte.map((art, idx) => (
+                      <div
+                        key={art.url || idx}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0.5rem',
+                          border: '1.5px solid #ddd6fe',
+                          borderRadius: '8px',
+                          backgroundColor: '#f5f3ff',
+                          gap: '0.25rem',
+                          position: 'relative',
+                          textAlign: 'center'
+                        }}
+                        title={art.name}
+                      >
+                        <div style={{ width: '40px', height: '40px', borderRadius: '4px', backgroundColor: 'white', display: 'flex', alignItems: 'center', justify: 'center', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                          {art.type && art.type.includes('image') && art.url ? (
+                            <img src={art.url} alt="art preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '18px', height: '18px', color: '#7c3aed' }}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
                           )}
-                        </button>
-                      );
-                    })}
+                        </div>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#7c3aed', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>
+                          {art.name}
+                        </span>
+                        <span style={{
+                          position: 'absolute',
+                          top: '-6px',
+                          right: '-6px',
+                          backgroundColor: '#7c3aed',
+                          color: 'white',
+                          borderRadius: '50%',
+                          width: '14px',
+                          height: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '8px',
+                          fontWeight: 'bold',
+                          border: '1.5px solid white'
+                        }}>✓</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
@@ -712,48 +751,64 @@ export const ImpresionesPage = () => {
                     id="file-input" 
                     onChange={handleFileChange} 
                     accept=".pdf,.png,.jpg,.jpeg,.ai,.eps" 
+                    multiple
                     style={{ display: 'none' }}
                   />
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" className="dropzone-icon">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
                   </svg>
-                  <span className="dropzone-text-primary">Arrastra tu archivo o haz clic para buscar</span>
-                  <span className="dropzone-text-secondary">PDF, AI, PNG, JPG, EPS (Máx. 50MB)</span>
+                  <span className="dropzone-text-primary">Arrastra tus archivos o haz clic para buscar</span>
+                  <span className="dropzone-text-secondary">PDF, AI, PNG, JPG, EPS (Cualquier tamaño)</span>
                 </div>
               ) : (
-                <div className={`selected-file-box ${fileFromProject ? 'from-project' : ''}`}>
-                  <div className="file-info-left">
-                    <div className="file-icon-badge">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ width: '22px', height: '22px', color: fileFromProject ? '#7c3aed' : '#1e3a8a' }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                      </svg>
-                    </div>
-                    <div className="file-meta">
-                      <span className="file-name" title={file.name}>{file.name}</span>
-                      <span className="file-size">
-                        {fileFromProject ? (
-                          <>{file.sizeDisplay || 'Archivo del proyecto'}</>
-                        ) : (
-                          formatFileSize(file.size)
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {fileFromProject && (
-                      <span className="file-from-project-badge">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.868-1.124a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.5 8.1" />
+                <div className={`selected-file-box ${fileFromProject ? 'from-project' : ''}`} style={{ flexDirection: 'column', gap: '0.75rem', alignItems: 'stretch', padding: '0.75rem' }}>
+                  <div style={{ display: 'flex', justify: 'space-between', alignItems: 'center' }}>
+                    <div className="file-info-left" style={{ overflow: 'hidden' }}>
+                      <div className="file-icon-badge">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ width: '22px', height: '22px', color: fileFromProject ? '#7c3aed' : '#1e3a8a' }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                         </svg>
-                        Desde Diseño
-                      </span>
-                    )}
-                    <button type="button" onClick={() => { setFile(null); setFileFromProject(false); }} className="btn-remove-file" title="Remover archivo">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px' }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                      </div>
+                      <div className="file-meta" style={{ overflow: 'hidden' }}>
+                        <span className="file-name" title={file.name} style={{ fontWeight: 'bold' }}>{file.name}</span>
+                        <span className="file-size">
+                          {file.isMultiple ? (
+                            <>Múltiples archivos listos para enviar</>
+                          ) : (
+                            fileFromProject ? <>{file.sizeDisplay || 'Archivo del proyecto'}</> : formatFileSize(file.size)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {fileFromProject && (
+                        <span className="file-from-project-badge">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.868-1.124a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.5 8.1" />
+                          </svg>
+                          Desde Diseño
+                        </span>
+                      )}
+                      <button type="button" onClick={() => { setFile(null); setFileFromProject(false); }} className="btn-remove-file" title="Remover archivos">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '16px', height: '16px' }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
+                  {/* If multiple, display the list of files */}
+                  {(file.isMultiple || file.files) && (
+                    <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.25rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.5rem' }}>
+                      {file.files.map((f, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.6rem', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.75rem' }}>
+                          <span style={{ fontWeight: 500, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '70%' }} title={f.name}>{f.name}</span>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                            {f.fromProject ? f.sizeDisplay || 'Diseño' : formatFileSize(f.size)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
