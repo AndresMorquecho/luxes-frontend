@@ -6,6 +6,7 @@ import { AlertTriangle, Eye, PenLine, Trash2 } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { calcularDiasDesde } from '../../domain/utils/proyectoDates.js';
+import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { FaseBadge } from './FaseBadge.jsx';
 import { ProgressBar } from './ProgressBar.jsx';
 
@@ -26,26 +27,19 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
 
   const diasTranscurridos = calcularDiasDesde(proyecto.fechaInicio || proyecto.fechaCreacion);
 
-  function getIniciales(nombre) {
-    return nombre
-      .split(' ')
-      .slice(0, 2)
-      .map((n) => n[0])
-      .join('');
-  }
-
   return (
     <tr
       className="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
     >
       {/* Indicador de color de fase + Proyecto */}
       <td className="pl-0 pr-4 py-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div
             className="w-1 h-12 rounded-full shrink-0"
             style={{ backgroundColor: faseConfig?.color || '#94a3b8' }}
           />
-          <div className="min-w-0">
+          <PersonInitialsAvatar name={proyecto.nombre} seed={proyecto.id} size="sm" />
+          <div className="min-w-0 flex-1">
             <button
               className="font-semibold text-slate-800 text-sm hover:text-blue-700 text-left line-clamp-1"
               onClick={() => navigate(`/proyectos/${proyecto.id}`)}
@@ -68,15 +62,9 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
 
       {/* Responsable */}
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-            style={{ backgroundColor: '#1e40af' }}
-            title={proyecto.responsable}
-          >
-            {getIniciales(proyecto.responsable)}
-          </div>
-          <span className="text-xs text-slate-700 truncate max-w-[100px]">{proyecto.responsable}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <PersonInitialsAvatar name={proyecto.responsable} seed={proyecto.responsable} size="xs" />
+          <span className="text-xs text-slate-700 truncate max-w-[100px] normal-case">{proyecto.responsable}</span>
         </div>
       </td>
 

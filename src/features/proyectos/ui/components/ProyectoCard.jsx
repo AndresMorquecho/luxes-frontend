@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Calendar, Trash2 } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
+import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { FaseBadge } from './FaseBadge.jsx';
 import { ProgressBar } from './ProgressBar.jsx';
 
@@ -22,14 +23,6 @@ export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
     proyecto.fechaEntregaEstimada &&
     proyecto.estado !== 'COMPLETADO' &&
     new Date(proyecto.fechaEntregaEstimada) < new Date();
-
-  function getIniciales(nombre) {
-    return nombre
-      .split(' ')
-      .slice(0, 2)
-      .map((n) => n[0])
-      .join('');
-  }
 
   return (
     <div
@@ -74,13 +67,7 @@ export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
         {/* Footer */}
         <div className="flex items-center justify-between mt-3">
           {/* Responsable */}
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-            style={{ backgroundColor: '#1e40af' }}
-            title={proyecto.responsable}
-          >
-            {getIniciales(proyecto.responsable)}
-          </div>
+          <PersonInitialsAvatar name={proyecto.responsable} seed={proyecto.responsable} size="xs" />
 
           {/* Fecha */}
           <div className={`flex items-center gap-1 text-xs ${estaVencido ? 'text-red-500' : 'text-slate-400'}`}>

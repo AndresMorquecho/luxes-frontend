@@ -1,27 +1,30 @@
 /**
- * Iniciales de una persona (máx. 2 letras): primera del nombre y del apellido.
- * Ej: "María Fernanda Torres" → "MT"
+ * Iniciales cortas (máx. 2 letras): primera del nombre y del apellido.
+ * Una sola palabra → solo la primera letra.
+ * Ej: "María Fernanda Torres" → "MT", "MONTE" → "M", "corriente continua" → "CC"
  */
 export function getPersonInitials(name = '', max = 2) {
-  const cleaned = String(name)
+  const limit = Math.min(Math.max(1, max), 2);
+  const cleaned = String(name || '')
     .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
   if (!cleaned) return '?';
 
-  const words = cleaned.split(/\s+/).filter((w) => /[a-zA-Z]/.test(w));
+  const words = cleaned.split(/\s+/).filter((w) => /[a-zA-Z]/i.test(w));
   if (words.length === 0) return '?';
 
+  const pick = (word) => word.replace(/[^a-zA-Z]/gi, '').charAt(0) || '';
+
+  let letters = '';
   if (words.length === 1) {
-    return words[0].replace(/[^a-zA-Z]/g, '').slice(0, max).toUpperCase();
+    letters = pick(words[0]);
+  } else {
+    letters = `${pick(words[0])}${pick(words[words.length - 1])}`;
   }
 
-  const first = words[0].replace(/[^a-zA-Z]/g, '')[0] || '';
-  const last = words[words.length - 1].replace(/[^a-zA-Z]/g, '')[0] || '';
-  const initials = `${first}${last}`.slice(0, max).toUpperCase();
-
-  return initials || '?';
+  return letters.slice(0, limit).toUpperCase() || '?';
 }
 
 export const AVATAR_PALETTES = [
