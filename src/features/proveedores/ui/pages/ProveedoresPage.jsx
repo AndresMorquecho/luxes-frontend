@@ -60,9 +60,9 @@ export const ProveedoresPage = () => {
         }
         return [...prev, saved];
       });
-      setFormOpen(false);
+      deferClose(() => setFormOpen(false));
     } finally {
-      setSaving(false);
+      deferClose(() => setSaving(false));
     }
   };
 
@@ -323,10 +323,8 @@ export const ProveedoresPage = () => {
         )}
       </div>
 
-      {/* Modal */}
-      {formOpen && (
-        <ModalPortal>
-        <>
+      <ModalPortal open={formOpen}>
+        <div className="pr-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)', animation: 'overlay-in 0.2s ease' }}
             onClick={() => deferClose(() => setFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
@@ -334,7 +332,7 @@ export const ProveedoresPage = () => {
               style={{ boxShadow: '0 25px 60px rgba(15,23,42,0.15), 0 1px 4px rgba(0,0,0,0.04)' }}>
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}</h2>
-                <button type="button" onClick={() => setFormOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setFormOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -382,9 +380,12 @@ export const ProveedoresPage = () => {
                     <textarea name="notas" value={form.notas} onChange={handleChange} rows={2} placeholder="Información adicional…" className="pr-input resize-none" />
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setFormOpen(false)} className="pr-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setFormOpen(false))} className="pr-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="pr-btn-primary">
-                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!saving}
+                      />
                       {editing ? 'Guardar cambios' : 'Registrar Proveedor'}
                     </button>
                   </div>
@@ -392,9 +393,8 @@ export const ProveedoresPage = () => {
               </div>
             </div>
           </div>
-        </>
-        </ModalPortal>
-      )}
+        </div>
+      </ModalPortal>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 // Service Worker for Luxes PWA
 
-const CACHE_NAME = 'luxes-static-cache-v2';
+const CACHE_NAME = 'luxes-static-cache-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -78,6 +78,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // SPA client routes (e.g. /clientes): always serve index.html
+  const isSpaRoute =
+    !url.pathname.startsWith('/api/') &&
+    !url.pathname.includes('.') &&
+    url.pathname !== '/';
+
+  if (isSpaRoute) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => (response.ok ? response : caches.match('/index.html')))
+        .catch(() => caches.match('/index.html'))
+        .then((response) => response || new Response('Offline', { status: 503 }))
+    );
+    return;
+  }
+
   // Other static assets: stale-while-revalidate
   event.respondWith(
     caches.match(event.request).then((cached) => {
@@ -91,7 +107,9 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => cached);
 
-      return cached || networkFetch;
+      return (cached || networkFetch).then(
+        (response) => response || caches.match('/index.html')
+      );
     })
   );
 });

@@ -162,14 +162,14 @@ export const UsuariosPage = () => {
         setUsers(prev => [created, ...prev]);
         toast.success('Usuario creado correctamente');
       }
-      setSaving(false);
+      deferClose(() => setSaving(false));
       deferClose(() => setUserModalOpen(false));
       deferClose(async () => {
         const updatedLogs = await getAuditLogs();
         setAuditLogs(updatedLogs);
       });
     } catch (err) {
-      setSaving(false);
+      deferClose(() => setSaving(false));
       toast.error(err instanceof Error ? err.message : 'Error al guardar el usuario');
     }
   };
