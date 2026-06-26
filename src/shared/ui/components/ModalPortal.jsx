@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 function getOrCreateRoot(id) {
@@ -22,42 +22,34 @@ export function getOverlayRoot() {
 }
 
 /**
- * Cada instancia de portal usa su propio nodo DOM dentro de modal-root/overlay-root.
- * Evita NotFoundError insertBefore cuando varios modales comparten el mismo padre (React 19).
+ * Contenedor de portal estable por instancia, adjunto a document.body.
+ * Sin removeChild sincrónico — evita NotFoundError insertBefore en React 19.
  */
-function useIsolatedPortalContainer(parentGetter) {
-  const [container] = useState(() => {
-    if (typeof document === 'undefined') return null;
-    const parent = parentGetter();
-    if (!parent) return null;
+function usePortalContainer() {
+  const ref = useRef(null);
+
+  if (typeof document !== 'undefined' && !ref.current) {
     const el = document.createElement('div');
     el.setAttribute('data-portal-layer', '');
-    parent.appendChild(el);
-    return el;
-  });
+    document.body.appendChild(el);
+    ref.current = el;
+  }
 
-  useEffect(() => () => {
-    if (container?.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-  }, [container]);
-
-  return container;
+  return ref.current;
 }
 
 export function ModalPortal({ children }) {
-  const container = useIsolatedPortalContainer(getModalRoot);
+  const container = usePortalContainer();
   if (!container || children == null || children === false) return null;
   return createPortal(children, container);
 }
 
 export function OverlayPortal({ children }) {
-  const container = useIsolatedPortalContainer(getOverlayRoot);
+  const container = usePortalContainer();
   if (!container || children == null || children === false) return null;
   return createPortal(children, container);
 }
 
-/** Retraso de desmontaje para animar cierre sin romper el árbol de portales */
 export function useModalVisibility(isOpen) {
   const [visible, setVisible] = useState(false);
 
@@ -76,8 +68,7 @@ export function useModalVisibility(isOpen) {
 }
 
 /**
- * Diferir cierre/navegación hasta después del commit de React.
- * Evita pantalla en blanco por insertBefore al desmontar portales.
+ * Diferir cierre/navegación/toasts hasta después del commit de React.
  */
 export function deferClose(callback) {
   if (typeof callback !== 'function') return;

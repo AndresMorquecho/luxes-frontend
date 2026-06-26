@@ -164,14 +164,16 @@ export const UsuariosPage = () => {
         setUsers(prev => [created, ...prev]);
         toast.success('Usuario creado correctamente');
       }
-      setUserModalOpen(false);
+      deferClose(() => setUserModalOpen(false));
       // Reload logs to show audit record
-      const updatedLogs = await getAuditLogs();
-      setAuditLogs(updatedLogs);
+      deferClose(async () => {
+        const updatedLogs = await getAuditLogs();
+        setAuditLogs(updatedLogs);
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al guardar el usuario');
     } finally {
-      setSaving(false);
+      deferClose(() => setSaving(false));
     }
   };
 
@@ -203,14 +205,16 @@ export const UsuariosPage = () => {
     setSaving(true);
     try {
       await cambiarUsuarioPassword(passwordUser.id, newPassword);
-      setPasswordModalOpen(false);
+      deferClose(() => setPasswordModalOpen(false));
       toast.success('Contraseña actualizada correctamente');
-      const updatedLogs = await getAuditLogs();
-      setAuditLogs(updatedLogs);
+      deferClose(async () => {
+        const updatedLogs = await getAuditLogs();
+        setAuditLogs(updatedLogs);
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al actualizar contraseña');
     } finally {
-      setSaving(false);
+      deferClose(() => setSaving(false));
     }
   };
 
@@ -266,13 +270,15 @@ export const UsuariosPage = () => {
         setRoles(prev => [...prev, created]);
         toast.success('Rol creado correctamente');
       }
-      setRoleModalOpen(false);
-      const updatedLogs = await getAuditLogs();
-      setAuditLogs(updatedLogs);
+      deferClose(() => setRoleModalOpen(false));
+      deferClose(async () => {
+        const updatedLogs = await getAuditLogs();
+        setAuditLogs(updatedLogs);
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al guardar el rol');
     } finally {
-      setSaving(false);
+      deferClose(() => setSaving(false));
     }
   };
 
@@ -1053,13 +1059,13 @@ export const UsuariosPage = () => {
       {/* --- MODAL CREAR/EDITAR USUARIO --- */}
       {userModalOpen && (
         <ModalPortal>
-        <>
-          <div className="us-modal-overlay" onClick={() => setUserModalOpen(false)} />
+        <div className="us-modal-portal-root">
+          <div className="us-modal-overlay" onClick={() => deferClose(() => setUserModalOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-us-modal-in max-h-[95vh] flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
-                <button type="button" onClick={() => setUserModalOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setUserModalOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1208,9 +1214,9 @@ export const UsuariosPage = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" onClick={() => setUserModalOpen(false)} className="us-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setUserModalOpen(false))} className="us-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="us-btn-primary-purple">
-                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1.5" />}
+                      {saving && <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1.5" />}
                       {editingUser ? 'Guardar cambios' : 'Crear Usuario'}
                     </button>
                   </div>
@@ -1218,21 +1224,21 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>
+        </div>
         </ModalPortal>
       )}
 
       {/* --- MODAL CAMBIAR CONTRASEÑA --- */}
       {passwordModalOpen && (
         <ModalPortal>
-        <>
+        <div className="us-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
-            onClick={() => setPasswordModalOpen(false)} />
+            onClick={() => deferClose(() => setPasswordModalOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl animate-us-modal-in flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                 <h2 className="text-sm font-bold text-slate-800">Cambiar Contraseña</h2>
-                <button type="button" onClick={() => setPasswordModalOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setPasswordModalOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1281,7 +1287,7 @@ export const UsuariosPage = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => setPasswordModalOpen(false)} className="us-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setPasswordModalOpen(false))} className="us-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="us-btn-primary-purple">
                       Actualizar
                     </button>
@@ -1290,21 +1296,21 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>
+        </div>
         </ModalPortal>
       )}
 
       {/* --- MODAL CREAR/EDITAR ROL --- */}
       {roleModalOpen && (
         <ModalPortal>
-        <>
+        <div className="us-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
-            onClick={() => setRoleModalOpen(false)} />
+            onClick={() => deferClose(() => setRoleModalOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-us-modal-in max-h-[90vh] flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editingRole ? 'Editar Rol' : 'Nuevo Rol'}</h2>
-                <button type="button" onClick={() => setRoleModalOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setRoleModalOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1359,9 +1365,9 @@ export const UsuariosPage = () => {
                   </div>
 
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 shrink-0">
-                    <button type="button" onClick={() => setRoleModalOpen(false)} className="us-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setRoleModalOpen(false))} className="us-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="us-btn-primary-purple">
-                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
+                      {saving && <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
                       {editingRole ? 'Guardar cambios' : 'Crear Rol'}
                     </button>
                   </div>
@@ -1369,7 +1375,7 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>
+        </div>
         </ModalPortal>
       )}
     </div>

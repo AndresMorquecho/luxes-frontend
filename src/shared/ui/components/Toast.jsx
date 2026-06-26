@@ -6,9 +6,11 @@ const toastListeners = new Set();
 
 export const toast = {
   show(message, type = 'info', duration = 4000) {
-    const id = Math.random().toString(36).substring(2, 9);
-    const newToast = { id, message, type, duration };
-    toastListeners.forEach((listener) => listener((prev) => [...prev, newToast]));
+    deferClose(() => {
+      const id = Math.random().toString(36).substring(2, 9);
+      const newToast = { id, message, type, duration };
+      toastListeners.forEach((listener) => listener((prev) => [...prev, newToast]));
+    });
   },
   success(message, duration) {
     this.show(message, 'success', duration);
