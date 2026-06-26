@@ -153,17 +153,23 @@ export const UsuariosPage = () => {
         rol: selectedRoleObj?.name || userForm.rol
       };
 
+      const successMessage = editingUser
+        ? 'Usuario actualizado correctamente'
+        : 'Usuario creado correctamente';
+
       if (editingUser) {
         const updated = await updateUsuario(editingUser.id, payload);
         setUsers(prev => prev.map(u => (u.id === editingUser.id ? updated : u)));
-        toast.success('Usuario actualizado correctamente');
       } else {
         const created = await createUsuario(payload);
         setUsers(prev => [created, ...prev]);
-        toast.success('Usuario creado correctamente');
       }
-      deferClose(() => setSaving(false));
-      deferClose(() => setUserModalOpen(false));
+
+      deferClose(() => {
+        setUserModalOpen(false);
+        setSaving(false);
+        toast.success(successMessage);
+      });
       deferClose(async () => {
         const updatedLogs = await getAuditLogs();
         setAuditLogs(updatedLogs);
@@ -227,7 +233,7 @@ export const UsuariosPage = () => {
       setUsers(prev => prev.filter(u => u.id !== id));
       const updatedLogs = await getAuditLogs();
       setAuditLogs(updatedLogs);
-      toast.success('Usuario eliminado correctamente');
+      deferClose(() => toast.success('Usuario eliminado correctamente'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar usuario');
     }

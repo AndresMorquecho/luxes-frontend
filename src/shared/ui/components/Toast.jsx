@@ -1,60 +1,53 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
+import { toastStore, toast } from './toastStore.js';
 import './Toast.css';
 
-const toastListeners = new Set();
+export { toast };
 
-export const toast = {
-  show(message, type = 'info', duration = 4000) {
-    const id = Math.random().toString(36).substring(2, 9);
-    const newToast = { id, message, type, duration };
-    toastListeners.forEach((listener) => listener((prev) => [...prev, newToast]));
-  },
-  success(message, duration) {
-    this.show(message, 'success', duration);
-  },
-  error(message, duration) {
-    this.show(message, 'error', duration);
-  },
-  info(message, duration) {
-    this.show(message, 'info', duration);
-  },
-  warning(message, duration) {
-    this.show(message, 'warning', duration);
-  },
-};
+function getToastRoot() {
+  if (typeof document === 'undefined') return null;
+  let root = document.getElementById('toast-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'toast-root';
+    document.body.appendChild(root);
+  }
+  return root;
+}
 
 export const ToastContainer = () => {
-  const [toasts, setToasts] = useState([]);
-
-  useEffect(() => {
-    const listener = (updateFn) => setToasts(updateFn);
-    toastListeners.add(listener);
-    return () => {
-      toastListeners.delete(listener);
-    };
-  }, []);
+  const toasts = useSyncExternalStore(
+    toastStore.subscribe,
+    toastStore.getSnapshot,
+    () => []
+  );
 
   const removeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    toastStore.remove(id);
   }, []);
 
-  return (
+  const root = getToastRoot();
+  if (!root) return null;
+
+  return createPortal(
     <div className="toast-container-root" aria-live="polite" aria-atomic="false">
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} onClose={() => removeToast(t.id)} />
       ))}
-    </div>
+    </div>,
+    root
   );
 };
 
-const ToastItem = ({ toast, onClose }) => {
+const ToastItem = ({ toast: item, onClose }) => {
   useEffect(() => {
-    const timer = window.setTimeout(onClose, toast.duration);
+    const timer = window.setTimeout(onClose, item.duration);
     return () => window.clearTimeout(timer);
-  }, [toast.duration, onClose]);
+  }, [item.duration, onClose]);
 
   const getIcon = () => {
-    switch (toast.type) {
+    switch (item.type) {
       case 'success':
         return (
           <svg className="toast-icon text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -83,10 +76,10 @@ const ToastItem = ({ toast, onClose }) => {
   };
 
   return (
-    <div className={`toast-item-root toast-type-${toast.type} animate-toast-in`}>
+    <div className={`toast-item-root toast-type-${item.type} animate-toast-in`}>
       <span className="toast-icon-wrapper">{getIcon()}</span>
-      <div className="toast-message-content">{toast.message}</div>
-      <button className="toast-close-btn" type="button" onClick={onClose}>
+      <div className="toast-message-content">{item.message}</div>
+      <button className="toast-close-btn" type="button" onClick={onClose} aria-label="Cerrar">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
