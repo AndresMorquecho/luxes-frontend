@@ -17,7 +17,7 @@ import {
 
 const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
-const EMPTY_VEHICULO_FORM = { placa: '', marca: '', modelo: '', anio: '', color: '', kilometraje: 0, responsable: '', notas: '', estado: 'activo' };
+const EMPTY_VEHICULO_FORM = { placa: '', marca: '', modelo: '', anio: '', color: '', kilometraje: '', responsable: '', notas: '', estado: 'activo' };
 
 const EMPTY_MAINT_FORM = { tipo: 'Cambio de Aceite', descripcion: '', fechaRealizado: new Date().toISOString().split('T')[0], fechaProxima: '', kilometraje: '', kmProximo: '', monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
@@ -492,9 +492,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       placa: v.placa,
       marca: v.marca,
       modelo: v.modelo,
-      anio: v.anio || '',
+      anio: v.anio != null && v.anio !== '' ? String(v.anio) : '',
       color: v.color || '',
-      kilometraje: v.kilometraje || 0,
+      kilometraje: v.kilometraje != null && v.kilometraje !== '' ? String(v.kilometraje) : '',
       responsable: v.responsable || '',
       notas: v.notas || '',
       estado: v.estado || 'activo',
@@ -503,15 +503,21 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleVehiculoChange = (e) => {
-    const val = e.target.type === 'number' ? parseInt(e.target.value, 10) || 0 : e.target.value;
-    setVehiculoForm(prev => ({ ...prev, [e.target.name]: val }));
+    const { name, value } = e.target;
+    setVehiculoForm(prev => ({ ...prev, [name]: value }));
   };
+
+  const buildVehiculoPayload = (form) => ({
+    ...form,
+    anio: form.anio === '' ? '' : parseInt(String(form.anio), 10) || '',
+    kilometraje: form.kilometraje === '' ? 0 : parseInt(String(form.kilometraje), 10) || 0,
+  });
 
   const handleSaveVehiculo = async (e) => {
     e.preventDefault();
     setSavingVehiculo(true);
     try {
-      await saveVehiculo(vehiculoForm);
+      await saveVehiculo(buildVehiculoPayload(vehiculoForm));
       toast.success(editingVehiculo ? 'Vehículo actualizado correctamente' : 'Vehículo registrado con éxito');
       deferClose(() => {
         setVehiculoFormOpen(false);
@@ -1810,7 +1816,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Año</label>
-                      <input name="anio" type="number" value={vehiculoForm.anio} onChange={handleVehiculoChange} placeholder="Ej. 2022" className="ga-input" />
+                      <input name="anio" type="number" min="0" step="1" inputMode="numeric" value={vehiculoForm.anio} onChange={handleVehiculoChange} placeholder="Ej. 2022" className="ga-input" />
                     </div>
                     <div>
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Color</label>
@@ -1818,7 +1824,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     </div>
                     <div>
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Kilometraje Actual</label>
-                      <input name="kilometraje" type="number" value={vehiculoForm.kilometraje} onChange={handleVehiculoChange} required className="ga-input" />
+                      <input name="kilometraje" type="number" min="0" step="1" inputMode="numeric" value={vehiculoForm.kilometraje} onChange={handleVehiculoChange} required placeholder="Ej. 45000" className="ga-input" />
                     </div>
                   </div>
                   <div>

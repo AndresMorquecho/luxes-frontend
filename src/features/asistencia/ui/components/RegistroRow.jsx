@@ -52,6 +52,8 @@ const MapaBoton = ({ row }) => {
 
 export const RegistroRow = ({ row }) => {
   const completados = [row.entrada, row.inicioAlmuerzo, row.finAlmuerzo, row.salida].filter(Boolean).length;
+  const sinAlmuerzo = row.entrada && row.salida && !row.inicioAlmuerzo && !row.finAlmuerzo;
+  const diaCompleto = Boolean(row.salida) || row.tipo === 'PERMISO';
   const tarde = isLate(row.entrada?.fechaHora);
   const total = calcTotalHours(row);
 
@@ -124,12 +126,12 @@ export const RegistroRow = ({ row }) => {
             </svg>
             Atrasado {formatTime(row.entrada.fechaHora)}
           </span>
-        ) : completados === 4 ? (
+        ) : diaCompleto ? (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
             </svg>
-            Completo
+            Completo{sinAlmuerzo ? ' (sin alm.)' : ''}
           </span>
         ) : completados > 0 ? (
           <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">

@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getAsistencias, registrarAsistencia, getTodayMarcaciones, registrarPermiso } from '../../application/asistenciaService';
+import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso } from '../../application/asistenciaService';
+import { isDiaLaboralCompleto } from '../../helpers/asistenciaHelpers';
+import { MarcacionesTimeline } from '../components/MarcacionesTimeline';
 import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -182,6 +184,7 @@ const KioskView = () => {
   const [isProcessingScan, setIsProcessingScan] = useState(false);
   const [scanError, setScanError] = useState(null);
   const [lastScan, setLastScan] = useState(null);
+  const [pendingScan, setPendingScan] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicacionError, setUbicacionError] = useState(null);
@@ -208,28 +211,31 @@ const KioskView = () => {
     }
   }, [isCameraActive]);
 
-  const handleKioskScan = async (result) => {
-    if (!result || result.length === 0 || isProcessingScan) return;
-    const empleadoId = result[0].rawValue;
+  const resolveUbicacion = async () => {
+    let ubicacionFinal = ubicacion;
+    if (!ubicacionFinal && navigator.geolocation) {
+      ubicacionFinal = await new Promise((resolve) =>
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 3000 }
+        )
+      );
+    }
+    return ubicacionFinal || { lat: -2.19616, lng: -79.88621 };
+  };
+
+  const ejecutarRegistroKiosk = async (empleadoId, omitirAlmuerzo = false) => {
     setIsProcessingScan(true);
     setScanError(null);
+    setPendingScan(null);
 
     try {
-      let ubicacionFinal = ubicacion;
-      if (!ubicacionFinal && navigator.geolocation) {
-        ubicacionFinal = await new Promise((resolve) =>
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => resolve(null),
-            { enableHighAccuracy: true, timeout: 3000 }
-          )
-        );
-      }
-      if (!ubicacionFinal) ubicacionFinal = { lat: -2.19616, lng: -79.88621 }; // Fallback predeterminado
-
+      const ubicacionFinal = await resolveUbicacion();
       const registro = await registrarAsistencia({
         empleadoId: empleadoId.trim(),
         ubicacion: ubicacionFinal,
+        omitirAlmuerzo,
       });
 
       const marcaciones = await getTodayMarcaciones(empleadoId.trim());
@@ -245,22 +251,51 @@ const KioskView = () => {
         lapsos,
       });
 
-      // Cerrar la cámara tras escanear exitosamente
       setIsCameraActive(false);
-
-      // Limpiar el aviso de confirmación automáticamente tras 4 segundos
-      setTimeout(() => {
-        setLastScan(null);
-      }, 4000);
-
+      setTimeout(() => setLastScan(null), 8000);
     } catch (err) {
       console.error(err);
       setScanError(err.message || 'Error al procesar el código QR.');
       setIsCameraActive(false);
-      setTimeout(() => {
-        setScanError(null);
-      }, 4000);
+      setTimeout(() => setScanError(null), 5000);
     } finally {
+      setIsProcessingScan(false);
+    }
+  };
+
+  const handleKioskScan = async (result) => {
+    if (!result || result.length === 0 || isProcessingScan || pendingScan) return;
+    const empleadoId = result[0].rawValue.trim();
+    setIsProcessingScan(true);
+    setScanError(null);
+
+    try {
+      const [marcaciones, proxima] = await Promise.all([
+        getTodayMarcaciones(empleadoId),
+        getProximaMarcacion(empleadoId),
+      ]);
+
+      if (proxima.completado || isDiaLaboralCompleto(marcaciones)) {
+        throw new Error('El colaborador ya completó las marcaciones del día.');
+      }
+
+      if (proxima.permiteOmitirAlmuerzo) {
+        const hora = new Date().getHours();
+        if (hora >= 14) {
+          await ejecutarRegistroKiosk(empleadoId, false);
+          return;
+        }
+        setPendingScan({ empleadoId, marcaciones, proxima });
+        setIsProcessingScan(false);
+        return;
+      }
+
+      await ejecutarRegistroKiosk(empleadoId, false);
+    } catch (err) {
+      console.error(err);
+      setScanError(err.message || 'Error al procesar el código QR.');
+      setIsCameraActive(false);
+      setTimeout(() => setScanError(null), 5000);
       setIsProcessingScan(false);
     }
   };
@@ -392,8 +427,8 @@ const KioskView = () => {
           </div>
         )}
 
-        {(lastScan || scanError) && (
-          <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-[100] animate-fade-in">
+        {(lastScan || scanError || pendingScan) && (
+          <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-[100] animate-fade-in overflow-y-auto">
             {scanError ? (
               <div className="space-y-4">
                 <div className="w-20 h-20 rounded-full bg-red-950/50 border border-red-500/50 flex items-center justify-center mx-auto shadow-lg shadow-red-500/10">
@@ -406,8 +441,41 @@ const KioskView = () => {
                   <p className="text-sm text-slate-400 mt-2 max-w-xs leading-relaxed">{scanError}</p>
                 </div>
               </div>
+            ) : pendingScan ? (
+              <div className="space-y-5 w-full max-w-sm">
+                <div>
+                  <h3 className="text-xl font-black text-white">¿Qué deseas registrar?</h3>
+                  <p className="text-xs text-slate-400 mt-2">ID: {pendingScan.empleadoId}</p>
+                </div>
+                <MarcacionesTimeline marcaciones={pendingScan.marcaciones} compact />
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    disabled={isProcessingScan}
+                    onClick={() => ejecutarRegistroKiosk(pendingScan.empleadoId, false)}
+                    className="w-full py-3.5 rounded-2xl bg-amber-950/60 border border-amber-500/40 text-amber-300 font-extrabold text-sm hover:bg-amber-950/80 transition-colors"
+                  >
+                    Inicio almuerzo
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessingScan}
+                    onClick={() => ejecutarRegistroKiosk(pendingScan.empleadoId, true)}
+                    className="w-full py-3.5 rounded-2xl bg-indigo-600 text-white font-extrabold text-sm hover:bg-indigo-500 transition-colors"
+                  >
+                    Salida sin almuerzo / horas extras
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPendingScan(null); setIsCameraActive(true); }}
+                    className="w-full py-2 text-xs text-slate-500 hover:text-slate-300"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-5 w-full max-w-sm">
                 <div className={`w-20 h-20 rounded-full border flex items-center justify-center mx-auto shadow-lg ${toastDetails.iconBg}`}>
                   <svg className={`w-10 h-10 ${toastDetails.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -428,6 +496,24 @@ const KioskView = () => {
                     Hora: {new Date(lastScan.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </p>
                 </div>
+                <div className="w-full">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Marcaciones del día</p>
+                  <MarcacionesTimeline marcaciones={lastScan.marcaciones} highlightTipo={lastScan.tipo} compact />
+                </div>
+                {(lastScan.lapsos?.trabajo !== '—' || lastScan.lapsos?.almuerzo !== '—') && (
+                  <div className="flex gap-3 justify-center text-xs">
+                    {lastScan.lapsos.trabajo !== '—' && (
+                      <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
+                        Trabajo: <span className="font-bold text-white">{lastScan.lapsos.trabajo}</span>
+                      </span>
+                    )}
+                    {lastScan.lapsos.almuerzo !== '—' && (
+                      <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
+                        Almuerzo: <span className="font-bold text-white">{lastScan.lapsos.almuerzo}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -44,12 +44,12 @@ export const getProximaMarcacion = async (empleadoId) => {
   );
 };
 
-export const registrarAsistencia = async ({ empleadoId, ubicacion }) => {
+export const registrarAsistencia = async ({ empleadoId, ubicacion, omitirAlmuerzo = false }) => {
   return parseResponse(
     await fetch('/api/asistencias/registrar', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ empleadoId, ubicacion }),
+      body: JSON.stringify({ empleadoId, ubicacion, omitirAlmuerzo }),
     })
   );
 };

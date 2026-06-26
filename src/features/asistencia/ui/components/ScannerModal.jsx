@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ModalPortal, deferClose, useModalVisibility } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { Scanner } from '@yudiel/react-qr-scanner';
-import { registrarAsistencia, getProximaMarcacion } from '../../application/asistenciaService';
-import { SECUENCIA_MARCACIONES } from '../../helpers/asistenciaHelpers';
+import { registrarAsistencia, getProximaMarcacion, getTodayMarcaciones } from '../../application/asistenciaService';
+import { isDiaLaboralCompleto } from '../../helpers/asistenciaHelpers';
 import { StepIndicator } from './scanner/StepIndicator';
+import { MarcacionesTimeline } from './MarcacionesTimeline';
 
 const STEP_COLORS = {
   ENTRADA:         { ring: 'ring-blue-400' },
@@ -17,13 +18,17 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
   const [ubicacionError, setUbicacionError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState(null);
-  const [proximaMarcacion, setProximaMarcacion] = useState(undefined);
+  const [proximaInfo, setProximaInfo] = useState(null);
+  const [marcacionesHoy, setMarcacionesHoy] = useState([]);
+  const [pendingScan, setPendingScan] = useState(null);
 
   useEffect(() => {
     if (!isOpen) {
       setMessage(null);
       setIsProcessing(false);
-      setProximaMarcacion(undefined);
+      setProximaInfo(null);
+      setMarcacionesHoy([]);
+      setPendingScan(null);
       return;
     }
     if ('geolocation' in navigator) {
@@ -37,50 +42,96 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
     }
   }, [isOpen]);
 
-  const handleScan = async (result) => {
-    if (!result || result.length === 0 || isProcessing) return;
+  const resolveUbicacion = async () => {
+    let ubicacionFinal = ubicacion;
+    if (!ubicacionFinal && navigator.geolocation) {
+      ubicacionFinal = await new Promise((resolve) =>
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 3000 }
+        )
+      );
+    }
+    return ubicacionFinal || { lat: -2.19616, lng: -79.88621 };
+  };
 
-    const empleadoId = result[0].rawValue;
+  const ejecutarRegistro = async (empleadoId, omitirAlmuerzo = false) => {
     setIsProcessing(true);
-
     try {
-      let ubicacionFinal = ubicacion;
-      if (!ubicacionFinal && navigator.geolocation) {
-        ubicacionFinal = await new Promise((resolve) =>
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => resolve(null),
-            { enableHighAccuracy: true, timeout: 3000 }
-          )
-        );
-      }
-      if (!ubicacionFinal) ubicacionFinal = { lat: -2.19616, lng: -79.88621 };
-
-      const registro = await registrarAsistencia({ empleadoId, ubicacion: ubicacionFinal });
-
+      const ubicacionFinal = await resolveUbicacion();
+      const registro = await registrarAsistencia({ empleadoId, ubicacion: ubicacionFinal, omitirAlmuerzo });
+      const marcaciones = await getTodayMarcaciones(empleadoId);
       const proxima = await getProximaMarcacion(empleadoId);
-      setProximaMarcacion(proxima);
 
-      setMessage({ type: 'success', text: `${registro.label} registrado — ${empleadoId}` });
+      setMarcacionesHoy(marcaciones);
+      setProximaInfo(proxima);
+      setPendingScan(null);
+      setMessage({ type: 'success', text: `${registro.label} registrado — ${empleadoId}`, tipo: registro.tipo });
 
       setTimeout(() => {
         onSuccess?.();
         onClose();
-      }, 2000);
+      }, 2500);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Error al registrar.' });
+      setPendingScan(null);
+      setTimeout(() => {
+        setIsProcessing(false);
+        setMessage(null);
+      }, 3000);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
+  const handleScan = async (result) => {
+    if (!result || result.length === 0 || isProcessing || pendingScan) return;
+
+    const empleadoId = result[0].rawValue.trim();
+    setIsProcessing(true);
+    setMessage(null);
+
+    try {
+      const [marcaciones, proxima] = await Promise.all([
+        getTodayMarcaciones(empleadoId),
+        getProximaMarcacion(empleadoId),
+      ]);
+
+      setMarcacionesHoy(marcaciones);
+      setProximaInfo(proxima);
+
+      if (proxima.completado || isDiaLaboralCompleto(marcaciones)) {
+        throw new Error('El colaborador ya completó las marcaciones del día.');
+      }
+
+      if (proxima.permiteOmitirAlmuerzo) {
+        const hora = new Date().getHours();
+        if (hora >= 14) {
+          await ejecutarRegistro(empleadoId, false);
+          return;
+        }
+        setPendingScan({ empleadoId, proxima });
+        setIsProcessing(false);
+        return;
+      }
+
+      await ejecutarRegistro(empleadoId, false);
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Error al registrar.' });
       setTimeout(() => {
         setIsProcessing(false);
         setMessage(null);
       }, 3000);
+      setIsProcessing(false);
     }
   };
 
-  const tipoActivo = proximaMarcacion?.tipo ?? 'ENTRADA';
-  const colActivo = STEP_COLORS[tipoActivo];
-  const indexActual = SECUENCIA_MARCACIONES.findIndex(m => m.tipo === tipoActivo);
-  const completadosCount = indexActual;
+  const tipoActivo = proximaInfo?.proxima?.tipo ?? pendingScan?.proxima?.proxima?.tipo ?? 'ENTRADA';
+  const colActivo = STEP_COLORS[tipoActivo] ?? STEP_COLORS.ENTRADA;
+  const marcacionesCount = proximaInfo?.marcacionesRegistradas ?? marcacionesHoy.filter((m) =>
+    ['ENTRADA', 'INICIO_ALMUERZO', 'FIN_ALMUERZO', 'SALIDA'].includes(m.tipo)
+  ).length;
 
   const visible = useModalVisibility(isOpen);
 
@@ -116,13 +167,26 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
           <p className="text-[10px] sm:text-xs text-gray-400 mt-1 font-medium">Apunta al código QR de tu credencial</p>
         </div>
 
-        <StepIndicator proximaTipo={tipoActivo} />
+        <StepIndicator proximaTipo={tipoActivo} marcaciones={marcacionesHoy} />
+
+        {marcacionesHoy.length > 0 && (
+          <div className="mb-4">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Marcaciones de hoy</p>
+            <MarcacionesTimeline marcaciones={marcacionesHoy} highlightTipo={message?.tipo} theme="light" compact />
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mb-5 sm:mb-6">
-          <span className="text-[10px] sm:text-xs font-semibold text-gray-400">{completadosCount}/4 marcaciones</span>
+          <span className="text-[10px] sm:text-xs font-semibold text-gray-400">{marcacionesCount}/4 marcaciones</span>
           <span className="w-1 h-1 rounded-full bg-gray-300" />
-          <span className={`text-[10px] sm:text-xs font-bold ${proximaMarcacion ? 'text-blue-600' : 'text-gray-400'}`}>
-            {proximaMarcacion ? `Siguiente: ${proximaMarcacion.label}` : 'Completado'}
+          <span className={`text-[10px] sm:text-xs font-bold ${proximaInfo?.proxima || pendingScan ? 'text-blue-600' : 'text-gray-400'}`}>
+            {pendingScan
+              ? 'Elige tipo de marcación'
+              : proximaInfo?.proxima
+                ? `Siguiente: ${proximaInfo.proxima.label}`
+                : proximaInfo?.completado
+                  ? 'Completado'
+                  : 'Listo para escanear'}
           </span>
           {ubicacionError && (
             <>
@@ -132,38 +196,69 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
           )}
         </div>
 
-        <div
-          className={`relative rounded-xl sm:rounded-2xl overflow-hidden ring-2 ${colActivo.ring} ring-offset-2 bg-black w-full mx-auto shadow-lg`}
-          style={{ minHeight: '260px', maxHeight: '50vh' }}
-        >
-          {isProcessing && (
-            <div className="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-2 border-white/20 border-t-white" />
-              <p className="text-xs sm:text-sm font-semibold text-white mt-3">Procesando...</p>
+        {pendingScan ? (
+          <div className="space-y-3 mb-4">
+            <p className="text-xs text-center text-gray-600 font-medium">
+              ¿Qué deseas registrar para <span className="font-bold">{pendingScan.empleadoId}</span>?
+            </p>
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={() => ejecutarRegistro(pendingScan.empleadoId, false)}
+              className="w-full py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-bold text-sm hover:bg-amber-100 transition-colors"
+            >
+              Inicio almuerzo
+            </button>
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={() => ejecutarRegistro(pendingScan.empleadoId, true)}
+              className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-500 transition-colors"
+            >
+              Salida sin almuerzo / horas extras
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingScan(null)}
+              className="w-full py-2 text-xs text-gray-400 hover:text-gray-600"
+            >
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <div
+            className={`relative rounded-xl sm:rounded-2xl overflow-hidden ring-2 ${colActivo.ring} ring-offset-2 bg-black w-full mx-auto shadow-lg`}
+            style={{ minHeight: '260px', maxHeight: '50vh' }}
+          >
+            {isProcessing && (
+              <div className="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-2 border-white/20 border-t-white" />
+                <p className="text-xs sm:text-sm font-semibold text-white mt-3">Procesando...</p>
+              </div>
+            )}
+
+            <div className="absolute inset-0 z-20 pointer-events-none">
+              <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-5 h-5 sm:w-7 sm:h-7 border-t-2 border-l-2 border-white/70 rounded-tl-md" />
+              <div className="absolute top-2 right-2 sm:top-3 sm:right-3 w-5 h-5 sm:w-7 sm:h-7 border-t-2 border-r-2 border-white/70 rounded-tr-md" />
+              <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 w-5 h-5 sm:w-7 sm:h-7 border-b-2 border-l-2 border-white/70 rounded-bl-md" />
+              <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 w-5 h-5 sm:w-7 sm:h-7 border-b-2 border-r-2 border-white/70 rounded-br-md" />
             </div>
-          )}
 
-          <div className="absolute inset-0 z-20 pointer-events-none">
-            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-5 h-5 sm:w-7 sm:h-7 border-t-2 border-l-2 border-white/70 rounded-tl-md" />
-            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 w-5 h-5 sm:w-7 sm:h-7 border-t-2 border-r-2 border-white/70 rounded-tr-md" />
-            <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 w-5 h-5 sm:w-7 sm:h-7 border-b-2 border-l-2 border-white/70 rounded-bl-md" />
-            <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 w-5 h-5 sm:w-7 sm:h-7 border-b-2 border-r-2 border-white/70 rounded-br-md" />
+            <div className="absolute left-2 right-2 sm:left-3 sm:right-3 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent z-10 animate-scan pointer-events-none opacity-80" />
+
+            <div className="w-full h-full" style={{ minHeight: '260px' }}>
+              <Scanner
+                onScan={handleScan}
+                onError={(err) => console.error('Error en Scanner', err)}
+                constraints={{ facingMode: 'environment' }}
+                styles={{
+                  container: { width: '100%', height: '260px', minHeight: '260px', paddingTop: 0, margin: 0 },
+                  video: { width: '100%', height: '100%', objectFit: 'cover' },
+                }}
+              />
+            </div>
           </div>
-
-          <div className="absolute left-2 right-2 sm:left-3 sm:right-3 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent z-10 animate-scan pointer-events-none opacity-80" />
-
-          <div className="w-full h-full" style={{ minHeight: '260px' }}>
-            <Scanner
-              onScan={handleScan}
-              onError={(err) => console.error('Error en Scanner', err)}
-              constraints={{ facingMode: 'environment' }}
-              styles={{
-                container: { width: '100%', height: '260px', minHeight: '260px', paddingTop: 0, margin: 0 },
-                video: { width: '100%', height: '100%', objectFit: 'cover' },
-              }}
-            />
-          </div>
-        </div>
+        )}
 
         {message && (
           <div className={`mt-4 sm:mt-5 px-4 py-3 rounded-xl sm:rounded-2xl flex items-center gap-3 border ${
