@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { getClientes, saveCliente, deleteCliente } from '../../application/clientesService';
 
 const EMPTY_FORM = { nombre: '', cedulaRuc: '', telefono: '', email: '', direccion: '', tipo: 'Persona', notas: '' };
@@ -67,7 +68,12 @@ export const ClientesPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este cliente?')) return;
+    const confirmed = await confirmDialog(
+      '¿Eliminar cliente?',
+      '¿Eliminar este cliente? Esta acción es irreversible.',
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
+    );
+    if (!confirmed) return;
     await deleteCliente(id);
     setClientes(prev => prev.filter(c => c.id !== id));
   };

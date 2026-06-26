@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { getProveedores, saveProveedor, deleteProveedor } from '../../application/proveedoresService';
 
 const EMPTY_FORM = { nombre: '', cedulaRuc: '', telefono: '', email: '', direccion: '', contacto: '', tipo: 'Persona', notas: '' };
@@ -67,7 +68,12 @@ export const ProveedoresPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este proveedor?')) return;
+    const confirmed = await confirmDialog(
+      '¿Eliminar proveedor?',
+      '¿Eliminar este proveedor? Esta acción es irreversible.',
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
+    );
+    if (!confirmed) return;
     await deleteProveedor(id);
     setItems(prev => prev.filter(p => p.id !== id));
   };

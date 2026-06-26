@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { getContactos, saveContacto, deleteContacto } from '../../application/contactosService';
 
 const EMPTY_FORM = { nombre: '', telefono: '', email: '', empresa: '', cargo: '', notas: '' };
@@ -66,7 +67,12 @@ export const ContactosPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este contacto?')) return;
+    const confirmed = await confirmDialog(
+      '¿Eliminar contacto?',
+      '¿Eliminar este contacto? Esta acción es irreversible.',
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
+    );
+    if (!confirmed) return;
     await deleteContacto(id);
     setItems(prev => prev.filter(c => c.id !== id));
   };
