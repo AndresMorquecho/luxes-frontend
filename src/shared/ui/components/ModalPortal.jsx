@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 function getRoot(id) {
@@ -15,9 +15,33 @@ export function getOverlayRoot() {
 }
 
 /**
- * Mantiene el portal montado un tick después de open=false
- * para que React termine el commit antes de desmontar.
+ * Contenedor DOM propio por instancia de portal.
+ * Evita insertBefore cuando varios portales comparten modal-root/overlay-root.
  */
+function usePortalContainer(rootId) {
+  const containerRef = useRef(null);
+
+  if (!containerRef.current && typeof document !== 'undefined') {
+    containerRef.current = document.createElement('div');
+    containerRef.current.dataset.portalHost = 'true';
+  }
+
+  useEffect(() => {
+    const root = getRoot(rootId);
+    const container = containerRef.current;
+    if (!root || !container) return undefined;
+
+    root.appendChild(container);
+    return () => {
+      if (container.parentNode === root) {
+        root.removeChild(container);
+      }
+    };
+  }, [rootId]);
+
+  return containerRef.current;
+}
+
 function useDeferredUnmount(isOpen) {
   const [mounted, setMounted] = useState(isOpen);
 
@@ -26,30 +50,29 @@ function useDeferredUnmount(isOpen) {
       setMounted(true);
       return undefined;
     }
-    if (!mounted) return undefined;
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => setMounted(false));
     });
     return () => cancelAnimationFrame(id);
-  }, [isOpen, mounted]);
+  }, [isOpen]);
 
   return mounted;
 }
 
 export function ModalPortal({ open = true, children }) {
   const mounted = useDeferredUnmount(open);
-  const root = getModalRoot();
+  const container = usePortalContainer('modal-root');
 
-  if (!root || !mounted || children == null || children === false) return null;
-  return createPortal(children, root);
+  if (!container || !mounted || children == null || children === false) return null;
+  return createPortal(children, container);
 }
 
 export function OverlayPortal({ open = true, children }) {
   const mounted = useDeferredUnmount(open);
-  const root = getOverlayRoot();
+  const container = usePortalContainer('overlay-root');
 
-  if (!root || !mounted || children == null || children === false) return null;
-  return createPortal(children, root);
+  if (!container || !mounted || children == null || children === false) return null;
+  return createPortal(children, container);
 }
 
 export function useModalVisibility(isOpen) {
