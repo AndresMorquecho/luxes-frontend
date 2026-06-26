@@ -65,6 +65,30 @@ const renderPriorityBadge = (urgency) => {
   );
 };
 
+const parseJobFiles = (job) => {
+  if (!job || !job.fileUrl) return [];
+  const trimmed = job.fileUrl.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {
+      console.error('Error parsing job files JSON:', e);
+    }
+  }
+  return [{
+    name: job.name,
+    url: job.fileUrl
+  }];
+};
+
+const isImageFile = (name, url) => {
+  const n = (name || '').toLowerCase();
+  const u = (url || '').toLowerCase();
+  return n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg') || n.endsWith('.gif') || n.endsWith('.webp') ||
+         u.startsWith('data:image') || u.includes('image') || u.startsWith('blob:');
+};
+
 export const ColasImpresionPage = () => {
   const {
     activeJob,
@@ -599,38 +623,59 @@ export const ColasImpresionPage = () => {
                     <div className="active-job-left-panel">
                       
                       {/* Document Meta Row */}
-                      <div className="active-job-file-details">
-                        <div className="file-icon-wrapper">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" className="file-pdf-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                          </svg>
+                      {/* Document Meta Row */}
+                      <div className="active-job-file-details" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div className="file-icon-wrapper">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" className="file-pdf-icon">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                            </svg>
+                          </div>
+                          <div className="file-info-text">
+                            <span className="client-label" style={{ display: 'block' }}>Cliente: <strong>{activeJob.client || 'Corporación Luxes'}</strong></span>
+                            {activeJob.proyectoNombre && (
+                              <span className="project-label" style={{ fontSize: '0.825rem', color: '#7c3aed', fontWeight: 700, display: 'block', margin: '0.1rem 0' }}>
+                                Proyecto: <strong>{activeJob.proyectoNombre}</strong>
+                              </span>
+                            )}                            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Área: {(activeJob.width * activeJob.height).toFixed(2)}m²</span>
+                          </div>
                         </div>
-                        <div className="file-info-text">
-                          <span className="client-label" style={{ display: 'block' }}>Cliente: <strong>{activeJob.client || 'Corporación Luxes'}</strong></span>
-                          {activeJob.proyectoNombre && (
-                            <span className="project-label" style={{ fontSize: '0.825rem', color: '#7c3aed', fontWeight: 700, display: 'block', margin: '0.1rem 0' }}>
-                              Proyecto: <strong>{activeJob.proyectoNombre}</strong>
-                            </span>
-                          )}
-                          <div className="file-download-row">
-                            <span>Área: {(activeJob.width * activeJob.height).toFixed(2)}m²</span>
-                            <span className="dot-divider">•</span>
-                            <a 
-                              href={getDownloadUrl(activeJob)} 
-                              download={activeJob.name}
-                              className="file-download-link"
-                              title="Descargar documento activo"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                              Descargar Documento
-                            </a>
+
+                        {/* List of files with download links */}
+                        <div className="active-job-files-list" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <span className="section-mini-label" style={{ margin: 0 }}>Archivos del Trabajo ({parseJobFiles(activeJob).length})</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '120px', overflowY: 'auto' }}>
+                            {parseJobFiles(activeJob).map((f, idx) => (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                                  <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                                    {isImageFile(f.name, f.url) ? (
+                                      <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                                </div>
+                                <a 
+                                  href={f.url || '#'} 
+                                  download={f.name}
+                                  className="file-download-link"
+                                  style={{ margin: 0, padding: '0.2rem 0.4rem', border: '1px solid var(--color-primary-blue)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}
+                                  title="Descargar este archivo"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                  </svg>
+                                  Descargar
+                                </a>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
-
-                      {/* Technical specifications as chips/pills */}
                       <div className="active-job-specs-section">
                         <span className="section-mini-label">Especificaciones de Impresión</span>
                         <div className="specs-pills-container">
@@ -862,7 +907,36 @@ export const ColasImpresionPage = () => {
                         <td>
                           <span className="queue-position-badge">{(queuePage - 1) * queueItemsPerPage + index + 1}</span>
                         </td>
-                        <td style={{ fontWeight: 600, color: '#1e293b' }}>{job.name}</td>
+
+                         <td style={{ fontWeight: 600, color: '#1e293b', verticalAlign: 'middle' }}>
+                           {(() => {
+                             const files = parseJobFiles(job);
+                             return (
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                 <span style={{ color: '#0f172a', display: 'block' }}>{job.name}</span>
+                                 {files.length > 0 && (
+                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.2rem' }}>
+                                     {files.map((f, i) => (
+                                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '0.15rem 0.35rem', borderRadius: '6px', maxWidth: '200px' }} title={f.name}>
+                                         <div style={{ width: '20px', height: '20px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                           {isImageFile(f.name, f.url) ? (
+                                             <img src={f.url} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                           ) : (
+                                             <span style={{ fontSize: '9px' }}>📄</span>
+                                           )}
+                                         </div>
+                                         <span style={{ fontSize: '0.65rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                           {f.name}
+                                         </span>
+                                       </div>
+                                     ))}
+                                   </div>
+                                 )}
+                               </div>
+                             );
+                           })()}
+                         </td>
+
                         <td style={{ fontWeight: 500, color: '#475569' }}>
                           <div>{job.client || 'Sin cliente'}</div>
                           {job.proyectoNombre && (
@@ -1221,6 +1295,38 @@ export const ColasImpresionPage = () => {
                   {renderPriorityBadge(selectedJobDetails.urgency)}
                 </div>
               </div>
+              
+              {/* List of files in the job */}
+              <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+                <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Archivos del Trabajo ({parseJobFiles(selectedJobDetails).length})</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '120px', overflowY: 'auto' }}>
+                  {parseJobFiles(selectedJobDetails).map((f, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                          {isImageFile(f.name, f.url) ? (
+                            <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                          )}
+                        </div>
+                        <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                      </div>
+                      <a 
+                        href={f.url || '#'} 
+                        download={f.name}
+                        onClick={e => e.stopPropagation()}
+                        style={{ color: 'var(--color-primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none', fontWeight: 600, flexShrink: 0 }}
+                        title="Descargar este archivo"
+                      >
+                        Descargar
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               <div className="details-grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
                 <div className="detail-item">
@@ -1342,18 +1448,34 @@ export const ColasImpresionPage = () => {
                   )}
 
                   {/* Download artwork */}
-                  <div style={{ display: 'flex', marginTop: '0.75rem', justifyContent: 'flex-start' }}>
-                    <a 
-                      href={getDownloadUrl(prepJob)} 
-                      download={prepJob.name}
-                      className="file-download-link"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 600, textDecoration: 'none' }}
-                    >
-                      <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
-                      Descargar Archivo de Arte
-                    </a>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
+                    <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Archivos a Descargar ({parseJobFiles(prepJob).length})</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '110px', overflowY: 'auto' }}>
+                      {parseJobFiles(prepJob).map((f, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                            <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                              {isImageFile(f.name, f.url) ? (
+                                <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                              )}
+                            </div>
+                            <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                          </div>
+                          <a 
+                            href={f.url || '#'} 
+                            download={f.name}
+                            className="file-download-link"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.4rem', fontSize: '0.75rem', margin: 0, textDecoration: 'none', flexShrink: 0 }}
+                          >
+                            Descargar
+                          </a>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

@@ -62,9 +62,33 @@ const renderPriorityBadge = (urgency) => {
   );
 };
 
+const isImageFile = (name, url) => {
+  const n = (name || '').toLowerCase();
+  const u = (url || '').toLowerCase();
+  return n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg') || n.endsWith('.gif') || n.endsWith('.webp') ||
+         u.startsWith('data:image') || u.includes('image') || u.startsWith('blob:');
+};
+
 export const ImpresionesPage = () => {
   const { activeJob, queue, completedJobs, addJobToQueue } = usePrintQueue();
   const { state: proyectosState } = useProyectosContext();
+
+  const parseJobFiles = (job) => {
+    if (!job || !job.fileUrl) return [];
+    const trimmed = job.fileUrl.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.error('Error parsing job files JSON:', e);
+      }
+    }
+    return [{
+      name: job.name,
+      url: job.fileUrl
+    }];
+  };
 
   // Project selector states
   const [selectedProyectoId, setSelectedProyectoId] = useState('');
@@ -265,43 +289,54 @@ export const ImpresionesPage = () => {
     if (!file) return;
 
     const filesToSubmit = file.isMultiple ? file.files : [file];
+    let fileUrl = '';
+    let jobName = '';
+
+    if (filesToSubmit.length === 1) {
+      const currentFile = filesToSubmit[0];
+      fileUrl = currentFile.fromProject 
+        ? currentFile.url 
+        : URL.createObjectURL(currentFile.rawFile || currentFile);
+      jobName = currentFile.name;
+    } else {
+      const filesJson = filesToSubmit.map(f => ({
+        name: f.name,
+        url: f.fromProject ? f.url : URL.createObjectURL(f.rawFile || f),
+        sizeDisplay: f.sizeDisplay || (f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : 'Archivo')
+      }));
+      fileUrl = JSON.stringify(filesJson);
+      jobName = filesToSubmit.length === 1 ? filesToSubmit[0].name : `${filesToSubmit.length} archivos de diseño`;
+    }
+
+    const now = new Date();
+    const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
     try {
-      for (let i = 0; i < filesToSubmit.length; i++) {
-        const currentFile = filesToSubmit[i];
-        const fileUrl = currentFile.fromProject 
-          ? currentFile.url 
-          : URL.createObjectURL(currentFile.rawFile || currentFile);
+      const newJob = {
+        id: Date.now(), // Single unique ID
+        name: jobName,
+        pages: pages,
+        copies: copies,
+        status: "En espera",
+        size: size,
+        format: format, // Sustrato
+        sentBy: sentBy || 'ISAM',
+        sentAt: sentAtFormatted,
+        sentToQueueAt: sentAtFormatted,
+        startedPrintingAt: null,
+        fileUrl: fileUrl,
+        client: client,
+        urgency: urgency,
+        finish: finish,
+        width: parseFloat(width) || 1.0,
+        height: parseFloat(height) || 1.0,
+        notes: notes.trim(),
+        proyectoId: selectedProyecto?.id || null,
+        proyectoNombre: selectedProyecto?.nombre || null
+      };
 
-        const now = new Date(Date.now() + i * 1000); // add unique offset to avoid exact timestamp collision
-        const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-        const newJob = {
-          id: Date.now() + i, // Unique ID for queue key/tracking
-          name: currentFile.name,
-          pages: pages,
-          copies: copies,
-          status: "En espera",
-          size: size,
-          format: format, // Sustrato
-          sentBy: sentBy || 'ISAM',
-          sentAt: sentAtFormatted,
-          sentToQueueAt: sentAtFormatted,
-          startedPrintingAt: null,
-          fileUrl: fileUrl,
-          client: client,
-          urgency: urgency,
-          finish: finish,
-          width: parseFloat(width) || 1.0,
-          height: parseFloat(height) || 1.0,
-          notes: notes.trim(),
-          proyectoId: selectedProyecto?.id || null,
-          proyectoNombre: selectedProyecto?.nombre || null
-        };
-
-        // Add to global context queue
-        await addJobToQueue(newJob);
-      }
+      // Add to global context queue
+      await addJobToQueue(newJob);
 
       // Show toast
       setSuccessJobName(file.name);
@@ -1052,6 +1087,30 @@ export const ImpresionesPage = () => {
                         <span className="tracking-card-sep">{renderPriorityBadge(job.urgency)}</span>
                         <span className="tracking-card-material">{job.format}</span>
                       </div>
+                      {(() => {
+                        const files = parseJobFiles(job);
+                        if (files.length > 0) {
+                          return (
+                            <div className="tracking-card-files" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.4rem', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.35rem' }}>
+                              {files.map((f, idx) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.1rem 0.3rem', borderRadius: '4px', maxWidth: '140px' }} title={f.name}>
+                                  <div style={{ width: '16px', height: '16px', borderRadius: '2px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    {isImageFile(f.name, f.url) ? (
+                                      <img src={f.url} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                      <span style={{ fontSize: '7px' }}>📄</span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontSize: '0.6rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                    {f.name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       {job.trackingStatus === "Cancelado" && job.cancelReason && (
                         <div className="tracking-card-cancel">
                           <strong>Motivo:</strong> {job.cancelReason}
@@ -1166,6 +1225,38 @@ export const ImpresionesPage = () => {
                   <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.completedAt || 'Sin registrar'}</span>
                 </div>
               </div>
+
+              {(() => {
+                const files = parseJobFiles(selectedJobDetails);
+                if (files.length === 0) return null;
+                return (
+                  <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Archivos del Trabajo ({files.length})</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {files.map((f, idx) => (
+                        <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.5rem 0.75rem', backgroundColor: '#f8fafc', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ede9fe', display: 'flex', alignItems: 'center', justify: 'center', border: '1px solid #ddd6fe', flexShrink: 0 }}>
+                            {isImageFile(f.name, f.url) ? (
+                              <img src={f.url} alt="Mini Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '5px' }} />
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '16px', height: '16px', color: '#7c3aed' }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                              </svg>
+                            )}
+                          </div>
+                          <div style={{ overflow: 'hidden', flex: 1 }}>
+                            <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#1e293b', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{f.name}</span>
+                            <span style={{ display: 'block', fontSize: '0.65rem', color: '#64748b' }}>{f.sizeDisplay || 'Archivo'}</span>
+                          </div>
+                          <a href={f.url} download={f.name} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: 'bold', textDecoration: 'none' }}>
+                            Descargar
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {selectedJobDetails.notes && (
                 <div style={{ marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderLeft: '4px solid var(--color-primary-blue)', borderRadius: '6px' }}>
