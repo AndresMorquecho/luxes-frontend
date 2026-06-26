@@ -13,6 +13,23 @@ export function ProduccionPanel({ proyectoId }) {
   const [activeSubTab, setActiveSubTab] = useState('timeline'); // 'timeline' or 'enviar'
   const [loadedProyectoId, setLoadedProyectoId] = useState(null);
 
+  const parseJobFiles = (job) => {
+    if (!job || !job.fileUrl) return [];
+    const trimmed = job.fileUrl.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.error('Error parsing job files JSON:', e);
+      }
+    }
+    return [{
+      name: job.name,
+      url: job.fileUrl
+    }];
+  };
+
   // Form States
   const [file, setFile] = useState(null);
   const [format, setFormat] = useState('Lona brillo'); // Material/Sustrato
@@ -174,36 +191,47 @@ export function ProduccionPanel({ proyectoId }) {
     }
 
     const filesToSubmit = file.isMultiple ? file.files : [file];
+    let fileUrl = '';
+    let jobName = '';
+
+    if (filesToSubmit.length === 1) {
+      const currentFile = filesToSubmit[0];
+      fileUrl = currentFile.fromProject 
+        ? currentFile.url 
+        : URL.createObjectURL(currentFile.rawFile || currentFile);
+      jobName = currentFile.name;
+    } else {
+      const filesJson = filesToSubmit.map(f => ({
+        name: f.name,
+        url: f.fromProject ? f.url : URL.createObjectURL(f.rawFile || f),
+        sizeDisplay: f.sizeDisplay || (f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : 'Archivo')
+      }));
+      fileUrl = JSON.stringify(filesJson);
+      jobName = filesToSubmit.length === 1 ? filesToSubmit[0].name : `${filesToSubmit.length} archivos de diseño`;
+    }
+
+    const now = new Date();
+    const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+    const newJob = {
+      name: jobName,
+      copies: copies,
+      format: format,
+      sentBy: sentBy || 'ISAM',
+      sentAt: sentAtFormatted,
+      sentToQueueAt: sentAtFormatted,
+      fileUrl: fileUrl,
+      client: client,
+      urgency: urgency,
+      width: parseFloat(width) || 1.0,
+      height: parseFloat(height) || 1.0,
+      notes: notes.trim(),
+      proyectoId: proyecto.id,
+      proyectoNombre: proyecto.nombre
+    };
 
     try {
-      for (let i = 0; i < filesToSubmit.length; i++) {
-        const currentFile = filesToSubmit[i];
-        const fileUrl = currentFile.fromProject 
-          ? currentFile.url 
-          : URL.createObjectURL(currentFile.rawFile || currentFile);
-
-        const now = new Date(Date.now() + i * 1000); // add unique offset to avoid exact timestamp collision
-        const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-        const newJob = {
-          name: currentFile.name,
-          copies: copies,
-          format: format,
-          sentBy: sentBy || 'ISAM',
-          sentAt: sentAtFormatted,
-          sentToQueueAt: sentAtFormatted,
-          fileUrl: fileUrl,
-          client: client,
-          urgency: urgency,
-          width: parseFloat(width) || 1.0,
-          height: parseFloat(height) || 1.0,
-          notes: notes.trim(),
-          proyectoId: proyecto.id,
-          proyectoNombre: proyecto.nombre
-        };
-
-        await addJobToQueue(newJob);
-      }
+      await addJobToQueue(newJob);
 
       // Show Toast
       setSuccessJobName(file.name);
@@ -309,6 +337,42 @@ export function ProduccionPanel({ proyectoId }) {
                         <div>
                           <h4 className="text-sm font-bold text-slate-800">{job.name}</h4>
                           <p className="text-xs text-slate-500">{job.copies} cop. • {job.format} • {job.width}m x {job.height}m</p>
+                          {(() => {
+                            const files = parseJobFiles(job);
+                            if (files.length > 0) {
+                              const isImageFile = (name, url) => {
+                                const n = (name || '').toLowerCase();
+                                const u = (url || '').toLowerCase();
+                                return n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg') || n.endsWith('.gif') || n.endsWith('.webp') ||
+                                       u.startsWith('data:image') || u.includes('image') || u.startsWith('blob:');
+                              };
+
+                              return (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {files.map((f, i) => (
+                                    <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-1.5 pr-2.5 py-1 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                      <div className="w-8 h-8 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 flex items-center justify-center">
+                                        {isImageFile(f.name, f.url) ? (
+                                          <img src={f.url} alt="preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <FileText size={14} className="text-slate-400" />
+                                        )}
+                                      </div>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-[10px] text-slate-700 font-bold truncate max-w-[140px]" title={f.name}>
+                                          {f.name}
+                                        </span>
+                                        <span className="text-[8px] text-slate-400">
+                                          {f.sizeDisplay || 'Archivo'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
                       <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md ${config.bg} ${config.color} border ${config.border}`}>
