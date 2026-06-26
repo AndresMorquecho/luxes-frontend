@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Check, Search, ChevronDown, Info, ClipboardList } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
 import { getClientes } from '../../../clientes/application/clientesService.js';
+import { getTodayDateISO } from '../../domain/utils/proyectoDates.js';
 
 const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'URGENTE'];
 const PRIORIDAD_COLORS = {
@@ -18,6 +19,7 @@ const EMPTY_FORM = {
   nombre: '',
   descripcion: '',
   prioridad: 'MEDIA',
+  fechaInicio: getTodayDateISO(),
   fechaEntregaEstimada: '',
   responsable: '',
   etiquetaInput: '',
@@ -115,6 +117,8 @@ export default function NuevoProyectoPage() {
         nombre: form.nombre,
         descripcion: form.descripcion,
         prioridad: form.prioridad,
+        fechaInicio: form.fechaInicio,
+        fechaCreacion: form.fechaInicio,
         fechaEntregaEstimada: form.fechaEntregaEstimada || null,
         responsable: form.responsable,
         etiquetas: form.etiquetas,
@@ -375,6 +379,18 @@ export default function NuevoProyectoPage() {
                   </div>
                 </>
               )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Fecha de inicio</label>
+              <input
+                type="date"
+                className="w-full border border-slate-200 bg-slate-100 rounded-xl px-4 py-3 text-sm text-slate-700 cursor-default"
+                value={form.fechaInicio}
+                readOnly
+                title="Se registra automáticamente al crear el proyecto"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Se guarda con la fecha de hoy al crear el proyecto.</p>
             </div>
 
             <div>

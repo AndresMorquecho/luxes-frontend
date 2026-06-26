@@ -1,4 +1,5 @@
 import React from 'react';
+import { getPersonInitials } from '../../../../shared/utils/personInitials.js';
 
 const SCHEDULED_START = { hour: 8, minute: 0 };
 
@@ -58,11 +59,11 @@ export const RegistroRow = ({ row }) => {
     <div className="grid grid-cols-12 gap-3 px-5 py-3 items-center hover:bg-gray-50/60 transition-colors">
       {/* Empleado */}
       <div className="col-span-3 flex items-center gap-3 min-w-0">
-        <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center font-semibold text-xs text-gray-600 shrink-0">
-          {row.nombreEmpleado.charAt(0).toUpperCase()}
+        <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center font-semibold text-[10px] text-gray-600 shrink-0 overflow-hidden normal-case leading-none">
+          <span className="normal-case">{getPersonInitials(row.nombreEmpleado)}</span>
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-800 truncate">{row.nombreEmpleado}</p>
+          <p className="text-sm font-medium text-gray-800 truncate normal-case">{row.nombreEmpleado}</p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[10px] font-medium text-gray-400">{row.empleadoId}</span>
             <span className="text-[10px] text-gray-300">·</span>

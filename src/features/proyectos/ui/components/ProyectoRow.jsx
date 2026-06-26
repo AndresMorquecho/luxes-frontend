@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Eye, PenLine, Trash2 } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
+import { calcularDiasDesde } from '../../domain/utils/proyectoDates.js';
 import { FaseBadge } from './FaseBadge.jsx';
 import { ProgressBar } from './ProgressBar.jsx';
 
@@ -23,9 +24,7 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
     proyecto.estado !== 'COMPLETADO' &&
     new Date(proyecto.fechaEntregaEstimada) < new Date();
 
-  const diasTranscurridos = Math.floor(
-    (new Date() - new Date(proyecto.fechaCreacion)) / (1000 * 60 * 60 * 24)
-  );
+  const diasTranscurridos = calcularDiasDesde(proyecto.fechaInicio || proyecto.fechaCreacion);
 
   function getIniciales(nombre) {
     return nombre

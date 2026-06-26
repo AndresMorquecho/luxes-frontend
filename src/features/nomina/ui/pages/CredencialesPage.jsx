@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNomina } from '../../application/hooks/useNomina';
+import { getPersonInitials } from '../../../../shared/utils/personInitials.js';
 
 export const CredencialesPage = () => {
   const navigate = useNavigate();
@@ -29,8 +30,8 @@ export const CredencialesPage = () => {
             <div key={emp.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
               <div className="bg-gradient-to-r from-blue-900 via-blue-950 to-indigo-950 px-5 py-4 text-white">
                 <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-lg font-black text-white">
-                    {emp.nombre?.charAt(0).toUpperCase()}
+                  <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-sm font-black text-white overflow-hidden normal-case leading-none">
+                    <span className="normal-case">{getPersonInitials(emp.nombre)}</span>
                   </div>
                   <span className="bg-white/10 text-white border border-white/20 text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
                     {emp.id || 'EMP'}
@@ -38,7 +39,7 @@ export const CredencialesPage = () => {
                 </div>
               </div>
               <div className="p-5 space-y-2">
-                <h3 className="text-sm font-bold text-gray-900 uppercase">{emp.nombre}</h3>
+                <h3 className="text-sm font-bold text-gray-900 normal-case">{emp.nombre}</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
                   <span className="text-gray-400 font-medium">Cargo</span>
                   <span className="text-gray-700 font-semibold text-right">{emp.cargo || '-'}</span>

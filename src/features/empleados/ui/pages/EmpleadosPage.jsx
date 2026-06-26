@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
+import { getAvatarPalette, getPersonInitials, AVATAR_PALETTES } from '../../../../shared/utils/personInitials.js';
 import { useNavigate } from 'react-router-dom';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import {
@@ -59,14 +61,6 @@ const getBankBadge = (banco) => {
   return BANCO_BADGES[key];
 };
 
-const AVATAR_PALETTES = [
-  { bg: '#dbeafe', text: '#2563eb' },
-  { bg: '#d1fae5', text: '#059669' },
-  { bg: '#ede9fe', text: '#7c3aed' },
-  { bg: '#ffedd5', text: '#ea580c' },
-  { bg: '#fce7f3', text: '#db2777' },
-];
-
 const DEPTO_STYLES = {
   'Tecnología': { bg: '#dbeafe', text: '#1d4ed8' },
   IT: { bg: '#ede9fe', text: '#6d28d9' },
@@ -78,10 +72,7 @@ const DEPTO_STYLES = {
   Ventas: { bg: '#ccfbf1', text: '#0f766e' },
 };
 
-const getAvatarStyle = (seed = '') => {
-  const idx = [...seed].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % AVATAR_PALETTES.length;
-  return AVATAR_PALETTES[idx];
-};
+const getAvatarStyle = (seed = '') => getAvatarPalette(seed);
 
 const getDeptoStyle = (depto = '') => {
   if (DEPTO_STYLES[depto]) return DEPTO_STYLES[depto];
@@ -236,6 +227,10 @@ export const EmpleadosPage = () => {
         }
         .animate-fade-in { animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-modal-in { animation: modal-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .empleados-table td:first-child,
+        .empleados-table td:first-child .normal-case {
+          text-transform: none !important;
+        }
       `}</style>
 
       <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
@@ -299,21 +294,15 @@ export const EmpleadosPage = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(emp => {
-                  const avatar = getAvatarStyle(emp.id || emp.nombre);
                   const depto = getDeptoStyle(emp.departamento);
 
                   return (
                     <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0"
-                            style={{ backgroundColor: avatar.bg, color: avatar.text }}
-                          >
-                            {emp.nombre.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900 leading-tight">{emp.nombre}</p>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-900 leading-tight truncate normal-case">{emp.nombre}</p>
                             <p className="text-xs text-slate-400 mt-0.5">{emp.id}</p>
                           </div>
                         </div>
@@ -470,13 +459,15 @@ export const EmpleadosPage = () => {
                       <img src={viewingEmpleado.foto} alt={viewingEmpleado.nombre} className="w-full h-full object-cover" />
                     ) : (
                       <div
-                        className="w-full h-full flex items-center justify-center text-3xl font-bold uppercase"
+                        className="w-full h-full flex items-center justify-center font-bold normal-case overflow-hidden"
                         style={{
                           backgroundColor: getAvatarStyle(viewingEmpleado.id || viewingEmpleado.nombre).bg,
                           color: getAvatarStyle(viewingEmpleado.id || viewingEmpleado.nombre).text,
                         }}
                       >
-                        {viewingEmpleado.nombre.charAt(0)}
+                        <span className="text-3xl leading-none tracking-tight normal-case">
+                          {getPersonInitials(viewingEmpleado.nombre)}
+                        </span>
                       </div>
                     )}
                   </div>

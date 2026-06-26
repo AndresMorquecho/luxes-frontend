@@ -1,6 +1,7 @@
 // src/features/proyectos/domain/use-cases/crearProyecto.js
 
 import { calcularProgreso } from './calcularProgreso.js';
+import { getTodayDateISO } from '../utils/proyectoDates.js';
 
 /**
  * Crea un nuevo proyecto en fase COTIZACION.
@@ -15,6 +16,7 @@ export function crearProyecto(datos) {
     descripcion = '',
     prioridad = 'MEDIA',
     fechaEntregaEstimada,
+    fechaInicio,
     responsable,
     etiquetas = [],
     cliente,
@@ -31,7 +33,7 @@ export function crearProyecto(datos) {
   }
 
   const id = `p${Date.now()}`;
-  const fechaCreacion = new Date().toISOString().split('T')[0];
+  const fechaCreacion = fechaInicio || getTodayDateISO();
 
   return {
     id,
@@ -53,6 +55,7 @@ export function crearProyecto(datos) {
     progreso: calcularProgreso('COTIZACION'),
     estado: 'ACTIVO',
     fechaCreacion,
+    fechaInicio: fechaCreacion,
     fases: {
       COTIZACION: {
         completada: false,

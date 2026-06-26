@@ -3,6 +3,7 @@ import { getAsistencias, registrarAsistencia, getTodayMarcaciones, registrarPerm
 import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -814,8 +815,6 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                     ? `https://www.google.com/maps/search/?api=1&query=${anyMarcacionConUbicacion.ubicacionLat},${anyMarcacionConUbicacion.ubicacionLng}` 
                     : null;
                   
-                  const initials = emp.nombre ? emp.nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'EMP';
-                  
                   let lapsos = { trabajo: '—', almuerzo: '—' };
                   if (isAsistio) {
                     lapsos = calculateLapses(marcaciones);
@@ -825,12 +824,10 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                     <tr key={emp.id} className="hover:bg-slate-50/40 transition-colors">
                       {/* Colaborador / Cargo */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-xs text-blue-600 shrink-0">
-                            {initials}
-                          </div>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" />
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-800 truncate">{emp.nombre}</p>
+                            <p className="text-sm font-bold text-slate-800 truncate normal-case">{emp.nombre}</p>
                             <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
                           </div>
                         </div>
