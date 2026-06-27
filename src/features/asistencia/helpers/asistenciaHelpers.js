@@ -109,31 +109,3 @@ export function isDiaLaboralCompleto(marks = []) {
 export function mapMarcacionesByTipo(marks = []) {
   return Object.fromEntries(marks.map((m) => [m.tipo, m]));
 }
-
-/** Normaliza el valor leído del QR a un ID de empleado (EMP-XXX). */
-export function parseEmpleadoIdFromQr(raw) {
-  if (!raw) return '';
-  const trimmed = String(raw).trim();
-  if (/^EMP-\d+$/i.test(trimmed)) return trimmed.toUpperCase();
-
-  try {
-    const url = new URL(trimmed, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
-    const fromQuery = url.searchParams.get('empleadoId') || url.searchParams.get('id');
-    if (fromQuery && /^EMP-\d+$/i.test(fromQuery)) return fromQuery.toUpperCase();
-    const pathMatch = url.pathname.match(/(EMP-\d+)/i);
-    if (pathMatch) return pathMatch[1].toUpperCase();
-  } catch {
-    // no es URL
-  }
-
-  try {
-    const data = JSON.parse(trimmed);
-    const id = data.empleadoId || data.id;
-    if (id && /^EMP-\d+$/i.test(String(id))) return String(id).toUpperCase();
-  } catch {
-    // no es JSON
-  }
-
-  const embedded = trimmed.match(/EMP-\d+/i);
-  return embedded ? embedded[0].toUpperCase() : trimmed;
-}

@@ -4,6 +4,7 @@ import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonIni
 import { getAvatarPalette, getPersonInitials, AVATAR_PALETTES } from '../../../../shared/utils/personInitials.js';
 import { useNavigate } from 'react-router-dom';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getEmpleados,
   deleteEmpleado,
@@ -192,15 +193,19 @@ export const EmpleadosPage = () => {
   const handleDelete = async (emp) => {
     const confirmed = await confirmDialog(
       '¿Eliminar colaborador?',
-      `¿Eliminar permanentemente a ${emp.nombre}? Se borrarán también sus documentos y registros asociados.`,
+      `¿Eliminar permanentemente a ${emp.nombre}? Se borrarán sus documentos y registros de nómina/asistencia. El usuario del portal quedará desactivado pero se conservará su historial (órdenes, tareas, etc.).`,
       { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
     );
     if (!confirmed) return;
     try {
       await deleteEmpleado(emp.id);
       setEmpleados(prev => prev.filter(e => e.id !== emp.id));
+      if (viewingEmpleado?.id === emp.id) {
+        deferClose(() => setViewingEmpleado(null));
+      }
+      toast.success(`${emp.nombre} eliminado correctamente`);
     } catch (err) {
-      console.error(err);
+      toast.error(err.message || 'No se pudo eliminar el colaborador');
     }
   };
 
@@ -275,13 +280,13 @@ export const EmpleadosPage = () => {
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center items-center py-16">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm empleados-table">
+        <div className="overflow-x-auto relative">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px]">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+            </div>
+          )}
+          <table className="w-full text-sm empleados-table">
               <thead>
                 <tr className="border-b border-slate-100">
                   <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Colaborador</th>
@@ -369,7 +374,6 @@ export const EmpleadosPage = () => {
               </tbody>
             </table>
           </div>
-        )}
 
         {/* Paginación */}
         {filteredAll.length > 0 && (
@@ -426,8 +430,8 @@ export const EmpleadosPage = () => {
       </div>
 
       {/* Modal de Detalle de Colaborador */}
-      {viewingEmpleado && (
-        <ModalPortal>
+      <ModalPortal open={!!viewingEmpleado}>
+        {viewingEmpleado && (
         <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-md z-[10000] flex items-center justify-center p-6 md:p-12 animate-fade-in">
           <div className="relative w-full max-w-4xl max-h-[82vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
             {/* Header */}
@@ -439,7 +443,7 @@ export const EmpleadosPage = () => {
                 <h2 className="text-base font-bold text-slate-800">Expediente del Colaborador</h2>
               </div>
               <button
-                onClick={() => setViewingEmpleado(null)}
+                onClick={() => deferClose(() => setViewingEmpleado(null))}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -634,7 +638,7 @@ export const EmpleadosPage = () => {
             {/* Footer */}
             <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50">
               <button
-                onClick={() => setViewingEmpleado(null)}
+                onClick={() => deferClose(() => setViewingEmpleado(null))}
                 className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer"
               >
                 Cerrar Expediente
@@ -642,12 +646,12 @@ export const EmpleadosPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
-      )}
+        )}
+      </ModalPortal>
 
       {/* Modal de Vista Previa de Documento */}
-      {previewDoc && (
-        <ModalPortal>
+      <ModalPortal open={!!previewDoc}>
+        {previewDoc && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[10050] flex items-center justify-center p-6 md:p-12 animate-fade-in">
           <div className="relative w-full max-w-4xl max-h-[80vh] h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
             {/* Header */}
@@ -730,7 +734,7 @@ export const EmpleadosPage = () => {
             {/* Footer */}
             <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50">
               <button
-                onClick={() => setPreviewDoc(null)}
+                onClick={() => deferClose(() => setPreviewDoc(null))}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
               >
                 Cerrar Vista Previa
@@ -738,8 +742,8 @@ export const EmpleadosPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
-      )}
+        )}
+      </ModalPortal>
     </div>
   );
 };

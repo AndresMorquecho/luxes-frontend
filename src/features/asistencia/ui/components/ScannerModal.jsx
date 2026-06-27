@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { ModalPortal, deferClose, useModalVisibility } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import { registrarAsistencia, getProximaMarcacion, getTodayMarcaciones } from '../../application/asistenciaService';
-import { isDiaLaboralCompleto, parseEmpleadoIdFromQr } from '../../helpers/asistenciaHelpers';
+import { isDiaLaboralCompleto } from '../../helpers/asistenciaHelpers';
 import { StepIndicator } from './scanner/StepIndicator';
 import { MarcacionesTimeline } from './MarcacionesTimeline';
-import { QrScannerViewport } from './QrScannerViewport';
+
+const STEP_COLORS = {
+  ENTRADA:         { ring: 'ring-blue-400' },
+  INICIO_ALMUERZO: { ring: 'ring-amber-400' },
+  FIN_ALMUERZO:    { ring: 'ring-blue-400' },
+  SALIDA:          { ring: 'ring-indigo-400' },
+};
 
 export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
   const [ubicacion, setUbicacion] = useState(null);
@@ -81,12 +88,7 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
   const handleScan = async (result) => {
     if (!result || result.length === 0 || isProcessing || pendingScan) return;
 
-    const empleadoId = parseEmpleadoIdFromQr(result[0].rawValue);
-    if (!empleadoId) {
-      setMessage({ type: 'error', text: 'Código QR no válido. Usa la credencial impresa.' });
-      setTimeout(() => { setIsProcessing(false); setMessage(null); }, 3000);
-      return;
-    }
+    const empleadoId = result[0].rawValue.trim();
     setIsProcessing(true);
     setMessage(null);
 
@@ -126,6 +128,7 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const tipoActivo = proximaInfo?.proxima?.tipo ?? pendingScan?.proxima?.proxima?.tipo ?? 'ENTRADA';
+  const colActivo = STEP_COLORS[tipoActivo] ?? STEP_COLORS.ENTRADA;
   const marcacionesCount = proximaInfo?.marcacionesRegistradas ?? marcacionesHoy.filter((m) =>
     ['ENTRADA', 'INICIO_ALMUERZO', 'FIN_ALMUERZO', 'SALIDA'].includes(m.tipo)
   ).length;
@@ -137,7 +140,7 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
   const handleClose = () => deferClose(() => onClose?.());
 
   return (
-    <ModalPortal open={isOpen}>
+    <ModalPortal>
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative w-full max-w-[90vw] sm:max-w-sm md:max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-7 animate-modal-in max-h-[95vh] overflow-y-auto border border-gray-100">
@@ -223,14 +226,38 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
             </button>
           </div>
         ) : (
-          <QrScannerViewport
-            onScan={handleScan}
-            onError={(err) => console.error('Error en Scanner', err)}
-            processing={isProcessing}
-            paused={!!pendingScan}
-            variant="light"
-            className="w-full"
-          />
+          <div
+            className={`relative rounded-xl sm:rounded-2xl overflow-hidden ring-2 ${colActivo.ring} ring-offset-2 bg-black w-full mx-auto shadow-lg`}
+            style={{ minHeight: '260px', maxHeight: '50vh' }}
+          >
+            {isProcessing && (
+              <div className="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-2 border-white/20 border-t-white" />
+                <p className="text-xs sm:text-sm font-semibold text-white mt-3">Procesando...</p>
+              </div>
+            )}
+
+            <div className="absolute inset-0 z-20 pointer-events-none">
+              <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-5 h-5 sm:w-7 sm:h-7 border-t-2 border-l-2 border-white/70 rounded-tl-md" />
+              <div className="absolute top-2 right-2 sm:top-3 sm:right-3 w-5 h-5 sm:w-7 sm:h-7 border-t-2 border-r-2 border-white/70 rounded-tr-md" />
+              <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 w-5 h-5 sm:w-7 sm:h-7 border-b-2 border-l-2 border-white/70 rounded-bl-md" />
+              <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 w-5 h-5 sm:w-7 sm:h-7 border-b-2 border-r-2 border-white/70 rounded-br-md" />
+            </div>
+
+            <div className="absolute left-2 right-2 sm:left-3 sm:right-3 h-0.5 bg-gradient-to-r from-transparent via-white to-transparent z-10 animate-scan pointer-events-none opacity-80" />
+
+            <div className="w-full h-full" style={{ minHeight: '260px' }}>
+              <Scanner
+                onScan={handleScan}
+                onError={(err) => console.error('Error en Scanner', err)}
+                constraints={{ facingMode: 'environment' }}
+                styles={{
+                  container: { width: '100%', height: '260px', minHeight: '260px', paddingTop: 0, margin: 0 },
+                  video: { width: '100%', height: '100%', objectFit: 'cover' },
+                }}
+              />
+            </div>
+          </div>
         )}
 
         {message && (
