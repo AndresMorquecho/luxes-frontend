@@ -545,92 +545,18 @@
     border-radius: 16px !important;
   }
 
-  /* Table layout overrides to transform into cards */
-  .ri-table,
-  .ri-table thead,
-  .ri-table tbody,
-  .ri-table th,
-  .ri-table td,
-  .ri-table tr,
-  .ri-items-table,
-  .ri-items-table thead,
-  .ri-items-table tbody,
-  .ri-items-table th,
-  .ri-items-table td,
-  .ri-items-table tr {
-    display: block !important;
-    width: 100% !important;
-  }
-  
-  .ri-table thead,
-  .ri-items-table thead,
-  .ri-items-table tfoot {
-    display: none !important;
-  }
-  
-  .ri-tr, .ri-items-table tbody tr {
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 14px !important;
-    margin-bottom: 1rem !important;
-    padding: 1rem !important;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02) !important;
-    box-sizing: border-box !important;
-    width: 100% !important;
-  }
-  
-  .ri-tr:last-child, .ri-items-table tbody tr:last-child {
-    margin-bottom: 0 !important;
-  }
-  
-  .ri-table td, .ri-items-table td {
-    border: none !important;
-    border-bottom: 1px dashed rgba(226, 232, 240, 0.8) !important;
-    padding: 0.65rem 0 !important;
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    gap: 1rem !important;
-    text-align: right !important;
-    box-sizing: border-box !important;
-  }
-  
-  .ri-table td:last-child, .ri-items-table td:last-child {
-    border-bottom: none !important;
-    padding-bottom: 0 !important;
-    padding-top: 0.75rem !important;
-  }
-  
-  .ri-table td::before, .ri-items-table td::before {
-    content: attr(data-label);
-    font-weight: 700 !important;
-    color: #94a3b8 !important;
-    text-transform: uppercase !important;
-    font-size: 0.7rem !important;
-    text-align: left !important;
-    flex-shrink: 0 !important;
-    letter-spacing: 0.03em !important;
-  }
-  
-  .ri-items-table td input,
-  .ri-items-table td select {
-    max-width: 60% !important;
-    margin: 0 !important;
-    text-align: right !important;
+  /* Tablas: scroll horizontal en móvil (evita display:block que rompe React DOM) */
+  .ri-table-card .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
   }
 
-  .ri-table td .flex {
-    width: 100% !important;
-    justify-content: stretch !important;
-    gap: 0.5rem !important;
+  .ri-table {
+    min-width: 880px;
   }
-  
-  .ri-table td .flex button {
-    flex: 1 !important;
-    justify-content: center !important;
-    padding: 0.625rem !important;
+
+  .ri-items-table {
+    min-width: 640px;
   }
-  
   .ri-form-actions {
     padding: 1.25rem 1rem !important;
     justify-content: stretch !important;

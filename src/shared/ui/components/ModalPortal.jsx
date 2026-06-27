@@ -40,7 +40,6 @@ function usePortalContainer(rootId) {
           if (containerRef.current === el) {
             containerRef.current = null;
           }
-          setReady(false);
         });
       });
     };

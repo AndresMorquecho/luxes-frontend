@@ -95,57 +95,58 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
           />
         </div>
 
-        {loading ? (
-          <div className="ri-loader-box"><div className="ri-spinner" /></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="ri-table">
-              <thead>
-                <tr>
-                  <th>Orden</th>
-                  <th>Fecha de llegada</th>
-                  <th>Recibido por</th>
-                  <th>Solicitante</th>
-                  <th>Proveedor</th>
-                  <th className="text-center">Ítems</th>
-                  <th className="text-center">A inventario</th>
-                  <th className="text-center w-32">Acciones</th>
+        <div className="overflow-x-auto relative">
+          {loading && (
+            <div className="ri-loader-box ri-loader-overlay">
+              <div className="ri-spinner" />
+            </div>
+          )}
+          <table className="ri-table">
+            <thead>
+              <tr>
+                <th>Orden</th>
+                <th>Fecha de llegada</th>
+                <th>Recibido por</th>
+                <th>Solicitante</th>
+                <th>Proveedor</th>
+                <th className="text-center">Ítems</th>
+                <th className="text-center">A inventario</th>
+                <th className="text-center w-32">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && ordenes.map(o => (
+                <tr key={o.id} className="ri-tr">
+                  <td className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
+                  <td className="text-slate-600 text-xs font-medium">{fmtDateTime(o.fechaRecepcion)}</td>
+                  <td className="text-slate-700 text-xs">{o.recibidoPor?.nombre || '—'}</td>
+                  <td className="text-slate-600 text-xs">{o.usuario?.nombre || '—'}</td>
+                  <td className="text-slate-700 text-xs font-medium">{o.proveedor?.nombre || '—'}</td>
+                  <td className="text-center text-sm font-semibold text-slate-600">{countRecibidos(o)}</td>
+                  <td className="text-center">
+                    <span className="ri-badge-inv">{countInventario(o)}</span>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`${basePath}/historial/${o.id}`)}
+                      className="ri-btn-ver w-full justify-center"
+                    >
+                      Ver detalle
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {ordenes.map(o => (
-                  <tr key={o.id} className="ri-tr">
-                    <td className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
-                    <td className="text-slate-600 text-xs font-medium">{fmtDateTime(o.fechaRecepcion)}</td>
-                    <td className="text-slate-700 text-xs">{o.recibidoPor?.nombre || '—'}</td>
-                    <td className="text-slate-600 text-xs">{o.usuario?.nombre || '—'}</td>
-                    <td className="text-slate-700 text-xs font-medium">{o.proveedor?.nombre || '—'}</td>
-                    <td className="text-center text-sm font-semibold text-slate-600">{countRecibidos(o)}</td>
-                    <td className="text-center">
-                      <span className="ri-badge-inv">{countInventario(o)}</span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`${basePath}/historial/${o.id}`)}
-                        className="ri-btn-ver w-full justify-center"
-                      >
-                        Ver detalle
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {ordenes.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="text-center py-16 text-slate-400 text-sm">
-                      No hay productos recibidos registrados aún.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+              {!loading && ordenes.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-center py-16 text-slate-400 text-sm">
+                    No hay productos recibidos registrados aún.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {totalPages > 1 && (
           <div className="ri-pagination">

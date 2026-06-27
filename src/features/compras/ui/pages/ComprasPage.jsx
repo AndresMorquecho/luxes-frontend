@@ -282,11 +282,13 @@ export const ComprasPage = () => {
           <input className="co-search-inline" placeholder="Buscar por número, proveedor o concepto…" onChange={handleOrdenSearchChange} id="search-ordenes" />
         </div>
 
-        {ordenLoading ? (
-          <div className="co-loader-box"><div className="co-spinner" /></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="co-table">
+        <div className="overflow-x-auto relative">
+          {ordenLoading && (
+            <div className="co-loader-box co-loader-overlay">
+              <div className="co-spinner" />
+            </div>
+          )}
+          <table className="co-table">
               <thead>
                 <tr>
                   <th>Orden</th>
@@ -302,7 +304,7 @@ export const ComprasPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {ordenes.map(o => (
+                {!ordenLoading && ordenes.map(o => (
                   <tr key={o.id} className="co-tr">
                     <td className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
                     <td className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
@@ -361,13 +363,12 @@ export const ComprasPage = () => {
                     </td>
                   </tr>
                 ))}
-                {ordenes.length === 0 && (
+                {!ordenLoading && ordenes.length === 0 && (
                   <tr><td colSpan={isAdmin ? 10 : 8} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron órdenes de compra</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-        )}
 
         {ordenTotalPages > 1 && (
           <div className="co-pagination">
@@ -382,8 +383,7 @@ export const ComprasPage = () => {
       </div>
 
       {/* Registrar Abono Modal */}
-      {abonoModalOpen && (
-        <ModalPortal>
+      <ModalPortal open={abonoModalOpen}>
         <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
           <div className="co-modal-wrap">
@@ -444,12 +444,9 @@ export const ComprasPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
-      )}
+      </ModalPortal>
 
-      {/* Recepción de Insumos Modal */}
-      {recepcionModalOpen && (
-        <ModalPortal>
+      <ModalPortal open={recepcionModalOpen}>
         <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setRecepcionModalOpen(false)} />
           <div className="co-modal-wrap">
@@ -549,20 +546,21 @@ export const ComprasPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
+      </ModalPortal>
+
+      {isPDFOpen && previewOC && (
+        <PDFPreviewModal
+          isOpen
+          onClose={() => {
+            setIsPDFOpen(false);
+            deferClose(() => setPreviewOC(null));
+          }}
+          oc={previewOC}
+          title="Orden de Compra"
+        />
       )}
 
-      {/* Visor Reutilizable de PDF */}
-      <PDFPreviewModal
-        isOpen={isPDFOpen}
-        onClose={() => setIsPDFOpen(false)}
-        oc={previewOC}
-        title="Orden de Compra"
-      />
-
-      {/* Modal Premium Ver Motivo de Rechazo */}
-      {viewReasonOpen && (
-        <ModalPortal>
+      <ModalPortal open={viewReasonOpen}>
         <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setViewReasonOpen(false)} />
           <div className="co-modal-wrap">
@@ -591,8 +589,7 @@ export const ComprasPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
-      )}
+      </ModalPortal>
     </div>
   );
 };
