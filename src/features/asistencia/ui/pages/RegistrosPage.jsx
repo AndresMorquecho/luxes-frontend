@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso } from '../../application/asistenciaService';
-import { isDiaLaboralCompleto } from '../../helpers/asistenciaHelpers';
+import { isDiaLaboralCompleto, parseEmpleadoIdFromQr } from '../../helpers/asistenciaHelpers';
 import { MarcacionesTimeline } from '../components/MarcacionesTimeline';
 import { KioskMarcadoresPanel } from '../components/KioskMarcadoresPanel';
+import { QrScannerViewport } from '../components/QrScannerViewport';
+import { ScannerModal } from '../components/ScannerModal';
 import { getEmpleados } from '../../../empleados/application/empleadosService';
-import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 
@@ -181,7 +182,6 @@ const getMarcacionToastDetails = (tipo) => {
 };
 
 const KioskView = () => {
-  const [isCameraActive, setIsCameraActive] = useState(false);
   const [isProcessingScan, setIsProcessingScan] = useState(false);
   const [scanError, setScanError] = useState(null);
   const [lastScan, setLastScan] = useState(null);
@@ -197,7 +197,7 @@ const KioskView = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Solicitar ubicación al montar y cuando se activa la cámara
+  // Solicitar ubicación al montar
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -211,7 +211,7 @@ const KioskView = () => {
     } else {
       setUbicacionError('La geolocalización no es soportada.');
     }
-  }, [isCameraActive]);
+  }, []);
 
   const resolveUbicacion = async () => {
     let ubicacionFinal = ubicacion;
@@ -259,12 +259,10 @@ const KioskView = () => {
         marcaciones,
       });
 
-      setIsCameraActive(false);
       setTimeout(() => setLastScan(null), 8000);
     } catch (err) {
       console.error(err);
       setScanError(err.message || 'Error al procesar el código QR.');
-      setIsCameraActive(false);
       setTimeout(() => setScanError(null), 5000);
     } finally {
       setIsProcessingScan(false);
@@ -273,7 +271,12 @@ const KioskView = () => {
 
   const handleKioskScan = async (result) => {
     if (!result || result.length === 0 || isProcessingScan || pendingScan) return;
-    const empleadoId = result[0].rawValue.trim();
+    const empleadoId = parseEmpleadoIdFromQr(result[0].rawValue);
+    if (!empleadoId) {
+      setScanError('Código QR no válido. Usa la credencial impresa del colaborador.');
+      setTimeout(() => setScanError(null), 4000);
+      return;
+    }
     setIsProcessingScan(true);
     setScanError(null);
 
@@ -308,7 +311,6 @@ const KioskView = () => {
     } catch (err) {
       console.error(err);
       setScanError(err.message || 'Error al procesar el código QR.');
-      setIsCameraActive(false);
       setTimeout(() => setScanError(null), 5000);
       setIsProcessingScan(false);
     }
@@ -317,229 +319,131 @@ const KioskView = () => {
   const toastDetails = lastScan ? getMarcacionToastDetails(lastScan.tipo) : null;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-70px)] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-6 w-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-[calc(100vh-70px)] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-4 sm:p-6 w-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <div className="w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+        {/* Columna principal: escáner */}
+        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl space-y-4">
+          <div className="text-center lg:text-left">
+            <h2 className="text-lg sm:text-xl font-black text-white">Escanea tu credencial</h2>
+            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto lg:mx-0 leading-relaxed">
+              Coloca el código QR impreso en el carnet dentro del marco verde. La cámara está siempre activa en este terminal.
+            </p>
+          </div>
+
+          <QrScannerViewport
+            onScan={handleKioskScan}
+            onError={(err) => console.error('Error en Scanner Kiosco', err)}
+            processing={isProcessingScan}
+            paused={!!pendingScan}
+            variant="dark"
+            className="mx-auto w-full max-w-[420px]"
+          />
+
+          {scanError && (
+            <div className="rounded-2xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-center animate-fade-in">
+              <p className="text-sm font-bold text-red-400">Error de registro</p>
+              <p className="text-xs text-slate-400 mt-1">{scanError}</p>
+            </div>
+          )}
+
+          {pendingScan && (
+            <div className="rounded-2xl border border-blue-500/30 bg-slate-950/80 p-4 space-y-3 animate-fade-in">
+              <div className="text-center">
+                <h3 className="text-base font-black text-white">¿Qué deseas registrar?</h3>
+                <p className="text-xs text-slate-400 mt-1">ID: {pendingScan.empleadoId}</p>
+              </div>
+              <MarcacionesTimeline marcaciones={pendingScan.marcaciones} compact />
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  disabled={isProcessingScan}
+                  onClick={() => ejecutarRegistroKiosk(pendingScan.empleadoId, false)}
+                  className="w-full py-3 rounded-xl bg-amber-950/60 border border-amber-500/40 text-amber-300 font-extrabold text-sm hover:bg-amber-950/80 transition-colors"
+                >
+                  Inicio almuerzo
+                </button>
+                <button
+                  type="button"
+                  disabled={isProcessingScan}
+                  onClick={() => ejecutarRegistroKiosk(pendingScan.empleadoId, true)}
+                  className="w-full py-3 rounded-xl bg-indigo-600 text-white font-extrabold text-sm hover:bg-indigo-500 transition-colors"
+                >
+                  Salida sin almuerzo / horas extras
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingScan(null)}
+                  className="w-full py-2 text-xs text-slate-500 hover:text-slate-300"
+                >
+                  Cancelar y volver a escanear
+                </button>
+              </div>
+            </div>
+          )}
+
+          {lastScan && toastDetails && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-3 animate-fade-in">
+              <div className="text-center">
+                <h3 className="text-lg font-black text-white">¡Hola, {lastScan.nombreEmpleado}!</h3>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">ID: {lastScan.empleadoId}</p>
+              </div>
+              <div className="py-2 px-4 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
+                <p className={`text-sm font-extrabold uppercase tracking-wider ${toastDetails.text}`}>
+                  {toastDetails.label} registrada
+                </p>
+                <p className="text-xs font-mono text-slate-400 mt-1">
+                  {new Date(lastScan.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </p>
+              </div>
+              <MarcacionesTimeline marcaciones={lastScan.marcaciones} highlightTipo={lastScan.tipo} compact />
+            </div>
+          )}
+        </div>
+
+        {/* Columna lateral: reloj + marcaciones */}
+        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl space-y-5">
+          <div className="text-center">
+            <p className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-none">
+              {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </p>
+            <p className="text-[10px] font-bold text-slate-400 mt-3 uppercase tracking-widest leading-relaxed">
+              {currentTime.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+            </p>
+            {ubicacionError ? (
+              <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-amber-400 bg-amber-950/40 border border-amber-500/25 rounded-full inline-flex items-center gap-1">
+                Sin GPS: {ubicacionError}
+              </span>
+            ) : ubicacion ? (
+              <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 rounded-full inline-flex items-center gap-1">
+                GPS activo
+              </span>
+            ) : (
+              <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-slate-400 bg-slate-900 border border-slate-800 rounded-full inline-flex items-center gap-1">
+                Buscando GPS…
+              </span>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-slate-800/80">
+            <KioskMarcadoresPanel
+              marcaciones={kioskSession?.marcaciones ?? []}
+              empleadoNombre={kioskSession?.nombreEmpleado}
+              empleadoId={kioskSession?.empleadoId}
+              highlightTipo={lastScan?.tipo}
+            />
+          </div>
+        </div>
+      </div>
+
       <style>{`
-        @keyframes borderPulse {
-          0%, 100% { border-color: rgba(59, 130, 246, 0.4); box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
-          50% { border-color: rgba(59, 130, 246, 0.9); box-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
-        }
-        .pulse-border-active { animation: borderPulse 2s infinite; }
-        .scan-overlay-line {
-          animation: scannerSweep 2.5s ease-in-out infinite;
-        }
-        @keyframes scannerSweep {
-          0%, 100% { top: 5%; }
-          50% { top: 95%; }
-        }
         .animate-fade-in {
           animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         @keyframes fadeIn {
-          from { opacity: 0; transform: scale(0.96) translateY(8px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .animate-pulse-glow {
-          animation: pulseGlow 2s infinite ease-in-out;
-        }
-        @keyframes pulseGlow {
-          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.3)); }
-          50% { transform: scale(1.05); filter: drop-shadow(0 0 25px rgba(59, 130, 246, 0.6)); }
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-
-      <div className="w-full max-w-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col items-center space-y-5 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-        
-        {/* Reloj y Fecha */}
-        <div className="text-center flex flex-col items-center">
-          <p className="text-6xl font-black text-white tracking-tight leading-none drop-shadow-md">
-            {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </p>
-          <p className="text-xs font-bold text-slate-400 mt-3.5 uppercase tracking-widest leading-relaxed">
-            {currentTime.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-          </p>
-          {ubicacionError ? (
-            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-amber-400 bg-amber-950/40 border border-amber-500/25 rounded-full inline-flex items-center gap-1 animate-pulse">
-              ⚠️ Sin GPS: {ubicacionError}
-            </span>
-          ) : ubicacion ? (
-            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 rounded-full inline-flex items-center gap-1">
-              📍 GPS Activo y Listo
-            </span>
-          ) : (
-            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-slate-400 bg-slate-900 border border-slate-800 rounded-full inline-flex items-center gap-1">
-              ⌛ Buscando GPS...
-            </span>
-          )}
-        </div>
-
-        {/* Marcadores siempre visibles */}
-        <div className="w-full pt-1 border-t border-slate-800/80">
-          <KioskMarcadoresPanel
-            marcaciones={kioskSession?.marcaciones ?? []}
-            empleadoNombre={kioskSession?.nombreEmpleado}
-            empleadoId={kioskSession?.empleadoId}
-            highlightTipo={lastScan?.tipo}
-          />
-        </div>
-
-        {/* Contenido Dinámico: Cámara o Pantalla de Espera */}
-        {!isCameraActive ? (
-          <div className="w-full flex flex-col items-center space-y-5 py-2 animate-fade-in">
-            <div className="text-center space-y-2">
-              <h2 className="text-lg font-bold text-white">Marcar Asistencia</h2>
-              <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed">
-                {kioskSession
-                  ? 'Escanea de nuevo para registrar la siguiente marcación.'
-                  : 'Presiona el botón para activar la cámara y escanear tu credencial QR.'}
-              </p>
-            </div>
-
-            <button
-              onClick={() => setIsCameraActive(true)}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
-              </svg>
-              Abrir Cámara para Escanear
-            </button>
-          </div>
-        ) : (
-          <div className="w-full flex flex-col items-center space-y-4 animate-fade-in">
-            <div className="w-full aspect-square rounded-2xl overflow-hidden relative border-2 bg-slate-950 flex flex-col items-center justify-center shadow-inner border-blue-500 pulse-border-active">
-              {isProcessingScan && (
-                <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-2 border-white/20 border-t-white" />
-                  <p className="text-xs font-semibold text-white mt-3">Procesando marcación...</p>
-                </div>
-              )}
-              
-              <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent z-40 scan-overlay-line opacity-95" />
-              
-              <div className="absolute inset-0 z-30 pointer-events-none p-4">
-                <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-md" />
-                <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-md" />
-                <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-md" />
-                <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-md" />
-              </div>
-
-              <Scanner
-                onScan={handleKioskScan}
-                onError={(err) => console.error('Error en Scanner Kiosco', err)}
-                constraints={{ facingMode: 'environment' }}
-                styles={{
-                  container: { width: '100%', height: '100%', paddingTop: 0, margin: 0 },
-                  video: { width: '100%', height: '100%', objectFit: 'cover' },
-                }}
-              />
-            </div>
-
-            <button
-              onClick={() => setIsCameraActive(false)}
-              className="w-full py-3.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-extrabold text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-700"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-              Cerrar Cámara
-            </button>
-          </div>
-        )}
-
-        {(lastScan || scanError || pendingScan) && (
-          <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-[100] animate-fade-in overflow-y-auto">
-            {scanError ? (
-              <div className="space-y-4">
-                <div className="w-20 h-20 rounded-full bg-red-950/50 border border-red-500/50 flex items-center justify-center mx-auto shadow-lg shadow-red-500/10">
-                  <svg className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-red-500">Error de Registro</h3>
-                  <p className="text-sm text-slate-400 mt-2 max-w-xs leading-relaxed">{scanError}</p>
-                </div>
-              </div>
-            ) : pendingScan ? (
-              <div className="space-y-5 w-full max-w-sm">
-                <div>
-                  <h3 className="text-xl font-black text-white">¿Qué deseas registrar?</h3>
-                  <p className="text-xs text-slate-400 mt-2">ID: {pendingScan.empleadoId}</p>
-                </div>
-                <MarcacionesTimeline marcaciones={pendingScan.marcaciones} compact />
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    disabled={isProcessingScan}
-                    onClick={() => ejecutarRegistroKiosk(pendingScan.empleadoId, false)}
-                    className="w-full py-3.5 rounded-2xl bg-amber-950/60 border border-amber-500/40 text-amber-300 font-extrabold text-sm hover:bg-amber-950/80 transition-colors"
-                  >
-                    Inicio almuerzo
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isProcessingScan}
-                    onClick={() => ejecutarRegistroKiosk(pendingScan.empleadoId, true)}
-                    className="w-full py-3.5 rounded-2xl bg-indigo-600 text-white font-extrabold text-sm hover:bg-indigo-500 transition-colors"
-                  >
-                    Salida sin almuerzo / horas extras
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setPendingScan(null); setIsCameraActive(true); }}
-                    className="w-full py-2 text-xs text-slate-500 hover:text-slate-300"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-5 w-full max-w-sm">
-                <div className={`w-20 h-20 rounded-full border flex items-center justify-center mx-auto shadow-lg ${toastDetails.iconBg}`}>
-                  <svg className={`w-10 h-10 ${toastDetails.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-black text-white">¡Hola, {lastScan.nombreEmpleado}!</h3>
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">ID: {lastScan.empleadoId}</p>
-                </div>
-                <div className="py-2.5 px-6 rounded-2xl bg-slate-900 border border-slate-800/80 inline-block">
-                  <p className={`text-base font-extrabold uppercase tracking-wider ${toastDetails.text}`}>
-                    {toastDetails.label} Registrada
-                  </p>
-                  <p className="text-xs font-mono text-slate-400 mt-1 flex items-center justify-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Hora: {new Date(lastScan.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </p>
-                </div>
-                <div className="w-full">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Marcaciones del día</p>
-                  <MarcacionesTimeline marcaciones={lastScan.marcaciones} highlightTipo={lastScan.tipo} compact />
-                </div>
-                {(lastScan.lapsos?.trabajo !== '—' || lastScan.lapsos?.almuerzo !== '—') && (
-                  <div className="flex gap-3 justify-center text-xs">
-                    {lastScan.lapsos.trabajo !== '—' && (
-                      <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
-                        Trabajo: <span className="font-bold text-white">{lastScan.lapsos.trabajo}</span>
-                      </span>
-                    )}
-                    {lastScan.lapsos.almuerzo !== '—' && (
-                      <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
-                        Almuerzo: <span className="font-bold text-white">{lastScan.lapsos.almuerzo}</span>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-      </div>
     </div>
   );
 };
@@ -565,6 +469,7 @@ const AdminView = () => {
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('TODOS'); // TODOS | ASISTIO | FALTO | PERMISO
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -730,7 +635,17 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           <h1 className="text-xl font-bold text-slate-800">Control de Asistencia Diario</h1>
           <p className="text-sm text-slate-500">Supervisión diaria, control de ausencias y asignación de permisos.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 transition-all shadow-sm cursor-pointer border-0"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5Z" />
+            </svg>
+            Escanear QR
+          </button>
           <button onClick={descargarExcel}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-gray-50 transition-all shadow-sm cursor-pointer border-solid">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1031,6 +946,11 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           </div>
         </div>
       )}
+      <ScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onSuccess={loadData}
+      />
     </div>
   );
 };
