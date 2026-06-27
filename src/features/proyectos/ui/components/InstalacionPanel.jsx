@@ -115,28 +115,19 @@ export function InstalacionPanel({ proyectoId }) {
         sku: item.sku,
         cantidad: item.cantidadAprobada,
         unidad: item.unidad,
+        precioUnitario: item.precioUnitario || 0,
         observacion: `Aprobado Compra (${oc.id})`,
         origen: 'compra'
       }));
 
     const nuevosMateriales = [...(proyecto?.fases?.INSTALACION?.datos?.materiales || []), ...materialesAprobados];
 
-    const gastosExistentes = proyecto?.gastos || [];
-    const nuevoGasto = {
-      id: `G-${Date.now()}`,
-      concepto: `Materiales de Instalación - ${oc.id}`,
-      monto: costoTotal,
-      fecha: new Date().toISOString().split('T')[0]
-    };
-    const nuevosGastos = [...gastosExistentes, nuevoGasto];
-
-    // Actualizar proyecto en el store
+    // Actualizar proyecto en el store (sin agregar el total de la OC como gasto directo, se calcula por consumo)
     dispatch({
       type: ACTIONS.UPDATE_PROYECTO,
       payload: {
         id: proyecto.id,
         cambios: {
-          gastos: nuevosGastos,
           fases: {
             ...proyecto.fases,
             INSTALACION: {
@@ -176,7 +167,7 @@ export function InstalacionPanel({ proyectoId }) {
     setAprobaciones({});
     showModal(
       'Compra Aprobada', 
-      `Orden de compra ${oc.id} aprobada con éxito. Se registró un gasto de $${costoTotal.toFixed(2)} en el proyecto.`, 
+      `Orden de compra ${oc.id} aprobada con éxito. Los materiales han sido registrados en el inventario.`, 
       'success'
     );
   }
