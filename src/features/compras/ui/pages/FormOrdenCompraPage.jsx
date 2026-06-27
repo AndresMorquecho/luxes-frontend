@@ -1,7 +1,13 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { getOrdenById, createOrden, updateOrden } from '../../application/comprasService';
-import { getMateriales, buildMaterialesQuery, normalizeMaterialesList } from '../../../inventario/application/inventarioService';
+import { 
+  getMateriales, 
+  buildMaterialesQuery, 
+  normalizeMaterialesList,
+  getUnidadesMedida,
+  createMaterial
+} from '../../../inventario/application/inventarioService';
 import { getProyectos } from '../../../proyectos/application/proyectosService';
 import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -21,6 +27,8 @@ export const FormOrdenCompraPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [proyectos, setProyectos] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+  const [creatingMaterial, setCreatingMaterial] = useState(false);
   const [form, setForm] = useState({
     fecha: new Date().toISOString().split('T')[0],
     concepto: '',
@@ -47,16 +55,23 @@ export const FormOrdenCompraPage = () => {
         return { data: [] };
       });
 
+      const unidadesPromise = getUnidadesMedida().catch(err => {
+        console.error('Error al cargar unidades:', err);
+        return [];
+      });
+
       if (isEdit) {
-        const [projResult, o] = await Promise.all([
+        const [projResult, o, units] = await Promise.all([
           proyectosPromise,
           getOrdenById(id).catch(err => {
             console.error('Error al cargar la orden:', err);
             return null;
           }),
+          unidadesPromise
         ]);
 
         setProyectos(Array.isArray(projResult?.data) ? projResult.data : []);
+        setUnidades(units);
 
         if (o) {
           setForm({
@@ -75,8 +90,12 @@ export const FormOrdenCompraPage = () => {
           });
         }
       } else {
-        const projResult = await proyectosPromise;
+        const [projResult, units] = await Promise.all([
+          proyectosPromise,
+          unidadesPromise
+        ]);
         setProyectos(Array.isArray(projResult?.data) ? projResult.data : []);
+        setUnidades(units);
       }
     } catch (err) {
       toast.error('Error al cargar datos: ' + err.message);
@@ -122,6 +141,57 @@ export const FormOrdenCompraPage = () => {
     return () => clearTimeout(timer);
   }, [itemInput.descripcion, matDropdownOpen]);
 
+  const handleQuickCreateMaterial = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    const nombreNuevo = itemInput.descripcion.trim();
+    if (!nombreNuevo) return;
+
+    // Obtener la categoría por defecto del usuario
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const rol = (user?.rol || 'visor').toLowerCase();
+    
+    let defaultCategory = 'Taller';
+    if (rol.includes('impresion') || rol.includes('impresión')) {
+      defaultCategory = 'Impresión';
+    }
+
+    // Buscar ID de unidad por defecto ('unidades' o el primero disponible)
+    const defaultUnit = unidades.find(u => u.nombre.toLowerCase() === 'unidades') || unidades[0];
+    const defaultUnitId = defaultUnit?.id || null;
+
+    setCreatingMaterial(true);
+    try {
+      const payload = {
+        nombre: nombreNuevo,
+        tipo: 'consumible',
+        categoria: defaultCategory,
+        unidadMedidaId: defaultUnitId,
+        stockActual: 0,
+        stockMinimo: 0,
+        precioCosto: 0,
+        codigo: `MAT_${Date.now().toString().slice(-6)}`
+      };
+
+      const newMat = await createMaterial(payload);
+      toast.success(`"${newMat.nombre}" ha sido registrado en el inventario.`);
+      
+      setItemInput({
+        materialId: newMat.id,
+        descripcion: newMat.nombre,
+        cantidad: '1',
+      });
+      setMatDropdownOpen(false);
+    } catch (err) {
+      toast.error('Error al registrar material: ' + err.message);
+    } finally {
+      setCreatingMaterial(false);
+    }
+  };
+
   // Add Item from Top Line to Table - SIN PRECIOS
   const handleAddItem = () => {
     const qty = parseFloat(itemInput.cantidad) || 0;
@@ -132,6 +202,12 @@ export const FormOrdenCompraPage = () => {
     }
     if (qty <= 0) {
       toast.error('La cantidad debe ser mayor a 0.');
+      return;
+    }
+
+    const isProyecto = !!form.proyectoId;
+    if (isProyecto && !itemInput.materialId) {
+      toast.error('Para compras asociadas a un proyecto, el material debe estar registrado en el inventario. Por favor, búscalo y elígelo o usa la opción rápida de registrar nuevo material.');
       return;
     }
 
@@ -173,6 +249,11 @@ export const FormOrdenCompraPage = () => {
     
     if (form.detalles.length === 0) {
       toast.error('Debe agregar al menos un item a la orden.');
+      return;
+    }
+
+    if (form.proyectoId && form.detalles.some(d => d.isCustom || !d.materialId)) {
+      toast.error('Esta orden está asociada a un proyecto y no puede contener materiales libres. Registra los materiales o remuévelos de la lista.');
       return;
     }
 
@@ -325,7 +406,12 @@ export const FormOrdenCompraPage = () => {
               />
               {matDropdownOpen && (
                 <div className="co-search-dropdown co-search-dropdown--compact" ref={dropdownRef}>
-                  {searchingMateriales ? (
+                  {creatingMaterial ? (
+                    <div className="px-3 py-4 text-xs text-slate-500 font-semibold text-center flex flex-col items-center gap-2">
+                      <div className="co-spinner co-spinner-xs" style={{ width: '16px', height: '16px', borderTopColor: '#6366f1' }}></div>
+                      Registrando material en el catálogo...
+                    </div>
+                  ) : searchingMateriales ? (
                     <div className="px-3 py-2 text-xs text-slate-400 text-center">
                       Cargando productos...
                     </div>
@@ -351,6 +437,16 @@ export const FormOrdenCompraPage = () => {
                           </div>
                         </div>
                       ))}
+                      {itemInput.descripcion.trim().length >= MIN_FILTER_CHARS && (
+                        <div
+                          className="co-search-item co-search-item--create font-bold text-indigo-600 border-t border-slate-100"
+                          style={{ background: '#f8fafc', padding: '10px 12px' }}
+                          onMouseDown={handleQuickCreateMaterial}
+                        >
+                          <div>+ Registrar "{itemInput.descripcion.trim()}" en el Inventario</div>
+                          <div className="text-[9px] text-slate-400 font-normal">Crear automáticamente con stock 0</div>
+                        </div>
+                      )}
                       {itemInput.descripcion.trim().length < MIN_FILTER_CHARS && (
                         <div className="co-search-hint">
                           Escribe para buscar entre más productos
@@ -358,10 +454,19 @@ export const FormOrdenCompraPage = () => {
                       )}
                     </>
                   ) : (
-                    <div className="px-3 py-2 text-xs text-slate-400 text-center">
-                      {itemInput.descripcion.trim().length >= MIN_FILTER_CHARS
-                        ? 'Sin coincidencias — puedes usar el texto como material libre'
-                        : 'No hay productos en inventario para tu rol'}
+                    <div className="px-3 py-4 text-center">
+                      <div className="text-xs text-slate-400 mb-2">Sin coincidencias en el catálogo.</div>
+                      {itemInput.descripcion.trim().length >= MIN_FILTER_CHARS ? (
+                        <button
+                          type="button"
+                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                          onMouseDown={handleQuickCreateMaterial}
+                        >
+                          + Registrar "{itemInput.descripcion.trim()}" en el Inventario
+                        </button>
+                      ) : (
+                        <div className="text-[10px] text-slate-400">Escribe al menos 2 caracteres para buscar o registrar</div>
+                      )}
                     </div>
                   )}
                 </div>

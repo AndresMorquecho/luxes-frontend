@@ -625,7 +625,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
 
     showModal(
       'Aprobar Orden de Compra',
-      `¿Confirmas la aprobación de la orden de compra ${oc.numero}? Esto registrará un gasto en el proyecto.`,
+      `¿Confirmas la aprobación de la orden de compra ${oc.numero}? Esto ingresará los materiales al inventario para su posterior consumo.`,
       'confirm',
       async () => {
         try {
@@ -659,7 +659,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
 
           showModal(
             'Orden Aprobada', 
-            `La orden ${oc.numero} ha sido aprobada con éxito. Se registró un gasto de $${totalAprobado.toFixed(2)} en el proyecto.`, 
+            `La orden ${oc.numero} ha sido aprobada con éxito. Los materiales han sido registrados en el inventario.`, 
             'success'
           );
         } catch (err) {

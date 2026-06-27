@@ -18,6 +18,7 @@ import './InventarioPage.css';
 import { NuevoProductoModal } from './NuevoProductoModal.jsx';
 
 // ── Helper ─────────────────────────────────────────────────────────────────
+const ITEMS_PER_PAGE = 20;
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
 const fmtCompra = (d) => d ? new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const elapsed = (fechaSalida) => {
@@ -154,6 +155,7 @@ function MaterialModal({ item, onClose, onSave, unidades = [] }) {
                   <select value={form.categoria} onChange={e => set('categoria', e.target.value)}>
                     <option value="Taller">Taller</option>
                     <option value="Oficina">Oficina</option>
+                    <option value="Impresión">Impresión</option>
                   </select>
                 </label>
               </div>
@@ -380,7 +382,7 @@ export function InventarioPage() {
       const res = await getMateriales(buildMaterialesQuery({
         tipo,
         page,
-        limit: 10,
+        limit: ITEMS_PER_PAGE,
         search: debouncedSearch,
         ...(lockedCategory ? {} : { categoria: activeCategory || undefined }),
       }));
@@ -460,12 +462,14 @@ export function InventarioPage() {
 
   // ── Stock badge ───────────────────────────────────────────────────────────
   const stockBadge = (item) => {
+    const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
+    if (isLogistico) return <span className="inv-badge success" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>Logístico</span>;
     if (item.stockActual === 0) return <span className="inv-badge empty">Agotado</span>;
     if (item.stockActual <= item.stockMinimo) return <span className="inv-badge low">Stock Bajo</span>;
     return <span className="inv-badge ok">En Stock</span>;
   };
 
-  const totalPages = Math.ceil(totalItems / 10);
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   const getPageNumbers = () => {
     if (totalPages <= 7) {
@@ -607,44 +611,48 @@ export function InventarioPage() {
                   {items.length === 0 && (
                     <tr><td colSpan={isTaller ? 8 : 9} className="inv-empty">Sin consumibles registrados.</td></tr>
                   )}
-                  {items.map(item => (
-                    <tr key={item.id} className={item.stockActual <= item.stockMinimo ? 'inv-row-warn' : ''}>
-                      <td className="inv-td-name">{item.nombre}</td>
-                      <td>{item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid'}</td>
-                      <td className="inv-td-stock">
-                        <strong>{item.stockActual}</strong>
-                      </td>
-                      <td className="inv-td-min">{item.stockMinimo}</td>
-                      <td>{stockBadge(item)}</td>
-                      <td>{fmt(item.precioCosto)}</td>
-                      <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
-                        {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
-                      </td>
-                      {!isTaller && (
-                        <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                          {fmtCompra(item.ultimaFechaCompra)}
+                  {items.map(item => {
+                    const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
+                    const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
+                    return (
+                      <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
+                        <td className="inv-td-name">{item.nombre}</td>
+                        <td>{item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid'}</td>
+                        <td className="inv-td-stock">
+                          <strong>{isLogistico ? '—' : item.stockActual}</strong>
                         </td>
-                      )}
-                      <td className="inv-td-actions">
-                        <button className="inv-act-btn move" title="Movimiento" onClick={() => setMovModal(item)}>
-                          <ArrowRightLeft size={14}/>
-                        </button>
-                        <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                          <Edit2 size={14}/>
-                        </button>
-                        <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                          <Trash2 size={14}/>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="inv-td-min">{isLogistico ? '—' : item.stockMinimo}</td>
+                        <td>{stockBadge(item)}</td>
+                        <td>{fmt(item.precioCosto)}</td>
+                        <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
+                          {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
+                        </td>
+                        {!isTaller && (
+                          <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            {fmtCompra(item.ultimaFechaCompra)}
+                          </td>
+                        )}
+                        <td className="inv-td-actions">
+                          <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
+                            <Clock size={14}/>
+                          </button>
+                          <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                            <Edit2 size={14}/>
+                          </button>
+                          <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                            <Trash2 size={14}/>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {totalPages > 1 && (
                 <div className="inv-pagination">
                   <div className="inv-pagination-info">
-                    Mostrando <strong>{Math.min(totalItems, (page - 1) * 10 + 1)}</strong> a{' '}
-                    <strong>{Math.min(totalItems, page * 10)}</strong> de{' '}
+                    Mostrando <strong>{Math.min(totalItems, (page - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
+                    <strong>{Math.min(totalItems, page * ITEMS_PER_PAGE)}</strong> de{' '}
                     <strong>{totalItems}</strong> materiales
                   </div>
                   <div className="inv-pagination-pages">
@@ -704,51 +712,58 @@ export function InventarioPage() {
                   {items.length === 0 && (
                     <tr><td colSpan={10} className="inv-empty">Sin herramientas registradas.</td></tr>
                   )}
-                  {items.map(item => (
-                    <tr key={item.id} className={item.stockActual <= item.stockMinimo ? 'inv-row-warn' : ''}>
-                      <td style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.8rem', color: '#64748b' }}>
-                        {item.codigo || '—'}
-                      </td>
-                      <td className="inv-td-name">
-                        <Wrench size={14} className="inv-row-icon"/>
-                        {item.nombre}
-                      </td>
-                      <td>
-                        {item.marca || item.modelo ? `${item.marca || ''} ${item.modelo ? `/ ${item.modelo}` : ''}` : '—'}
-                      </td>
-                      <td style={{ fontSize: '0.8rem', color: '#475569', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.serie}>
-                        {item.serie || '—'}
-                      </td>
-                      <td>
-                        <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>
-                          {item.categoria || 'Taller'}
-                        </span>
-                      </td>
-                      <td>
-                        {usoBadge(item.estadoUso)}
-                      </td>
-                      <td className="inv-td-stock"><strong>{item.stockActual}</strong></td>
-                      <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
-                        {item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}
-                      </td>
-                      <td>{fmt(item.precioCosto)}</td>
-                      <td className="inv-td-actions">
-                        <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                          <Edit2 size={14}/>
-                        </button>
-                        <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                          <Trash2 size={14}/>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map(item => {
+                    const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
+                    const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
+                    return (
+                      <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
+                        <td style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.8rem', color: '#64748b' }}>
+                          {item.codigo || '—'}
+                        </td>
+                        <td className="inv-td-name">
+                          <Wrench size={14} className="inv-row-icon"/>
+                          {item.nombre}
+                        </td>
+                        <td>
+                          {item.marca || item.modelo ? `${item.marca || ''} ${item.modelo ? `/ ${item.modelo}` : ''}` : '—'}
+                        </td>
+                        <td style={{ fontSize: '0.8rem', color: '#475569', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.serie}>
+                          {item.serie || '—'}
+                        </td>
+                        <td>
+                          <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>
+                            {item.categoria || 'Taller'}
+                          </span>
+                        </td>
+                        <td>
+                          {usoBadge(item.estadoUso)}
+                        </td>
+                        <td className="inv-td-stock"><strong>{item.stockActual}</strong></td>
+                        <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
+                          {item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}
+                        </td>
+                        <td>{fmt(item.precioCosto)}</td>
+                        <td className="inv-td-actions">
+                          <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
+                            <Clock size={14}/>
+                          </button>
+                          <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                            <Edit2 size={14}/>
+                          </button>
+                          <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                            <Trash2 size={14}/>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {totalPages > 1 && (
                 <div className="inv-pagination">
                   <div className="inv-pagination-info">
-                    Mostrando <strong>{Math.min(totalItems, (page - 1) * 10 + 1)}</strong> a{' '}
-                    <strong>{Math.min(totalItems, page * 10)}</strong> de{' '}
+                    Mostrando <strong>{Math.min(totalItems, (page - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
+                    <strong>{Math.min(totalItems, page * ITEMS_PER_PAGE)}</strong> de{' '}
                     <strong>{totalItems}</strong> materiales
                   </div>
                   <div className="inv-pagination-pages">

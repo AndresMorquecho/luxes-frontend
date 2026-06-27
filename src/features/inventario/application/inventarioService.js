@@ -144,3 +144,10 @@ export async function devolverPrestamo(id, body = {}) {
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar devolución');
   return data.data;
 }
+
+export async function getMaterialHistorial(id) {
+  const res = await fetch(`/api/inventario/${id}/historial`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener historial del material');
+  return data.data;
+}
