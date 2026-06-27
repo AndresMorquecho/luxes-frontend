@@ -657,9 +657,19 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
                         </svg>
-                        <span className="sidebar-submenu-text">Órdenes de Compra</span>
+                        <span className="sidebar-submenu-text">{isImpresion || isTaller ? 'Órdenes activas' : 'Órdenes de Compra'}</span>
                       </Link>
                     </li>
+                    {(isImpresion || isTaller) && (
+                      <li className={currentPath.startsWith('/compras/historial') ? 'submenu-active' : ''}>
+                        <Link to="/compras/historial" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Historial de órdenes</span>
+                        </Link>
+                      </li>
+                    )}
                     <li className={currentPath.startsWith('/compras/recepcion') ? 'submenu-active' : ''}>
                       <Link to="/compras/recepcion" className="sidebar-submenu-link">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">

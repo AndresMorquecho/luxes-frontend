@@ -322,27 +322,29 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
       </div>
 
       {showPDFPreview && recepcionData && (
-        <ModalPortal>
+        <ModalPortal open>
           <PDFRecepcionModal recepcion={recepcionData} onClose={handleClosePDF} />
         </ModalPortal>
       )}
 
-      <PDFPreviewModal
-        isOpen={showOrdenPDF && !!orden}
-        onClose={() => setShowOrdenPDF(false)}
-        oc={showOrdenPDF && orden ? mapOrdenToPDFFormat(orden) : null}
-        proyecto={{
-          nombre: orden?.concepto || 'Sin proyecto asignado',
-          id: 'N/D',
-          responsable: orden?.usuario?.nombre || 'N/D',
-          cliente: {
-            empresa: orden?.proveedor?.nombre || 'Sin proveedor',
-            nombre: orden?.proveedor?.contacto || 'N/D',
-            direccion: orden?.proveedor?.direccion || 'N/D',
-          },
-        }}
-        title="Orden de Compra"
-      />
+      {showOrdenPDF && orden && (
+        <PDFPreviewModal
+          isOpen
+          onClose={() => setShowOrdenPDF(false)}
+          oc={mapOrdenToPDFFormat(orden)}
+          proyecto={{
+            nombre: orden?.concepto || 'Sin proyecto asignado',
+            id: 'N/D',
+            responsable: orden?.usuario?.nombre || 'N/D',
+            cliente: {
+              empresa: orden?.proveedor?.nombre || 'Sin proveedor',
+              nombre: orden?.proveedor?.contacto || 'N/D',
+              direccion: orden?.proveedor?.direccion || 'N/D',
+            },
+          }}
+          title="Orden de Compra"
+        />
+      )}
     </div>
   );
 };

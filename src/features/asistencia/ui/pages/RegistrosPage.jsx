@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso } from '../../application/asistenciaService';
 import { isDiaLaboralCompleto } from '../../helpers/asistenciaHelpers';
 import { MarcacionesTimeline } from '../components/MarcacionesTimeline';
+import { KioskMarcadoresPanel } from '../components/KioskMarcadoresPanel';
 import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -185,6 +186,7 @@ const KioskView = () => {
   const [scanError, setScanError] = useState(null);
   const [lastScan, setLastScan] = useState(null);
   const [pendingScan, setPendingScan] = useState(null);
+  const [kioskSession, setKioskSession] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [ubicacion, setUbicacion] = useState(null);
   const [ubicacionError, setUbicacionError] = useState(null);
@@ -251,6 +253,12 @@ const KioskView = () => {
         lapsos,
       });
 
+      setKioskSession({
+        empleadoId: empleadoId.trim(),
+        nombreEmpleado: registro.nombreEmpleado || empleadoId,
+        marcaciones,
+      });
+
       setIsCameraActive(false);
       setTimeout(() => setLastScan(null), 8000);
     } catch (err) {
@@ -274,6 +282,12 @@ const KioskView = () => {
         getTodayMarcaciones(empleadoId),
         getProximaMarcacion(empleadoId),
       ]);
+
+      setKioskSession({
+        empleadoId,
+        nombreEmpleado: marcaciones[0]?.nombreEmpleado || empleadoId,
+        marcaciones,
+      });
 
       if (proxima.completado || isDiaLaboralCompleto(marcaciones)) {
         throw new Error('El colaborador ya completó las marcaciones del día.');
@@ -333,7 +347,7 @@ const KioskView = () => {
         }
       `}</style>
 
-      <div className="w-full max-w-md bg-slate-900/60 border border-slate-800 rounded-3xl p-8 flex flex-col items-center space-y-6 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+      <div className="w-full max-w-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col items-center space-y-5 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         
         {/* Reloj y Fecha */}
         <div className="text-center flex flex-col items-center">
@@ -358,20 +372,26 @@ const KioskView = () => {
           )}
         </div>
 
+        {/* Marcadores siempre visibles */}
+        <div className="w-full pt-1 border-t border-slate-800/80">
+          <KioskMarcadoresPanel
+            marcaciones={kioskSession?.marcaciones ?? []}
+            empleadoNombre={kioskSession?.nombreEmpleado}
+            empleadoId={kioskSession?.empleadoId}
+            highlightTipo={lastScan?.tipo}
+          />
+        </div>
+
         {/* Contenido Dinámico: Cámara o Pantalla de Espera */}
         {!isCameraActive ? (
-          <div className="w-full flex flex-col items-center space-y-8 py-4 animate-fade-in">
-            {/* Icono de Registro de Asistencia */}
-            <div className="w-32 h-32 rounded-full bg-slate-950/50 border border-slate-800 flex items-center justify-center shadow-inner relative group">
-              <div className="absolute inset-0 rounded-full bg-blue-500/10 blur-xl opacity-50 group-hover:opacity-80 transition-opacity" />
-              <svg className="w-16 h-16 text-blue-500 animate-pulse-glow drop-shadow-[0_0_15px_rgba(59,130,246,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0110 21a3.75 3.75 0 01-3.296-1.593 3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.75 3.75 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0114 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.75 3.75 0 0121 12z" />
-              </svg>
-            </div>
-            
+          <div className="w-full flex flex-col items-center space-y-5 py-2 animate-fade-in">
             <div className="text-center space-y-2">
               <h2 className="text-lg font-bold text-white">Marcar Asistencia</h2>
-              <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed">Presiona el botón de abajo para activar la cámara y escanear tu credencial QR.</p>
+              <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed">
+                {kioskSession
+                  ? 'Escanea de nuevo para registrar la siguiente marcación.'
+                  : 'Presiona el botón para activar la cámara y escanear tu credencial QR.'}
+              </p>
             </div>
 
             <button
@@ -386,7 +406,7 @@ const KioskView = () => {
             </button>
           </div>
         ) : (
-          <div className="w-full flex flex-col items-center space-y-5 animate-fade-in">
+          <div className="w-full flex flex-col items-center space-y-4 animate-fade-in">
             <div className="w-full aspect-square rounded-2xl overflow-hidden relative border-2 bg-slate-950 flex flex-col items-center justify-center shadow-inner border-blue-500 pulse-border-active">
               {isProcessingScan && (
                 <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center">

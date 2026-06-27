@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getOrdenes } from '../../../compras/application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
-import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal';
+import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { RecepcionNav } from './RecepcionNav';
 import './RecepcionInsumos.css';
 
@@ -126,93 +127,96 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
           />
         </div>
 
-        {ordenLoading ? (
-          <div className="ri-loader-box"><div className="ri-spinner" /></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="ri-table">
-              <thead>
-                <tr>
-                  <th>Orden</th>
-                  <th>Proveedor</th>
-                  <th>Solicitante</th>
-                  <th>Fecha Aprobación</th>
-                  <th>Concepto</th>
-                  {!isTaller && <th className="text-right">Total</th>}
-                  <th className="text-center">Items</th>
-                  <th className="text-center">Progreso</th>
-                  <th className="text-center w-48">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordenes.map(o => (
-                  <tr key={o.id} className="ri-tr">
-                    <td data-label="Orden" className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
-                    <td data-label="Proveedor" className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
-                    <td data-label="Solicitante" className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
-                    <td data-label="Fecha" className="text-slate-500 text-xs">{fmtDate(o.fechaAprobacion || o.fecha)}</td>
-                    <td data-label="Concepto" className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
-                    {!isTaller && <td data-label="Total" className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>}
-                    <td data-label="Items" className="text-center text-slate-600 text-sm font-semibold">{o.detalles?.length || 0}</td>
-                    <td data-label="Progreso" className="text-center">
-                      {o.estado === 'parcialmente_recibida' ? (
-                        <span className="ri-badge-parcial">
-                          {countRecibidos(o)}/{o.detalles?.length || 0}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">0/{o.detalles?.length || 0}</span>
-                      )}
-                    </td>
-                    <td data-label="Acciones">
-                      <div className="flex items-center justify-center gap-2">
-                        {!isTaller && (
-                          <button
-                            onClick={() => handleVerOrden(o)}
-                            className="ri-btn-ver"
-                            title="Ver Orden de Compra"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                            </svg>
-                            Ver
-                          </button>
-                        )}
+        <div className="overflow-x-auto relative">
+          {ordenLoading && (
+            <div className="ri-loader-box ri-loader-overlay">
+              <div className="ri-spinner" />
+            </div>
+          )}
+          <table className="ri-table">
+            <thead>
+              <tr>
+                <th>Orden</th>
+                <th>Proveedor</th>
+                <th>Solicitante</th>
+                <th>Fecha Aprobación</th>
+                <th>Concepto</th>
+                <th className={`text-right ${isTaller ? 'ri-col-hidden' : ''}`}>Total</th>
+                <th className="text-center">Items</th>
+                <th className="text-center">Progreso</th>
+                <th className="text-center w-48">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!ordenLoading && ordenes.map(o => (
+                <tr key={o.id} className="ri-tr">
+                  <td data-label="Orden" className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
+                  <td data-label="Proveedor" className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
+                  <td data-label="Solicitante" className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
+                  <td data-label="Fecha" className="text-slate-500 text-xs">{fmtDate(o.fechaAprobacion || o.fecha)}</td>
+                  <td data-label="Concepto" className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
+                  <td data-label="Total" className={`text-right font-semibold text-slate-800 ${isTaller ? 'ri-col-hidden' : ''}`}>{fmt(o.total)}</td>
+                  <td data-label="Items" className="text-center text-slate-600 text-sm font-semibold">{o.detalles?.length || 0}</td>
+                  <td data-label="Progreso" className="text-center">
+                    {o.estado === 'parcialmente_recibida' ? (
+                      <span className="ri-badge-parcial">
+                        {countRecibidos(o)}/{o.detalles?.length || 0}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">0/{o.detalles?.length || 0}</span>
+                    )}
+                  </td>
+                  <td data-label="Acciones">
+                    <div className="flex items-center justify-center gap-2">
+                      {!isTaller && (
                         <button
-                          onClick={() => handleRecepcionar(o.id)}
-                          className="ri-btn-recepcionar"
-                          title="Recibir productos de la orden"
+                          type="button"
+                          onClick={() => handleVerOrden(o)}
+                          className="ri-btn-ver"
+                          title="Ver Orden de Compra"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                           </svg>
-                          Recibir productos
+                          Ver
                         </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRecepcionar(o.id)}
+                        className="ri-btn-recepcionar"
+                        title="Recibir productos de la orden"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                        </svg>
+                        Recibir productos
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!ordenLoading && ordenes.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                        </svg>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-                {ordenes.length === 0 && (
-                  <tr>
-                    <td colSpan={isTaller ? 8 : 9} className="text-center py-16">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
-                          <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-600">No hay órdenes con productos pendientes</p>
-                          <p className="text-xs text-slate-400 mt-1">Las órdenes aprobadas aparecerán aquí</p>
-                        </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-600">No hay órdenes con productos pendientes</p>
+                        <p className="text-xs text-slate-400 mt-1">Las órdenes aprobadas aparecerán aquí</p>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {ordenTotalPages > 1 && (
           <div className="ri-pagination">
@@ -226,16 +230,17 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
         )}
       </div>
 
-      {/* PDF Preview Modal */}
-      <PDFPreviewModal
-        isOpen={isPDFOpen && !!previewOC}
-        onClose={() => {
-          setIsPDFOpen(false);
-          window.setTimeout(() => setPreviewOC(null), 0);
-        }}
-        oc={previewOC}
-        title="Orden de Compra"
-      />
+      {isPDFOpen && previewOC && (
+        <PDFPreviewModal
+          isOpen
+          onClose={() => {
+            setIsPDFOpen(false);
+            deferClose(() => setPreviewOC(null));
+          }}
+          oc={previewOC}
+          title="Orden de Compra"
+        />
+      )}
     </div>
   );
 };

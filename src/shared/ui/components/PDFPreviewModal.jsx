@@ -1,8 +1,8 @@
 // src/shared/ui/components/PDFPreviewModal.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Printer, X, ZoomIn, ZoomOut, FileText, Download } from 'lucide-react';
-import { ModalPortal, deferClose } from './ModalPortal';
+import { ModalPortal, deferClose, useModalVisibility } from './ModalPortal';
 import './PDFPreviewModal.css';
 
 /**
@@ -10,22 +10,8 @@ import './PDFPreviewModal.css';
  */
 export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden de Compra' }) {
   const [zoom, setZoom] = useState(100);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && oc) {
-      setVisible(true);
-    }
-  }, [isOpen, oc]);
-
-  useEffect(() => {
-    if (!isOpen && visible) {
-      const frame = window.requestAnimationFrame(() => {
-        setVisible(false);
-      });
-      return () => window.cancelAnimationFrame(frame);
-    }
-  }, [isOpen, visible]);
+  const shouldShow = Boolean(isOpen && oc);
+  const visible = useModalVisibility(shouldShow);
 
   if (!visible || !oc) return null;
 
@@ -48,7 +34,7 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
   ) || 0;
 
   return (
-    <ModalPortal>
+    <ModalPortal open={shouldShow}>
       <div
         className="pdf-modal-overlay"
         onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}

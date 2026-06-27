@@ -32,14 +32,17 @@ function usePortalContainer(rootId) {
     setReady(true);
 
     return () => {
-      const remove = () => {
-        if (el.parentNode === root) {
-          root.removeChild(el);
-        }
-        containerRef.current = null;
-        setReady(false);
-      };
-      requestAnimationFrame(() => requestAnimationFrame(remove));
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (el.isConnected) {
+            el.remove();
+          }
+          if (containerRef.current === el) {
+            containerRef.current = null;
+          }
+          setReady(false);
+        });
+      });
     };
   }, [rootId]);
 

@@ -7,12 +7,14 @@ import {
 } from '../../application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
 import './ComprasPage.css';
 
 const ESTADOS = ['pendiente_aprobacion', 'aprobada', 'recibida', 'cancelada'];
 const ESTADO_BADGES = {
   pendiente_aprobacion: { bg: 'rgba(245,158,11,0.1)',  color: '#f59e0b', label: 'Pendiente Aprobación' },
   aprobada:             { bg: 'rgba(59,130,246,0.1)',   color: '#3b82f6', label: 'Aprobada' },
+  parcialmente_recibida: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Recepción Parcial' },
   recibida:             { bg: 'rgba(16,185,129,0.1)',   color: '#10b981', label: 'Recibida' },
   cancelada:            { bg: 'rgba(239,68,68,0.08)',   color: '#ef4444', label: 'Cancelada' },
 };
@@ -108,7 +110,10 @@ export const ComprasPage = () => {
         page: ordenPage,
         limit: perPage,
         search: ordenSearch || undefined,
-        creadorRol: (isImpresion || isTaller) ? currentUser?.rol : undefined
+        creadorRol: (isImpresion || isTaller) ? currentUser?.rol : undefined,
+        estados: (isImpresion || isTaller)
+          ? ['pendiente_aprobacion', 'aprobada', 'parcialmente_recibida']
+          : undefined,
       });
       setOrdenes(data.items || []);
       setOrdenTotal(data.total || 0);
@@ -229,14 +234,20 @@ export const ComprasPage = () => {
       {/* Header */}
       <div className="co-card co-header">
         <div>
-          <h1 className="co-title">Órdenes de Compra</h1>
-          <p className="co-subtitle">Solicitud, control y emisión de compras de materiales y activos</p>
+          <h1 className="co-title">{isImpresion || isTaller ? 'Órdenes activas' : 'Órdenes de Compra'}</h1>
+          <p className="co-subtitle">
+            {isImpresion || isTaller
+              ? 'Solicitudes pendientes, aprobadas o en recepción de tu área'
+              : 'Solicitud, control y emisión de compras de materiales y activos'}
+          </p>
         </div>
         <button onClick={() => navigate('/compras/nueva')} className="co-btn-primary" id="btn-nueva-orden">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           Nueva Orden
         </button>
       </div>
+
+      {(isImpresion || isTaller) && <ComprasOperativoNav />}
 
       {/* KPI Cards */}
       <div className="co-kpi-grid">
