@@ -13,8 +13,10 @@ export class Empleado {
    * @param {string} data.cargo
    * @param {string} data.cedula
    * @param {string} [data.tipoContrato]
+   * @param {string} [data.banco]
+   * @param {string} [data.cuentaBanco]
    */
-  constructor({ id, nombre, sueldoDiario, departamento, cargo, cedula, tipoContrato = "CONTRATO OCASIONAL" }) {
+  constructor({ id, nombre, sueldoDiario, departamento, cargo, cedula, tipoContrato = "CONTRATO OCASIONAL", banco = '', cuentaBanco = '' }) {
     this.id = id;
     this.nombre = nombre;
     this.sueldoDiario = Number(sueldoDiario);
@@ -22,6 +24,8 @@ export class Empleado {
     this.cargo = cargo;
     this.cedula = cedula;
     this.tipoContrato = tipoContrato;
+    this.banco = banco;
+    this.cuentaBanco = cuentaBanco;
   }
 
   /**

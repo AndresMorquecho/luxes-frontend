@@ -26,25 +26,29 @@ export function calcularNomina(empleado, nomina) {
   const totalBruto = roundTo2(sueldoDiario * nomina.diasLaborados);
 
   // 2. Valores automáticos si no vienen seteados explícitamente
+  const tieneContrato = empleado.tieneContrato !== false;
+
   // Décimo tercero mensualizado: 1/12 de la base imponible (bruto + horas extras + trabajos empresa)
   const decimo3roBase = totalBruto + (nomina.ingresos.horasExtras || 0) + (nomina.ingresos.trabajosEnEmpresa || 0);
-  const decimoTerceroCalculado = roundTo2(decimo3roBase / 12);
-  const decimoTercero = nomina.ingresos.decimoTercero > 0 
-    ? Number(nomina.ingresos.decimoTercero) 
-    : decimoTerceroCalculado;
+  const decimoTerceroCalculado = tieneContrato ? roundTo2(decimo3roBase / 12) : 0;
+  const decimoTercero = tieneContrato
+    ? (nomina.ingresos.decimoTercero > 0 ? Number(nomina.ingresos.decimoTercero) : decimoTerceroCalculado)
+    : 0;
 
   // IESS Personal: 9.45% de la base imponible (Sueldo Bruto + Horas Extras + Trabajos en Empresa)
   const baseIess = totalBruto + (nomina.ingresos.horasExtras || 0) + (nomina.ingresos.trabajosEnEmpresa || 0);
-  const iessCalculado = roundTo2(baseIess * 0.0945);
-  const iess = nomina.egresos.iess > 0 
-    ? Number(nomina.egresos.iess) 
-    : iessCalculado;
+  const iessCalculado = tieneContrato ? roundTo2(baseIess * 0.0945) : 0;
+  const iess = tieneContrato
+    ? (nomina.egresos.iess > 0 ? Number(nomina.egresos.iess) : iessCalculado)
+    : 0;
 
   // 3. Sumar Ingresos
-  const decimo4to = Number(nomina.ingresos.decimoCuarto || 0);
+  // Décimo cuarto: se puede abonar en cualquier quincena del año (los empleados lo reciben
+  // de poco a poco en la 1ra o 2da quincena). Es un valor manual; por defecto 0 hasta que se ingrese.
+  const decimo4to = tieneContrato ? Number(nomina.ingresos.decimoCuarto || 0) : 0;
   const horasExtras = Number(nomina.ingresos.horasExtras || 0);
   const trabajosEmpresa = Number(nomina.ingresos.trabajosEnEmpresa || 0);
-  const fondosReserva = Number(nomina.ingresos.fondosReserva || 0);
+  const fondosReserva = tieneContrato ? Number(nomina.ingresos.fondosReserva || 0) : 0;
 
   const sumaIngresos = roundTo2(decimo4to + decimoTercero + horasExtras + trabajosEmpresa + fondosReserva);
 
@@ -77,9 +81,9 @@ export function calcularNomina(empleado, nomina) {
   const totalAbonado = roundTo2(nomina.abonos.reduce((sum, abono) => sum + abono.monto, 0));
   
   let estadoPago = "PENDIENTE";
-  if (totalAbonado >= netoRecibir && netoRecibir > 0) {
+  if (nomina.estado === "PAGADO" || (totalAbonado >= netoRecibir && netoRecibir > 0)) {
     estadoPago = "PAGADO";
-  } else if (totalAbonado > 0) {
+  } else if (nomina.estado === "ABONO_PARCIAL" || totalAbonado > 0) {
     estadoPago = "ABONO_PARCIAL";
   }
 

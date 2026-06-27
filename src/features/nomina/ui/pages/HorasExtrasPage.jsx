@@ -4,10 +4,11 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNomina } from '../../application/hooks/useNomina';
 import { HorasExtrasTable } from '../components/HorasExtrasTable';
+import { toast } from '../../../../shared/ui/components/Toast';
 
 export const HorasExtrasPage = () => {
   const navigate = useNavigate();
-  const { employees, overtime, loading, loadData, saveOvertimeRecords } = useNomina();
+  const { employees, overtime, loading, loadData, saveOvertimeRecords, fechasActuales } = useNomina();
 
   useEffect(() => {
     loadData();
@@ -15,8 +16,6 @@ export const HorasExtrasPage = () => {
 
   const handleSaveOvertime = async (updatedOvertime) => {
     await saveOvertimeRecords(updatedOvertime);
-    alert('Planilla de horas extras guardada correctamente.');
-    navigate('/nomina');
   };
 
   if (loading && employees.length === 0) {
@@ -49,6 +48,7 @@ export const HorasExtrasPage = () => {
         employees={employees}
         initialOvertime={overtime}
         onSave={handleSaveOvertime}
+        fechasActuales={fechasActuales}
       />
 
     </div>

@@ -1,5 +1,6 @@
 // src/features/proyectos/domain/entities/Proyecto.js
 
+import { calcularDiasDesde, getTodayDateISO } from '../utils/proyectoDates.js';
 /**
  * Entidad principal del dominio Proyectos.
  * No importa nada de fuera del dominio.
@@ -12,7 +13,8 @@ export class Proyecto {
     responsable,
     faseActual = 'COTIZACION',
     fases = {},
-    fechaCreacion = new Date().toISOString().split('T')[0],
+    fechaCreacion = getTodayDateISO(),
+    fechaInicio,
     fechaEntregaEstimada,
     montoEstimado = 0,
     descripcion = '',
@@ -28,6 +30,7 @@ export class Proyecto {
     this.faseActual = faseActual;
     this.fases = fases;
     this.fechaCreacion = fechaCreacion;
+    this.fechaInicio = fechaInicio || fechaCreacion;
     this.fechaEntregaEstimada = fechaEntregaEstimada;
     this.montoEstimado = montoEstimado;
     this.descripcion = descripcion;
@@ -44,10 +47,8 @@ export class Proyecto {
     return new Date(this.fechaEntregaEstimada) < new Date();
   }
 
-  /** Días transcurridos desde la creación */
+  /** Días transcurridos desde la fecha de inicio */
   diasTranscurridos() {
-    const inicio = new Date(this.fechaCreacion);
-    const hoy = new Date();
-    return Math.floor((hoy - inicio) / (1000 * 60 * 60 * 24));
+    return calcularDiasDesde(this.fechaInicio || this.fechaCreacion);
   }
 }

@@ -12,8 +12,12 @@ import { useInstalacion } from '../../application/hooks/useInstalacion.js';
 import { useProyectosContext } from '../../application/context/ProyectosContext.jsx';
 import { ACTIONS } from '../../application/store/proyectosStore.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../domain/encuestaUtils.js';
+import { EncuestaResultadosView } from './EncuestaResultadosView.jsx';
+import { getInstalacionCompletionBlockers } from '../../domain/instalacionRules.js';
 
-const SECCIONES = ['datos', 'personal', 'materiales', 'compras', 'estado'];
+const SECCIONES = ['datos', 'personal', 'materiales', 'estado'];
 
 /**
  * Panel completo de la fase de Instalación.
@@ -60,7 +64,7 @@ export function InstalacionPanel({ proyectoId }) {
   };
 
   const closeModal = () => {
-    setModalConfig(prev => ({ ...prev, isOpen: false }));
+    deferClose(() => setModalConfig(prev => ({ ...prev, isOpen: false })));
   };
 
   function handleRechazarOC(oc) {
@@ -111,28 +115,19 @@ export function InstalacionPanel({ proyectoId }) {
         sku: item.sku,
         cantidad: item.cantidadAprobada,
         unidad: item.unidad,
+        precioUnitario: item.precioUnitario || 0,
         observacion: `Aprobado Compra (${oc.id})`,
         origen: 'compra'
       }));
 
     const nuevosMateriales = [...(proyecto?.fases?.INSTALACION?.datos?.materiales || []), ...materialesAprobados];
 
-    const gastosExistentes = proyecto?.gastos || [];
-    const nuevoGasto = {
-      id: `G-${Date.now()}`,
-      concepto: `Materiales de Instalación - ${oc.id}`,
-      monto: costoTotal,
-      fecha: new Date().toISOString().split('T')[0]
-    };
-    const nuevosGastos = [...gastosExistentes, nuevoGasto];
-
-    // Actualizar proyecto en el store
+    // Actualizar proyecto en el store (sin agregar el total de la OC como gasto directo, se calcula por consumo)
     dispatch({
       type: ACTIONS.UPDATE_PROYECTO,
       payload: {
         id: proyecto.id,
         cambios: {
-          gastos: nuevosGastos,
           fases: {
             ...proyecto.fases,
             INSTALACION: {
@@ -172,7 +167,7 @@ export function InstalacionPanel({ proyectoId }) {
     setAprobaciones({});
     showModal(
       'Compra Aprobada', 
-      `Orden de compra ${oc.id} aprobada con éxito. Se registró un gasto de $${costoTotal.toFixed(2)} en el proyecto.`, 
+      `Orden de compra ${oc.id} aprobada con éxito. Los materiales han sido registrados en el inventario.`, 
       'success'
     );
   }
@@ -186,8 +181,21 @@ export function InstalacionPanel({ proyectoId }) {
     { id: 'datos', label: 'Datos', Icon: MapPin },
     { id: 'personal', label: 'Personal', Icon: Users },
     { id: 'materiales', label: 'Materiales', Icon: Package },
-    { id: 'compras', label: 'Ordenes de Compra', Icon: FileText },
+    { id: 'validacion', label: 'Validación', Icon: AlertTriangle },
     { id: 'estado', label: 'Estado', Icon: CheckCircle },
+  ];
+
+  const bloqueosCierre = getInstalacionCompletionBlockers(datosInstalacion, { ordenesCompra: ordenesProyecto });
+  const requisitosValidacion = [
+    { ok: Boolean(datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion), label: 'Instalación iniciada en obra' },
+    { ok: (datosInstalacion.personalAsignado?.length || 0) > 0, label: 'Equipo técnico asignado' },
+    { ok: (datosInstalacion.materiales?.length || 0) > 0, label: 'Materiales registrados' },
+    {
+      ok: ordenesProyecto.filter((oc) => (oc.estado || '').toUpperCase() === 'APROBADA').length === 0,
+      label: 'Órdenes de compra aprobadas recibidas',
+    },
+    { ok: (datosInstalacion.evidencias?.length || 0) > 0, label: 'Evidencias fotográficas cargadas' },
+    { ok: !datosInstalacion.instalacionCompletada, label: 'Instalación pendiente de cierre' },
   ];
 
   return (
@@ -219,9 +227,6 @@ export function InstalacionPanel({ proyectoId }) {
                 <PlayCircle size={18} className="text-indigo-500" />
                 Arranque de Instalación
               </h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Registra la hora y fecha exacta en la que el equipo inicia las labores de instalación en el sitio.
-              </p>
               
               {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion ? (
                 <div className="flex items-center gap-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
@@ -234,72 +239,77 @@ export function InstalacionPanel({ proyectoId }) {
                       Inició el {datosInstalacion.fechaInstalacion} a las {datosInstalacion.horaInstalacion}
                     </p>
                   </div>
-                  <button 
-                    onClick={() => actualizarDatos({ fechaInstalacion: '', horaInstalacion: '' })}
-                    className="ml-auto px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg shadow-sm"
-                  >
-                    Deshacer
-                  </button>
                 </div>
               ) : (
-                <button 
-                  onClick={() => {
-                    const now = new Date();
-                    actualizarDatos({ 
-                      fechaInstalacion: now.toISOString().split('T')[0],
-                      horaInstalacion: now.toTimeString().slice(0, 5),
-                      direccionInstalacion: datosInstalacion.direccionInstalacion || proyecto?.cliente?.direccion || ''
-                    });
-                  }}
-                  className="w-full md:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <PlayCircle size={18} />
-                  Iniciar Instalación Ahora
-                </button>
+                <p className="text-xs text-slate-400 italic py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  La instalación aún no ha iniciado en el sitio.
+                </p>
               )}
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
-                Dirección Completa
+                Dirección de Instalación
               </label>
-              <input
-                type="text"
-                name="direccionInstalacion"
-                defaultValue={datosInstalacion.direccionInstalacion || proyecto?.cliente?.direccion || ''}
-                onBlur={handleDatos}
-                placeholder="Ej: Av. Libertad 123, sector norte, Guayaquil"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              />
+              <p className="text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                {datosInstalacion.direccionInstalacion || proyecto?.cliente?.direccion || 'Sin dirección registrada'}
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
-                Notas de la Instalación
-              </label>
-              <textarea
-                name="notas"
-                rows={3}
-                defaultValue={datosInstalacion.notas || ''}
-                onBlur={handleDatos}
-                placeholder="Instrucciones especiales, acceso, contacto en sitio..."
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
-              />
-            </div>
+            {datosInstalacion.notas && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
+                  Notas / Instrucciones Iniciales
+                </label>
+                <p className="text-sm text-slate-600 bg-white border border-slate-200 rounded-lg p-3 shadow-sm whitespace-pre-line">
+                  {datosInstalacion.notas}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
         {/* ── Sección 2: Personal ── */}
         {seccionActiva === 'personal' && (
-          <div>
-            <p className="text-xs text-slate-500 mb-3">
-              Selecciona el equipo y asigna el rol de cada persona en la instalación.
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Personal técnico asignado por el taller para realizar este montaje.
             </p>
-            <PersonalSelector
-              empleados={empleados}
-              personalAsignado={personalAsignado}
-              onChange={setPersonal}
-            />
+            {personalAsignado.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                Sin personal asignado aún por el taller.
+              </p>
+            ) : (
+              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                      <th className="p-3 font-bold uppercase tracking-wider">Nombre / Cargo</th>
+                      <th className="p-3 font-bold uppercase tracking-wider">Rol de Instalación</th>
+                      <th className="p-3 font-bold uppercase tracking-wider">Observaciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {personalAsignado.map((p) => (
+                      <tr key={p.empleadoId} className="border-b border-slate-100 text-slate-600 hover:bg-slate-50/30">
+                        <td className="p-3">
+                          <div className="font-bold text-slate-800">{p.nombre}</div>
+                          <div className="text-[10px] text-slate-400">{p.cargo || 'Personal'}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className="font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                            {p.rol || 'Técnico'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-slate-500 italic">
+                          {p.notas || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -309,44 +319,42 @@ export function InstalacionPanel({ proyectoId }) {
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-2">
                 <Package size={16} className="text-indigo-500" />
-                Materiales Registrados por el Instalador
+                Materiales Llevados para la Instalación
               </h4>
               <p className="text-xs text-slate-500 mb-4">
-                Materiales consumidos del stock de inventario o adquiridos mediante compras externas aprobadas.
+                Detalle de materiales asignados y transportados por el equipo de montaje, junto con el responsable designado.
               </p>
 
-              {materiales.filter(m => m.origen === 'compra' || m.origen === 'inventario').length === 0 ? (
+              {materiales.filter(m => m.cantidadLlevada > 0).length === 0 ? (
                 <p className="text-xs text-slate-400 italic py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  Ningún material de consumo registrado aún por el instalador.
+                  Ningún material marcado para llevar aún por el taller.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                        <th className="p-2.5 font-bold uppercase tracking-wider">SKU</th>
-                        <th className="p-2.5 font-bold uppercase tracking-wider">Descripción</th>
-                        <th className="p-2.5 font-bold uppercase tracking-wider text-center">Cantidad</th>
-                        <th className="p-2.5 font-bold uppercase tracking-wider text-center">Origen</th>
+                        <th className="p-2.5 font-bold uppercase tracking-wider">Material</th>
+                        <th className="p-2.5 font-bold uppercase tracking-wider text-center">Cant. Llevada</th>
+                        <th className="p-2.5 font-bold uppercase tracking-wider text-center">Unidad</th>
+                        <th className="p-2.5 font-bold uppercase tracking-wider">Responsable</th>
                         <th className="p-2.5 font-bold uppercase tracking-wider">Observaciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {materiales
-                        .filter(m => m.origen === 'compra' || m.origen === 'inventario')
+                        .filter(m => m.cantidadLlevada > 0)
                         .map((m, idx) => (
                           <tr key={idx} className="border-b border-slate-100 text-slate-600">
-                            <td className="p-2.5 font-mono text-[10px]">{m.sku || 'ESPECIAL'}</td>
                             <td className="p-2.5 font-semibold text-slate-700">{m.nombre}</td>
-                            <td className="p-2.5 text-center font-bold">{m.cantidad} {m.unidad}s</td>
-                            <td className="p-2.5 text-center">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                m.origen === 'compra' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-sky-50 text-sky-700 border border-sky-100'
-                              }`}>
-                                {m.origen === 'compra' ? 'Compra' : 'Stock'}
+                            <td className="p-2.5 text-center font-extrabold text-indigo-600">{m.cantidadLlevada}</td>
+                            <td className="p-2.5 text-center text-slate-500">{m.unidad}</td>
+                            <td className="p-2.5">
+                              <span className="font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-lg">
+                                {m.responsable || 'Sin responsable designado'}
                               </span>
                             </td>
-                            <td className="p-2.5 text-slate-500 italic">{m.observacion}</td>
+                            <td className="p-2.5 text-slate-500 italic">{m.observacion || '—'}</td>
                           </tr>
                         ))}
                     </tbody>
@@ -354,186 +362,44 @@ export function InstalacionPanel({ proyectoId }) {
                 </div>
               )}
             </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-2">
-                <Wrench size={16} className="text-indigo-500" />
-                Herramientas y Consumibles de Taller Asignados
-              </h4>
-              <p className="text-xs text-slate-500 mb-4">
-                Asigna herramientas del inventario central para el equipo de montaje asignado al proyecto.
-              </p>
-              <MaterialesForm 
-                materiales={materiales.filter(m => m.inventarioId)} 
-                onChange={(nuevasHerramientas) => {
-                  const otrosMateriales = materiales.filter(m => !m.inventarioId);
-                  setMateriales([...otrosMateriales, ...nuevasHerramientas]);
-                }} 
-              />
-            </div>
           </div>
         )}
 
-        {/* ── Sección 4: Ordenes de Compra ── */}
-        {seccionActiva === 'compras' && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <FileText size={18} className="text-indigo-500" />
-                Gestión de Órdenes de Compra
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Revisa, aprueba, rechaza e imprime las solicitudes de compra generadas por el equipo en sitio.
-              </p>
-            </div>
-
-            {ordenesProyecto.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm">
-                <FileText size={48} className="mx-auto text-slate-300 mb-3" />
-                <p className="text-sm font-semibold text-slate-700">No hay órdenes de compra registradas</p>
-                <p className="text-xs text-slate-400 mt-1">El personal de taller aún no ha solicitado materiales externos para este proyecto.</p>
+        {/* ── Sección 4: Validación (admin) ── */}
+        {seccionActiva === 'validacion' && (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Requisitos que el taller debe cumplir antes de cerrar la obra en sitio.
+            </p>
+            <ul className="space-y-2">
+              {requisitosValidacion.map((req) => (
+                <li
+                  key={req.label}
+                  className={`flex items-center gap-2 text-sm rounded-xl px-3 py-2 border ${
+                    req.ok ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-amber-50 border-amber-100 text-amber-800'
+                  }`}
+                >
+                  {req.ok ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                  {req.label}
+                </li>
+              ))}
+            </ul>
+            {bloqueosCierre.length > 0 && !datosInstalacion.instalacionCompletada ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+                <p className="font-bold mb-2">Pendiente para cierre:</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  {bloqueosCierre.map((b) => (
+                    <li key={b}>{b}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : datosInstalacion.instalacionCompletada ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800 font-semibold">
+                Todos los requisitos de cierre fueron cumplidos.
               </div>
             ) : (
-              <div className="space-y-6">
-                {ordenesProyecto.map((oc) => {
-                  const isPendiente = oc.estado === 'PENDIENTE';
-                  const isAprobada = oc.estado === 'APROBADA';
-                  const totalOC = oc.items?.reduce(
-                    (sum, item) => sum + ((isPendiente ? item.cantidadSolicitada : (item.cantidadAprobada || 0)) * item.precioUnitario),
-                    0
-                  ) || 0;
-
-                  return (
-                    <div key={oc.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                      {/* Header de la OC */}
-                      <div className="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-black text-slate-800">{oc.id}</span>
-                          <span className="text-xs text-slate-400">• Solicitado: {oc.fechaCreacion}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                            isPendiente ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                            isAprobada ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                            'bg-red-50 text-red-700 border-red-200'
-                          }`}>
-                            {oc.estado}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setPrintableOC(oc)}
-                            className="px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-slate-600 hover:text-indigo-600 transition-colors flex items-center gap-1.5 text-xs font-bold border border-slate-200 shadow-sm bg-white cursor-pointer"
-                            title="Vista Previa / Imprimir PDF"
-                          >
-                            <Eye size={14} />
-                            Ver / Imprimir OC
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Lista de Items */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse">
-                          <thead>
-                            <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                              <th className="p-2 font-bold uppercase tracking-wider">SKU</th>
-                              <th className="p-2 font-bold uppercase tracking-wider">Material</th>
-                              <th className="p-2 font-bold uppercase tracking-wider text-center">Cant. Solicitada</th>
-                              <th className="p-2 font-bold uppercase tracking-wider text-center">Cant. Aprobar</th>
-                              <th className="p-2 font-bold uppercase tracking-wider text-right">Precio Unit.</th>
-                              <th className="p-2 font-bold uppercase tracking-wider text-right">Subtotal</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {oc.items.map((item, idx) => {
-                              const qtyAprob = aprobaciones[item.sku] !== undefined ? aprobaciones[item.sku] : item.cantidadSolicitada;
-                              const currentQty = isPendiente ? qtyAprob : (item.cantidadAprobada || 0);
-                              const subtotal = currentQty * item.precioUnitario;
-
-                              return (
-                                <tr key={idx} className="border-b border-slate-100 text-slate-600">
-                                  <td className="p-2 font-mono text-[10px]">{item.sku}</td>
-                                  <td className="p-2 font-semibold text-slate-700">{item.nombre}</td>
-                                  <td className="p-2 text-center font-medium">{item.cantidadSolicitada} {item.unidad}s</td>
-                                  <td className="p-2 text-center">
-                                    {isPendiente ? (
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        max={item.cantidadSolicitada}
-                                        value={qtyAprob}
-                                        onChange={(e) => {
-                                          const val = Math.max(0, parseInt(e.target.value) || 0);
-                                          setAprobaciones(prev => ({ ...prev, [item.sku]: val }));
-                                        }}
-                                        className="w-16 border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-                                      />
-                                    ) : (
-                                      <span className="font-bold text-slate-800">
-                                        {oc.estado === 'APROBADA' ? `${item.cantidadAprobada} ${item.unidad}s` : '-'}
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="p-2 text-right">${item.precioUnitario.toFixed(2)}</td>
-                                  <td className="p-2 text-right font-bold text-slate-700">${subtotal.toFixed(2)}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                          <tfoot>
-                            <tr className="font-bold text-slate-800 bg-slate-50/50">
-                              <td colSpan="5" className="p-2 text-right uppercase tracking-wider text-[10px]">Costo Total:</td>
-                              <td className="p-2 text-right text-sm font-extrabold text-indigo-900">
-                                ${totalOC.toFixed(2)}
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-
-                      {/* Sección de Aprobación / Comentarios */}
-                      {isPendiente ? (
-                        <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 space-y-3">
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                              Comentarios / Observaciones de la Aprobación
-                            </label>
-                            <textarea
-                              value={comentarioOC}
-                              onChange={(e) => setComentarioOC(e.target.value)}
-                              placeholder="Escribe el motivo de la aprobación, modificaciones en cantidades o comentarios para compras..."
-                              className="w-full border border-slate-200 rounded-lg p-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
-                              rows={2}
-                            />
-                          </div>
-
-                          <div className="flex gap-2 justify-end">
-                            <button
-                              type="button"
-                              onClick={() => handleRechazarOC(oc)}
-                              className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-lg border border-red-200 shadow-sm transition-colors cursor-pointer"
-                            >
-                              Rechazar Solicitud
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleAprobarOC(oc)}
-                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
-                            >
-                              Aprobar y Registrar Gasto
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        oc.comentarios && (
-                          <div className="bg-slate-50 border-l-4 border-slate-300 p-3 rounded-r-lg text-xs text-slate-600">
-                            <strong>Comentario de Administración:</strong> {oc.comentarios}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800 font-semibold">
+                El taller puede cerrar la instalación en obra.
               </div>
             )}
           </div>
@@ -542,34 +408,61 @@ export function InstalacionPanel({ proyectoId }) {
         {/* ── Sección 5: Estado ── */}
         {seccionActiva === 'estado' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-3 border border-slate-200">
-              <input
-                type="checkbox"
-                id="instalacion-completada"
-                checked={datosInstalacion.instalacionCompletada || false}
-                onChange={(e) => actualizarDatos({ instalacionCompletada: e.target.checked })}
-                className="accent-indigo-500 w-5 h-5"
-              />
-              <label htmlFor="instalacion-completada" className="text-sm font-semibold text-slate-700 cursor-pointer">
-                Instalación completada en sitio
-              </label>
+            <div className={`p-4 rounded-xl border flex items-center gap-3 ${
+              datosInstalacion.instalacionCompletada 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                : 'bg-amber-50 border-amber-200 text-amber-800'
+            }`}>
+              <CheckCircle size={24} className={datosInstalacion.instalacionCompletada ? 'text-emerald-600' : 'text-amber-500'} />
+              <div>
+                <p className="text-sm font-bold">
+                  {datosInstalacion.instalacionCompletada ? 'Instalación Finalizada' : 'Instalación en Progreso'}
+                </p>
+                <p className="text-xs mt-0.5 opacity-90">
+                  {datosInstalacion.instalacionCompletada 
+                    ? `Completada en obra el ${datosInstalacion.fechaFin || 'recientemente'}`
+                    : 'El equipo de taller aún se encuentra realizando las labores o preparando materiales.'}
+                </p>
+              </div>
             </div>
 
-            {datosInstalacion.instalacionCompletada && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
-                  Notas de cierre
-                </label>
-                <textarea
-                  name="notasCierre"
-                  rows={3}
-                  defaultValue={datosInstalacion.notasCierre || ''}
-                  onBlur={handleDatos}
-                  placeholder="Observaciones al finalizar, problemas encontrados, etc."
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
-                />
+            {datosInstalacion.notasCierre && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notas de Cierre (Taller)</h4>
+                <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-line italic">
+                  &quot;{datosInstalacion.notasCierre}&quot;
+                </p>
               </div>
             )}
+
+            {(() => {
+              const encuesta = getEncuestaSatisfaccion(proyecto);
+              if (encuesta?.completada) {
+                return (
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Calificaciones del Cliente
+                    </h4>
+                    <EncuestaResultadosView encuesta={encuesta} />
+                  </div>
+                );
+              }
+              if (datosInstalacion.instalacionCompletada && encuestaFueEnviada(proyecto)) {
+                return (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-500">
+                    Encuesta enviada — esperando respuesta del cliente.
+                  </div>
+                );
+              }
+              if (datosInstalacion.instalacionCompletada) {
+                return (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
+                    La encuesta de satisfacción aún no ha sido enviada al cliente.
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         )}
       </div>
@@ -585,6 +478,7 @@ export function InstalacionPanel({ proyectoId }) {
 
       {/* Modal Dialog de Alertas (Reemplazo de alert nativo) */}
       {modalConfig.isOpen && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in duration-150">
             <div className="flex items-center gap-3 mb-4">
@@ -615,10 +509,9 @@ export function InstalacionPanel({ proyectoId }) {
               <button
                 type="button"
                 onClick={() => {
+                  const confirm = modalConfig.onConfirm;
                   closeModal();
-                  if (modalConfig.onConfirm) {
-                    modalConfig.onConfirm();
-                  }
+                  if (confirm) deferClose(() => confirm());
                 }}
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"
               >
@@ -627,6 +520,7 @@ export function InstalacionPanel({ proyectoId }) {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

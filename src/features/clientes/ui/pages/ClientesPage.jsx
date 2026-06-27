@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { getClientes, saveCliente, deleteCliente } from '../../application/clientesService';
 
 const EMPTY_FORM = { nombre: '', cedulaRuc: '', telefono: '', email: '', direccion: '', tipo: 'Persona', notas: '' };
@@ -60,16 +62,31 @@ export const ClientesPage = () => {
         }
         return [...prev, saved];
       });
-      setFormOpen(false);
-    } finally {
-      setSaving(false);
+      deferClose(() => {
+        setFormOpen(false);
+        setSaving(false);
+        toast.success(editing ? 'Cliente actualizado correctamente' : 'Cliente registrado correctamente');
+      });
+    } catch (err) {
+      deferClose(() => setSaving(false));
+      toast.error(err instanceof Error ? err.message : 'Error al guardar el cliente');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este cliente?')) return;
-    await deleteCliente(id);
-    setClientes(prev => prev.filter(c => c.id !== id));
+    const confirmed = await confirmDialog(
+      '¿Eliminar cliente?',
+      '¿Eliminar este cliente? Esta acción es irreversible.',
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
+    );
+    if (!confirmed) return;
+    try {
+      await deleteCliente(id);
+      setClientes(prev => prev.filter(c => c.id !== id));
+      deferClose(() => toast.success('Cliente eliminado correctamente'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar el cliente');
+    }
   };
 
   const q = search.toLowerCase();
@@ -321,17 +338,16 @@ export const ClientesPage = () => {
         )}
       </div>
 
-      {/* Modal */}
-      {formOpen && createPortal(
-        <>
+      <ModalPortal open={formOpen}>
+        <div className="cl-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)', animation: 'overlay-in 0.2s ease' }}
-            onClick={() => setFormOpen(false)} />
+            onClick={() => deferClose(() => setFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-modal-in max-h-[90vh] flex flex-col border border-slate-100"
               style={{ boxShadow: '0 25px 60px rgba(15,23,42,0.15), 0 1px 4px rgba(0,0,0,0.04)' }}>
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editing ? 'Editar Cliente' : 'Nuevo Cliente'}</h2>
-                <button type="button" onClick={() => setFormOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setFormOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -375,9 +391,12 @@ export const ClientesPage = () => {
                     <textarea name="notas" value={form.notas} onChange={handleChange} rows={2} placeholder="Información adicional…" className="cl-input resize-none" />
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setFormOpen(false)} className="cl-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setFormOpen(false))} className="cl-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="cl-btn-primary">
-                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!saving}
+                      />
                       {editing ? 'Guardar cambios' : 'Registrar Cliente'}
                     </button>
                   </div>
@@ -385,9 +404,8 @@ export const ClientesPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
-      )}
+        </div>
+      </ModalPortal>
     </div>
   );
 };

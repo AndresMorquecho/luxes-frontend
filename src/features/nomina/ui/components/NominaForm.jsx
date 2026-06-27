@@ -1,7 +1,7 @@
 // c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/ui/components/NominaForm.jsx
 
 import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { Nomina } from '../../domain/entities/Nomina';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 
@@ -105,7 +105,8 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
   };
 
   if (!calculoEnTiempoReal) return null;
-  return createPortal(
+  return (
+    <ModalPortal>
     <>
       <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-md" />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -487,7 +488,8 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
         </form>
 
       </div>
-    </>,
-    document.body
+      </div>
+    </>
+    </ModalPortal>
   );
 };

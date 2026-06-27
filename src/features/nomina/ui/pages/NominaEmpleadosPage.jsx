@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNomina } from '../../application/hooks/useNomina';
+import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 
 export const NominaEmpleadosPage = () => {
   const navigate = useNavigate();
@@ -42,10 +43,8 @@ export const NominaEmpleadosPage = () => {
                   <td className="px-5 py-3 text-xs font-mono text-gray-400">{emp.id}</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-md bg-blue-50 border border-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
-                        {emp.nombre?.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-gray-800">{emp.nombre}</span>
+                      <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" />
+                      <span className="font-medium text-gray-800 normal-case">{emp.nombre}</span>
                     </div>
                   </td>
                   <td className="px-5 py-3 text-xs font-mono text-gray-600">{emp.cedula || '-'}</td>

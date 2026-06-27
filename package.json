@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
     "@yudiel/react-qr-scanner": "^2.6.0",
+    "html2pdf.js": "^0.14.0",
     "lucide-react": "^1.17.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.6",

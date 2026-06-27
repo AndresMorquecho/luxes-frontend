@@ -1,64 +1,55 @@
 // src/features/proyectos/infrastructure/adapters/proyectoApiAdapter.js
-
-const BASE_URL = '/api/proyectos';
+import * as proyectosService from '../../application/proyectosService.js';
 
 /**
- * Adaptador API real que implementa el ProyectoRepository con fetch().
- * Descomentar cada método cuando el backend esté disponible.
+ * Adaptador API real que implementa el ProyectoRepository usando el servicio.
  */
 export const proyectoApiAdapter = {
-  async getAll() {
-    // TODO: Conectar con GET /api/proyectos
-    // const res = await fetch(BASE_URL);
-    // if (!res.ok) throw new Error('Error al obtener proyectos');
-    // return res.json();
-    throw new Error('proyectoApiAdapter.getAll() no implementado — usa el mock por ahora');
+  async getAll(filters) {
+    const response = await proyectosService.getProyectos(filters);
+    return response.data; // Retorna solo la data, sin pagination
   },
 
   async getById(id) {
-    // TODO: Conectar con GET /api/proyectos/:id
-    // const res = await fetch(`${BASE_URL}/${id}`);
-    // if (!res.ok) throw new Error(`Error al obtener proyecto ${id}`);
-    // return res.json();
-    throw new Error('proyectoApiAdapter.getById() no implementado');
+    return await proyectosService.getProyectoById(id);
   },
 
   async save(proyecto) {
-    // TODO: Conectar con POST /api/proyectos
-    // const res = await fetch(BASE_URL, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(proyecto),
-    // });
-    // if (!res.ok) throw new Error('Error al crear proyecto');
-    // return res.json();
-    throw new Error('proyectoApiAdapter.save() no implementado');
+    return await proyectosService.createProyecto(proyecto);
   },
 
   async update(id, cambios) {
-    // TODO: Conectar con PATCH /api/proyectos/:id
-    // const res = await fetch(`${BASE_URL}/${id}`, {
-    //   method: 'PATCH',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(cambios),
-    // });
-    // if (!res.ok) throw new Error(`Error al actualizar proyecto ${id}`);
-    // return res.json();
-    throw new Error('proyectoApiAdapter.update() no implementado');
+    return await proyectosService.updateProyecto(id, cambios);
   },
 
   async delete(id) {
-    // TODO: Conectar con DELETE /api/proyectos/:id
-    // const res = await fetch(`${BASE_URL}/${id}`, { method: 'DELETE' });
-    // if (!res.ok) throw new Error(`Error al eliminar proyecto ${id}`);
-    throw new Error('proyectoApiAdapter.delete() no implementado');
+    return await proyectosService.deleteProyecto(id);
+  },
+
+  async avanzarFase(id, fase, datos) {
+    return await proyectosService.avanzarFase(id, fase, datos);
+  },
+
+  async updateInstalacion(proyectoId, instalacionData) {
+    return await proyectosService.updateInstalacion(proyectoId, instalacionData);
+  },
+
+  async uploadArchivoDiseno(proyectoId, file) {
+    return await proyectosService.uploadArchivoDiseno(proyectoId, file);
   },
 
   async getEmpleados() {
-    // TODO: Conectar con GET /api/empleados
-    // const res = await fetch('/api/empleados');
-    // if (!res.ok) throw new Error('Error al obtener empleados');
-    // return res.json();
-    throw new Error('proyectoApiAdapter.getEmpleados() no implementado');
+    // Obtener empleados desde el API de empleados
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/empleados', {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error?.message || 'Error al obtener empleados');
+    }
+    return data.data;
   },
 };

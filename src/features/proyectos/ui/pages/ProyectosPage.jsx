@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, LayoutList, LayoutGrid,
-  Printer, Wrench, CheckCircle, Layers
+  Printer, Wrench, CheckCircle, Layers,
+  AlertTriangle
 } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
 import { FASES } from '../../domain/value-objects/FaseConfig.js';
@@ -21,9 +22,25 @@ export default function ProyectosPage() {
     filtros, setFiltros,
     estadisticas,
     responsablesUnicos,
+    deleteProyecto,
   } = useProyectos();
 
   const [vista, setVista] = useState('lista'); // 'lista' | 'kanban'
+  const [proyectoAEliminar, setProyectoAEliminar] = useState(null);
+  const [eliminandoId, setEliminandoId] = useState(null);
+
+  async function handleConfirmEliminar() {
+    if (!proyectoAEliminar) return;
+    setEliminandoId(proyectoAEliminar.id);
+    try {
+      await deleteProyecto(proyectoAEliminar.id);
+      setProyectoAEliminar(null);
+    } catch (err) {
+      alert('Error al eliminar el proyecto: ' + err.message);
+    } finally {
+      setEliminandoId(null);
+    }
+  }
 
   function updateFiltro(campo, valor) {
     setFiltros((f) => ({ ...f, [campo]: valor }));
@@ -197,6 +214,7 @@ export default function ProyectosPage() {
                         key={p.id}
                         proyecto={p}
                         onEditarFase={(p) => navigate(`/proyectos/${p.id}`)}
+                        onEliminar={(p) => setProyectoAEliminar(p)}
                       />
                     ))}
                   </tbody>
@@ -242,6 +260,7 @@ export default function ProyectosPage() {
                             key={p.id}
                             proyecto={p}
                             onEditarFase={(p) => navigate(`/proyectos/${p.id}`)}
+                            onEliminar={(p) => setProyectoAEliminar(p)}
                           />
                         ))
                       )}
@@ -253,6 +272,48 @@ export default function ProyectosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Confirmación de Eliminación */}
+      {proyectoAEliminar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 text-red-600 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={20} />
+                </div>
+                <h3 className="text-lg font-bold">¿Eliminar proyecto?</h3>
+              </div>
+              <p className="text-sm text-slate-600 mb-2">
+                Esta acción no se puede deshacer. Se eliminará permanentemente el proyecto:
+              </p>
+              <div className="bg-slate-50 border border-slate-150 rounded-xl p-3 mb-4">
+                <p className="text-sm font-bold text-slate-800">{proyectoAEliminar.nombre}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Cliente: {proyectoAEliminar.cliente?.empresa || proyectoAEliminar.cliente?.nombre}</p>
+              </div>
+              <p className="text-xs text-slate-400">
+                Se eliminará toda la información relacionada (fases, archivos, asignaciones e instalación).
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setProyectoAEliminar(null)}
+                disabled={!!eliminandoId}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-white transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmEliminar}
+                disabled={!!eliminandoId}
+                className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+              >
+                {eliminandoId ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

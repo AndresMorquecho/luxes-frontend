@@ -1,49 +1,168 @@
-const STORAGE_KEY = 'luxes_compras';
+const getHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    Authorization: token ? `Bearer ${token}` : '',
+  };
+};
 
-const MOCK = [
-  { id: 'OC-001', proveedor: 'Importadora del Sur S.A.', fecha: '2026-05-02', items: 5, total: 1250.00, estado: 'recibido', notas: '' },
-  { id: 'OC-002', proveedor: 'Tecnología Andina Cía. Ltda.', fecha: '2026-05-10', items: 3, total: 3450.00, estado: 'pendiente', notas: 'Equipos informáticos' },
-  { id: 'OC-003', proveedor: 'Carlos Mendoza', fecha: '2026-05-18', items: 2, total: 180.00, estado: 'completado', notas: '' },
-  { id: 'OC-004', proveedor: 'Importadora del Sur S.A.', fecha: '2026-05-22', items: 8, total: 3200.00, estado: 'pendiente', notas: 'Insumos de oficina' },
-  { id: 'OC-005', proveedor: 'Tecnología Andina Cía. Ltda.', fecha: '2026-06-01', items: 1, total: 890.00, estado: 'recibido', notas: '' },
-  { id: 'OC-006', proveedor: 'Carlos Mendoza', fecha: '2026-06-05', items: 4, total: 560.00, estado: 'pendiente', notas: '' },
-];
+// ── Proveedores ─────────────────────────────────────────────────────────────
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-export async function getCompras() {
-  await delay(200);
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK));
-    return [...MOCK];
-  } catch {
-    return [...MOCK];
-  }
+export async function getProveedores() {
+  const res = await fetch('/api/compras/proveedores', { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener proveedores');
+  return data.data;
 }
 
-export async function saveCompra(compra) {
-  await delay(200);
-  const list = await getCompras();
-  const idx = list.findIndex(c => c.id === compra.id);
-  if (idx >= 0) {
-    list[idx] = { ...list[idx], ...compra };
-  } else {
-    const maxNum = list.reduce((max, c) => {
-      const n = parseInt(c.id.replace('OC-', ''), 10);
-      return n > max ? n : max;
-    }, 0);
-    compra.id = `OC-${String(maxNum + 1).padStart(3, '0')}`;
-    list.push(compra);
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  return compra;
+// ── Órdenes de Compra ───────────────────────────────────────────────────────
+
+export async function getOrdenes(options = {}) {
+  const params = new URLSearchParams();
+  const { page, limit, search, estado, estados, estadoPago, creadorRol, creadorId, pendienteRecepcion } = options;
+  if (page) params.append('page', page);
+  if (limit) params.append('limit', limit);
+  if (search) params.append('search', search);
+  if (estado) params.append('estado', estado);
+  if (estados?.length) params.append('estados', estados.join(','));
+  if (estadoPago) params.append('estadoPago', estadoPago);
+  if (creadorRol) params.append('creadorRol', creadorRol);
+  if (creadorId) params.append('creadorId', creadorId);
+  if (pendienteRecepcion) params.append('pendienteRecepcion', 'true');
+
+  const url = `/api/compras?${params.toString()}`;
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener órdenes');
+  return data.data;
 }
 
-export async function deleteCompra(id) {
-  await delay(200);
-  const list = await getCompras();
-  const filtered = list.filter(c => c.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+export async function getOrdenById(id) {
+  const res = await fetch(`/api/compras/${id}`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener orden');
+  return data.data;
+}
+
+export async function createOrden(body) {
+  const res = await fetch('/api/compras', {
+    method: 'POST', headers: getHeaders(), body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al crear orden');
+  return data.data;
+}
+
+export async function updateOrden(id, body) {
+  const res = await fetch(`/api/compras/${id}`, {
+    method: 'PUT', headers: getHeaders(), body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al actualizar orden');
+  return data.data;
+}
+
+export async function deleteOrden(id) {
+  const res = await fetch(`/api/compras/${id}`, {
+    method: 'DELETE', headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar orden');
+  return data.data;
+}
+
+// ── Abonos ──────────────────────────────────────────────────────────────────
+
+export async function getAbonos(ordenId) {
+  const res = await fetch(`/api/compras/${ordenId}/abonos`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener abonos');
+  return data.data;
+}
+
+export async function registrarAbono(ordenId, body) {
+  const res = await fetch(`/api/compras/${ordenId}/abono`, {
+    method: 'POST', headers: getHeaders(), body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar abono');
+  return data.data;
+}
+
+// ── Cuentas por Pagar ───────────────────────────────────────────────────────
+
+export async function getCuentasPorPagar(options = {}) {
+  const params = new URLSearchParams();
+  const { page, limit, estado } = options;
+  if (page) params.append('page', page);
+  if (limit) params.append('limit', limit);
+  if (estado) params.append('estado', estado);
+
+  const url = `/api/compras/cuentas-por-pagar?${params.toString()}`;
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener cuentas por pagar');
+  return data.data;
+}
+
+// ── Métodos de Pago ─────────────────────────────────────────────────────────
+
+export async function getMetodosPago(desde, hasta) {
+  const params = new URLSearchParams();
+  if (desde) params.append('desde', desde);
+  if (hasta) params.append('hasta', hasta);
+  const url = `/api/compras/metodos-pago${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener métodos de pago');
+  return data.data;
+}
+
+export async function createMetodoPago(body) {
+  const res = await fetch('/api/compras/metodos-pago', {
+    method: 'POST', headers: getHeaders(), body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al crear método de pago');
+  return data.data;
+}
+
+export async function updateMetodoPago(id, body) {
+  const res = await fetch(`/api/compras/metodos-pago/${id}`, {
+    method: 'PUT', headers: getHeaders(), body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al actualizar método de pago');
+  return data.data;
+}
+
+export async function deleteMetodoPago(id) {
+  const res = await fetch(`/api/compras/metodos-pago/${id}`, {
+    method: 'DELETE', headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar método de pago');
+  return data.data;
+}
+
+// ── Stats ───────────────────────────────────────────────────────────────────
+
+export async function getComprasStats() {
+  const res = await fetch('/api/compras/stats', { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener estadísticas');
+  return data.data;
+}
+
+// ── Recepción de Orden ──────────────────────────────────────────────────────
+
+export async function recepcionarOrden(id, body) {
+  const res = await fetch(`/api/compras/${id}/recepcion`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar productos recibidos');
+  return data.data;
 }

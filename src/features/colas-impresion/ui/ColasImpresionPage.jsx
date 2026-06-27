@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import './ColasImpresionPage.css';
 import { usePrintQueue } from '../context/PrintQueueContext';
+import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService';
+import { createOrden } from '../../compras/application/comprasService';
+import { toast } from '../../../shared/ui/components/Toast';
+import { confirmDialog } from '../../../shared/ui/components/ConfirmModal';
 
 const renderPriorityBadge = (urgency) => {
   let bgColor = '#f1f5f9';
@@ -61,6 +65,30 @@ const renderPriorityBadge = (urgency) => {
   );
 };
 
+const parseJobFiles = (job) => {
+  if (!job || !job.fileUrl) return [];
+  const trimmed = job.fileUrl.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {
+      console.error('Error parsing job files JSON:', e);
+    }
+  }
+  return [{
+    name: job.name,
+    url: job.fileUrl
+  }];
+};
+
+const isImageFile = (name, url) => {
+  const n = (name || '').toLowerCase();
+  const u = (url || '').toLowerCase();
+  return n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg') || n.endsWith('.gif') || n.endsWith('.webp') ||
+         u.startsWith('data:image') || u.includes('image') || u.startsWith('blob:');
+};
+
 export const ColasImpresionPage = () => {
   const {
     activeJob,
@@ -99,6 +127,343 @@ export const ColasImpresionPage = () => {
   // Selected Job Details Modal
   const [selectedJobDetails, setSelectedJobDetails] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  // Preparar Impresión Modal States
+  const [showPrepModal, setShowPrepModal] = useState(false);
+  const [prepJob, setPrepJob] = useState(null);
+  const [materialesImpresion, setMaterialesImpresion] = useState([]);
+  const [selectedMaterialId, setSelectedMaterialId] = useState('');
+  const [requiredQty, setRequiredQty] = useState(1.0);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState(false);
+  
+  // Shopping Cart state
+  const [cartItems, setCartItems] = useState([]);
+
+  // Smart calculations for roll width consumption
+  const calculateSuggestedQuantity = (material, width, height, copies) => {
+    if (!material) return 1.0;
+    
+    // Check if it's ink (tinta / litros)
+    const isInk = material.unidadMedida?.nombre === 'litros' || material.nombre?.toLowerCase().includes('tinta');
+    if (isInk) {
+      return 1.0;
+    }
+
+    // Check if it's PVC (planchas / unidades)
+    const isPVC = material.unidadMedida?.nombre === 'planchas' || material.unidadMedida?.nombre === 'unidades' || material.nombre?.toLowerCase().includes('pvc');
+    if (isPVC) {
+      return Number(copies);
+    }
+
+    // Rolls (metros)
+    if (material.ancho) {
+      const rollWidth = material.ancho;
+      const jobW = Number(width) || 1.0;
+      const jobH = Number(height) || 1.0;
+      const cop = Number(copies) || 1;
+
+      const fitsNormal = jobW <= rollWidth;
+      const fitsRotated = jobH <= rollWidth;
+
+      if (fitsNormal && fitsRotated) {
+        // Fits both ways. Suggest the one that consumes less length.
+        const normalLen = jobH * cop;
+        const rotatedLen = jobW * cop;
+        return Number(Math.min(normalLen, rotatedLen).toFixed(2));
+      } else if (fitsNormal) {
+        return Number((jobH * cop).toFixed(2));
+      } else if (fitsRotated) {
+        return Number((jobW * cop).toFixed(2));
+      } else {
+        // Doesn't fit, suggest normal anyway
+        return Number((jobH * cop).toFixed(2));
+      }
+    }
+
+    return Number(copies);
+  };
+
+  const getOrientationDetails = (material, job) => {
+    if (!material || !material.ancho || !job) return null;
+    const rollWidth = material.ancho;
+    const jobW = Number(job.width) || 1.0;
+    const jobH = Number(job.height) || 1.0;
+    const cop = Number(job.copies) || 1;
+
+    const fitsNormal = jobW <= rollWidth;
+    const fitsRotated = jobH <= rollWidth;
+
+    if (!fitsNormal && !fitsRotated) {
+      return {
+        warning: `⚠️ El diseño (${jobW}m x ${jobH}m) es más grande que el ancho del rollo (${rollWidth}m).`,
+        orientation: 'No cabe',
+        consumption: `${jobH}m por copia`,
+      };
+    }
+
+    if (fitsNormal && fitsRotated) {
+      const normalLen = jobH * cop;
+      const rotatedLen = jobW * cop;
+      if (normalLen <= rotatedLen) {
+        return {
+          info: `Ajuste óptimo: Orientación Normal (Diseño de ${jobW}m de ancho cabe en el rollo de ${rollWidth}m).`,
+          orientation: 'Normal',
+          consumption: `${jobH}m x ${cop} copias = ${normalLen}m`,
+        };
+      } else {
+        return {
+          info: `Ajuste óptimo: Orientación Rotada (Diseño rotado de ${jobH}m cabe en el rollo de ${rollWidth}m).`,
+          orientation: 'Rotada (90°)',
+          consumption: `${jobW}m x ${cop} copias = ${rotatedLen}m`,
+        };
+      }
+    }
+
+    if (fitsNormal) {
+      return {
+        info: `Orientación Normal: El diseño de ${jobW}m de ancho cabe en el rollo de ${rollWidth}m.`,
+        orientation: 'Normal',
+        consumption: `${jobH}m x ${cop} copias = ${(jobH * cop).toFixed(2)}m`,
+      };
+    }
+
+    return {
+      info: `Orientación Rotada: El diseño de ${jobH}m rotado cabe en el rollo de ${rollWidth}m.`,
+      orientation: 'Rotada (90°)',
+      consumption: `${jobW}m x ${cop} copias = ${(jobW * cop).toFixed(2)}m`,
+    };
+  };
+
+  const handleMaterialSelectChange = (materialId) => {
+    setSelectedMaterialId(materialId);
+    if (!materialId) {
+      setRequiredQty(1.0);
+      return;
+    }
+    const material = materialesImpresion.find(m => m.id === materialId);
+    if (material && prepJob) {
+      const suggested = calculateSuggestedQuantity(material, prepJob.width, prepJob.height, prepJob.copies);
+      setRequiredQty(suggested);
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (!selectedMaterialId) {
+      toast.warning('Por favor selecciona un material.');
+      return;
+    }
+    const material = materialesImpresion.find(m => m.id === selectedMaterialId);
+    if (!material) return;
+
+    if (requiredQty <= 0) {
+      toast.warning('La cantidad debe ser mayor a 0.');
+      return;
+    }
+
+    const isInk = material.unidadMedida?.nombre === 'litros' || material.nombre?.toLowerCase().includes('tinta');
+    
+    // Check if already in cart
+    const existingIndex = cartItems.findIndex(item => item.materialId === material.id);
+    if (existingIndex > -1) {
+      const updated = [...cartItems];
+      updated[existingIndex].quantity = Number((updated[existingIndex].quantity + Number(requiredQty)).toFixed(2));
+      setCartItems(updated);
+      toast.success(`Se actualizó la cantidad asignada de ${material.nombre}.`);
+    } else {
+      const newItem = {
+        materialId: material.id,
+        nombre: material.nombre,
+        codigo: material.codigo || 'S/C',
+        ancho: material.ancho,
+        quantity: Number(Number(requiredQty).toFixed(2)),
+        unidad: material.unidadMedida?.abreviacion || material.unidadMedida?.nombre || 'm',
+        stockActual: material.stockActual,
+        precioCosto: material.precioCosto || 0,
+        isInformative: isInk
+      };
+      setCartItems([...cartItems, newItem]);
+      toast.success(`${material.nombre} asignado al trabajo.`);
+    }
+
+    // Reset selection
+    setSelectedMaterialId('');
+    setRequiredQty(1.0);
+  };
+
+  const handleRemoveFromCart = (index) => {
+    const updated = [...cartItems];
+    updated.splice(index, 1);
+    setCartItems(updated);
+  };
+
+  const handleOpenPrepModal = async (job) => {
+    setPrepJob(job);
+    setSelectedMaterialId('');
+    setCartItems([]);
+    setRequiredQty(1.0);
+    setShowPrepModal(true);
+    setLoadingMaterials(true);
+    try {
+      const data = await getMateriales(buildMaterialesQuery());
+      const items = data.items || data || [];
+      setMaterialesImpresion(items);
+
+      // Auto-populate cart with suggested material if it matches job format
+      if (job.format) {
+        const match = items.find(m => 
+          m.nombre.toLowerCase().includes(job.format.toLowerCase()) ||
+          (m.codigo && m.codigo.toLowerCase().includes(job.format.toLowerCase()))
+        );
+        if (match) {
+          const isInk = match.unidadMedida?.nombre === 'litros' || match.nombre?.toLowerCase().includes('tinta');
+          const suggested = calculateSuggestedQuantity(match, job.width, job.height, job.copies);
+          
+          const defaultItem = {
+            materialId: match.id,
+            nombre: match.nombre,
+            codigo: match.codigo || 'S/C',
+            ancho: match.ancho,
+            quantity: Number(suggested.toFixed(2)),
+            unidad: match.unidadMedida?.abreviacion || match.unidadMedida?.nombre || 'm',
+            stockActual: match.stockActual,
+            precioCosto: match.precioCosto || 0,
+            isInformative: isInk
+          };
+          setCartItems([defaultItem]);
+        }
+      }
+    } catch (err) {
+      toast.error('Error al obtener stock de materiales: ' + err.message);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
+
+  const handleConfirmStartPrint = async () => {
+    if (!prepJob) return;
+    
+    // Check if cart is empty of deductable materials
+    const deductables = cartItems.filter(item => !item.isInformative);
+    if (deductables.length === 0) {
+      await confirmDialog(
+        'Material Requerido',
+        'Debes asignar al menos un material descontable (Rollo o PVC) a la impresión para poder iniciarla.',
+        { confirmLabel: 'Entendido', showCancel: false, type: 'warning' }
+      );
+      return;
+    }
+
+    // Check if there is any deficit in the cart
+    const hasDeficit = deductables.some(item => item.quantity > item.stockActual);
+    if (hasDeficit) {
+      await confirmDialog(
+        'Insumos Insuficientes',
+        'No puedes iniciar la impresión si hay insumos con stock insuficiente en el taller. Por favor, solicita una orden de compra o ajusta la cantidad asignada.',
+        { confirmLabel: 'Entendido', showCancel: false, type: 'danger' }
+      );
+      return;
+    }
+
+    const confirmStart = await confirmDialog(
+      '¿Confirmar Inicio de Impresión?',
+      <div>
+        <p>¿Estás seguro de iniciar la impresión de <strong>{prepJob.name}</strong>?</p>
+        <p style={{ marginTop: '0.5rem' }}>Al confirmar:</p>
+        <ul style={{ listStyleType: 'disc', paddingLeft: '1.25rem', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <li>Se enviará una notificación al usuario Administrador.</li>
+          <li>Los insumos asignados se descontarán permanentemente del inventario.</li>
+          <li>El trabajo pasará inmediatamente al estado de <strong>Imprimiendo</strong>.</li>
+        </ul>
+      </div>,
+      { confirmLabel: 'Sí, Iniciar Impresión', cancelLabel: 'Cancelar', type: 'info' }
+    );
+    if (!confirmStart) return;
+
+    setSubmittingAction(true);
+    try {
+      // Register inventory exit movements in parallel for all deductable items
+      await Promise.all(deductables.map(item => 
+        registrarMovimiento(item.materialId, {
+          tipo: 'salida',
+          cantidad: Number(item.quantity),
+          motivo: `Consumo por Impresión - Trabajo: ${prepJob.name}`,
+        })
+      ));
+
+      toast.success(`Insumos descontados del inventario exitosamente.`);
+
+      // Prepare detailed string of materials consumed
+      const consumoDetalle = deductables.map(item => `${item.nombre} (${item.quantity} ${item.unidad})`).join(', ');
+
+      // Start the print job directly in 'Imprimiendo' status
+      await handleStartQueueJob(prepJob.id, 'Imprimiendo', { consumoDetalle });
+      toast.success('Trabajo de impresión cargado e iniciado.');
+      setShowPrepModal(false);
+      setPrepJob(null);
+      setCartItems([]);
+    } catch (err) {
+      toast.error('Error al procesar el inicio de impresión: ' + err.message);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const handleCreateQuickPO = async () => {
+    if (!prepJob) return;
+    
+    const deficitItems = cartItems.filter(item => !item.isInformative && item.quantity > item.stockActual);
+    if (deficitItems.length === 0) {
+      await confirmDialog(
+        'Insumos Suficientes',
+        'No hay materiales con stock insuficiente en los insumos asignados. Todos los insumos tienen stock disponible.',
+        { confirmLabel: 'Entendido', showCancel: false, type: 'info' }
+      );
+      return;
+    }
+
+    setSubmittingAction(true);
+    try {
+      const detalles = deficitItems.map(item => ({
+        descripcion: `Material: ${item.nombre} (Stock insuficiente para trabajo ${prepJob.name})`,
+        cantidad: Number((item.quantity - item.stockActual).toFixed(2)),
+        materialId: item.materialId,
+        precioUnitario: item.precioCosto || 0,
+      }));
+
+      // Create a single purchase order for all deficit items
+      const res = await createOrden({
+        concepto: `Reposición urgente de insumos para impresión - Trabajo: ${prepJob.name}`,
+        notes: `Orden de compra rápida generada automáticamente por falta de stock.`,
+        proyectoId: prepJob.proyectoId || null,
+        detalles
+      });
+
+      toast.success(`Orden de compra ${res.numero} creada exitosamente.`);
+      
+      // Refresh materials stock in state
+      const data = await getMateriales(buildMaterialesQuery());
+      const items = data.items || data || [];
+      setMaterialesImpresion(items);
+      
+      // Update stockActual in cartItems based on newly loaded database values
+      const updatedCart = cartItems.map(cartItem => {
+        const freshMat = items.find(m => m.id === cartItem.materialId);
+        if (freshMat) {
+          return {
+            ...cartItem,
+            stockActual: freshMat.stockActual
+          };
+        }
+        return cartItem;
+      });
+      setCartItems(updatedCart);
+    } catch (err) {
+      toast.error('Error al crear orden de compra: ' + err.message);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -258,38 +623,59 @@ export const ColasImpresionPage = () => {
                     <div className="active-job-left-panel">
                       
                       {/* Document Meta Row */}
-                      <div className="active-job-file-details">
-                        <div className="file-icon-wrapper">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" className="file-pdf-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                          </svg>
+                      {/* Document Meta Row */}
+                      <div className="active-job-file-details" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div className="file-icon-wrapper">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" className="file-pdf-icon">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                            </svg>
+                          </div>
+                          <div className="file-info-text">
+                            <span className="client-label" style={{ display: 'block' }}>Cliente: <strong>{activeJob.client || 'Corporación Luxes'}</strong></span>
+                            {activeJob.proyectoNombre && (
+                              <span className="project-label" style={{ fontSize: '0.825rem', color: '#7c3aed', fontWeight: 700, display: 'block', margin: '0.1rem 0' }}>
+                                Proyecto: <strong>{activeJob.proyectoNombre}</strong>
+                              </span>
+                            )}                            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Área: {(activeJob.width * activeJob.height).toFixed(2)}m²</span>
+                          </div>
                         </div>
-                        <div className="file-info-text">
-                          <span className="client-label" style={{ display: 'block' }}>Cliente: <strong>{activeJob.client || 'Corporación Luxes'}</strong></span>
-                          {activeJob.proyectoNombre && (
-                            <span className="project-label" style={{ fontSize: '0.825rem', color: '#7c3aed', fontWeight: 700, display: 'block', margin: '0.1rem 0' }}>
-                              Proyecto: <strong>{activeJob.proyectoNombre}</strong>
-                            </span>
-                          )}
-                          <div className="file-download-row">
-                            <span className="file-size-text">Tamaño: {activeJob.size}</span>
-                            <span className="dot-divider">•</span>
-                            <a 
-                              href={getDownloadUrl(activeJob)} 
-                              download={activeJob.name}
-                              className="file-download-link"
-                              title="Descargar documento activo"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                              Descargar Documento
-                            </a>
+
+                        {/* List of files with download links */}
+                        <div className="active-job-files-list" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <span className="section-mini-label" style={{ margin: 0 }}>Archivos del Trabajo ({parseJobFiles(activeJob).length})</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '120px', overflowY: 'auto' }}>
+                            {parseJobFiles(activeJob).map((f, idx) => (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                                  <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                                    {isImageFile(f.name, f.url) ? (
+                                      <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                                </div>
+                                <a 
+                                  href={f.url || '#'} 
+                                  download={f.name}
+                                  className="file-download-link"
+                                  style={{ margin: 0, padding: '0.2rem 0.4rem', border: '1px solid var(--color-primary-blue)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}
+                                  title="Descargar este archivo"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                  </svg>
+                                  Descargar
+                                </a>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
-
-                      {/* Technical specifications as chips/pills */}
                       <div className="active-job-specs-section">
                         <span className="section-mini-label">Especificaciones de Impresión</span>
                         <div className="specs-pills-container">
@@ -298,7 +684,7 @@ export const ColasImpresionPage = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581a1.125 1.125 0 001.59 0l7.317-7.317a1.125 1.125 0 000-1.59L11.16 3.659A2.25 2.25 0 009.568 3z" />
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 7.5h.008v.008H6V7.5z" />
                             </svg>
-                            <span>{activeJob.format} - {activeJob.finish || 'Normal'}</span>
+                            <span>{activeJob.format}</span>
                           </div>
 
                           <div className="spec-pill" title="Medidas">
@@ -308,11 +694,11 @@ export const ColasImpresionPage = () => {
                             <span>{activeJob.width || 1.0}m x {activeJob.height || 1.0}m</span>
                           </div>
 
-                          <div className="spec-pill" title="Copias y Páginas">
+                          <div className="spec-pill" title="Copias">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H3.75A2.25 2.25 0 001.5 6v10.5A2.25 2.25 0 003.75 18.75h10.5A2.25 2.25 0 0016.5 16.5v-2.25m-1.5-6L12 9.75m0 0L9 6.75m3 3V15" />
                             </svg>
-                            <span>{activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'} ({activeJob.pages} {activeJob.pages === 1 ? 'pág.' : 'págs.'})</span>
+                            <span>{activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'}</span>
                           </div>
                         </div>
                       </div>
@@ -350,7 +736,7 @@ export const ColasImpresionPage = () => {
                         
                         {/* Interactive Progress Bar */}
                         {(() => {
-                          const estimatedTotalSeconds = (activeJob.pages * activeJob.copies) * 120; // 2 minutes per page/copy
+                          const estimatedTotalSeconds = activeJob.copies * 180; // 3 minutes per copy
                           const progressPercent = activeJob.status === "Listo" 
                             ? 0 
                             : Math.min(100, Math.floor((activeJob.elapsedSeconds / estimatedTotalSeconds) * 100));
@@ -507,8 +893,8 @@ export const ColasImpresionPage = () => {
                       <th style={{ width: '18%' }}>Documento</th>
                       <th style={{ width: '12%' }}>Cliente</th>
                       <th style={{ width: '70px' }}>Urgencia</th>
-                      <th style={{ width: '90px' }}>Pág./Cop.</th>
-                      <th style={{ width: '16%' }}>Sustrato / Acabado</th>
+                      <th style={{ width: '90px' }}>Copias</th>
+                      <th style={{ width: '16%' }}>Sustrato / Medidas</th>
                       <th style={{ width: '10%' }}>Enviado por</th>
                       <th style={{ width: '110px' }}>Fecha Envío</th>
                       <th style={{ width: '80px' }}>Estado</th>
@@ -521,7 +907,36 @@ export const ColasImpresionPage = () => {
                         <td>
                           <span className="queue-position-badge">{(queuePage - 1) * queueItemsPerPage + index + 1}</span>
                         </td>
-                        <td style={{ fontWeight: 600, color: '#1e293b' }}>{job.name}</td>
+
+                         <td style={{ fontWeight: 600, color: '#1e293b', verticalAlign: 'middle' }}>
+                           {(() => {
+                             const files = parseJobFiles(job);
+                             return (
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                 <span style={{ color: '#0f172a', display: 'block' }}>{job.name}</span>
+                                 {files.length > 0 && (
+                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.2rem' }}>
+                                     {files.map((f, i) => (
+                                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '0.15rem 0.35rem', borderRadius: '6px', maxWidth: '200px' }} title={f.name}>
+                                         <div style={{ width: '20px', height: '20px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                           {isImageFile(f.name, f.url) ? (
+                                             <img src={f.url} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                           ) : (
+                                             <span style={{ fontSize: '9px' }}>📄</span>
+                                           )}
+                                         </div>
+                                         <span style={{ fontSize: '0.65rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                           {f.name}
+                                         </span>
+                                       </div>
+                                     ))}
+                                   </div>
+                                 )}
+                               </div>
+                             );
+                           })()}
+                         </td>
+
                         <td style={{ fontWeight: 500, color: '#475569' }}>
                           <div>{job.client || 'Sin cliente'}</div>
                           {job.proyectoNombre && (
@@ -531,11 +946,10 @@ export const ColasImpresionPage = () => {
                           )}
                         </td>
                         <td>{renderPriorityBadge(job.urgency)}</td>
-                        <td>{job.copies} copias ({job.pages} pág.)</td>
+                        <td>{job.copies} {job.copies === 1 ? 'copia' : 'copias'}</td>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                             <span style={{ fontWeight: 600 }}>{job.format}</span>
-                            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Acabado: {job.finish || 'Normal'}</span>
                             <span style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 500 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
                             {job.notes && (
                               <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={job.notes}>
@@ -555,7 +969,7 @@ export const ColasImpresionPage = () => {
                           <div className="action-buttons-group" style={{ justifyContent: 'center' }}>
                             <button 
                               type="button" 
-                              onClick={() => handleStartQueueJob(job.id)}
+                              onClick={() => handleOpenPrepModal(job)}
                               className="btn-action btn-action-play" 
                               title="Cargar e Imprimir"
                             >
@@ -705,8 +1119,8 @@ export const ColasImpresionPage = () => {
                     <th style={{ width: '16%' }}>Documento</th>
                     <th style={{ width: '11%' }}>Cliente</th>
                     <th style={{ width: '70px' }}>Urgencia</th>
-                    <th style={{ width: '80px' }}>Pág./Cop.</th>
-                    <th style={{ width: '14%' }}>Sustrato / Acabado</th>
+                    <th style={{ width: '80px' }}>Copias</th>
+                    <th style={{ width: '14%' }}>Sustrato / Medidas</th>
                     <th style={{ width: '9%' }}>Enviado por</th>
                     <th style={{ width: '10%' }}>Responsable</th>
                     <th style={{ width: '70px' }}>Duración</th>
@@ -749,11 +1163,10 @@ export const ColasImpresionPage = () => {
                         )}
                       </td>
                       <td>{renderPriorityBadge(job.urgency)}</td>
-                      <td>{job.copies} copias ({job.pages} pág.)</td>
+                      <td>{job.copies} {job.copies === 1 ? 'copia' : 'copias'}</td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                           <span style={{ fontWeight: 600 }}>{job.format}</span>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Acabado: {job.finish || 'Normal'}</span>
                           <span style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 500 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
                           {job.notes && (
                             <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={job.notes}>
@@ -882,6 +1295,38 @@ export const ColasImpresionPage = () => {
                   {renderPriorityBadge(selectedJobDetails.urgency)}
                 </div>
               </div>
+              
+              {/* List of files in the job */}
+              <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+                <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Archivos del Trabajo ({parseJobFiles(selectedJobDetails).length})</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '120px', overflowY: 'auto' }}>
+                  {parseJobFiles(selectedJobDetails).map((f, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                          {isImageFile(f.name, f.url) ? (
+                            <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                          )}
+                        </div>
+                        <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                      </div>
+                      <a 
+                        href={f.url || '#'} 
+                        download={f.name}
+                        onClick={e => e.stopPropagation()}
+                        style={{ color: 'var(--color-primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none', fontWeight: 600, flexShrink: 0 }}
+                        title="Descargar este archivo"
+                      >
+                        Descargar
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               <div className="details-grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
                 <div className="detail-item">
@@ -899,16 +1344,12 @@ export const ColasImpresionPage = () => {
                   <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.format}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Acabado / Tipo de Lona</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.finish || 'Normal'}</span>
-                </div>
-                <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Medidas Físicas</span>
                   <span className="detail-item-value" style={{ fontWeight: 600, color: '#0369a1' }}>{selectedJobDetails.width || 1.0}m x {selectedJobDetails.height || 1.0}m</span>
                 </div>
                 <div className="detail-item">
-                  <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Copias / Páginas</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.copies} cop. ({selectedJobDetails.pages} pág.)</span>
+                  <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Copias</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.copies} cop.</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Enviado por</span>
@@ -956,6 +1397,346 @@ export const ColasImpresionPage = () => {
                 Cerrar Ficha
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preparar Impresión Modal */}
+      {showPrepModal && prepJob && (
+        <div className="colas-modal-overlay" onClick={() => { if (!submittingAction) { setShowPrepModal(false); setPrepJob(null); } }}>
+          <div className="prep-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="details-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '0.5rem' }}>
+              <span className="colas-modal-title" style={{ fontSize: '1.2rem', color: 'var(--color-primary-blue)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <svg style={{ width: '20px', height: '20px', color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+                </svg>
+                Preparar Impresión e Insumos
+              </span>
+              <button 
+                type="button" 
+                onClick={() => { setShowPrepModal(false); setPrepJob(null); }} 
+                style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#94a3b8', border: 'none', background: 'none', cursor: 'pointer' }}
+                title="Cerrar modal"
+                disabled={submittingAction}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="prep-modal-content-grid">
+              
+              {/* Left Column: Job Info & Add Insumo */}
+              <div className="prep-left-section">
+                
+                {/* Job Info Card */}
+                <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <span className="section-mini-label" style={{ color: 'var(--color-primary-blue)', fontWeight: 700 }}>Información de Impresión</span>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1e293b', marginTop: '0.25rem', marginBottom: '0.5rem' }}>{prepJob.name}</h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.85rem' }}>
+                    <div><strong>Cliente:</strong> {prepJob.client || 'Sin cliente'}</div>
+                    {prepJob.proyectoNombre && <div><strong>Proyecto:</strong> {prepJob.proyectoNombre}</div>}
+                    <div><strong>Medidas:</strong> {prepJob.width || 1.0}m x {prepJob.height || 1.0}m</div>
+                    <div><strong>Copias:</strong> {prepJob.copies} cop.</div>
+                    <div style={{ gridColumn: 'span 2' }}><strong>Sustrato requerido:</strong> <span style={{ color: '#6366f1', fontWeight: 'bold' }}>{prepJob.format}</span></div>
+                  </div>
+
+                  {prepJob.notes && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.35rem 0.5rem', borderRadius: '4px' }}>
+                      <strong>Observación:</strong> {prepJob.notes}
+                    </div>
+                  )}
+
+                  {/* Download artwork */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
+                    <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Archivos a Descargar ({parseJobFiles(prepJob).length})</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '110px', overflowY: 'auto' }}>
+                      {parseJobFiles(prepJob).map((f, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                            <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                              {isImageFile(f.name, f.url) ? (
+                                <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                              )}
+                            </div>
+                            <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                          </div>
+                          <a 
+                            href={f.url || '#'} 
+                            download={f.name}
+                            className="file-download-link"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.4rem', fontSize: '0.75rem', margin: 0, textDecoration: 'none', flexShrink: 0 }}
+                          >
+                            Descargar
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Material Selector */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                    Elegir Rollo o Material del Inventario (Categoría Impresión):
+                  </label>
+                  {loadingMaterials ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
+                      <div className="nt-spinner" style={{ width: '16px', height: '16px', border: '2px solid #cbd5e1', borderTopColor: '#3b82f6' }} />
+                      Cargando materiales disponibles...
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedMaterialId}
+                      onChange={(e) => handleMaterialSelectChange(e.target.value)}
+                      className="filter-select"
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#1e293b' }}
+                    >
+                      <option value="">-- Seleccionar material para asignar --</option>
+                      {materialesImpresion.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre} {m.codigo ? `[${m.codigo}]` : ''} {m.ancho ? `(${m.ancho}m ancho)` : ''} [Disp: {m.stockActual} {m.unidadMedida?.abreviacion || m.unidadMedida?.nombre || 'm'}]
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Selected Material Details and Calculations */}
+                {selectedMaterialId && (() => {
+                  const mat = materialesImpresion.find(m => m.id === selectedMaterialId);
+                  if (!mat) return null;
+
+                  const isInk = mat.unidadMedida?.nombre === 'litros' || mat.nombre?.toLowerCase().includes('tinta');
+                  const isPVC = mat.unidadMedida?.nombre === 'planchas' || mat.unidadMedida?.nombre === 'unidades' || mat.nombre?.toLowerCase().includes('pvc');
+                  const orientationDetails = getOrientationDetails(mat, prepJob);
+
+                  return (
+                    <div style={{ padding: '0.75rem', backgroundColor: '#f0fdfa', borderRadius: '8px', border: '1px solid #99f6e4', fontSize: '0.85rem' }}>
+                      <h5 style={{ fontWeight: 700, color: '#0d9488', marginBottom: '0.25rem' }}>Cálculo de Consumo Sugerido:</h5>
+                      
+                      {isInk ? (
+                        <p style={{ margin: 0, color: '#0f766e' }}>
+                          Las tintas se registran de forma informativa y no descuentan stock automáticamente.
+                        </p>
+                      ) : isPVC ? (
+                        <p style={{ margin: 0, color: '#0f766e' }}>
+                          El PVC se descuenta por unidades físicas. Consumo sugerido: <strong>{prepJob.copies} planchas/unidades</strong> (1 por copia).
+                        </p>
+                      ) : mat.ancho ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', color: '#0f766e' }}>
+                          {orientationDetails?.warning && (
+                            <p style={{ margin: 0, color: '#b91c1c', fontWeight: 600 }}>{orientationDetails.warning}</p>
+                          )}
+                          {orientationDetails?.info && (
+                            <p style={{ margin: 0 }}>{orientationDetails.info}</p>
+                          )}
+                          {orientationDetails?.consumption && (
+                            <p style={{ margin: 0 }}>Consumo calculado: <strong>{orientationDetails.consumption}</strong></p>
+                          )}
+                        </div>
+                      ) : (
+                        <p style={{ margin: 0 }}>Consumo sugerido: <strong>{prepJob.copies} {mat.unidadMedida?.abreviacion || 'uds'}</strong>.</p>
+                      )}
+
+                      {/* Quantity Input and Add Button */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #cbd5e1' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 600, color: '#334155' }}>Cantidad:</span>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            min="0.01"
+                            value={requiredQty}
+                            onChange={(e) => setRequiredQty(Math.max(0.01, Number(e.target.value)))}
+                            style={{ width: '90px', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1', textAlign: 'right' }}
+                          />
+                          <span style={{ fontWeight: 600, color: '#475569' }}>{mat.unidadMedida?.abreviacion || mat.unidadMedida?.nombre || 'm'}</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleAddToCart}
+                          style={{ marginLeft: 'auto', padding: '0.35rem 1rem', backgroundColor: '#0d9488', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          Asignar Insumo
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+              </div>
+
+              {/* Right Column: Insumos List */}
+              <div className="prep-right-section">
+                <span className="section-mini-label" style={{ color: 'var(--color-primary-blue)', fontWeight: 700 }}>Lista de Insumos a Descontar</span>
+                
+                <div style={{ flexGrow: 1, overflow: 'auto', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                  {cartItems.length > 0 ? (
+                    <table className="cart-table">
+                      <thead>
+                        <tr>
+                          <th>Insumo</th>
+                          <th style={{ width: '80px', textAlign: 'right' }}>Cant.</th>
+                          <th style={{ width: '80px', textAlign: 'right' }}>Disp.</th>
+                          <th style={{ width: '80px', textAlign: 'center' }}>Estado</th>
+                          <th style={{ width: '40px', textAlign: 'center' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cartItems.map((item, index) => {
+                          const hasSufficient = item.stockActual >= item.quantity;
+                          const deficit = Number((item.quantity - item.stockActual).toFixed(2));
+                          
+                          return (
+                            <tr key={index}>
+                              <td>
+                                <div style={{ fontWeight: 600, color: '#1e293b' }}>{item.nombre}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                  Código: {item.codigo} {item.ancho ? `| Ancho: ${item.ancho}m` : ''}
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#334155' }}>
+                                {item.quantity} {item.unidad}
+                              </td>
+                              <td style={{ textAlign: 'right', color: '#475569' }}>
+                                {item.isInformative ? '—' : `${item.stockActual} ${item.unidad}`}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                {item.isInformative ? (
+                                  <span className="cart-item-info">Info</span>
+                                ) : hasSufficient ? (
+                                  <span className="cart-item-ok">OK</span>
+                                ) : (
+                                  <span className="cart-item-warning" title={`Faltan ${deficit} ${item.unidad}`}>Faltan {deficit}</span>
+                                )}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFromCart(index)}
+                                  className="btn-remove-item"
+                                  title="Quitar de la lista"
+                                >
+                                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="cart-empty-state">
+                      <svg style={{ width: '32px', height: '32px', color: '#94a3b8', marginBottom: '0.5rem' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0z" />
+                      </svg>
+                      <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>No hay insumos asignados</p>
+                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem' }}>Selecciona y asigna materiales a la izquierda.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Stock warning/info footer inside right column */}
+                {cartItems.length > 0 && (() => {
+                  const deductables = cartItems.filter(item => !item.isInformative);
+                  const deficitItems = deductables.filter(item => item.quantity > item.stockActual);
+                  const hasDeficit = deficitItems.length > 0;
+                  const hasDeductables = deductables.length > 0;
+
+                  if (hasDeficit) {
+                    return (
+                      <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.8rem', color: '#b91c1c' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 'bold' }}>
+                          <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                          </svg>
+                          Insumos en Déficit
+                        </div>
+                        <p style={{ margin: '0.25rem 0 0 0' }}>
+                          Hay {deficitItems.length} materiales sin stock suficiente. Genera la orden de compra urgente para poder continuar.
+                        </p>
+                      </div>
+                    );
+                  } else if (hasDeductables) {
+                    return (
+                      <div style={{ padding: '0.75rem', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '0.8rem', color: '#15803d' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 'bold' }}>
+                          <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Insumos Asignados Listos
+                        </div>
+                        <p style={{ margin: '0.25rem 0 0 0' }}>
+                          Todos los insumos asignados están listos y disponibles. Puedes iniciar la impresión.
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+              </div>
+
+            </div>
+
+            {/* Modal Actions */}
+            <div className="colas-modal-actions" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginTop: '0.5rem' }}>
+              <button 
+                type="button" 
+                onClick={() => { setShowPrepModal(false); setPrepJob(null); setCartItems([]); }} 
+                className="btn-modal-back"
+                disabled={submittingAction}
+              >
+                Volver
+              </button>
+
+              {(() => {
+                const deductables = cartItems.filter(item => !item.isInformative);
+                const hasDeficit = deductables.some(item => item.quantity > item.stockActual);
+                const hasDeductables = deductables.length > 0;
+
+                return (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {hasDeficit && (
+                      <button
+                        type="button"
+                        onClick={handleCreateQuickPO}
+                        className="btn-modal-cancel"
+                        style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }}
+                        disabled={submittingAction}
+                      >
+                        {submittingAction ? 'Procesando...' : 'Solicitar Orden de Compra'}
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleConfirmStartPrint}
+                      className="btn-modal-cancel"
+                      style={{ 
+                        backgroundColor: 'var(--color-primary-blue)', 
+                        color: '#fff', 
+                        border: 'none', 
+                        opacity: (hasDeficit || !hasDeductables || submittingAction) ? 0.6 : 1, 
+                        cursor: (hasDeficit || !hasDeductables || submittingAction) ? 'not-allowed' : 'pointer' 
+                      }}
+                      disabled={hasDeficit || !hasDeductables || submittingAction}
+                    >
+                      {submittingAction ? 'Procesando...' : 'Iniciar Impresión'}
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+
           </div>
         </div>
       )}

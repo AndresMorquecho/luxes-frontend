@@ -9,6 +9,8 @@
   height: calc(100vh - 5rem);
   overflow: hidden;
   box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Card Style Header */
@@ -69,12 +71,6 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-}
-
-@media (max-width: 992px) {
-  .impresiones-main-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .impresiones-form-card {
@@ -285,19 +281,7 @@
   gap: 0.75rem;
 }
 
-@media (max-width: 576px) {
-  .form-row-2col,
-  .form-row-cliente,
-  .form-row-3col,
-  .form-row-4col {
-    grid-template-columns: 1fr;
-    gap: 0.65rem;
-  }
-  .form-row-notes-submit {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
+/* Multi-column grid rows collapsed under max-width: 768px query instead of 576px */
 
 .form-select, .form-text-input {
   width: 100%;
@@ -957,5 +941,125 @@
 
 .notif-dropdown-item:hover {
   background-color: #f5f3ff !important;
+}
+
+/* Media Queries moved to the end of the file to ensure correct override order */
+@media (max-width: 992px) {
+  .impresiones-container {
+    height: auto !important;
+    overflow: visible !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .impresiones-main-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .impresiones-sidebar-column {
+    height: auto !important;
+    margin-top: 1rem;
+  }
+
+  .tracking-jobs-list {
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .impresiones-container {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .impresiones-main-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .impresiones-header-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    width: auto !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .impresiones-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .impresiones-header-right {
+    align-self: flex-end;
+  }
+
+  .impresiones-title-group {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .impresiones-title-group h1 {
+    font-size: 1.15rem;
+  }
+
+  .impresiones-title-group p {
+    font-size: 0.8rem;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  .impresiones-form-card {
+    padding: 1rem !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .impresiones-info-card {
+    padding: 1rem !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .form-row-2col,
+  .form-row-cliente,
+  .form-row-3col,
+  .form-row-4col {
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem !important;
+  }
+
+  .form-row-notes-submit {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .sidebar-filters-bar {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .sidebar-filter-input,
+  .sidebar-filter-select,
+  .sidebar-filter-date {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
 }
 

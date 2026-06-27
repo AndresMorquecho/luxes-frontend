@@ -183,41 +183,4 @@ export class NominaMockAdapter extends NominaRepositoryPort {
     localStorage.setItem('luxes_vacaciones', JSON.stringify(current));
     return { empleadoId, año, diasTomados };
   }
-
-  _periodoKey(fechaInicio, fechaFin) {
-    return `luxes_nomina_periodo_${fechaInicio}_${fechaFin}`;
-  }
-
-  async getPeriodoConfig(fechaInicio, fechaFin) {
-    const fInicio = String(fechaInicio).slice(0, 10);
-    const fFin = String(fechaFin).slice(0, 10);
-    const diffDias = Math.floor((new Date(fFin) - new Date(fInicio)) / (1000 * 60 * 60 * 24)) + 1;
-    try {
-      const raw = localStorage.getItem(this._periodoKey(fInicio, fFin));
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return {
-          fechaInicio: fInicio,
-          fechaFin: fFin,
-          diasLaborables: parsed.diasLaborables ?? diffDias,
-          feriados: Array.isArray(parsed.feriados) ? parsed.feriados : [],
-        };
-      }
-    } catch { /* ignore */ }
-    return { fechaInicio: fInicio, fechaFin: fFin, diasLaborables: diffDias, feriados: [] };
-  }
-
-  async savePeriodoConfig(fechaInicio, fechaFin, feriados) {
-    const fInicio = String(fechaInicio).slice(0, 10);
-    const fFin = String(fechaFin).slice(0, 10);
-    const diffDias = Math.floor((new Date(fFin) - new Date(fInicio)) / (1000 * 60 * 60 * 24)) + 1;
-    const data = {
-      fechaInicio: fInicio,
-      fechaFin: fFin,
-      diasLaborables: diffDias,
-      feriados: (feriados || []).filter((f) => f.fecha >= fInicio && f.fecha <= fFin),
-    };
-    localStorage.setItem(this._periodoKey(fInicio, fFin), JSON.stringify(data));
-    return data;
-  }
 }

@@ -1,68 +1,74 @@
-import { SECUENCIA_MARCACIONES } from '../helpers/asistenciaHelpers';
-
-export const getAsistencias = async () => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = localStorage.getItem('asistencias_mock');
-      resolve(data ? JSON.parse(data) : []);
-    }, 500);
-  });
+const getHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    Authorization: token ? `Bearer ${token}` : '',
+  };
 };
 
-/**
- * Devuelve la próxima marcación pendiente del empleado en el día actual.
- * null si ya completó las 4 marcaciones.
- */
+const parseResponse = async (response) => {
+  const text = await response.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`Respuesta inválida del servidor (${response.status})`);
+  }
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error?.message || `Error en la operación (${response.status})`);
+  }
+  return data.data;
+};
+
+export const getAsistencias = async (desde, hasta) => {
+  if (!desde) {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    desde = d.toISOString().split('T')[0];
+  }
+  if (!hasta) {
+    hasta = new Date().toISOString().split('T')[0];
+  }
+  return parseResponse(
+    await fetch(`/api/asistencias?desde=${desde}&hasta=${hasta}`, {
+      headers: getHeaders(),
+    })
+  );
+};
+
 export const getProximaMarcacion = async (empleadoId) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = localStorage.getItem('asistencias_mock');
-      const asistencias = data ? JSON.parse(data) : [];
-      const hoy = new Date().toISOString().split('T')[0];
-
-      const registrosHoy = asistencias.filter(a => {
-        return a.empleadoId === empleadoId &&
-          new Date(a.fechaHora).toISOString().split('T')[0] === hoy;
-      });
-
-      const siguiente = SECUENCIA_MARCACIONES[registrosHoy.length] ?? null;
-      resolve(siguiente);
-    }, 200);
-  });
+  return parseResponse(
+    await fetch(`/api/asistencias/empleado/${empleadoId}/proxima`, {
+      headers: getHeaders(),
+    })
+  );
 };
 
-export const registrarAsistencia = async ({ empleadoId, ubicacion }) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const data = localStorage.getItem('asistencias_mock');
-      const asistencias = data ? JSON.parse(data) : [];
-      const hoy = new Date().toISOString().split('T')[0];
-
-      const registrosHoy = asistencias.filter(a => {
-        return a.empleadoId === empleadoId &&
-          new Date(a.fechaHora).toISOString().split('T')[0] === hoy;
-      });
-
-      const siguiente = SECUENCIA_MARCACIONES[registrosHoy.length];
-
-      if (!siguiente) {
-        return reject(new Error(`El empleado ${empleadoId} ya completó las 4 marcaciones del día.`));
-      }
-
-      const nuevaAsistencia = {
-        id: crypto.randomUUID(),
-        empleadoId,
-        nombreEmpleado: empleadoId,
-        tipo: siguiente.tipo,
-        label: siguiente.label,
-        fechaHora: new Date().toISOString(),
-        ubicacion,
-      };
-
-      asistencias.push(nuevaAsistencia);
-      localStorage.setItem('asistencias_mock', JSON.stringify(asistencias));
-
-      resolve(nuevaAsistencia);
-    }, 500);
-  });
+export const registrarAsistencia = async ({ empleadoId, ubicacion, omitirAlmuerzo = false }) => {
+  return parseResponse(
+    await fetch('/api/asistencias/registrar', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ empleadoId, ubicacion, omitirAlmuerzo }),
+    })
+  );
 };
+
+export const getTodayMarcaciones = async (empleadoId) => {
+  return parseResponse(
+    await fetch(`/api/asistencias/empleado/${empleadoId}/hoy`, {
+      headers: getHeaders(),
+    })
+  );
+};
+
+export const registrarPermiso = async ({ empleadoId, fecha }) => {
+  return parseResponse(
+    await fetch('/api/asistencias/permiso', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ empleadoId, fecha }),
+    })
+  );
+};
+

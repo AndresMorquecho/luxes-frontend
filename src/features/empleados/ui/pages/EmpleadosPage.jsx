@@ -3,9 +3,8 @@ import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalP
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { getAvatarPalette, getPersonInitials, AVATAR_PALETTES } from '../../../../shared/utils/personInitials.js';
 import { useNavigate } from 'react-router-dom';
-import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal.jsx';
-import { toast } from '../../../../shared/ui/components/Toast.jsx';
-import { sueldoMensualEfectivo, sueldoDiarioEfectivo } from '../../../../shared/utils/sueldoHelpers.js';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getEmpleados,
   deleteEmpleado,
@@ -561,13 +560,8 @@ export const EmpleadosPage = () => {
                         </p>
                       </div>
                       <div>
-                        <p className="text-slate-400 font-medium">Sueldo base mensual</p>
-                        <p className="text-slate-800 font-semibold mt-0.5">
-                          ${sueldoMensualEfectivo(viewingEmpleado.sueldoDiario).toFixed(2)}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          Diario en nómina: ${sueldoDiarioEfectivo(viewingEmpleado.sueldoDiario).toFixed(2)}
-                        </p>
+                        <p className="text-slate-400 font-medium">Sueldo Diario</p>
+                        <p className="text-slate-800 font-semibold mt-0.5">${(viewingEmpleado.sueldoDiario ?? 0).toFixed(2)}</p>
                       </div>
                       <div>
                         <p className="text-slate-400 font-medium">Detalle de Cuenta</p>

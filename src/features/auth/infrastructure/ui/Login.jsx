@@ -1,20 +1,48 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Login.css';
 
 export const Login = ({ onLogin }) => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (username && password) {
-      setIsLoading(true);
-      // Simulate loading for 2.5 seconds to display the custom balloon float animation
+    setError('');
+
+    if (!username || !password) {
+      setError('Por favor, ingresa tu usuario y contraseña');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error?.message || 'Error al iniciar sesión');
+      }
+
+      // Simulate a small delay for the beautiful balloon loading animation
       setTimeout(() => {
-        onLogin();
-      }, 1500);
+        onLogin(data.data.token, data.data.user);
+      }, 1000);
+    } catch (err) {
+      setIsLoading(false);
+      setError(err instanceof Error ? err.message : 'Error de conexión con el servidor');
     }
   };
 
@@ -53,13 +81,22 @@ export const Login = ({ onLogin }) => {
           <div className="login-form-content">
 
             <div className="login-form-header">
+              <button
+                type="button"
+                className="login-back-link"
+                onClick={() => navigate('/')}
+              >
+                ← Volver al inicio
+              </button>
+              <img src="/Logo.jpg" alt="Luxes Logo" className="login-mobile-logo" />
               <h2 className="login-form-title">Bienvenido</h2>
               <p className="login-form-subtitle">Inicia sesión para continuar</p>
             </div>
 
             <form className="login-form-element" onSubmit={handleSubmit}>
+              {error && <div className="login-error-message">{error}</div>}
               <div className="login-form-group">
-                <label className="login-input-label">Usuario</label>
+                <label className="login-input-label">Nombre de usuario</label>
                 <div className="login-input-wrapper">
                   <span className="login-input-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -69,7 +106,7 @@ export const Login = ({ onLogin }) => {
                   </span>
                   <input
                     type="text"
-                    placeholder="Ingresa tu usuario"
+                    placeholder="ej. isam.luxes"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="login-input-field"

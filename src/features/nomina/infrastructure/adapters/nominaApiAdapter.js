@@ -5,6 +5,14 @@ import { Empleado } from '../../domain/entities/Empleado';
 import { Nomina } from '../../domain/entities/Nomina';
 import { HoraExtra } from '../../domain/entities/HoraExtra';
 
+const getHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    Authorization: token ? `Bearer ${token}` : '',
+  };
+};
+
 /**
  * Adaptador de API HTTP para Nómina (Hexagonal).
  * Implementa la interfaz/puerto NominaRepositoryPort conectándose al backend mediante REST API.
@@ -22,15 +30,13 @@ export class NominaApiAdapter extends NominaRepositoryPort {
    * @returns {Promise<Array<Empleado>>}
    */
   async getEmployees() {
-    // TODO: Conectar con el endpoint real de colaboradores (ej: GET /colaboradores)
-    /*
-    const response = await fetch(`${this.baseUrl}/employees`);
-    if (!response.ok) throw new Error('Error al obtener empleados del servidor.');
-    const data = await response.json();
-    return data.map(emp => new Empleado(emp));
-    */
-    console.warn("NominaApiAdapter: getEmployees() está usando mock temporalmente.");
-    return [];
+    const response = await fetch(`${this.baseUrl}/empleados`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al obtener colaboradores del servidor.');
+    const json = await response.json();
+    const arr = Array.isArray(json) ? json : json.data || [];
+    return arr.map(emp => new Empleado(emp));
   }
 
   /**
@@ -40,15 +46,14 @@ export class NominaApiAdapter extends NominaRepositoryPort {
    * @returns {Promise<Array<Nomina>>}
    */
   async getPayrolls(fechaInicio, fechaFin) {
-    // TODO: Conectar con el endpoint real de nóminas (ej: GET /nominas?fechaInicio=...&fechaFin=...)
-    /*
-    const response = await fetch(`${this.baseUrl}/payrolls?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`);
+    const response = await fetch(
+      `${this.baseUrl}/nomina/nominas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+      { headers: getHeaders() }
+    );
     if (!response.ok) throw new Error('Error al obtener nóminas del servidor.');
-    const data = await response.json();
-    return data.map(item => new Nomina(item));
-    */
-    console.warn("NominaApiAdapter: getPayrolls() está usando mock temporalmente.");
-    return [];
+    const json = await response.json();
+    const arr = Array.isArray(json) ? json : json.data || [];
+    return arr.map(item => new Nomina(item));
   }
 
   async getPeriodoConfig(fechaInicio, fechaFin) {
@@ -78,19 +83,15 @@ export class NominaApiAdapter extends NominaRepositoryPort {
    * @returns {Promise<Nomina>}
    */
   async savePayroll(nomina) {
-    // TODO: Conectar con el endpoint para guardar nómina (ej: POST o PUT /nominas)
-    /*
-    const response = await fetch(`${this.baseUrl}/payrolls`, {
+    const response = await fetch(`${this.baseUrl}/nomina/nominas`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nomina)
+      headers: getHeaders(),
+      body: JSON.stringify(nomina),
     });
     if (!response.ok) throw new Error('Error al guardar la nómina en el servidor.');
-    const data = await response.json();
+    const json = await response.json();
+    const data = json.data || json;
     return new Nomina(data);
-    */
-    console.warn("NominaApiAdapter: savePayroll() está usando mock temporalmente.");
-    return nomina;
   }
 
   /**
@@ -100,35 +101,191 @@ export class NominaApiAdapter extends NominaRepositoryPort {
    * @returns {Promise<Array<HoraExtra>>}
    */
   async getOvertime(fechaInicio, fechaFin) {
-    // TODO: Conectar con el endpoint de horas extras (ej: GET /horas-extras?fechaInicio=...&fechaFin=...)
-    /*
-    const response = await fetch(`${this.baseUrl}/overtime?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`);
+    const response = await fetch(
+      `${this.baseUrl}/nomina/horas-extras?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+      { headers: getHeaders() }
+    );
     if (!response.ok) throw new Error('Error al obtener horas extras del servidor.');
-    const data = await response.json();
-    return data.map(he => new HoraExtra(he));
-    */
-    console.warn("NominaApiAdapter: getOvertime() está usando mock temporalmente.");
-    return [];
+    const json = await response.json();
+    const arr = Array.isArray(json) ? json : json.data || [];
+    return arr.map(he => new HoraExtra(he));
   }
 
   /**
    * Guarda o actualiza una lista de horas extras en el repositorio
    * @param {Array<HoraExtra>} horasExtras
+   * @param {string} fechaInicio
+   * @param {string} fechaFin
    * @returns {Promise<Array<HoraExtra>>}
    */
-  async saveOvertime(horasExtras) {
-    // TODO: Conectar con el endpoint para guardar horas extras masivamente (ej: POST /horas-extras)
-    /*
-    const response = await fetch(`${this.baseUrl}/overtime/bulk`, {
+  async saveOvertime(horasExtras, fechaInicio, fechaFin) {
+    const response = await fetch(`${this.baseUrl}/nomina/horas-extras`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(horasExtras)
+      headers: getHeaders(),
+      body: JSON.stringify({ horasExtras, fechaInicio, fechaFin }),
     });
     if (!response.ok) throw new Error('Error al guardar las horas extras en el servidor.');
-    const data = await response.json();
-    return data.map(he => new HoraExtra(he));
-    */
-    console.warn("NominaApiAdapter: saveOvertime() está usando mock temporalmente.");
-    return horasExtras;
+    const json = await response.json();
+    const arr = Array.isArray(json) ? json : json.data || [];
+    return arr.map(he => new HoraExtra(he));
+  }
+
+  /**
+   * Obtiene la lista de vacaciones registradas
+   * @returns {Promise<Array<object>>}
+   */
+  async getVacations() {
+    const response = await fetch(`${this.baseUrl}/nomina/vacaciones`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al obtener vacaciones del servidor.');
+    const json = await response.json();
+    return json.data || json || [];
+  }
+
+  /**
+   * Guarda o actualiza un registro de vacaciones en el servidor
+   * @param {string} empleadoId
+   * @param {number} año
+   * @param {Array<string>} diasTomados
+   * @returns {Promise<object>}
+   */
+  async saveVacation(empleadoId, año, diasTomados) {
+    const response = await fetch(`${this.baseUrl}/nomina/vacaciones`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ empleadoId, año, diasTomados }),
+    });
+    if (!response.ok) throw new Error('Error al guardar vacaciones en el servidor.');
+    const json = await response.json();
+    return json.data || json;
+  }
+
+  /**
+   * Obtiene la lista de egresos detallados de un colaborador
+   * @param {string} empleadoId
+   * @param {string} [fechaInicio]
+   * @param {string} [fechaFin]
+   * @returns {Promise<Array<object>>}
+   */
+  async getDetailedEgresos(empleadoId, fechaInicio, fechaFin) {
+    let url = `${this.baseUrl}/nomina/egresos?empleadoId=${empleadoId}`;
+    if (fechaInicio && fechaFin) {
+      url += `&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`;
+    }
+    const response = await fetch(url, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Error al obtener egresos detallados.');
+    const json = await response.json();
+    return json.data || json || [];
+  }
+
+  /**
+   * Crea un nuevo egreso detallado
+   * @param {object} data
+   * @param {string} data.empleadoId
+   * @param {string} data.tipo - "ANTICIPO" | "MULTA" | "OTROS"
+   * @param {number} data.monto
+   * @param {string} data.fecha - AAAA-MM-DD
+   * @param {string} [data.motivo]
+   * @returns {Promise<object>}
+   */
+  async createDetailedEgreso(data) {
+    const response = await fetch(`${this.baseUrl}/nomina/egresos`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Error al crear egreso detallado.');
+    const json = await response.json();
+    return json.data || json;
+  }
+
+  /**
+   * Elimina un egreso detallado por id
+   * @param {string} id
+   * @returns {Promise<boolean>}
+   */
+  async deleteDetailedEgreso(id) {
+    const response = await fetch(`${this.baseUrl}/nomina/egresos/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al eliminar egreso detallado.');
+    const json = await response.json();
+    return json.success || false;
+  }
+
+  /**
+   * Obtiene la lista de ingresos detallados de un colaborador
+   * @param {string} empleadoId
+   * @param {string} [fechaInicio]
+   * @param {string} [fechaFin]
+   * @returns {Promise<Array<object>>}
+   */
+  async getDetailedIngresos(empleadoId, fechaInicio, fechaFin) {
+    let url = `${this.baseUrl}/nomina/ingresos?empleadoId=${empleadoId}`;
+    if (fechaInicio && fechaFin) {
+      url += `&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`;
+    }
+    const response = await fetch(url, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Error al obtener ingresos detallados.');
+    const json = await response.json();
+    return json.data || json || [];
+  }
+
+  /**
+   * Crea un nuevo ingreso detallado
+   * @param {object} data
+   * @param {string} data.empleadoId
+   * @param {string} data.tipo - "TRAB_EMP" | "OTROS"
+   * @param {number} data.monto
+   * @param {string} data.fecha - AAAA-MM-DD
+   * @param {string} [data.motivo]
+   * @returns {Promise<object>}
+   */
+  async createDetailedIngreso(data) {
+    const response = await fetch(`${this.baseUrl}/nomina/ingresos`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Error al crear ingreso detallado.');
+    const json = await response.json();
+    return json.data || json;
+  }
+
+  /**
+   * Elimina un ingreso detallado por id
+   * @param {string} id
+   * @returns {Promise<boolean>}
+   */
+  async deleteDetailedIngreso(id) {
+    const response = await fetch(`${this.baseUrl}/nomina/ingresos/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al eliminar ingreso detallado.');
+    const json = await response.json();
+    return json.success || false;
+  }
+
+  /**
+   * Descarga el archivo Excel con el reporte de nómina del mes
+   * @param {number} year
+   * @param {number} month
+   * @returns {Promise<Blob>}
+   */
+  async exportToExcel(year, month) {
+    const response = await fetch(
+      `${this.baseUrl}/nomina/exportar?year=${year}&month=${month}`,
+      {
+        headers: {
+          ...getHeaders(),
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+      }
+    );
+    if (!response.ok) throw new Error('Error al generar el archivo Excel.');
+    return await response.blob();
   }
 }

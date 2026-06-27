@@ -63,3 +63,49 @@ export const SECUENCIA_MARCACIONES = [
   { tipo: 'FIN_ALMUERZO',    label: 'Fin Almuerzo'    },
   { tipo: 'SALIDA',          label: 'Salida'          },
 ];
+
+export const MARCACION_SLOTS = [
+  { tipo: 'ENTRADA', short: 'Entrada', color: 'emerald' },
+  { tipo: 'INICIO_ALMUERZO', short: 'Sal. Alm.', color: 'amber' },
+  { tipo: 'FIN_ALMUERZO', short: 'Reg. Alm.', color: 'sky' },
+  { tipo: 'SALIDA', short: 'Salida', color: 'indigo' },
+];
+
+export function resolveProximaMarcacion(marks = []) {
+  const tipos = new Set(marks.map((m) => m.tipo));
+  const marcacionesRegistradas = marks.filter((m) =>
+    SECUENCIA_MARCACIONES.some((s) => s.tipo === m.tipo)
+  ).length;
+
+  if (tipos.has('SALIDA') || tipos.has('PERMISO')) {
+    return { proxima: null, permiteOmitirAlmuerzo: false, completado: true, marcacionesRegistradas };
+  }
+  if (!tipos.has('ENTRADA')) {
+    return { proxima: SECUENCIA_MARCACIONES[0], permiteOmitirAlmuerzo: false, completado: false, marcacionesRegistradas };
+  }
+  if (tipos.has('INICIO_ALMUERZO') && !tipos.has('FIN_ALMUERZO')) {
+    return { proxima: SECUENCIA_MARCACIONES[2], permiteOmitirAlmuerzo: false, completado: false, marcacionesRegistradas };
+  }
+  if (tipos.has('FIN_ALMUERZO') && !tipos.has('SALIDA')) {
+    return { proxima: SECUENCIA_MARCACIONES[3], permiteOmitirAlmuerzo: false, completado: false, marcacionesRegistradas };
+  }
+  if (tipos.has('ENTRADA') && !tipos.has('INICIO_ALMUERZO') && !tipos.has('FIN_ALMUERZO') && !tipos.has('SALIDA')) {
+    return {
+      proxima: SECUENCIA_MARCACIONES[1],
+      alternativa: SECUENCIA_MARCACIONES[3],
+      permiteOmitirAlmuerzo: true,
+      completado: false,
+      marcacionesRegistradas,
+    };
+  }
+  return { proxima: null, permiteOmitirAlmuerzo: false, completado: true, marcacionesRegistradas };
+}
+
+export function isDiaLaboralCompleto(marks = []) {
+  const tipos = new Set(marks.map((m) => m.tipo));
+  return tipos.has('SALIDA') || tipos.has('PERMISO');
+}
+
+export function mapMarcacionesByTipo(marks = []) {
+  return Object.fromEntries(marks.map((m) => [m.tipo, m]));
+}

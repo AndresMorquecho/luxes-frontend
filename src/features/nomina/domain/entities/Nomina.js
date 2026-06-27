@@ -52,7 +52,9 @@ export class Nomina {
 
     // Ingresos
     this.ingresos = {
-      decimoCuarto: Number(ingresos.decimoCuarto ?? 40.17),
+      // Décimo cuarto: abono manual que puede registrarse en cualquier quincena (de poco a poco).
+      // Por defecto 0; conserva el valor ingresado si existe.
+      decimoCuarto: Number(ingresos.decimoCuarto ?? 0),
       decimoTercero: Number(ingresos.decimoTercero ?? 0),
       horasExtras: Number(ingresos.horasExtras ?? 0),
       trabajosEnEmpresa: Number(ingresos.trabajosEnEmpresa ?? 0),

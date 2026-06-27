@@ -15,7 +15,7 @@
   --color-bg: var(--color-light-gray);
   
   --font-main: 'Inter', system-ui, -apple-system, sans-serif;
-  --sidebar-width: 250px;
+  --sidebar-width: 280px; /* Aumentado de 250px a 280px */
 }
 
 body {
@@ -44,3 +44,74 @@ button {
   font-family: var(--font-main);
   cursor: pointer;
 }
+
+/* Convert tables to cards on mobile */
+@media (max-width: 768px) {
+  .mobile-table-cards table,
+  .mobile-table-cards thead,
+  .mobile-table-cards tbody,
+  .mobile-table-cards th,
+  .mobile-table-cards td,
+  .mobile-table-cards tr {
+    display: block !important;
+    width: 100% !important;
+  }
+  
+  .mobile-table-cards thead {
+    display: none !important;
+  }
+  
+  .mobile-table-cards tr {
+    background: #ffffff;
+    border: 1px solid var(--color-border, #cbd5e1) !important;
+    border-radius: 1rem !important;
+    margin-bottom: 1rem !important;
+    padding: 1rem !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02) !important;
+    box-sizing: border-box !important;
+  }
+
+  .mobile-table-cards tr:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  .mobile-table-cards td {
+    border: none !important;
+    border-bottom: 1px dashed rgba(226, 232, 240, 0.8) !important;
+    padding: 0.65rem 0 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 1rem !important;
+    text-align: right !important;
+    box-sizing: border-box !important;
+  }
+
+  .mobile-table-cards td:last-child {
+    border-bottom: none !important;
+  }
+
+  .mobile-table-cards td::before {
+    content: attr(data-label);
+    font-weight: 700 !important;
+    color: #94a3b8 !important;
+    text-transform: uppercase !important;
+    font-size: 0.7rem !important;
+    text-align: left !important;
+    flex-shrink: 0 !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  /* Make form controls fit nicely inside card td */
+  .mobile-table-cards td input,
+  .mobile-table-cards td select {
+    max-width: 60% !important;
+    margin: 0 !important;
+  }
+  
+  .mobile-table-cards td .flex {
+    justify-content: flex-end !important;
+    width: 100% !important;
+  }
+}
+

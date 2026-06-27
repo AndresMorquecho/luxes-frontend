@@ -1,12 +1,12 @@
 // c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/infrastructure/mock/nominaData.js
 
 export const empleadosMock = [
-  { id: 1, nombre: "MORQUECHO IVETTE", sueldoDiario: 21, departamento: "ADMINISTRATIVO", cargo: "COORDINADORA", cedula: "0900000001", tipoContrato: "CONTRATO OCASIONAL" },
-  { id: 2, nombre: "CRISTOFER SUAREZ", sueldoDiario: 16.07, departamento: "OPERATIVO", cargo: "PERSONAL DE IMPRESIÓN", cedula: "0900000002", tipoContrato: "CONTRATO OCASIONAL" },
-  { id: 3, nombre: "CHRISTIAN PAREDES", sueldoDiario: 16.07, departamento: "OPERATIVO", cargo: "PERSONAL DE IMPRESIÓN", cedula: "0900000003", tipoContrato: "CONTRATO OCASIONAL" },
-  { id: 4, nombre: "PAOLA CARRANZA", sueldoDiario: 20, departamento: "DISEÑO", cargo: "DISEÑADORA", cedula: "0900000004", tipoContrato: "CONTRATO OCASIONAL" },
-  { id: 5, nombre: "EDINSON MONCADA", sueldoDiario: 18, departamento: "OPERATIVO", cargo: "INSTALADOR", cedula: "0900000005", tipoContrato: "CONTRATO OCASIONAL" },
-  { id: 6, nombre: "JIMMY EVANGELISTA", sueldoDiario: 25.83, departamento: "OPERATIVO", cargo: "JEFE OPERATIVO", cedula: "0900000006", tipoContrato: "CONTRATO OCASIONAL" },
+  { id: 1, nombre: "MORQUECHO IVETTE", sueldoDiario: 21, departamento: "ADMINISTRATIVO", cargo: "COORDINADORA", cedula: "0900000001", tipoContrato: "CONTRATO OCASIONAL", banco: "Pichincha", cuentaBanco: "00123456789012345678" },
+  { id: 2, nombre: "CRISTOFER SUAREZ", sueldoDiario: 16.07, departamento: "OPERATIVO", cargo: "PERSONAL DE IMPRESIÓN", cedula: "0900000002", tipoContrato: "CONTRATO OCASIONAL", banco: "Bolivariano", cuentaBanco: "00234567890123456789" },
+  { id: 3, nombre: "CHRISTIAN PAREDES", sueldoDiario: 16.07, departamento: "OPERATIVO", cargo: "PERSONAL DE IMPRESIÓN", cedula: "0900000003", tipoContrato: "CONTRATO OCASIONAL", banco: "Guayaquil", cuentaBanco: "00345678901234567890" },
+  { id: 4, nombre: "PAOLA CARRANZA", sueldoDiario: 20, departamento: "DISEÑO", cargo: "DISEÑADORA", cedula: "0900000004", tipoContrato: "CONTRATO OCASIONAL", banco: "Pichincha", cuentaBanco: "00456789012345678901" },
+  { id: 5, nombre: "EDINSON MONCADA", sueldoDiario: 18, departamento: "OPERATIVO", cargo: "INSTALADOR", cedula: "0900000005", tipoContrato: "CONTRATO OCASIONAL", banco: "Pacifico", cuentaBanco: "00567890123456789012" },
+  { id: 6, nombre: "JIMMY EVANGELISTA", sueldoDiario: 25.83, departamento: "OPERATIVO", cargo: "JEFE OPERATIVO", cedula: "0900000006", tipoContrato: "CONTRATO OCASIONAL", banco: "Internacional", cuentaBanco: "00678901234567890123" },
 ];
 
 export const nominasMock = [
@@ -18,7 +18,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 52.50, // (21 * 30) / 12 = 52.50
       horasExtras: 0,
       trabajosEnEmpresa: 120.00,
@@ -48,7 +48,7 @@ export const nominasMock = [
     diasLaborados: 28, // 28 días laborados
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 37.50,
       horasExtras: 25.00, // 10 horas
       trabajosEnEmpresa: 0,
@@ -78,7 +78,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 2,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 40.18,
       horasExtras: 12.50,
       trabajosEnEmpresa: 50.00,
@@ -106,7 +106,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 50.00,
       horasExtras: 0,
       trabajosEnEmpresa: 0,
@@ -134,7 +134,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 45.00,
       horasExtras: 37.50,
       trabajosEnEmpresa: 60.00,
@@ -165,7 +165,7 @@ export const nominasMock = [
     diasLaborados: 30,
     permisoHoras: 0,
     ingresos: {
-      decimoCuarto: 40.17,
+      decimoCuarto: 38.33,
       decimoTercero: 64.58,
       horasExtras: 50.00,
       trabajosEnEmpresa: 150.00,
