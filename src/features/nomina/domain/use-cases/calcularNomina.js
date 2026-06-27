@@ -1,5 +1,7 @@
 // c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/domain/use-cases/calcularNomina.js
 
+import { sueldoDiarioEfectivo } from '../../../../shared/utils/sueldoHelpers.js';
+
 /**
  * Redondea un número a dos decimales de forma segura para contabilidad.
  * @param {number} num
@@ -19,8 +21,9 @@ export function calcularNomina(empleado, nomina) {
   if (!empleado) throw new Error("Se requiere un empleado para realizar el cálculo de nómina.");
   if (!nomina) throw new Error("Se requiere una nómina para realizar el cálculo.");
 
-  // 1. Calcular Bruto
-  const totalBruto = roundTo2(empleado.sueldoDiario * nomina.diasLaborados);
+  // 1. Calcular Bruto (sueldo diario = mensual ÷ 30)
+  const sueldoDiario = sueldoDiarioEfectivo(empleado.sueldoDiario);
+  const totalBruto = roundTo2(sueldoDiario * nomina.diasLaborados);
 
   // 2. Valores automáticos si no vienen seteados explícitamente
   // Décimo tercero mensualizado: 1/12 de la base imponible (bruto + horas extras + trabajos empresa)
@@ -83,7 +86,7 @@ export function calcularNomina(empleado, nomina) {
   return {
     empleadoId: empleado.id,
     nombreEmpleado: empleado.nombre,
-    sueldoDiario: empleado.sueldoDiario,
+    sueldoDiario,
     diasLaborados: nomina.diasLaborados,
     totalBruto,
     ingresos: {

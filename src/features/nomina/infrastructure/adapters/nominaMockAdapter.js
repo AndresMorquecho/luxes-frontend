@@ -40,17 +40,20 @@ export class NominaMockAdapter extends NominaRepositoryPort {
     );
 
     if (filtered.length === 0) {
+      const fInicio = new Date(fechaInicio);
+      const fFin    = new Date(fechaFin);
+      const diffDias = Math.floor((fFin - fInicio) / (1000 * 60 * 60 * 24)) + 1;
       // Crear registros vacíos por defecto para todos los empleados en este período
       const newPayrolls = dbEmployees.map(emp => {
         return new Nomina({
           empleadoId: emp.id,
           fechaInicio,
           fechaFin,
-          diasLaborables: 30,
-          diasLaborados: 30,
+          diasLaborables: diffDias,
+          diasLaborados: diffDias,
           permisoHoras: 0,
           ingresos: {
-            decimoCuarto: 40.17,
+            decimoCuarto: 38.33,
             decimoTercero: 0, // se calculará reactivamente
             horasExtras: 0,
             trabajosEnEmpresa: 0,
@@ -146,5 +149,75 @@ export class NominaMockAdapter extends NominaRepositoryPort {
     });
 
     return horasExtras.map(he => new HoraExtra(he));
+  }
+
+  /**
+   * Obtiene la lista de vacaciones registradas
+   * @returns {Promise<Array<object>>}
+   */
+  async getVacations() {
+    try {
+      return JSON.parse(localStorage.getItem('luxes_vacaciones') || '[]');
+    } catch { return []; }
+  }
+
+  /**
+   * Guarda o actualiza un registro de vacaciones
+   * @param {string} empleadoId
+   * @param {number} año
+   * @param {Array<string>} diasTomados
+   * @returns {Promise<object>}
+   */
+  async saveVacation(empleadoId, año, diasTomados) {
+    let current = [];
+    try {
+      current = JSON.parse(localStorage.getItem('luxes_vacaciones') || '[]');
+    } catch {}
+
+    const idx = current.findIndex(v => v.empleadoId === empleadoId && v.año === año);
+    if (idx === -1) {
+      current.push({ empleadoId, año, diasTomados });
+    } else {
+      current[idx] = { ...current[idx], diasTomados };
+    }
+    localStorage.setItem('luxes_vacaciones', JSON.stringify(current));
+    return { empleadoId, año, diasTomados };
+  }
+
+  _periodoKey(fechaInicio, fechaFin) {
+    return `luxes_nomina_periodo_${fechaInicio}_${fechaFin}`;
+  }
+
+  async getPeriodoConfig(fechaInicio, fechaFin) {
+    const fInicio = String(fechaInicio).slice(0, 10);
+    const fFin = String(fechaFin).slice(0, 10);
+    const diffDias = Math.floor((new Date(fFin) - new Date(fInicio)) / (1000 * 60 * 60 * 24)) + 1;
+    try {
+      const raw = localStorage.getItem(this._periodoKey(fInicio, fFin));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          fechaInicio: fInicio,
+          fechaFin: fFin,
+          diasLaborables: parsed.diasLaborables ?? diffDias,
+          feriados: Array.isArray(parsed.feriados) ? parsed.feriados : [],
+        };
+      }
+    } catch { /* ignore */ }
+    return { fechaInicio: fInicio, fechaFin: fFin, diasLaborables: diffDias, feriados: [] };
+  }
+
+  async savePeriodoConfig(fechaInicio, fechaFin, feriados) {
+    const fInicio = String(fechaInicio).slice(0, 10);
+    const fFin = String(fechaFin).slice(0, 10);
+    const diffDias = Math.floor((new Date(fFin) - new Date(fInicio)) / (1000 * 60 * 60 * 24)) + 1;
+    const data = {
+      fechaInicio: fInicio,
+      fechaFin: fFin,
+      diasLaborables: diffDias,
+      feriados: (feriados || []).filter((f) => f.fecha >= fInicio && f.fecha <= fFin),
+    };
+    localStorage.setItem(this._periodoKey(fInicio, fFin), JSON.stringify(data));
+    return data;
   }
 }

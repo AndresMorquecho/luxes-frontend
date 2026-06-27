@@ -51,6 +51,27 @@ export class NominaApiAdapter extends NominaRepositoryPort {
     return [];
   }
 
+  async getPeriodoConfig(fechaInicio, fechaFin) {
+    const response = await fetch(
+      `${this.baseUrl}/nomina/periodo-config?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+      { headers: getHeaders() },
+    );
+    if (!response.ok) throw new Error('Error al obtener configuración del período.');
+    const json = await response.json();
+    return json.data || json;
+  }
+
+  async savePeriodoConfig(fechaInicio, fechaFin, feriados) {
+    const response = await fetch(`${this.baseUrl}/nomina/periodo-config`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ fechaInicio, fechaFin, feriados }),
+    });
+    if (!response.ok) throw new Error('Error al guardar feriados del período.');
+    const json = await response.json();
+    return json.data || json;
+  }
+
   /**
    * Guarda o actualiza una nómina en el repositorio
    * @param {Nomina} nomina
