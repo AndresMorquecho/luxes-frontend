@@ -12,6 +12,22 @@
     <title>LUXES 2026 Portal</title>
     <!-- jsPDF para generación de PDFs -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+      (function () {
+        if (sessionStorage.getItem('luxes-asset-reload')) return;
+        window.addEventListener('error', function (event) {
+          var target = event.target;
+          if (!target || target.tagName !== 'SCRIPT') return;
+          sessionStorage.setItem('luxes-asset-reload', '1');
+          var clear = ('caches' in window)
+            ? caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+              })
+            : Promise.resolve();
+          clear.then(function () { window.location.reload(); });
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

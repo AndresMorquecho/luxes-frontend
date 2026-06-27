@@ -130,6 +130,29 @@ function App() {
     });
   }, []);
 
+  // Tras un deploy, bundles viejos pueden fallar; recargar una vez con caché limpia
+  useEffect(() => {
+    if (import.meta.env.DEV) return;
+
+    sessionStorage.removeItem('luxes-asset-reload');
+    sessionStorage.removeItem('luxes-chunk-reload');
+
+    const reloadOnce = () => {
+      if (sessionStorage.getItem('luxes-chunk-reload')) return;
+      sessionStorage.setItem('luxes-chunk-reload', '1');
+      if ('caches' in window) {
+        caches.keys()
+          .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+          .finally(() => window.location.reload());
+      } else {
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('vite:preloadError', reloadOnce);
+    return () => window.removeEventListener('vite:preloadError', reloadOnce);
+  }, []);
+
   const handleLogin = (token, user) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));

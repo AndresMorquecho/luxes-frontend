@@ -1,6 +1,18 @@
 // Service Worker for Luxes PWA
 
-const CACHE_NAME = 'luxes-static-cache-v4';
+const CACHE_NAME = 'luxes-static-cache-v5';
+
+function isAssetResponse(url, response) {
+  if (!response || !response.ok) return false;
+  const type = (response.headers.get('content-type') || '').toLowerCase();
+  if (url.pathname.endsWith('.js')) {
+    return type.includes('javascript') || type.includes('ecmascript');
+  }
+  if (url.pathname.endsWith('.css')) {
+    return type.includes('css');
+  }
+  return true;
+}
 
 const STATIC_ASSETS = [
   '/',
@@ -114,12 +126,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // JS/CSS con hash de Vite: red primero (evita bundles viejos tras deploy)
+  // JS/CSS con hash de Vite: red primero; rechazar HTML disfrazado de bundle
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
-      networkFirst(event.request).then(
-        (response) => response || new Response('Asset not found', { status: 404 })
-      )
+      fetch(event.request)
+        .then((response) => {
+          if (!isAssetResponse(url, response)) {
+            return new Response('Asset not found', { status: 404 });
+          }
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+        .then((response) => {
+          if (response && isAssetResponse(url, response)) return response;
+          return new Response('Asset not found', { status: 404 });
+        })
     );
     return;
   }
