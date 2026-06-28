@@ -176,32 +176,24 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
                   <span>💰</span> Ingresos Adicionales
                 </h3>
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Décimo Cuarto (Mensual)</label>
-                      <span className="text-[9px] text-gray-400 font-semibold uppercase">Fijo de ley</span>
+                  <div className="rounded-lg border border-violet-100 bg-violet-50/50 p-3 space-y-2">
+                    <p className="text-[10px] font-bold text-violet-800 uppercase tracking-wider">Provisiones (no suman al neto)</p>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-violet-700">Prov. Décimo 3</span>
+                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.ingresos.provisionDecimo3 ?? 0)}</span>
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.ingresos.decimoCuarto}
-                      onChange={(e) => handleIngresoChange('decimoCuarto', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-800 focus:border-blue-600 outline-none transition-all payroll-input"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Décimo Tercero (Mensual)</label>
-                      <span className="text-[9px] text-blue-600 font-bold uppercase">Autocalculado: {formatUSD(calculoEnTiempoReal.ingresos.decimoTercero)}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-violet-700">Acum. Décimo 3</span>
+                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.ingresos.acumuladoDecimo3 ?? 0)}</span>
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Dejar en 0 para autocalcular"
-                      value={formData.ingresos.decimoTercero || ''}
-                      onChange={(e) => handleIngresoChange('decimoTercero', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-800 focus:border-blue-600 outline-none transition-all payroll-input"
-                    />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-violet-700">Prov. Décimo 4</span>
+                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.ingresos.provisionDecimo4 ?? 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-violet-700">Acum. Décimo 4</span>
+                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.ingresos.acumuladoDecimo4 ?? 0)}</span>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Horas Extras ($)</label>

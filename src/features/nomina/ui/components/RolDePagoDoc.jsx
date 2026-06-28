@@ -117,16 +117,28 @@ export const RolDePagoDoc = ({ empleado, calculatedPayroll, activePeriod }) => {
                   <span>Sueldo Bruto ({calculatedPayroll.diasLaborados} días):</span>
                   <span className="font-semibold">{formatUSD(calculatedPayroll.totalBruto)}</span>
                 </div>
-                {calculatedPayroll.ingresos.decimoTercero > 0 && (
-                  <div className="flex justify-between">
-                    <span>Décimo Tercero (Mensual):</span>
-                    <span>{formatUSD(calculatedPayroll.ingresos.decimoTercero)}</span>
+                {(calculatedPayroll.ingresos.provisionDecimo3 > 0 || calculatedPayroll.ingresos.acumuladoDecimo3 > 0) && (
+                  <div className="flex justify-between text-violet-800 text-xs border-t border-dashed border-violet-200 pt-2 mt-2">
+                    <span>Prov. Décimo 3 (no neto) / Acum.:</span>
+                    <span>{formatUSD(calculatedPayroll.ingresos.provisionDecimo3)} / {formatUSD(calculatedPayroll.ingresos.acumuladoDecimo3)}</span>
                   </div>
                 )}
-                {calculatedPayroll.ingresos.decimoCuarto > 0 && (
+                {(calculatedPayroll.ingresos.provisionDecimo4 > 0 || calculatedPayroll.ingresos.acumuladoDecimo4 > 0) && (
+                  <div className="flex justify-between text-violet-800 text-xs">
+                    <span>Prov. Décimo 4 (no neto) / Acum.:</span>
+                    <span>{formatUSD(calculatedPayroll.ingresos.provisionDecimo4)} / {formatUSD(calculatedPayroll.ingresos.acumuladoDecimo4)}</span>
+                  </div>
+                )}
+                {calculatedPayroll.ingresos.pagoDecimo3 > 0 && (
                   <div className="flex justify-between">
-                    <span>Décimo Cuarto (Mensual):</span>
-                    <span>{formatUSD(calculatedPayroll.ingresos.decimoCuarto)}</span>
+                    <span>Décimo 3 (mensualizado):</span>
+                    <span>{formatUSD(calculatedPayroll.ingresos.pagoDecimo3)}</span>
+                  </div>
+                )}
+                {calculatedPayroll.ingresos.pagoDecimo4 > 0 && (
+                  <div className="flex justify-between">
+                    <span>Décimo 4 (mensualizado):</span>
+                    <span>{formatUSD(calculatedPayroll.ingresos.pagoDecimo4)}</span>
                   </div>
                 )}
                 {calculatedPayroll.ingresos.horasExtras > 0 && (

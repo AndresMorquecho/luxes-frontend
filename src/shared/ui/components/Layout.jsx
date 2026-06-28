@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Sidebar } from '../../../features/navigation/infrastructure/ui/Sidebar';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications.js';
+import { isAsistenciaUser, isTallerUser } from '../../utils/userRoleHelpers';
 import './Layout.css';
 
 export const Layout = ({ children, user, onLogout }) => {
@@ -73,11 +74,11 @@ export const Layout = ({ children, user, onLogout }) => {
     setIsMobileOpen(false);
   }, [location]);
 
-  const isAsistenciaMode = user?.rol === 'asistencia';
-  const isTallerMobile = isMobile && user?.rol?.toLowerCase() === 'taller';
+  const isAsistenciaMode = isAsistenciaUser(user);
+  const isTallerMobile = isMobile && isTallerUser(user);
 
   const unreadCount = useUnreadNotifications(user, {
-    enabled: user?.rol?.toLowerCase() === 'taller',
+    enabled: isTallerUser(user),
   });
 
   const isTabActive = (path) => {

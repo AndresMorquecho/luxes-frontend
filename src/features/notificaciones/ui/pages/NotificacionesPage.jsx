@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getNotifications, markAsRead, notifyNotificationsUpdated, AUTH_EXPIRED_ERROR } from '../../application/notificationsService';
+import { getNotifications, markAsRead, notifyNotificationsUpdated, AUTH_EXPIRED_ERROR, NETWORK_ERROR } from '../../application/notificationsService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import './NotificacionesPage.css';
 
@@ -68,6 +68,13 @@ const getNotificationRoute = (notification) => {
 const getSenderName = (notification) =>
   notification.createdBy || notification.created_by || 'Sistema Luxes';
 
+const getLoadErrorMessage = (err) => {
+  if (err.message === NETWORK_ERROR) {
+    return 'No se puede conectar con el servidor. Verifica que el backend esté activo (puerto 4000).';
+  }
+  return err.message;
+};
+
 export const NotificacionesPage = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
@@ -79,7 +86,7 @@ export const NotificacionesPage = () => {
       setNotifications(data || []);
     } catch (err) {
       if (err.message !== AUTH_EXPIRED_ERROR) {
-        toast.error('Error al cargar notificaciones: ' + err.message);
+        toast.error('Error al cargar notificaciones: ' + getLoadErrorMessage(err));
       }
     } finally {
       setLoading(false);
@@ -97,8 +104,8 @@ export const NotificacionesPage = () => {
         const data = await getNotifications();
         if (!cancelled) setNotifications(data || []);
       } catch (err) {
-        if (!cancelled && err.message !== AUTH_EXPIRED_ERROR) {
-          toast.error('Error al cargar notificaciones: ' + err.message);
+        if (!cancelled && err.message !== AUTH_EXPIRED_ERROR && err.message !== NETWORK_ERROR) {
+          toast.error('Error al cargar notificaciones: ' + getLoadErrorMessage(err));
         }
       } finally {
         if (!cancelled) setLoading(false);

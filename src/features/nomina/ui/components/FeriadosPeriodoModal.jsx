@@ -67,7 +67,7 @@ export function FeriadosPeriodoModal({
             <h3 className="text-sm font-bold text-amber-950 uppercase tracking-wide">Feriados del período</h3>
             <p className="text-xs text-amber-800/80 mt-1">{periodoLabel}</p>
             <p className="text-[11px] text-amber-700 mt-2 font-medium">
-              {diasLaborables} días laborables (lun–sáb) · Sábado hasta las 14:00 · Los feriados se suman al pago de colaboradores con contrato.
+              {diasLaborables} días de la quincena (calendario) · Sábado hasta las 14:00 · Los feriados reducen días laborables y se suman al pago de colaboradores con contrato.
             </p>
           </div>
 

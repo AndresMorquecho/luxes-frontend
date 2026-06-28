@@ -37,7 +37,7 @@ export function sueldoMensualEfectivo(sueldoDiarioAlmacenado) {
 }
 
 /**
- * Sueldo diario efectivo para cálculos de nómina.
+ * Sueldo diario efectivo para referencia (mensual ÷ 30).
  * Corrige registros viejos donde se guardó el monto mensual en sueldo_diario (ej. 500).
  */
 export function sueldoDiarioEfectivo(sueldoDiarioAlmacenado) {
@@ -45,4 +45,28 @@ export function sueldoDiarioEfectivo(sueldoDiarioAlmacenado) {
   if (stored <= 0) return 0;
   if (stored >= 100) return sueldoDiarioFromMensual(stored);
   return roundMoney(stored);
+}
+
+/** Mitad del sueldo mensual = base de cada quincena. */
+export function sueldoQuincenaBase(sueldoAlmacenado) {
+  const mensual = sueldoMensualEfectivo(sueldoAlmacenado);
+  return mensual > 0 ? roundMoney(mensual / 2) : 0;
+}
+
+/** Tarifa diaria dentro de la quincena: (mensual ÷ 2) ÷ días laborables del período. */
+export function sueldoDiarioEnQuincena(sueldoAlmacenado, diasLaborables) {
+  const base = sueldoQuincenaBase(sueldoAlmacenado);
+  if (base <= 0 || diasLaborables <= 0) return 0;
+  return roundMoney(base / diasLaborables);
+}
+
+/**
+ * Sueldo bruto de la quincena: mitad del mes prorrateada por días trabajados.
+ * Ej. $500/mes, quincena completa → $250.
+ */
+export function calcSueldoBrutoQuincena(sueldoAlmacenado, diasLaborados, diasLaborables) {
+  const base = sueldoQuincenaBase(sueldoAlmacenado);
+  if (base <= 0 || diasLaborables <= 0) return 0;
+  const ratio = Math.min(1, Math.max(0, Number(diasLaborados) / Number(diasLaborables)));
+  return roundMoney(base * ratio);
 }

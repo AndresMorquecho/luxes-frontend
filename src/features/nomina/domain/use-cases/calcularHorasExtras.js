@@ -26,6 +26,7 @@ export function calcularHorasExtras(empleados, horasExtras) {
 
   // Acumular horas extras
   horasExtras.forEach(registro => {
+    if (registro.aprobacionEstado && registro.aprobacionEstado !== 'APROBADA') return;
     const colId = registro.colaboradorId;
     if (porColaborador[colId]) {
       const totalRegistro = Number(registro.horas) * Number(registro.valorPorHora);

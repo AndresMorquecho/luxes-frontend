@@ -45,6 +45,8 @@ export async function marcarPendiente(empleadoId, mes, anio) {
   }
 }
 
-export function calcularSalarioMensual(sueldoDiario) {
-  return sueldoDiario * 30;
+import { sueldoMensualEfectivo } from '../../../shared/utils/sueldoHelpers.js';
+
+export function calcularSalarioMensual(sueldoAlmacenado) {
+  return sueldoMensualEfectivo(sueldoAlmacenado);
 }

@@ -269,6 +269,46 @@ export class NominaApiAdapter extends NominaRepositoryPort {
     return json.success || false;
   }
 
+  async getPendingOvertime() {
+    const response = await fetch(`${this.baseUrl}/nomina/horas-extras/pendientes`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al obtener horas extras pendientes.');
+    const json = await response.json();
+    return json.data || json || [];
+  }
+
+  async approveOvertime(id) {
+    const response = await fetch(`${this.baseUrl}/nomina/horas-extras/${id}/aprobar`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al aprobar horas extras.');
+    const json = await response.json();
+    return json.data || json;
+  }
+
+  async rejectOvertime(id) {
+    const response = await fetch(`${this.baseUrl}/nomina/horas-extras/${id}/rechazar`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al rechazar horas extras.');
+    const json = await response.json();
+    return json.data || json;
+  }
+
+  async patchOvertime(id, data) {
+    const response = await fetch(`${this.baseUrl}/nomina/horas-extras/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Error al actualizar horas extras.');
+    const json = await response.json();
+    return json.data || json;
+  }
+
   /**
    * Descarga el archivo Excel con el reporte de nómina del mes
    * @param {number} year

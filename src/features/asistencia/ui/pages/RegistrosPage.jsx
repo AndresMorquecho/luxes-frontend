@@ -1,12 +1,19 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso } from '../../application/asistenciaService';
-import { isDiaLaboralCompleto } from '../../helpers/asistenciaHelpers';
+import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig } from '../../application/asistenciaService';
+import { getOpcionesMarcacion, puedeRegistrarMarcacion } from '../../helpers/asistenciaHelpers';
+import { MarcacionPickerModal } from '../components/MarcacionPickerModal';
+import { HorasExtrasPendientesPanel } from '../components/HorasExtrasPendientesPanel';
+import { getHorarioEsperado, getHorarioLabel, getEstadoAlmuerzo, normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../helpers/horarioLaboral';
+import { HorarioDelDiaBanner, HorarioEditModal } from '../components/HorarioDelDiaBanner';
+import { MarcacionHorarioCell } from '../components/MarcacionHorarioCell';
 import { MarcacionesTimeline } from '../components/MarcacionesTimeline';
 import { KioskMarcadoresPanel } from '../components/KioskMarcadoresPanel';
 import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
+import { isAsistenciaUser } from '../../../../shared/utils/userRoleHelpers';
+import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
 
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -169,6 +176,14 @@ const getMarcacionToastDetails = (tipo) => {
         iconColor: 'text-indigo-500',
         iconBg: 'bg-indigo-950/50 border-indigo-500/30'
       };
+    case 'FIN_HORAS_EXTRA':
+      return {
+        label: 'Fin Horas Extras',
+        bg: 'bg-violet-950/90 border-violet-500',
+        text: 'text-violet-300',
+        iconColor: 'text-violet-500',
+        iconBg: 'bg-violet-950/50 border-violet-500/30'
+      };
     default:
       return {
         label: 'Marcación',
@@ -188,8 +203,17 @@ const KioskView = () => {
   const [pendingScan, setPendingScan] = useState(null);
   const [kioskSession, setKioskSession] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [ubicacion, setUbicacion] = useState(null);
-  const [ubicacionError, setUbicacionError] = useState(null);
+  const { error: ubicacionError, status: gpsStatus, secure: gpsSecure, resolveUbicacion, retryGeolocation } = useGeolocation();
+  const gpsBadge = getGpsBadgeProps({ status: gpsStatus, error: ubicacionError, secure: gpsSecure });
+  const [horarioHoy, setHorarioHoy] = useState(null);
+
+  const hoyStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  useEffect(() => {
+    getHorarioDelDia(hoyStr)
+      .then(setHorarioHoy)
+      .catch((err) => console.error('Error cargando horario del día', err));
+  }, [hoyStr]);
 
   // Reloj digital para Quiosco
   useEffect(() => {
@@ -197,37 +221,7 @@ const KioskView = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Solicitar ubicación al montar y cuando se activa la cámara
-  useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUbicacion({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => { 
-          console.warn('Sin ubicación', err); 
-          setUbicacionError('Permiso de ubicación denegado.'); 
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      setUbicacionError('La geolocalización no es soportada.');
-    }
-  }, [isCameraActive]);
-
-  const resolveUbicacion = async () => {
-    let ubicacionFinal = ubicacion;
-    if (!ubicacionFinal && navigator.geolocation) {
-      ubicacionFinal = await new Promise((resolve) =>
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => resolve(null),
-          { enableHighAccuracy: true, timeout: 3000 }
-        )
-      );
-    }
-    return ubicacionFinal || { lat: -2.19616, lng: -79.88621 };
-  };
-
-  const ejecutarRegistroKiosk = async (empleadoId, omitirAlmuerzo = false) => {
+  const ejecutarRegistroKiosk = async (empleadoId, tipo) => {
     setIsProcessingScan(true);
     setScanError(null);
     setPendingScan(null);
@@ -237,7 +231,7 @@ const KioskView = () => {
       const registro = await registrarAsistencia({
         empleadoId: empleadoId.trim(),
         ubicacion: ubicacionFinal,
-        omitirAlmuerzo,
+        tipo,
       });
 
       const marcaciones = await getTodayMarcaciones(empleadoId.trim());
@@ -251,6 +245,7 @@ const KioskView = () => {
         fechaHora: registro.fechaHora,
         marcaciones,
         lapsos,
+        horasExtra: registro.horasExtra,
       });
 
       setKioskSession({
@@ -289,22 +284,22 @@ const KioskView = () => {
         marcaciones,
       });
 
-      if (proxima.completado || isDiaLaboralCompleto(marcaciones)) {
+      if (!puedeRegistrarMarcacion(marcaciones)) {
         throw new Error('El colaborador ya completó las marcaciones del día.');
       }
 
-      if (proxima.permiteOmitirAlmuerzo) {
-        const hora = new Date().getHours();
-        if (hora >= 14) {
-          await ejecutarRegistroKiosk(empleadoId, false);
-          return;
-        }
-        setPendingScan({ empleadoId, marcaciones, proxima });
-        setIsProcessingScan(false);
-        return;
-      }
+      const opciones = proxima.opciones?.length
+        ? proxima.opciones
+        : getOpcionesMarcacion(marcaciones);
 
-      await ejecutarRegistroKiosk(empleadoId, false);
+      setPendingScan({
+        empleadoId,
+        nombreEmpleado: marcaciones[0]?.nombreEmpleado || empleadoId,
+        marcaciones,
+        opciones,
+      });
+      setIsCameraActive(false);
+      setIsProcessingScan(false);
     } catch (err) {
       console.error(err);
       setScanError(err.message || 'Error al procesar el código QR.');
@@ -347,6 +342,16 @@ const KioskView = () => {
         }
       `}</style>
 
+      {horarioHoy && (
+        <div className="w-full max-w-md mb-2">
+          <HorarioDelDiaBanner
+            label={horarioHoy.label}
+            esperado={horarioHoy.esperado}
+            theme="dark"
+          />
+        </div>
+      )}
+
       <div className="w-full max-w-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col items-center space-y-5 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         
         {/* Reloj y Fecha */}
@@ -357,17 +362,21 @@ const KioskView = () => {
           <p className="text-xs font-bold text-slate-400 mt-3.5 uppercase tracking-widest leading-relaxed">
             {currentTime.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
           </p>
-          {ubicacionError ? (
-            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-amber-400 bg-amber-950/40 border border-amber-500/25 rounded-full inline-flex items-center gap-1 animate-pulse">
-              ⚠️ Sin GPS: {ubicacionError}
-            </span>
-          ) : ubicacion ? (
+          {gpsBadge.tone === 'amber' ? (
+            <button
+              type="button"
+              onClick={retryGeolocation}
+              className="mt-3 px-2.5 py-1 text-[9px] font-bold text-amber-500 bg-amber-950/40 border border-amber-500/25 rounded-full inline-flex items-center gap-1 cursor-pointer"
+            >
+              ⚠️ {gpsBadge.text}
+            </button>
+          ) : gpsBadge.tone === 'emerald' ? (
             <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 rounded-full inline-flex items-center gap-1">
-              📍 GPS Activo y Listo
+              📍 {gpsBadge.text}
             </span>
           ) : (
             <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-slate-400 bg-slate-900 border border-slate-800 rounded-full inline-flex items-center gap-1">
-              ⌛ Buscando GPS...
+              ⌛ {gpsBadge.text}
             </span>
           )}
         </div>
@@ -462,38 +471,15 @@ const KioskView = () => {
                 </div>
               </div>
             ) : pendingScan ? (
-              <div className="space-y-5 w-full max-w-sm">
-                <div>
-                  <h3 className="text-xl font-black text-white">¿Qué deseas registrar?</h3>
-                  <p className="text-xs text-slate-400 mt-2">ID: {pendingScan.empleadoId}</p>
-                </div>
-                <MarcacionesTimeline marcaciones={pendingScan.marcaciones} compact />
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    disabled={isProcessingScan}
-                    onClick={() => ejecutarRegistroKiosk(pendingScan.empleadoId, false)}
-                    className="w-full py-3.5 rounded-2xl bg-amber-950/60 border border-amber-500/40 text-amber-300 font-extrabold text-sm hover:bg-amber-950/80 transition-colors"
-                  >
-                    Inicio almuerzo
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isProcessingScan}
-                    onClick={() => ejecutarRegistroKiosk(pendingScan.empleadoId, true)}
-                    className="w-full py-3.5 rounded-2xl bg-indigo-600 text-white font-extrabold text-sm hover:bg-indigo-500 transition-colors"
-                  >
-                    Salida sin almuerzo / horas extras
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setPendingScan(null); setIsCameraActive(true); }}
-                    className="w-full py-2 text-xs text-slate-500 hover:text-slate-300"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
+              <MarcacionPickerModal
+                empleadoId={pendingScan.empleadoId}
+                nombreEmpleado={pendingScan.nombreEmpleado}
+                marcaciones={pendingScan.marcaciones}
+                opciones={pendingScan.opciones}
+                loading={isProcessingScan}
+                onSelect={(tipo) => ejecutarRegistroKiosk(pendingScan.empleadoId, tipo)}
+                onCancel={() => { setPendingScan(null); setIsCameraActive(true); }}
+              />
             ) : (
               <div className="space-y-5 w-full max-w-sm">
                 <div className={`w-20 h-20 rounded-full border flex items-center justify-center mx-auto shadow-lg ${toastDetails.iconBg}`}>
@@ -521,7 +507,7 @@ const KioskView = () => {
                   <MarcacionesTimeline marcaciones={lastScan.marcaciones} highlightTipo={lastScan.tipo} compact />
                 </div>
                 {(lastScan.lapsos?.trabajo !== '—' || lastScan.lapsos?.almuerzo !== '—') && (
-                  <div className="flex gap-3 justify-center text-xs">
+                  <div className="flex gap-3 justify-center text-xs flex-wrap">
                     {lastScan.lapsos.trabajo !== '—' && (
                       <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
                         Trabajo: <span className="font-bold text-white">{lastScan.lapsos.trabajo}</span>
@@ -532,6 +518,14 @@ const KioskView = () => {
                         Almuerzo: <span className="font-bold text-white">{lastScan.lapsos.almuerzo}</span>
                       </span>
                     )}
+                  </div>
+                )}
+                {lastScan.horasExtra && (
+                  <div className="w-full px-4 py-3 rounded-xl bg-violet-950/50 border border-violet-500/30 text-center">
+                    <p className="text-violet-300 text-xs font-bold uppercase tracking-wide">Horas extras registradas</p>
+                    <p className="text-white font-black text-lg mt-1">{lastScan.horasExtra.horas} h</p>
+                    <p className="text-violet-200/80 text-[10px] mt-1">{lastScan.horasExtra.detalleHorario}</p>
+                    <p className="text-amber-300 text-[10px] font-semibold mt-2">Pendiente de validación del administrador</p>
                   </div>
                 )}
               </div>
@@ -547,7 +541,7 @@ const KioskView = () => {
 export const RegistrosPage = () => {
   const userStr = localStorage.getItem('user');
   const userObj = userStr ? JSON.parse(userStr) : null;
-  const isKioskMode = userObj?.rol === 'asistencia';
+  const isKioskMode = isAsistenciaUser(userObj);
 
   if (isKioskMode) {
     return <KioskView />;
@@ -564,7 +558,19 @@ const AdminView = () => {
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('TODOS'); // TODOS | ASISTIO | FALTO | PERMISO
+  const [filtroEstado, setFiltroEstado] = useState('TODOS'); // TODOS | ASISTIO | FALTO | PERMISO | SIN_ALMUERZO
+  const [horariosConfig, setHorariosConfig] = useState(DEFAULT_HORARIOS_CONFIG);
+  const [horarioModalOpen, setHorarioModalOpen] = useState(false);
+  const [savingHorario, setSavingHorario] = useState(false);
+
+  const horarioDia = useMemo(() => getHorarioEsperado(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
+  const horarioLabel = useMemo(() => getHorarioLabel(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
+
+  useEffect(() => {
+    getHorarioConfig()
+      .then((cfg) => setHorariosConfig(normalizeHorariosConfig(cfg)))
+      .catch((err) => console.error('Error cargando horarios', err));
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -629,10 +635,11 @@ const AdminView = () => {
       return {
         emp,
         marcaciones,
-        estado
+        estado,
+        almuerzo: getEstadoAlmuerzo(marcaciones, fechaFiltro, horariosConfig),
       };
     });
-  }, [empleados, asistencias]);
+  }, [empleados, asistencias, fechaFiltro, horariosConfig]);
 
   const rowsFiltrados = useMemo(() => {
     return rows.filter(r => {
@@ -641,7 +648,9 @@ const AdminView = () => {
         r.emp.id.toLowerCase().includes(busqueda.toLowerCase()) ||
         (r.emp.cargo && r.emp.cargo.toLowerCase().includes(busqueda.toLowerCase()));
       
-      const matchEstado = filtroEstado === 'TODOS' || r.estado === filtroEstado;
+      const matchEstado = filtroEstado === 'TODOS'
+        || r.estado === filtroEstado
+        || (filtroEstado === 'SIN_ALMUERZO' && r.almuerzo?.status === 'OMITIDO');
       
       return matchBusqueda && matchEstado;
     });
@@ -652,7 +661,8 @@ const AdminView = () => {
     const asistieron = rows.filter(r => r.estado === 'ASISTIO').length;
     const faltaron = rows.filter(r => r.estado === 'FALTO').length;
     const permisos = rows.filter(r => r.estado === 'PERMISO').length;
-    return { total, asistieron, faltaron, permisos };
+    const sinAlmuerzo = rows.filter(r => r.almuerzo?.status === 'OMITIDO').length;
+    return { total, asistieron, faltaron, permisos, sinAlmuerzo };
   }, [empleados, rows]);
 
   const descargarExcel = () => {
@@ -671,13 +681,17 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 
     const cell = (content, cls = '') => `<td${cls?' class="'+cls+'"':''}>${String(content ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>`;
 
-    html += `<tr><td colspan="7" class="title">REPORTE DIARIO DE ASISTENCIA - ${fechaFiltro}</td></tr>`;
-    html += '<tr><td colspan="7" style="height:6px;border:none"></td></tr>';
-    html += '<tr><th>Empleado</th><th>ID</th><th>Cargo</th><th>Estado</th><th>Entrada</th><th>Salida</th><th>Detalle</th></tr>';
+    html += `<tr><td colspan="10" class="title">REPORTE DIARIO DE ASISTENCIA - ${fechaFiltro}</td></tr>`;
+    html += `<tr><td colspan="10">${horarioLabel}</td></tr>`;
+    html += '<tr><td colspan="10" style="height:6px;border:none"></td></tr>';
+    html += '<tr><th>Empleado</th><th>ID</th><th>Cargo</th><th>Estado</th><th>Entrada</th><th>Sal. Almuerzo</th><th>Reg. Almuerzo</th><th>Salida</th><th>Almuerzo</th><th>Total Horas</th></tr>';
 
     rows.forEach(r => {
       const e = r.marcaciones.find(a=>a.tipo==='ENTRADA');
+      const ia = r.marcaciones.find(a=>a.tipo==='INICIO_ALMUERZO');
+      const fa = r.marcaciones.find(a=>a.tipo==='FIN_ALMUERZO');
       const s = r.marcaciones.find(a=>a.tipo==='SALIDA');
+      const lapsos = r.estado === 'ASISTIO' ? calculateLapses(r.marcaciones) : { trabajo: '', almuerzo: '' };
       let statusText = 'Faltó';
       let statusCls = 'falta';
       if (r.estado === 'ASISTIO') {
@@ -694,8 +708,11 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         ${cell(r.emp.cargo)}
         ${cell(statusText, statusCls)}
         ${cell(e ? new Date(e.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
+        ${cell(ia ? new Date(ia.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
+        ${cell(fa ? new Date(fa.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
         ${cell(s ? new Date(s.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
-        ${cell(r.estado === 'PERMISO' ? 'Día Cobrado' : '')}
+        ${cell(r.almuerzo?.label ?? '')}
+        ${cell(lapsos.trabajo || (r.estado === 'PERMISO' ? 'Día Cobrado' : ''))}
       </tr>`;
     });
 
@@ -707,8 +724,15 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
   };
 
-  const formatTime = (iso) =>
-    iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
+  const handleSaveHorario = async (config) => {
+    setSavingHorario(true);
+    try {
+      const saved = await saveHorarioConfig(config);
+      setHorariosConfig(normalizeHorariosConfig(saved));
+    } finally {
+      setSavingHorario(false);
+    }
+  };
 
   return (
     <div className="p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -741,13 +765,33 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </div>
       </div>
 
+      {/* Horarios de referencia (ambos, editables) */}
+      <HorarioDelDiaBanner
+        horariosConfig={horariosConfig}
+        fechaActiva={fechaFiltro}
+        showAllHorarios
+        editable
+        onEdit={() => setHorarioModalOpen(true)}
+      />
+
+      <HorarioEditModal
+        open={horarioModalOpen}
+        initialConfig={horariosConfig}
+        onClose={() => setHorarioModalOpen(false)}
+        onSave={handleSaveHorario}
+        saving={savingHorario}
+      />
+
+      <HorasExtrasPendientesPanel />
+
       {/* KPIs Grid - placed above calendar selector, in a single row */}
-      <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-6">
         {[
           { label: 'Colaboradores', value: kpis.total, cssClass: 'total', color: 'text-blue-600' },
           { label: 'Asistencias', value: kpis.asistieron, cssClass: 'asistencias', color: 'text-emerald-600' },
           { label: 'Faltas', value: kpis.faltaron, cssClass: 'faltas', color: 'text-red-600' },
           { label: 'Permisos', value: kpis.permisos, cssClass: 'permisos', color: 'text-indigo-600' },
+          { label: 'Sin almuerzo', value: kpis.sinAlmuerzo, cssClass: 'faltas', color: 'text-amber-600' },
         ].map(s => (
           <div key={s.label} className={`bg-white shadow-card kpi-card ${s.cssClass} rounded-xl p-2.5 sm:px-4 sm:py-3.5 border border-gray-100`}>
             <p className="text-[8px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider truncate">{s.label}</p>
@@ -864,6 +908,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             { key: 'ASISTIO', label: 'Asistieron' },
             { key: 'FALTO', label: 'Faltaron' },
             { key: 'PERMISO', label: 'Permisos' },
+            { key: 'SIN_ALMUERZO', label: 'Sin almuerzo' },
           ].map(t => (
             <button key={t.key} onClick={() => setFiltroEstado(t.key)}
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
@@ -895,18 +940,38 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             <table className="min-w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left">
-                  <th className="px-6 py-4">Colaborador / Cargo</th>
-                  <th className="px-6 py-4 text-center">Estado</th>
-                  <th className="px-4 py-4 text-center">Entrada</th>
-                  <th className="px-4 py-4 text-center">Salida Almuerzo</th>
-                  <th className="px-4 py-4 text-center">Regreso Almuerzo</th>
-                  <th className="px-4 py-4 text-center">Salida</th>
-                  <th className="px-6 py-4 text-center">Total Horas</th>
-                  <th className="px-6 py-4 text-right">Acción / Mapa</th>
+                  <th className="px-6 py-4" rowSpan={2}>Colaborador / Cargo</th>
+                  <th className="px-6 py-4 text-center" rowSpan={2}>Estado</th>
+                  <th className="px-4 py-3 text-center border-l border-slate-200/80" colSpan={4}>Marcaciones por horario</th>
+                  <th className="px-4 py-4 text-center" rowSpan={2}>Almuerzo</th>
+                  <th className="px-6 py-4 text-center" rowSpan={2}>Total Horas</th>
+                  <th className="px-6 py-4 text-right" rowSpan={2}>Acción / Mapa</th>
+                </tr>
+                <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
+                  <th className="px-4 py-2 border-l border-slate-200/80">
+                    Entrada
+                    {horarioDia.ENTRADA && <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.ENTRADA.label}</div>}
+                  </th>
+                  <th className="px-4 py-2">
+                    Sal. Almuerzo
+                    {horarioDia.INICIO_ALMUERZO
+                      ? <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.INICIO_ALMUERZO.label}</div>
+                      : <div className="text-[9px] text-slate-400 normal-case mt-0.5">opcional</div>}
+                  </th>
+                  <th className="px-4 py-2">
+                    Reg. Almuerzo
+                    {horarioDia.FIN_ALMUERZO
+                      ? <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.FIN_ALMUERZO.label}</div>
+                      : <div className="text-[9px] text-slate-400 normal-case mt-0.5">opcional</div>}
+                  </th>
+                  <th className="px-4 py-2">
+                    Salida
+                    {horarioDia.SALIDA && <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.SALIDA.label}</div>}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rowsFiltrados.map(({ emp, marcaciones, estado }) => {
+                {rowsFiltrados.map(({ emp, marcaciones, estado, almuerzo }) => {
                   const entrada = marcaciones.find(m => m.tipo === 'ENTRADA');
                   const inicioAlm = marcaciones.find(m => m.tipo === 'INICIO_ALMUERZO');
                   const finAlm = marcaciones.find(m => m.tipo === 'FIN_ALMUERZO');
@@ -961,24 +1026,43 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                         )}
                       </td>
 
-                      {/* Entrada */}
-                      <td className={`px-4 py-4 whitespace-nowrap text-center font-mono text-xs font-bold ${entrada ? 'text-slate-800' : 'text-slate-300'}`}>
-                        {formatTime(entrada?.fechaHora)}
+                      {/* Marcaciones con horario de referencia */}
+                      <td className="px-4 py-4 whitespace-nowrap text-center border-l border-slate-100">
+                        <MarcacionHorarioCell marcacion={entrada} esperado={horarioDia.ENTRADA} />
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <MarcacionHorarioCell
+                          marcacion={inicioAlm}
+                          esperado={horarioDia.INICIO_ALMUERZO}
+                          omitidoEsperado={!horarioDia.INICIO_ALMUERZO}
+                        />
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <MarcacionHorarioCell
+                          marcacion={finAlm}
+                          esperado={horarioDia.FIN_ALMUERZO}
+                          omitidoEsperado={!horarioDia.FIN_ALMUERZO}
+                        />
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <MarcacionHorarioCell marcacion={salida} esperado={horarioDia.SALIDA} />
                       </td>
 
-                      {/* Salida Almuerzo */}
-                      <td className={`px-4 py-4 whitespace-nowrap text-center font-mono text-xs font-bold ${inicioAlm ? 'text-slate-800' : 'text-slate-300'}`}>
-                        {formatTime(inicioAlm?.fechaHora)}
-                      </td>
-
-                      {/* Regreso Almuerzo */}
-                      <td className={`px-4 py-4 whitespace-nowrap text-center font-mono text-xs font-bold ${finAlm ? 'text-slate-800' : 'text-slate-300'}`}>
-                        {formatTime(finAlm?.fechaHora)}
-                      </td>
-
-                      {/* Salida */}
-                      <td className={`px-4 py-4 whitespace-nowrap text-center font-mono text-xs font-bold ${salida ? 'text-slate-800' : 'text-slate-300'}`}>
-                        {formatTime(salida?.fechaHora)}
+                      {/* Estado almuerzo */}
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        {almuerzo?.status === 'SIN_DATOS' ? (
+                          <span className="text-slate-300 text-xs">—</span>
+                        ) : (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                            almuerzo.cls === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            almuerzo.cls === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            almuerzo.cls === 'orange' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                            almuerzo.cls === 'indigo' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                            'bg-slate-50 text-slate-500 border-slate-200'
+                          }`}>
+                            {almuerzo.label}
+                          </span>
+                        )}
                       </td>
 
                       {/* Total Horas */}

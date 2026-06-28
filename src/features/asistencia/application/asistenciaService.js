@@ -44,12 +44,12 @@ export const getProximaMarcacion = async (empleadoId) => {
   );
 };
 
-export const registrarAsistencia = async ({ empleadoId, ubicacion, omitirAlmuerzo = false }) => {
+export const registrarAsistencia = async ({ empleadoId, ubicacion, omitirAlmuerzo = false, tipo }) => {
   return parseResponse(
     await fetch('/api/asistencias/registrar', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ empleadoId, ubicacion, omitirAlmuerzo }),
+      body: JSON.stringify({ empleadoId, ubicacion, omitirAlmuerzo, tipo }),
     })
   );
 };
@@ -68,6 +68,29 @@ export const registrarPermiso = async ({ empleadoId, fecha }) => {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ empleadoId, fecha }),
+    })
+  );
+};
+
+export const getHorarioDelDia = async (fecha) => {
+  const q = fecha ? `?fecha=${fecha}` : '';
+  return parseResponse(
+    await fetch(`/api/asistencias/horario${q}`, { headers: getHeaders() })
+  );
+};
+
+export const getHorarioConfig = async () => {
+  return parseResponse(
+    await fetch('/api/asistencias/horario-config', { headers: getHeaders() })
+  );
+};
+
+export const saveHorarioConfig = async (config) => {
+  return parseResponse(
+    await fetch('/api/asistencias/horario-config', {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(config),
     })
   );
 };

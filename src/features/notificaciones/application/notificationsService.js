@@ -45,23 +45,34 @@ const parseResponse = async (response) => {
   return data.data;
 };
 
+async function apiFetch(url, options = {}) {
+  try {
+    return parseResponse(await fetch(url, options));
+  } catch (err) {
+    if (err.message === AUTH_EXPIRED_ERROR) throw err;
+    if (err.message === NETWORK_ERROR) throw err;
+    if (err instanceof TypeError || /fetch|recuperar|network/i.test(err.message || '')) {
+      throw new Error(NETWORK_ERROR);
+    }
+    throw err;
+  }
+}
+
 export { AUTH_EXPIRED_ERROR, NETWORK_ERROR };
 
 export async function getNotifications() {
-  return parseResponse(await fetch('/api/notifications', { headers: getHeaders() }));
+  return apiFetch('/api/notifications', { headers: getHeaders() });
 }
 
 export async function getUnreadCount() {
-  return parseResponse(await fetch('/api/notifications/unread-count', { headers: getHeaders() }));
+  return apiFetch('/api/notifications/unread-count', { headers: getHeaders() });
 }
 
 export async function markAsRead(id, { silent = false } = {}) {
-  const result = await parseResponse(
-    await fetch(`/api/notifications/${id}/read`, {
-      method: 'PUT',
-      headers: getHeaders(),
-    }),
-  );
+  const result = await apiFetch(`/api/notifications/${id}/read`, {
+    method: 'PUT',
+    headers: getHeaders(),
+  });
   if (!silent) notifyNotificationsUpdated();
   return result;
 }

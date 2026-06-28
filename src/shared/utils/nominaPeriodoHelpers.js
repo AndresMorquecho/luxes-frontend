@@ -53,9 +53,15 @@ export function feriadosEnPeriodo(feriados, fechaInicio, fechaFin) {
   return normalizeFeriados(feriados).filter((f) => f.fecha >= ini && f.fecha <= fin);
 }
 
-/** Días laborables del período: lunes a sábado (sin domingos). */
-export function calcDiasLaborables(fechaInicio, fechaFin) {
-  return iterDatesInPeriod(fechaInicio, fechaFin).filter(isDiaLaboralSemana).length;
+/** Días calendario del período (quincena = 15), menos feriados registrados. */
+export function calcDiasLaborables(fechaInicio, fechaFin, feriados = []) {
+  const total = diasEnPeriodo(fechaInicio, fechaFin);
+  const feriadosCount = feriadosEnPeriodo(feriados, fechaInicio, fechaFin).length;
+  return Math.max(0, total - feriadosCount);
+}
+
+function countDomingosEnPeriodo(fechaInicio, fechaFin) {
+  return iterDatesInPeriod(fechaInicio, fechaFin).filter((d) => !isDiaLaboralSemana(d)).length;
 }
 
 function groupMarcacionesByDay(marcaciones) {
@@ -90,6 +96,9 @@ export function calcDiasLaborados(marcaciones, feriados, fechaInicio, fechaFin, 
     isDiaLaboralSemana(f.fecha),
   );
 
+  const lunSatEnPeriodo = iterDatesInPeriod(fechaInicio, fechaFin).filter(isDiaLaboralSemana).length;
+  const diasRequeridosAsistencia = Math.max(0, lunSatEnPeriodo - feriadosDelPeriodo.length);
+
   let diasFeriado = 0;
   if (hasContract) {
     for (const f of feriadosDelPeriodo) {
@@ -99,9 +108,22 @@ export function calcDiasLaborados(marcaciones, feriados, fechaInicio, fechaFin, 
     }
   }
 
+  let diasLaborados = diasAsistencia + diasFeriado;
+
+  if (hasContract && diasAsistencia >= diasRequeridosAsistencia && diasRequeridosAsistencia > 0) {
+    diasLaborados += countDomingosEnPeriodo(fechaInicio, fechaFin);
+  }
+
+  if (!hasContract && diasAsistencia >= diasRequeridosAsistencia && diasRequeridosAsistencia > 0) {
+    diasLaborados = calcDiasLaborables(fechaInicio, fechaFin, feriados);
+  }
+
+  const diasLaborables = calcDiasLaborables(fechaInicio, fechaFin, feriados);
+  diasLaborados = Math.min(diasLaborados, diasLaborables);
+
   return {
     diasAsistencia,
     diasFeriado,
-    diasLaborados: diasAsistencia + diasFeriado,
+    diasLaborados,
   };
 }

@@ -31,6 +31,7 @@ import { FormOrdenCompraPage } from '../features/compras/ui/pages/FormOrdenCompr
 import ConfiguracionFeature from '../features/configuracion/ui';
 import { MovimientosPage } from '../features/gastos/ui/pages/MovimientosPage';
 import { ToastContainer } from '../shared/ui/components/Toast';
+import { isAsistenciaUser, isTallerUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
 import { ErrorBoundary } from '../shared/ui/components/ErrorBoundary';
 
@@ -81,8 +82,9 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           if (data.success && data.data) {
-            localStorage.setItem('user', JSON.stringify(data.data));
-            setUser(data.data);
+            const normalized = normalizeUserForSession(data.data);
+            localStorage.setItem('user', JSON.stringify(normalized));
+            setUser(normalized);
             setIsAuthenticated(true);
           }
         }
@@ -154,12 +156,13 @@ function App() {
   }, []);
 
   const handleLogin = (token, user) => {
+    const normalized = normalizeUserForSession(user);
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-    setUser(user);
+    localStorage.setItem('user', JSON.stringify(normalized));
+    setUser(normalized);
     setIsAuthenticated(true);
     setSessionChecked(true);
-    subscribeUser(user);
+    subscribeUser(normalized);
   };
 
   const handleLogout = () => {
@@ -210,8 +213,8 @@ function App() {
     );
   }
 
-  const isAsistenciaMode = user?.rol === 'asistencia';
-  const isTallerMode = user?.rol?.toLowerCase() === 'taller';
+  const isAsistenciaMode = isAsistenciaUser(user);
+  const isTallerMode = isTallerUser(user);
   const userRole = (user?.rol || '').toUpperCase();
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
   const isVentas = userRole === 'VENTAS' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';

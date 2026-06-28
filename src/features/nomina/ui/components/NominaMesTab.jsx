@@ -5,6 +5,11 @@ import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 import { registrarAbono } from '../../domain/use-cases/registrarAbono';
 import { obtenerFechasPeriodo } from '../../application/hooks/useNomina';
 import { toast } from '../../../../shared/ui/components/Toast';
+import {
+  sueldoDiarioEnQuincena,
+  calcSueldoBrutoQuincena,
+  sueldoQuincenaBase,
+} from '../../../../shared/utils/sueldoHelpers.js';
 
 const MESES = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -779,17 +784,35 @@ const computeSubtotal = (emp, cp, includeIess = true) => {
   return cp.netoRecibir ?? 0;
 };
 
-const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onPagarCross, onCellChange, onOpenEgresos, onOpenIngresos }) => {
-  // El décimo cuarto puede abonarse en las quincenas de cualquier mes (de poco a poco).
-  const showDecimo4 = true;
+/** Sueldo bruto quincenal: contrato = mitad fija; por asistencia = prorrateo. */
+const resolveTotalBruto = (emp, cp, raw) => {
+  if (cp?.totalBruto > 0) return cp.totalBruto;
+  const hasContract = emp.tieneContrato !== false;
+  const diasLab = raw?.diasLaborables ?? cp?.diasLaborables ?? 15;
+  const diasT = cp?.diasLaborados ?? raw?.diasLaborados ?? 0;
+  return hasContract
+    ? sueldoQuincenaBase(emp.sueldoDiario)
+    : calcSueldoBrutoQuincena(emp.sueldoDiario, diasT, diasLab);
+};
 
-  // Totales unificados para la tabla
-  const totalSueldoDiario = useMemo(() => rows.reduce((s, r) => s + r.emp.sueldoDiario, 0), [rows]);
-  const totalBruto = useMemo(() => rows.reduce((s, r) => s + (r.cp?.totalBruto ?? 0), 0), [rows]);
+const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onPagarCross, onCellChange, onOpenEgresos, onOpenIngresos }) => {
+  const totalSueldoDiario = useMemo(
+    () => rows.reduce((s, r) => {
+      const diasLab = r.raw?.diasLaborables ?? r.cp?.diasLaborables ?? 15;
+      return s + sueldoDiarioEnQuincena(r.emp.sueldoDiario, diasLab);
+    }, 0),
+    [rows],
+  );
+  const totalBruto = useMemo(
+    () => rows.reduce((s, r) => s + resolveTotalBruto(r.emp, r.cp, r.raw), 0),
+    [rows],
+  );
   const totalHE = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.horasExtras ?? 0), 0), [rows]);
   const totalTE = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.trabajosEnEmpresa ?? 0), 0), [rows]);
-  const totalD3 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.decimoTercero ?? 0), 0), [rows]);
-  const totalD4 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.decimoCuarto ?? 0), 0), [rows]);
+  const totalProvD3 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.provisionDecimo3 ?? 0), 0), [rows]);
+  const totalProvD4 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.provisionDecimo4 ?? 0), 0), [rows]);
+  const totalAcumD3 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.acumuladoDecimo3 ?? 0), 0), [rows]);
+  const totalAcumD4 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.acumuladoDecimo4 ?? 0), 0), [rows]);
   const totalFR = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.fondosReserva ?? 0), 0), [rows]);
   const totalSumaIngresos = useMemo(() => rows.reduce((s, r) => s + (r.cp?.sumaIngresos ?? 0), 0), [rows]);
   const totalIESS = useMemo(() => rows.reduce((s, r) => s + (r.cp?.egresos?.iess ?? 0), 0), [rows]);
@@ -812,7 +835,8 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
             <tr className="bg-slate-100 text-xs uppercase font-bold text-slate-700 border-b border-slate-200">
               <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-100 sticky left-0 z-40 border-r-2 border-r-slate-350 w-[320px] min-w-[320px] max-w-[320px]">Colaborador</th>
               <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-50">Sueldo Base</th>
-              <th colSpan={showDecimo4 ? 5 : 4} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950">Ingresos Adicionales (+)</th>
+              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-violet-50 text-violet-950">Provisiones (no neto)</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950">Ingresos al Neto (+)</th>
               <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-red-50 text-red-950">Egresos / Descuentos (-)</th>
               <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-blue-50 text-blue-950">Liquidación Final</th>
               <th rowSpan={2} className="border border-slate-200 px-2 py-2.5 text-center w-28 bg-slate-100 text-slate-700">Acción</th>
@@ -826,9 +850,12 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-slate-50">Días T.</th>
               <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50">Sueldo B.</th>
 
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900">Prov. D3</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900">Prov. D4</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950">Acum. D3</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950">Acum. D4</th>
+
               <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-emerald-50 text-emerald-900">Ingresos Var.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900">Décimo 3</th>
-              {showDecimo4 && <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900">Décimo 4</th>}
               <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900">F. Res.</th>
               <th className="border border-slate-200 px-1 py-2 text-center bg-emerald-100 text-emerald-950 font-black">Total +</th>
 
@@ -845,11 +872,10 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
           <tbody className="divide-y divide-slate-100">
             {rows.map(({ emp, cp, raw }, idx) => {
               const hasContract = emp.tieneContrato !== false;
-              const sueldo      = emp.sueldoDiario;
-              
-              const diasLab     = cp?.diasLaborables ?? 15;
-              const totalB      = cp?.totalBruto ?? (sueldo * (cp?.diasLaborados ?? 0));
-              const diasT       = cp?.diasLaborados ?? 0;
+              const diasLab     = raw?.diasLaborables ?? cp?.diasLaborables ?? 15;
+              const sueldo      = sueldoDiarioEnQuincena(emp.sueldoDiario, diasLab);
+              const diasT       = cp?.diasLaborados ?? raw?.diasLaborados ?? 0;
+              const totalB      = resolveTotalBruto(emp, cp, raw);
               
               const totalAb     = (raw?.abonos ?? []).reduce((s, a) => s + a.monto, 0);
               const cross       = crossPendientes?.find(p => p.empId === emp.id);
@@ -863,8 +889,12 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               const multas      = raw?.egresos?.multas ?? 0;
               const otrosE      = raw?.egresos?.dctoGenerico ?? 0;
 
-              const d3          = raw?.ingresos?.decimoTercero ?? 0;
-              const d4          = raw?.ingresos?.decimoCuarto ?? 0;
+              const provD3      = cp?.ingresos?.provisionDecimo3 ?? 0;
+              const provD4      = cp?.ingresos?.provisionDecimo4 ?? 0;
+              const acumD3      = cp?.ingresos?.acumuladoDecimo3 ?? 0;
+              const acumD4      = cp?.ingresos?.acumuladoDecimo4 ?? 0;
+              const pagoMensD3  = cp?.ingresos?.pagoDecimo3 ?? 0;
+              const pagoMensD4  = cp?.ingresos?.pagoDecimo4 ?? 0;
 
               const ep          = cp?.estadoPago ?? 'PENDIENTE';
               const badge       = ESTADO_BADGE[ep] ?? ESTADO_BADGE.PENDIENTE;
@@ -892,7 +922,30 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
                   </td>
                   <td className="border border-slate-200 text-center px-1.5 py-2 bg-slate-50/80 font-bold text-slate-700 text-xs">{formatUSD(totalB)}</td>
 
-                  {/* Ingresos Adicionales */}
+                  <td className="border border-slate-200 text-center px-1 py-1.5 bg-violet-50/30 text-violet-900 text-[10px] font-semibold" title="Provisión décimo tercero (gravado/12)">
+                    {hasContract && provD3 > 0 ? (
+                      <div className="leading-tight">
+                        <div>{formatUSD(provD3)}</div>
+                        {pagoMensD3 > 0 && <div className="text-[8px] text-violet-600">+pagado</div>}
+                      </div>
+                    ) : '—'}
+                  </td>
+                  <td className="border border-slate-200 text-center px-1 py-1.5 bg-violet-50/30 text-violet-900 text-[10px] font-semibold" title="Provisión décimo cuarto (SBU/12 prorrateado)">
+                    {hasContract && provD4 > 0 ? (
+                      <div className="leading-tight">
+                        <div>{formatUSD(provD4)}</div>
+                        {pagoMensD4 > 0 && <div className="text-[8px] text-violet-600">+pagado</div>}
+                      </div>
+                    ) : '—'}
+                  </td>
+                  <td className="border border-slate-200 text-center px-1 py-1.5 bg-violet-100/40 text-violet-950 text-[10px] font-bold">
+                    {hasContract && acumD3 > 0 ? formatUSD(acumD3) : '—'}
+                  </td>
+                  <td className="border border-slate-200 text-center px-1 py-1.5 bg-violet-100/40 text-violet-950 text-[10px] font-bold">
+                    {hasContract && acumD4 > 0 ? formatUSD(acumD4) : '—'}
+                  </td>
+
+                  {/* Ingresos al neto */}
                   <td className="border border-slate-200 text-center p-0.5 bg-emerald-50/5 hover:bg-emerald-50/20 transition-colors group/cell relative">
                     <button
                       onClick={() => onOpenIngresos(emp.id, emp.nombre)}
@@ -921,24 +974,6 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
                       )}
                     </button>
                   </td>
-                  <td className="border border-slate-200 text-center px-0.5 py-0.5">
-                    <CellInput 
-                      value={d3} 
-                      onChange={val => onCellChange(emp.id, 'ingresos.decimoTercero', val)} 
-                      placeholder={cp?.ingresos?.decimoTercero ? String(cp.ingresos.decimoTercero) : '0'} 
-                      disabled={!hasContract}
-                    />
-                  </td>
-                  {showDecimo4 && (
-                    <td className="border border-slate-200 text-center px-0.5 py-0.5">
-                      <CellInput 
-                        value={d4} 
-                        onChange={val => onCellChange(emp.id, 'ingresos.decimoCuarto', val)} 
-                        placeholder={hasContract ? "230" : "0"} 
-                        disabled={!hasContract}
-                      />
-                    </td>
-                  )}
                   <td className="border border-slate-200 text-center px-0.5 py-0.5">
                     <CellInput value={fr} onChange={val => onCellChange(emp.id, 'ingresos.fondosReserva', val)} disabled={!hasContract} />
                   </td>
@@ -1014,9 +1049,12 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-400 bg-slate-100">—</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalBruto)}</td>
 
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-800 text-xs bg-violet-100">{formatUSD(totalProvD3)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-800 text-xs bg-violet-100">{formatUSD(totalProvD4)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-900 text-xs bg-violet-200">{formatUSD(totalAcumD3)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-900 text-xs bg-violet-200">{formatUSD(totalAcumD4)}</td>
+
               <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalHE + totalTE)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalD3)}</td>
-              {showDecimo4 && <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalD4)}</td>}
               <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalFR)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 bg-emerald-200 text-emerald-950 font-black text-xs">{formatUSD(totalSumaIngresos)}</td>
 

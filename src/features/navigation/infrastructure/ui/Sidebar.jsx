@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUnreadNotifications } from '../../../../shared/hooks/useUnreadNotifications.js';
+import { isAdminUser, getDisplayRole } from '../../../../shared/utils/userRoleHelpers';
 import './Sidebar.css';
 
 export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogout }) => {
   const userName = user?.nombre || 'Usuario';
-  const userRole = (user?.rol || 'visor').toUpperCase();
+  const userRole = getDisplayRole(user).toUpperCase();
   const userInitial = userName.charAt(0).toUpperCase();
-  const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
+  const isAdmin = isAdminUser(user);
   const hasAprobacionPermission = user?.permissions?.includes('aprobacion_ordenes_compra') || isAdmin;
 
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
@@ -17,7 +18,8 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
   const [showAll, setShowAll] = useState(() => {
     const saved = localStorage.getItem('luxes_sidebar_show_all');
-    return saved === 'true';
+    if (saved !== null) return saved === 'true';
+    return true;
   });
 
   let hiddenModules = ['relaciones', 'instalaciones', 'inventario'];

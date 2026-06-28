@@ -29,6 +29,12 @@ const SLOT_COLORS = {
     idle: 'border-slate-700/80 bg-slate-900/50 text-slate-500',
     dot: 'bg-indigo-500',
   },
+  violet: {
+    done: 'border-violet-500/60 bg-violet-950/50 text-violet-300',
+    next: 'border-violet-400 bg-violet-950/30 text-violet-200 ring-2 ring-violet-400/50',
+    idle: 'border-slate-700/80 bg-slate-900/50 text-slate-500',
+    dot: 'bg-violet-500',
+  },
 };
 
 export function KioskMarcadoresPanel({ marcaciones = [], empleadoNombre, empleadoId, highlightTipo }) {
@@ -140,7 +146,7 @@ export function KioskMarcadoresPanel({ marcaciones = [], empleadoNombre, emplead
         )}
         {info.permiteOmitirAlmuerzo && !info.completado && (
           <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
-            Si no almuerzas o haces horas extras, podrás elegir salida directa
+            Tras la salida podrás marcar fin de horas extras
           </p>
         )}
       </div>

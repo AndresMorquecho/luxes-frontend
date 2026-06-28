@@ -7,9 +7,9 @@ export const initialNominaState = {
   loading: false,
   error: null,
   activePeriod: {
-    year: 2026,
-    month: 5, // Mayo (1-indexed)
-    type: "mensual", // "mensual" | "1ra_quincena" | "2da_quincena"
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+    type: 'mensual',
   },
   selectedEmployeeId: null, // Para ver Rol de Pago o Editar
 };

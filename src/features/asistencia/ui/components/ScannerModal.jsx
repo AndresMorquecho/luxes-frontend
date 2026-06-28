@@ -5,6 +5,7 @@ import { registrarAsistencia, getProximaMarcacion, getTodayMarcaciones } from '.
 import { isDiaLaboralCompleto } from '../../helpers/asistenciaHelpers';
 import { StepIndicator } from './scanner/StepIndicator';
 import { MarcacionesTimeline } from './MarcacionesTimeline';
+import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
 
 const STEP_COLORS = {
   ENTRADA:         { ring: 'ring-blue-400' },
@@ -14,8 +15,8 @@ const STEP_COLORS = {
 };
 
 export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
-  const [ubicacion, setUbicacion] = useState(null);
-  const [ubicacionError, setUbicacionError] = useState(null);
+  const { error: ubicacionError, status: gpsStatus, secure: gpsSecure, resolveUbicacion } = useGeolocation();
+  const gpsBadge = getGpsBadgeProps({ status: gpsStatus, error: ubicacionError, secure: gpsSecure });
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState(null);
   const [proximaInfo, setProximaInfo] = useState(null);
@@ -29,32 +30,8 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
       setProximaInfo(null);
       setMarcacionesHoy([]);
       setPendingScan(null);
-      return;
-    }
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUbicacion({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => { console.warn('Sin ubicación', err); setUbicacionError('Permiso de ubicación denegado.'); },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      setUbicacionError('La geolocalización no es soportada.');
     }
   }, [isOpen]);
-
-  const resolveUbicacion = async () => {
-    let ubicacionFinal = ubicacion;
-    if (!ubicacionFinal && navigator.geolocation) {
-      ubicacionFinal = await new Promise((resolve) =>
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => resolve(null),
-          { enableHighAccuracy: true, timeout: 3000 }
-        )
-      );
-    }
-    return ubicacionFinal || { lat: -2.19616, lng: -79.88621 };
-  };
 
   const ejecutarRegistro = async (empleadoId, omitirAlmuerzo = false) => {
     setIsProcessing(true);
@@ -188,10 +165,12 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
                   ? 'Completado'
                   : 'Listo para escanear'}
           </span>
-          {ubicacionError && (
+          {(gpsBadge.tone === 'amber' || gpsBadge.tone === 'slate') && gpsStatus !== 'ready' && gpsStatus !== 'cached' && (
             <>
               <span className="w-1 h-1 rounded-full bg-gray-300" />
-              <span className="text-[10px] sm:text-xs font-semibold text-red-500">Sin GPS</span>
+              <span className={`text-[10px] sm:text-xs font-semibold ${gpsBadge.tone === 'amber' ? 'text-amber-600' : 'text-gray-400'}`}>
+                {gpsBadge.text}
+              </span>
             </>
           )}
         </div>

@@ -13,6 +13,11 @@ import {
   DOCUMENTO_TIPOS
 } from '../../application/empleadosService';
 import { getRoles } from '../../../usuarios/application/usuariosService';
+import {
+  sueldoDiarioFromMensual,
+  sueldoMensualForForm,
+  sueldoQuincenaBase,
+} from '../../../../shared/utils/sueldoHelpers.js';
 
 const EMPTY_FORM = {
   nombre: '',
@@ -576,6 +581,7 @@ export const EmpleadoFormPage = () => {
         ]);
         setForm({
           ...emp,
+          sueldoDiario: sueldoMensualForForm(emp.sueldoDiario),
           contraseña: emp.contraseña || '123456',
           username: emp.username || emp.correo?.split('@')[0] || '',
           rol: emp.rol || '',
@@ -750,7 +756,7 @@ export const EmpleadoFormPage = () => {
     if (form.sueldoDiario !== '' && form.sueldoDiario !== null && form.sueldoDiario !== undefined) {
       const sueldoNum = Number(form.sueldoDiario);
       if (isNaN(sueldoNum) || sueldoNum < 0) {
-        toast.error('El sueldo diario debe ser un número positivo');
+        toast.error('El sueldo mensual debe ser un número positivo');
         setTab('personal');
         focusField('sueldoDiario');
         return;
@@ -784,7 +790,7 @@ export const EmpleadoFormPage = () => {
     try {
       const saved = await saveEmpleado({
         ...form,
-        sueldoDiario: Number(form.sueldoDiario) || 0,
+        sueldoDiario: sueldoDiarioFromMensual(Number(form.sueldoDiario) || 0),
       });
 
       const docsToUpload = pendingDocs.map((doc) => ({
@@ -1067,8 +1073,13 @@ export const EmpleadoFormPage = () => {
                           </div>
                         )}
                         <div>
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Sueldo diario ($)</label>
-                          <input name="sueldoDiario" type="number" step="0.01" value={form.sueldoDiario} onChange={handleChange} placeholder="0.00" className="input-field" />
+                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Sueldo base mensual ($)</label>
+                          <input name="sueldoDiario" type="number" step="0.01" min="0" value={form.sueldoDiario} onChange={handleChange} placeholder="500.00" className="input-field" />
+                          {Number(form.sueldoDiario) > 0 && (
+                            <p className="text-[10px] text-slate-400 mt-1.5 font-medium">
+                              Quincena: ${sueldoQuincenaBase(Number(form.sueldoDiario)).toFixed(2)} (mitad del mes)
+                            </p>
+                          )}
                         </div>
                       </div>
 
