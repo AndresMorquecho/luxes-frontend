@@ -178,9 +178,7 @@ export default function ProyectoDetallePage() {
         {subTab === 'fases' ? (
           <>
             {/* Timeline + Progreso */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 relative">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 overflow-x-auto">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 relative">
               <FaseTimeline 
                 faseActual={proyecto.faseActual} 
                 fases={proyecto.fases} 
@@ -188,8 +186,6 @@ export default function ProyectoDetallePage() {
                 onFaseClick={(fId) => setFaseVista(fId)}
                 requiereInstalacion={proyecto.requiereInstalacion}
               />
-            </div>
-          </div>
           <div className="mt-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
@@ -204,7 +200,7 @@ export default function ProyectoDetallePage() {
         {/* Panel de fase actual / vista */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
           <div
-            className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 rounded-t-2xl"
+            className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 rounded-t-2xl gap-3"
             style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
           >
             <div>
@@ -226,7 +222,7 @@ export default function ProyectoDetallePage() {
             <FaseBadge faseId={faseActiva} />
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {faseActiva === 'INSTALACION' ? (
               <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
             ) : faseActiva === 'COTIZACION' ? (
@@ -535,6 +531,9 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
   const [comentarioOC, setComentarioOC] = useState('');
   const [printableOC, setPrintableOC] = useState(null);
   const [isPDFOpen, setIsPDFOpen] = useState(false);
+  const [openGastos, setOpenGastos] = useState(false);
+  const [openCompras, setOpenCompras] = useState(false);
+  const [openBodega, setOpenBodega] = useState(false);
 
   // Modal de confirmación
   const [modalConfig, setModalConfig] = useState({
@@ -559,17 +558,34 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
     ? cotizacionesSeleccionadas.reduce((sum, c) => sum + (Number(c.total) || 0), 0)
     : (Number(proyecto.montoEstimado) || 0);
 
-  // Consumo Estimado de Bodega
+  // Consumo Estimado de Bodega (10% de desgaste para herramientas, 100% para consumibles)
   const materialesBodega = proyecto?.fases?.INSTALACION?.datos?.materiales || [];
   const costoMaterialesBodega = materialesBodega.reduce((sum, m) => {
     const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
     const price = Number(m.precioUnitario || 0);
-    return sum + (cant * price);
+    const isHerramienta = m.tipo === 'herramienta';
+    const sub = isHerramienta ? (cant * price * 0.10) : (cant * price);
+    return sum + sub;
   }, 0);
 
   const totalGastos = (proyecto.gastos || []).reduce((sum, g) => sum + Number(g.monto), 0) + costoMaterialesBodega;
   const balance = totalEstimado - totalGastos;
   const porcentajeGastado = totalEstimado > 0 ? Math.min(100, (totalGastos / totalEstimado) * 100) : 0;
+
+  const ingresoVenta = totalEstimado;
+  const utilidadReal = ingresoVenta - totalGastos;
+  const margenRentabilidad = ingresoVenta > 0 ? (utilidadReal / ingresoVenta) * 100 : 0;
+
+  // Desglose de Gastos por Categoría
+  const totalGastosManuales = (proyecto.gastos || [])
+    .filter(g => !g.id || !g.id.startsWith('G-OC-'))
+    .reduce((sum, g) => sum + Number(g.monto), 0);
+
+  const totalGastosOC = (proyecto.gastos || [])
+    .filter(g => g.id && g.id.startsWith('G-OC-'))
+    .reduce((sum, g) => sum + Number(g.monto), 0);
+
+  const totalBodega = costoMaterialesBodega;
 
   // Registrar gasto manual
   const handleAddManualGasto = async (e) => {
@@ -714,473 +730,578 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* 1. Tarjetas KPI Financieras */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Estimado */}
+      {/* 1. Tarjetas KPI de Rentabilidad y Utilidad Real */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Ingresos por Venta */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">
-              {cotizacionesSeleccionadas.length > 0 ? 'Ingreso por Venta' : 'Presupuesto Estimado'}
-            </p>
-            <h3 className="text-2xl font-black text-slate-800 mt-1">${totalEstimado.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Ingresos por Venta</p>
+            <h3 className="text-xl font-black text-slate-800 mt-1">${ingresoVenta.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
           </div>
           <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
             <DollarSign size={20} />
           </div>
         </div>
 
-        {/* Gastado */}
+        {/* Gastos Totales */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Gastado Registrado</p>
-            <h3 className="text-2xl font-black text-red-600 mt-1">${totalGastos.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Gastos Totales</p>
+            <h3 className="text-xl font-black text-red-600 mt-1">${totalGastos.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
           </div>
           <div className="p-3 bg-red-50 text-red-600 rounded-xl">
             <DollarSign size={20} />
           </div>
         </div>
 
-        {/* Balance */}
+        {/* Utilidad Real (Ganancia) */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Balance Restante</p>
-            <h3 className={`text-2xl font-black mt-1 ${balance >= 0 ? 'text-emerald-600' : 'text-red-700'}`}>
-              ${balance.toLocaleString('es-EC', { minimumFractionDigits: 2 })}
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Utilidad Real (Ganancia)</p>
+            <h3 className={`text-xl font-black mt-1 ${utilidadReal >= 0 ? 'text-emerald-650' : 'text-red-700'}`}>
+              ${utilidadReal.toLocaleString('es-EC', { minimumFractionDigits: 2 })}
             </h3>
           </div>
-          <div className={`p-3 rounded-xl ${balance >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-700'}`}>
+          <div className={`p-3 rounded-xl ${utilidadReal >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-700'}`}>
             <DollarSign size={20} />
           </div>
         </div>
-      </div>
 
-      {/* Barra de progreso de gastos */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <div className="flex justify-between items-center text-xs font-bold text-slate-500 mb-2">
-          <span>Consumo de Presupuesto</span>
-          <span className={porcentajeGastado > 90 ? 'text-red-600 font-extrabold' : porcentajeGastado > 70 ? 'text-amber-600' : 'text-indigo-600'}>
-            {porcentajeGastado.toFixed(1)}%
-          </span>
-        </div>
-        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-          <div 
-            className={`h-full transition-all duration-500 ${
-              porcentajeGastado > 90 ? 'bg-red-600' :
-              porcentajeGastado > 70 ? 'bg-amber-500' :
-              'bg-indigo-600'
-            }`}
-            style={{ width: `${porcentajeGastado}%` }}
-          />
-        </div>
-      </div>
-
-      {/* 2. Sección de Gastos Manuales */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        {/* Margen de Rentabilidad */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
           <div>
-            <h2 className="font-bold text-slate-800">Gastos Registrados del Proyecto</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Gastos directos o materiales imputados al presupuesto</p>
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Rentabilidad Neta</p>
+            <h3 className={`text-xl font-black mt-1 ${utilidadReal >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>
+              {margenRentabilidad.toFixed(1)}%
+            </h3>
           </div>
-          {isAdmin && (
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
-            >
-              <Plus size={14} />
-              {showForm ? 'Cancelar' : 'Registrar Gasto'}
-            </button>
-          )}
+          <div className={`p-3 rounded-xl ${utilidadReal >= 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-red-50 text-red-600'}`}>
+            {utilidadReal >= 0 ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          </div>
+        </div>
+      </div>
+
+      {/* Barra de progreso y Desglose de Gastos en una sola Card Minimalista */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div>
+          <div className="flex justify-between items-center text-xs font-bold text-slate-500 mb-2">
+            <span>Margen de Utilidad sobre la Venta</span>
+            <span className={utilidadReal >= 0 ? 'text-indigo-600 font-extrabold' : 'text-red-600 font-extrabold'}>
+              {utilidadReal >= 0 ? `Ganancia: ${margenRentabilidad.toFixed(1)}%` : `Pérdida: ${margenRentabilidad.toFixed(1)}%`}
+            </span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+            <div 
+              className={`h-full transition-all duration-500 ${
+                utilidadReal < 0 ? 'bg-red-600' :
+                margenRentabilidad < 30 ? 'bg-amber-500' :
+                'bg-emerald-600'
+              }`}
+              style={{ width: `${Math.max(0, Math.min(100, margenRentabilidad))}%` }}
+            />
+          </div>
         </div>
 
-        {showForm && isAdmin && (
-          <form onSubmit={handleAddManualGasto} className="p-6 border-b border-slate-100 bg-slate-50/50 space-y-4 animate-in fade-in duration-150">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Nuevo Gasto Manual</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Concepto / Detalle</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. Combustible montaje, Almuerzos equipo..."
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  value={concepto}
-                  onChange={e => setConcepto(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Monto ($)</label>
-                <input
-                  type="number"
-                  required
-                  min="0.01"
-                  step="0.01"
-                  placeholder="0.00"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  value={monto}
-                  onChange={e => setMonto(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Fecha</label>
-                <input
-                  type="date"
-                  required
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  value={fecha}
-                  onChange={e => setFecha(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Proveedor / Beneficiario</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Gasolinera Primax, Imprenta..."
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  value={proveedor}
-                  onChange={e => setProveedor(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Notas Adicionales</label>
-                <input
-                  type="text"
-                  placeholder="Comentarios adicionales del egreso..."
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  value={notas}
-                  onChange={e => setNotas(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
-              >
-                + Guardar Gasto
-              </button>
-            </div>
-          </form>
-        )}
+        {/* Desglose de Gastos Minimalista */}
+        <div className="pt-3 border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-2 text-[11px] font-bold text-slate-500">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-indigo-500/20 border border-indigo-500"></span>
+            <span className="text-slate-400">Gastos Directos:</span>
+            <span className="text-slate-700">${totalGastosManuales.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500/20 border border-emerald-500"></span>
+            <span className="text-slate-400">Compras (OC)::</span>
+            <span className="text-slate-700">${totalGastosOC.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500/20 border border-amber-500"></span>
+            <span className="text-slate-400">Consumo de Bodega:</span>
+            <span className="text-slate-700">${totalBodega.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
+          </div>
+        </div>
+      </div>
 
-        <div className="p-6">
-          {((!proyecto.gastos || proyecto.gastos.length === 0) && costoMaterialesBodega === 0) ? (
-            <p className="text-xs text-slate-400 italic py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-              No hay gastos registrados en este proyecto.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                    <th className="p-3 font-bold uppercase tracking-wider">Concepto</th>
-                    <th className="p-3 font-bold uppercase tracking-wider">Proveedor</th>
-                    <th className="p-3 font-bold uppercase tracking-wider">Fecha</th>
-                    <th className="p-3 font-bold uppercase tracking-wider text-right">Monto</th>
-                    {isAdmin && <th className="p-3 w-16 text-center">Acciones</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {proyecto.gastos && proyecto.gastos.map((gasto, idx) => (
-                    <tr key={gasto.id || idx} className="border-b border-slate-100 text-slate-650 hover:bg-slate-50/50">
-                      <td className="p-3 font-semibold text-slate-700">
-                        <div className="flex items-center gap-2">
-                          <span>{gasto.concepto}</span>
-                          {gasto.id && gasto.id.startsWith('G-OC-') && (
-                            <>
-                              {proyecto.ordenesCompra?.find(oc => oc.id === gasto.notas) && (
+      {/* Acordeones en una sola fila (Vertical Layout) */}
+      <div className="space-y-4">
+
+        {/* 1. Acordeón de Gastos Directos y Compras */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div 
+            onClick={() => setOpenGastos(!openGastos)}
+            className="px-6 py-4 flex items-center justify-between bg-slate-50 border-b border-slate-100 cursor-pointer select-none hover:bg-slate-100/70 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <ChevronRight size={18} className={`text-slate-500 transition-transform duration-200 ${openGastos ? 'rotate-90' : ''}`} />
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                  Gastos Directos y Compras (Caja / Facturas)
+                  <span className="text-[10px] font-black bg-red-50 text-red-700 px-2.5 py-0.5 rounded-full border border-red-100">
+                    Total: ${(totalGastosManuales + totalGastosOC).toLocaleString('es-EC', { minimumFractionDigits: 2 })}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">Egresos operativos manuales y compras facturadas de proveedores</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowForm(!showForm)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
+                >
+                  <Plus size={14} />
+                  {showForm ? 'Cancelar' : 'Registrar Gasto'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {openGastos && (
+            <div className="p-6 space-y-4 animate-in fade-in duration-150">
+              {showForm && isAdmin && (
+                <form onSubmit={handleAddManualGasto} className="border border-slate-150 rounded-xl p-4 bg-slate-50/50 space-y-4 animate-in fade-in duration-150">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Nuevo Gasto Manual</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Concepto / Detalle</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ej. Combustible montaje, Almuerzos equipo..."
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        value={concepto}
+                        onChange={e => setConcepto(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Monto ($)</label>
+                      <input
+                        type="number"
+                        required
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        value={monto}
+                        onChange={e => setMonto(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Fecha</label>
+                      <input
+                        type="date"
+                        required
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        value={fecha}
+                        onChange={e => setFecha(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Proveedor / Beneficiario</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. Gasolinera Primax, Imprenta..."
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        value={proveedor}
+                        onChange={e => setProveedor(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Notas Adicionales</label>
+                      <input
+                        type="text"
+                        placeholder="Comentarios adicionales del egreso..."
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        value={notas}
+                        onChange={e => setNotas(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
+                    >
+                      + Guardar Gasto
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {(!proyecto.gastos || proyecto.gastos.length === 0) ? (
+                <p className="text-xs text-slate-400 italic py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  No hay gastos operativos o compras registradas en esta sección.
+                </p>
+              ) : (
+                <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                        <th className="p-3 font-bold uppercase tracking-wider">Concepto</th>
+                        <th className="p-3 font-bold uppercase tracking-wider">Proveedor</th>
+                        <th className="p-3 font-bold uppercase tracking-wider">Fecha</th>
+                        <th className="p-3 font-bold uppercase tracking-wider text-right">Monto</th>
+                        {isAdmin && <th className="p-3 w-16 text-center">Acciones</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {proyecto.gastos && proyecto.gastos.map((gasto, idx) => (
+                        <tr key={gasto.id || idx} className="border-b border-slate-100 text-slate-650 hover:bg-slate-50/50">
+                          <td className="p-3 font-semibold text-slate-700">
+                            <div className="flex items-center gap-2">
+                              <span>{gasto.concepto}</span>
+                              {gasto.id && gasto.id.startsWith('G-OC-') && (
+                                <>
+                                  {proyecto.ordenesCompra?.find(oc => oc.id === gasto.notas) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const matchingOC = proyecto.ordenesCompra.find(oc => oc.id === gasto.notas);
+                                        setPrintableOC(mapOrdenToPDFFormat(matchingOC));
+                                        setIsPDFOpen(true);
+                                      }}
+                                      className="text-indigo-600 hover:text-indigo-800 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-100 transition-colors cursor-pointer inline-flex items-center gap-1 font-bold text-[9px]"
+                                      title="Ver Orden de Compra"
+                                    >
+                                      <FileText size={10} />
+                                      OC
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3">{gasto.proveedor || '—'}</td>
+                          <td className="p-3 text-slate-400">{gasto.fecha}</td>
+                          <td className="p-3 text-right font-extrabold text-red-655">${gasto.monto.toFixed(2)}</td>
+                          {isAdmin && (
+                            <td className="p-3 text-center">
+                              {gasto.id && gasto.id.startsWith('G-OC-') ? (
+                                <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded cursor-help" title="Gasto automático de OC aprobada. No se puede eliminar directamente.">OC</span>
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const matchingOC = proyecto.ordenesCompra.find(oc => oc.id === gasto.notas);
-                                    setPrintableOC(mapOrdenToPDFFormat(matchingOC));
-                                    setIsPDFOpen(true);
-                                  }}
-                                  className="text-indigo-600 hover:text-indigo-800 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-100 transition-colors cursor-pointer inline-flex items-center gap-1 font-bold text-[9px]"
-                                  title="Ver PDF de Orden de Compra"
+                                  onClick={() => handleDeleteGasto(gasto)}
+                                  className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                  title="Eliminar Gasto"
                                 >
-                                  <FileText size={10} />
-                                  PDF
+                                  <Trash2 size={14} />
                                 </button>
                               )}
-                            </>
+                            </td>
                           )}
-                        </div>
-                      </td>
-                      <td className="p-3">{gasto.proveedor || '—'}</td>
-                      <td className="p-3 text-slate-400">{gasto.fecha}</td>
-                      <td className="p-3 text-right font-extrabold text-red-650">${gasto.monto.toFixed(2)}</td>
-                      {isAdmin && (
-                        <td className="p-3 text-center">
-                          {gasto.id && gasto.id.startsWith('G-OC-') ? (
-                            <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded cursor-help" title="Gasto automático de OC aprobada. No se puede eliminar directamente.">OC</span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteGasto(gasto)}
-                              className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                              title="Eliminar Gasto"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-50/80 font-bold text-slate-800 border-t border-slate-200">
+                        <td colSpan="3" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Directos y Compras:</td>
+                        <td className="p-3 text-right text-sm font-extrabold text-red-700">
+                          ${(totalGastosManuales + totalGastosOC).toFixed(2)}
                         </td>
-                      )}
-                    </tr>
-                  ))}
-                  
-                  {costoMaterialesBodega > 0 && (
-                    <tr className="border-b border-slate-100 text-slate-650 hover:bg-slate-50/50">
-                      <td className="p-3 font-semibold text-slate-700">
-                        <div className="flex items-center gap-2">
-                          <span>Consumo de Bodega (Materiales)</span>
-                          <span className="text-[10px] text-slate-455 font-bold bg-slate-100 px-1.5 py-0.5 rounded cursor-help" title="Costo estimado de los materiales retirados de bodega para la instalación.">Bodega</span>
-                        </div>
-                      </td>
-                      <td className="p-3">Bodega Interna</td>
-                      <td className="p-3 text-slate-400">—</td>
-                      <td className="p-3 text-right font-extrabold text-red-650">${costoMaterialesBodega.toFixed(2)}</td>
-                      {isAdmin && (
-                        <td className="p-3 text-center text-slate-400">—</td>
-                      )}
-                    </tr>
-                  )}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50/80 font-bold text-slate-800 border-t border-slate-200">
-                    <td colSpan="3" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Gastado:</td>
-                    <td className="p-3 text-right text-sm font-extrabold text-red-700">
-                      ${totalGastos.toFixed(2)}
-                    </td>
-                    {isAdmin && <td className="p-3"></td>}
-                  </tr>
-                </tfoot>
-              </table>
+                        {isAdmin && <td className="p-3"></td>}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
             </div>
           )}
+        </div>
 
-          {costoMaterialesBodega > 0 && (
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Consumo Estimado de Bodega (Materiales)</h3>
-              <div className="overflow-x-auto border border-slate-100 rounded-xl bg-slate-50/50">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100/50 text-slate-500 border-b border-slate-200">
-                      <th className="p-2.5 font-bold uppercase tracking-wider">Material</th>
-                      <th className="p-2.5 font-bold uppercase tracking-wider text-center">Cantidad</th>
-                      <th className="p-2.5 font-bold uppercase tracking-wider text-right">Costo Promedio (CPP)</th>
-                      <th className="p-2.5 font-bold uppercase tracking-wider text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {materialesBodega.map((m, idx) => {
-                      const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
-                      const price = Number(m.precioUnitario || 0);
-                      const sub = cant * price;
-                      if (cant <= 0) return null;
+        {/* 2. Acordeón de Órdenes de Compra */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div 
+            onClick={() => setOpenCompras(!openCompras)}
+            className="px-6 py-4 flex items-center justify-between bg-slate-50 border-b border-slate-100 cursor-pointer select-none hover:bg-slate-100/70 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <ChevronRight size={18} className={`text-slate-500 transition-transform duration-200 ${openCompras ? 'rotate-90' : ''}`} />
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                  Órdenes de Compra del Proyecto
+                  {(() => {
+                    const count = (proyecto.ordenesCompra || []).filter(oc => oc.estado === 'PENDIENTE').length;
+                    if (count > 0) {
                       return (
-                        <tr key={idx} className="border-b border-slate-100 text-slate-600">
-                          <td className="p-2.5 font-medium text-slate-700">{m.nombre}</td>
-                          <td className="p-2.5 text-center">{cant} {m.unidad || 'unid'}</td>
-                          <td className="p-2.5 text-right">${price.toFixed(2)}</td>
-                          <td className="p-2.5 text-right font-semibold text-slate-700">${sub.toFixed(2)}</td>
-                        </tr>
+                        <span className="text-[10px] font-black bg-amber-50 text-amber-700 px-2.5 py-0.5 rounded-full border border-amber-100">
+                          {count} pendiente{count > 1 ? 's' : ''}
+                        </span>
                       );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-100/30 font-bold text-slate-700">
-                      <td colSpan="3" className="p-2.5 text-right uppercase tracking-wider text-[9px]">Total Estimado Bodega:</td>
-                      <td className="p-2.5 text-right text-indigo-700">${costoMaterialesBodega.toFixed(2)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    }
+                    return null;
+                  })()}
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">Historial completo de solicitudes de compra para este proyecto</p>
               </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* 3. Sección de Órdenes de Compra */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-slate-800">Órdenes de Compra del Proyecto</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Historial y solicitudes de materiales para este proyecto</p>
+            <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => navigate(`/compras/nueva?proyectoId=${proyecto.id}`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
+              >
+                <ShoppingCart size={14} />
+                Solicitar Compra
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => navigate(`/compras/nueva?proyectoId=${proyecto.id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
-          >
-            <ShoppingCart size={14} />
-            Solicitar Compra
-          </button>
-        </div>
 
-        <div className="p-6 space-y-6">
-          {(() => {
-            const ordenesCompraFiltradas = (proyecto.ordenesCompra || []).filter(
-              (oc) => oc.estado === 'PENDIENTE' || oc.estado === 'RECHAZADA'
-            );
-            if (ordenesCompraFiltradas.length === 0) {
-              return (
-                <p className="text-xs text-slate-400 italic py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  No hay órdenes de compra pendientes o rechazadas en este proyecto.
-                </p>
-              );
-            }
-            return (
-              <div className="space-y-6">
-                {ordenesCompraFiltradas.map((oc) => {
-                  const isPendiente = oc.estado === 'PENDIENTE';
-                const isAprobada = oc.estado === 'APROBADA';
-                const isRecibida = oc.estado === 'RECIBIDA';
-                
-                const totalOC = oc.items?.reduce(
-                  (sum, item) => sum + ((isPendiente ? item.cantidadSolicitada : (item.cantidadAprobada || 0)) * item.precioUnitario),
-                  0
-                ) || 0;
-
+          {openCompras && (
+            <div className="p-6 space-y-6 animate-in fade-in duration-150">
+              {(() => {
+                const ordenesCompraFiltradas = proyecto.ordenesCompra || [];
+                if (ordenesCompraFiltradas.length === 0) {
+                  return (
+                    <p className="text-xs text-slate-400 italic py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      No hay órdenes de compra registradas en este proyecto.
+                    </p>
+                  );
+                }
                 return (
-                  <div key={oc.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 hover:border-slate-300 transition-colors">
-                    {/* Header de la OC */}
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-black text-slate-800">{oc.numero}</span>
-                        <span className="text-xs text-slate-400">• Solicitado: {oc.fechaCreacion}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                          isPendiente ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                          isAprobada ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                          isRecibida ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                          'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                          {oc.estado}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPrintableOC(mapOrdenToPDFFormat(oc));
-                            setIsPDFOpen(true);
-                          }}
-                          className="px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-slate-600 hover:text-indigo-600 transition-colors flex items-center gap-1.5 text-xs font-bold border border-slate-200 shadow-sm bg-white cursor-pointer"
-                          title="Vista Previa / Imprimir PDF"
-                        >
-                          <Eye size={14} />
-                          Ver / Imprimir OC
-                        </button>
-                      </div>
-                    </div>
+                  <div className="space-y-6">
+                    {ordenesCompraFiltradas.map((oc) => {
+                      const isPendiente = oc.estado === 'PENDIENTE';
+                      const isAprobada = oc.estado === 'APROBADA';
+                      const isRecibida = oc.estado === 'RECIBIDA';
+                      
+                      const totalOC = oc.items?.reduce(
+                        (sum, item) => sum + ((isPendiente ? item.cantidadSolicitada : (item.cantidadAprobada || 0)) * item.precioUnitario),
+                        0
+                      ) || 0;
 
-                    {/* Lista de Items */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                            <th className="p-2.5 font-bold uppercase tracking-wider">SKU</th>
-                            <th className="p-2.5 font-bold uppercase tracking-wider">Material</th>
-                            <th className="p-2.5 font-bold uppercase tracking-wider text-center">Cant. Solicitada</th>
-                            <th className="p-2.5 font-bold uppercase tracking-wider text-center">Cant. Aprobar</th>
-                            <th className="p-2.5 font-bold uppercase tracking-wider text-right">Precio Unit.</th>
-                            <th className="p-2.5 font-bold uppercase tracking-wider text-right">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(oc.items || []).map((item, idx) => {
-                            const qtyAprob = aprobaciones[item.sku] !== undefined ? aprobaciones[item.sku] : item.cantidadSolicitada;
-                            const currentQty = isPendiente ? qtyAprob : (item.cantidadAprobada || 0);
-                            const subtotal = currentQty * item.precioUnitario;
+                      return (
+                        <div key={oc.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 hover:border-slate-300 transition-colors">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-black text-slate-800">{oc.numero}</span>
+                              <span className="text-xs text-slate-400">• Solicitado: {oc.fechaCreacion}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                                isPendiente ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                isAprobada ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                isRecibida ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                'bg-red-50 text-red-700 border-red-200'
+                              }`}>
+                                {oc.estado}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPrintableOC(mapOrdenToPDFFormat(oc));
+                                  setIsPDFOpen(true);
+                                }}
+                                className="px-2.5 py-1.5 hover:bg-slate-50 rounded-lg text-slate-600 hover:text-indigo-600 transition-colors flex items-center gap-1.5 text-xs font-bold border border-slate-200 shadow-sm bg-white cursor-pointer"
+                                title="Vista Previa / Imprimir PDF"
+                              >
+                                <Eye size={14} />
+                                Ver / Imprimir OC
+                              </button>
+                            </div>
+                          </div>
 
-                            return (
-                              <tr key={idx} className="border-b border-slate-100 text-slate-600">
-                                <td className="p-2.5 font-mono text-[10px]">{item.sku}</td>
-                                <td className="p-2.5 font-semibold text-slate-700">{item.nombre}</td>
-                                <td className="p-2.5 text-center font-medium">{item.cantidadSolicitada} {item.unidad}s</td>
-                                <td className="p-2.5 text-center">
-                                  {isPendiente && isAdmin ? (
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      max={item.cantidadSolicitada}
-                                      value={qtyAprob}
-                                      onChange={(e) => {
-                                        const val = Math.max(0, parseInt(e.target.value) || 0);
-                                        setAprobaciones(prev => ({ ...prev, [item.sku]: val }));
-                                      }}
-                                      className="w-16 border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-                                    />
-                                  ) : (
-                                    <span className="font-bold text-slate-800">
-                                      {(!isPendiente) ? `${item.cantidadAprobada} ${item.unidad}s` : `${item.cantidadSolicitada} ${item.unidad}s`}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="p-2.5 text-right">${item.precioUnitario.toFixed(2)}</td>
-                                <td className="p-2.5 text-right font-bold text-slate-700">${subtotal.toFixed(2)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr className="font-bold text-slate-800 bg-slate-50/50">
-                            <td colSpan="5" className="p-2.5 text-right uppercase tracking-wider text-[10px]">Costo Total:</td>
-                            <td className="p-2.5 text-right text-sm font-extrabold text-indigo-900">
-                              ${totalOC.toFixed(2)}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                  <th className="p-2.5 font-bold uppercase tracking-wider">SKU</th>
+                                  <th className="p-2.5 font-bold uppercase tracking-wider">Material</th>
+                                  <th className="p-2.5 font-bold uppercase tracking-wider text-center">Cant. Solicitada</th>
+                                  <th className="p-2.5 font-bold uppercase tracking-wider text-center">Cant. Aprobar</th>
+                                  <th className="p-2.5 font-bold uppercase tracking-wider text-right">Precio Unit.</th>
+                                  <th className="p-2.5 font-bold uppercase tracking-wider text-right">Subtotal</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(oc.items || []).map((item, idx) => {
+                                  const qtyAprob = aprobaciones[item.sku] !== undefined ? aprobaciones[item.sku] : item.cantidadSolicitada;
+                                  const currentQty = isPendiente ? qtyAprob : (item.cantidadAprobada || 0);
+                                  const subtotal = currentQty * item.precioUnitario;
 
-                    {/* Aprobación por administrador */}
-                    {isPendiente && isAdmin && (
-                      <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 space-y-3">
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                            Comentarios / Observaciones de la Aprobación
-                          </label>
-                          <textarea
-                            value={comentarioOC}
-                            onChange={(e) => setComentarioOC(e.target.value)}
-                            placeholder="Escribe el motivo de la aprobación, modificaciones en cantidades o comentarios..."
-                            className="w-full border border-slate-200 rounded-lg p-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
-                            rows={2}
-                          />
+                                  return (
+                                    <tr key={idx} className="border-b border-slate-100 text-slate-600">
+                                      <td className="p-2.5 font-mono text-[10px]">{item.sku}</td>
+                                      <td className="p-2.5 font-semibold text-slate-700">{item.nombre}</td>
+                                      <td className="p-2.5 text-center font-medium">{item.cantidadSolicitada} {item.unidad}s</td>
+                                      <td className="p-2.5 text-center">
+                                        {isPendiente && isAdmin ? (
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            max={item.cantidadSolicitada}
+                                            value={qtyAprob}
+                                            onChange={(e) => {
+                                              const val = Math.max(0, parseInt(e.target.value) || 0);
+                                              setAprobaciones(prev => ({ ...prev, [item.sku]: val }));
+                                            }}
+                                            className="w-16 border border-slate-200 rounded-lg px-2 py-1 text-xs text-center font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                                          />
+                                        ) : (
+                                          <span className="font-bold text-slate-800">
+                                            {(!isPendiente) ? `${item.cantidadAprobada} ${item.unidad}s` : `${item.cantidadSolicitada} ${item.unidad}s`}
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="p-2.5 text-right">${item.precioUnitario.toFixed(2)}</td>
+                                      <td className="p-2.5 text-right font-bold text-slate-700">${subtotal.toFixed(2)}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                              <tfoot>
+                                <tr className="font-bold text-slate-800 bg-slate-50/50">
+                                  <td colSpan="5" className="p-2.5 text-right uppercase tracking-wider text-[10px]">Costo Total:</td>
+                                  <td className="p-2.5 text-right text-sm font-extrabold text-indigo-900">
+                                    ${totalOC.toFixed(2)}
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+
+                          {/* Mensaje Informativo para OCs Aprobadas o Recibidas */}
+                          {(!isPendiente && (isAprobada || isRecibida)) && (
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] text-slate-500 leading-relaxed mt-2">
+                              <strong>Destino de Costo:</strong> Esta compra abastece el inventario físico de bodega. El costo de estos materiales **no se carga de forma directa al proyecto** para evitar duplicidades. Se registrará la imputación real del costo cuando la instalación registre el uso de los mismos en la sección de <strong>Consumo de Bodega</strong>.
+                            </div>
+                          )}
+
+                          {isPendiente && isAdmin && (
+                            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 space-y-3">
+                              <div>
+                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                  Comentarios / Observaciones de la Aprobación
+                                </label>
+                                <textarea
+                                  value={comentarioOC}
+                                  onChange={(e) => setComentarioOC(e.target.value)}
+                                  placeholder="Escribe el motivo de la aprobación, modificaciones en cantidades o comentarios..."
+                                  className="w-full border border-slate-200 rounded-lg p-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                                  rows={2}
+                                />
+                              </div>
+
+                              <div className="flex gap-2 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRechazarOC(oc)}
+                                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-lg border border-red-200 shadow-sm transition-colors cursor-pointer"
+                                >
+                                  Rechazar Solicitud
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAprobarOC(oc)}
+                                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
+                                >
+                                  Aprobar y Registrar Gasto
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {oc.comentarios && (
+                            <div className="bg-slate-50 border-l-4 border-slate-300 p-3 rounded-r-lg text-xs text-slate-650">
+                              <strong>Comentarios:</strong> {oc.comentarios}
+                            </div>
+                          )}
                         </div>
-
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleRechazarOC(oc)}
-                            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-lg border border-red-200 shadow-sm transition-colors cursor-pointer"
-                          >
-                            Rechazar Solicitud
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleAprobarOC(oc)}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
-                          >
-                            Aprobar y Registrar Gasto
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {oc.comentarios && (
-                      <div className="bg-slate-50 border-l-4 border-slate-300 p-3 rounded-r-lg text-xs text-slate-600">
-                        <strong>Comentarios:</strong> {oc.comentarios}
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
                 );
-              })}
+              })()}
             </div>
-          );
-        })()}
-      </div>
+          )}
+        </div>
+
+        {/* 3. Acordeón de Consumo de Bodega */}
+        {costoMaterialesBodega > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div 
+              onClick={() => setOpenBodega(!openBodega)}
+              className="px-6 py-4 flex items-center justify-between bg-slate-50 border-b border-slate-100 cursor-pointer select-none hover:bg-slate-100/70 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <ChevronRight size={18} className={`text-slate-500 transition-transform duration-200 ${openBodega ? 'rotate-90' : ''}`} />
+                <div>
+                  <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                    Consumo de Bodega (Insumos y Depreciación de Herramientas)
+                    <span className="text-[10px] font-black bg-indigo-50 text-indigo-750 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                      Total: ${costoMaterialesBodega.toLocaleString('es-EC', { minimumFractionDigits: 2 })}
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Materiales e insumos utilizados en obra con 10% de desgaste en herramientas</p>
+                </div>
+              </div>
+            </div>
+
+            {openBodega && (
+              <div className="p-6 space-y-4 animate-in fade-in duration-150">
+                <div className="overflow-x-auto border border-slate-150 rounded-xl bg-slate-50/50">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100/80 text-slate-500 border-b border-slate-200">
+                        <th className="p-3 font-bold uppercase tracking-wider">Nombre del Insumo / Herramienta</th>
+                        <th className="p-3 font-bold uppercase tracking-wider text-center">Tipo</th>
+                        <th className="p-3 font-bold uppercase tracking-wider text-center">Cantidad Llevada</th>
+                        <th className="p-3 font-bold uppercase tracking-wider text-right">CPP (Costo Promedio)</th>
+                        <th className="p-3 font-bold uppercase tracking-wider text-right">Costo Imputado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {materialesBodega.map((m, idx) => {
+                        const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
+                        const price = Number(m.precioUnitario || 0);
+                        const isHerramienta = m.tipo === 'herramienta';
+                        const sub = isHerramienta ? (cant * price * 0.10) : (cant * price);
+                        if (cant <= 0) return null;
+
+                        return (
+                          <tr key={idx} className="border-b border-slate-150 text-slate-650 hover:bg-slate-50/70">
+                            <td className="p-3 font-semibold text-slate-700">{m.nombre}</td>
+                            <td className="p-3 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                                isHerramienta ? 'bg-amber-50 text-amber-700 border-amber-250' : 'bg-slate-100 text-slate-650 border-slate-200'
+                              }`}>
+                                {isHerramienta ? 'Herramienta' : 'Consumible'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center font-medium">{cant} {m.unidad || 'unid'}</td>
+                            <td className="p-3 text-right">${price.toFixed(2)}</td>
+                            <td className="p-3 text-right font-bold text-slate-800">
+                              {isHerramienta ? (
+                                <div className="flex flex-col items-end">
+                                  <span>${sub.toFixed(2)}</span>
+                                  <span className="text-[8px] text-amber-600 font-normal mt-0.5">Amortizado al 10% por desgaste</span>
+                                </div>
+                              ) : (
+                                `$${sub.toFixed(2)}`
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100/50 font-bold text-slate-800 border-t border-slate-200">
+                        <td colSpan="4" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Estimado Consumo:</td>
+                        <td className="p-3 text-right text-sm font-extrabold text-indigo-700">
+                          ${costoMaterialesBodega.toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* Visor Reutilizable de PDF */}

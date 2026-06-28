@@ -229,7 +229,7 @@ export function MaterialesRequestPage() {
   function handleAddToDraft() {
     if (!selectedItem || qty <= 0) return;
 
-    const index = materialesLocales.findIndex(item => item.sku === selectedItem.sku);
+    const index = materialesLocales.findIndex(item => item.nombre === selectedItem.nombre);
     if (index > -1) {
       const nuevaCant = materialesLocales[index].cantidad + qty;
       setMaterialesLocales(prev => prev.map((item, idx) => 
@@ -260,8 +260,8 @@ export function MaterialesRequestPage() {
   }
 
   // Quitar item del Borrador (Tab 2)
-  function handleRemoveFromDraft(itemSku) {
-    setMaterialesLocales(prev => prev.filter(item => item.sku !== itemSku));
+  function handleRemoveFromDraft(itemName) {
+    setMaterialesLocales(prev => prev.filter(item => item.nombre !== itemName));
   }
 
   // Guardar Consumo de Bodega completo (Tab 2)
@@ -558,7 +558,7 @@ export function MaterialesRequestPage() {
   };
 
   const materialesConStock = (materialesLocales || []).map(m => {
-    const invItem = inventarioDb.find(item => item.sku === m.sku);
+    const invItem = inventarioDb.find(item => item.nombre === m.nombre);
     return {
       ...m,
       stock: invItem ? invItem.stock : 0
@@ -870,7 +870,7 @@ export function MaterialesRequestPage() {
                       <span>No has asignado materiales aún. Búscar e agregar en el panel izquierdo.</span>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto mt-4 mobile-table-cards">
+                    <div className="overflow-auto max-h-[420px] mt-4 thin-scrollbar pr-1 mobile-table-cards">
                       <table className="materials-list-table">
                         <thead>
                           <tr>
@@ -884,7 +884,7 @@ export function MaterialesRequestPage() {
                         </thead>
                         <tbody>
                           {materialesConStock.map((m, i) => (
-                            <tr key={m.sku}>
+                            <tr key={`${m.sku}-${m.nombre}`}>
                               <td data-label="Material">
                                 <div className="flex flex-col">
                                   <span className="font-bold text-slate-800">{m.nombre}</span>
@@ -950,7 +950,7 @@ export function MaterialesRequestPage() {
                               {!esSoloLectura && (
                                 <td style={{ textAlign: 'center' }} data-label="Acción">
                                   <button
-                                    onClick={() => handleRemoveFromDraft(m.sku)}
+                                    onClick={() => handleRemoveFromDraft(m.nombre)}
                                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                     title="Eliminar material"
                                   >

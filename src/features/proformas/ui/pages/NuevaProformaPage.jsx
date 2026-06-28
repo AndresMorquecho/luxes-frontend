@@ -39,6 +39,7 @@ export const NuevaProformaPage = () => {
   // Search states for dropdowns
   const [clienteSearch, setClienteSearch] = useState('');
   const [clienteDropdownOpen, setClienteDropdownOpen] = useState(false);
+  const [showMoreClientData, setShowMoreClientData] = useState(false);
 
   // Top Bar input state for adding item to table
   const [itemInput, setItemInput] = useState({
@@ -289,16 +290,9 @@ export const NuevaProformaPage = () => {
               Informacion de la Proforma
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
               
-              <div>
-                <label className="co-label">No. de Proforma</label>
-                <div className="co-input bg-slate-50 font-mono text-xs font-semibold flex items-center h-[38px] text-slate-400 px-4 border border-slate-200/80" style={{ borderRadius: '10px' }}>
-                  {isEdit ? form.id : 'PRO_XXX (Autogenerado)'}
-                </div>
-              </div>
-
-              <div className="relative">
+              <div className="relative md:col-span-2 lg:col-span-2">
                 <label className="co-label">Cliente *</label>
                 <input
                   type="text"
@@ -344,42 +338,6 @@ export const NuevaProformaPage = () => {
               </div>
 
               <div>
-                <label className="co-label">Telefono Cliente *</label>
-                <input
-                  name="telefono"
-                  value={form.telefono}
-                  onChange={handleChange}
-                  required
-                  placeholder="Ej. 0991234567"
-                  className="co-input"
-                />
-              </div>
-
-              <div>
-                <label className="co-label">Email Cliente</label>
-                <input
-                  name="email"
-                  type="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  placeholder="Ej. cliente@correo.com"
-                  className="co-input"
-                />
-              </div>
-
-              <div>
-                <label className="co-label">Atiende *</label>
-                <input
-                  name="atiende"
-                  value={form.atiende}
-                  onChange={handleChange}
-                  required
-                  readOnly
-                  className="co-input bg-slate-50 text-slate-400 font-semibold cursor-not-allowed"
-                />
-              </div>
-
-              <div>
                 <label className="co-label">Fecha de Emision *</label>
                 <input
                   name="fecha"
@@ -417,6 +375,66 @@ export const NuevaProformaPage = () => {
               </div>
 
             </div>
+
+            {/* Accordion Toggle */}
+            <div className="border-t border-slate-100 pt-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setShowMoreClientData(!showMoreClientData)}
+                className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors py-1 focus:outline-none"
+              >
+                <svg
+                  className={`w-3.5 h-3.5 transition-transform duration-200 ${showMoreClientData ? 'rotate-90' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+                {showMoreClientData ? 'Ocultar datos de contacto' : 'Ver más datos del cliente (Teléfono, Email, etc.)'}
+              </button>
+            </div>
+
+            {showMoreClientData && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-100/60 animate-slide-up">
+                <div>
+                  <label className="co-label">Telefono Cliente *</label>
+                  <input
+                    name="telefono"
+                    value={form.telefono}
+                    onChange={handleChange}
+                    required
+                    placeholder="Ej. 0991234567"
+                    className="co-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="co-label">Email Cliente</label>
+                  <input
+                    name="email"
+                    type="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    placeholder="Ej. cliente@correo.com"
+                    className="co-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="co-label">Atiende *</label>
+                  <input
+                    name="atiende"
+                    value={form.atiende}
+                    onChange={handleChange}
+                    required
+                    readOnly
+                    className="co-input bg-slate-50 text-slate-400 font-semibold cursor-not-allowed"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Valores Summary Card */}
@@ -461,7 +479,7 @@ export const NuevaProformaPage = () => {
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
             Agregar Recurso a la Proforma
           </div>
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="co-add-item-bar">
             
             {/* Manual Description Input */}
             <div className="flex-[3] min-w-[280px]">
@@ -523,91 +541,174 @@ export const NuevaProformaPage = () => {
         </div>
 
         {/* Line Items Table */}
-        <div className="overflow-x-auto">
-          <table className="co-items-table">
-            <thead>
-              <tr>
-                <th className="text-center" style={{ width: '60px' }}>N°</th>
-                <th className="text-center" style={{ width: '100px' }}>Cantidad</th>
-                <th>Descripción / Artículo / Servicio</th>
-                <th className="text-center" style={{ width: '130px' }}>Precio Unit.</th>
-                <th className="text-right" style={{ width: '130px' }}>Subtotal</th>
-                <th className="text-right" style={{ width: '130px' }}>Total + IVA</th>
-                <th className="text-center" style={{ width: '80px' }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {form.items.map((d, index) => {
-                const sub = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
-                const totalWithIva = sub + sub * form.iva;
-                return (
-                  <tr key={index}>
-                    <td className="text-center font-bold text-slate-400">{index + 1}</td>
-                    <td>
-                      <input
-                        type="number"
-                        className="co-table-input text-center mx-auto"
-                        style={{ width: '75px' }}
-                        min="0.01"
-                        step="0.01"
-                        value={d.cantidad}
-                        onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
-                        required
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        className="co-table-input w-full font-medium"
-                        value={d.descripcion}
-                        onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
-                        required
-                      />
-                    </td>
-                    <td>
-                      <div className="flex items-center justify-center gap-1.5">
-                        <span className="text-slate-400 font-bold">$</span>
+        <>
+          <div className="co-items-desktop-only">
+            <div className="overflow-x-auto">
+              <table className="co-items-table">
+                <thead>
+                  <tr>
+                    <th className="text-center" style={{ width: '60px' }}>N°</th>
+                    <th className="text-center" style={{ width: '100px' }}>Cantidad</th>
+                    <th>Descripción / Artículo / Servicio</th>
+                    <th className="text-center" style={{ width: '130px' }}>Precio Unit.</th>
+                    <th className="text-right" style={{ width: '130px' }}>Subtotal</th>
+                    <th className="text-right" style={{ width: '130px' }}>Total + IVA</th>
+                    <th className="text-center" style={{ width: '80px' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.items.map((d, index) => {
+                    const sub = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
+                    const totalWithIva = sub + sub * form.iva;
+                    return (
+                      <tr key={index}>
+                        <td className="text-center font-bold text-slate-400">{index + 1}</td>
+                        <td>
+                          <input
+                            type="number"
+                            className="co-table-input text-center mx-auto"
+                            style={{ width: '75px' }}
+                            min="0.01"
+                            step="0.01"
+                            value={d.cantidad}
+                            onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
+                            required
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            className="co-table-input w-full font-medium"
+                            value={d.descripcion}
+                            onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
+                            required
+                          />
+                        </td>
+                        <td>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="text-slate-400 font-bold">$</span>
+                            <input
+                              type="number"
+                              className="co-table-input text-right"
+                              style={{ width: '95px' }}
+                              min="0"
+                              step="0.01"
+                              value={d.precioUnitario}
+                              onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
+                              required
+                            />
+                          </div>
+                        </td>
+                        <td className="text-right font-semibold text-slate-700">
+                          {formatUSD(sub)}
+                        </td>
+                        <td className="text-right font-extrabold text-blue-600">
+                          {formatUSD(totalWithIva)}
+                        </td>
+                        <td className="text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="co-table-remove-btn"
+                            title="Eliminar item"
+                          >
+                            &times;
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {form.items.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="text-center py-16 text-slate-400 font-medium text-sm">
+                        No hay items agregados en esta proforma. Utilice la barra superior para agregar items a la tabla.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="co-items-mobile-only">
+            {form.items.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 font-medium text-sm border border-slate-200/80 rounded-2xl bg-slate-50/50">
+                No hay items agregados en esta proforma. Utilice el formulario de arriba para agregar items.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {form.items.map((d, index) => {
+                  const sub = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
+                  const totalWithIva = sub + sub * form.iva;
+                  return (
+                    <div key={index} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <span className="font-bold text-slate-500 text-xs">Ítem #{index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="co-table-remove-btn"
+                          title="Eliminar item"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                      
+                      <div className="flex flex-col gap-1">
+                        <label className="co-label !mb-1">Descripción</label>
                         <input
-                          type="number"
-                          className="co-table-input text-right"
-                          style={{ width: '95px' }}
-                          min="0"
-                          step="0.01"
-                          value={d.precioUnitario}
-                          onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
+                          type="text"
+                          className="co-table-input font-medium"
+                          value={d.descripcion}
+                          onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
                           required
                         />
                       </div>
-                    </td>
-                    <td className="text-right font-semibold text-slate-700">
-                      {formatUSD(sub)}
-                    </td>
-                    <td className="text-right font-extrabold text-blue-600">
-                      {formatUSD(totalWithIva)}
-                    </td>
-                    <td className="text-center">
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="co-table-remove-btn"
-                        title="Eliminar item"
-                      >
-                        &times;
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {form.items.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center py-16 text-slate-400 font-medium text-sm">
-                    No hay items agregados en esta proforma. Utilice la barra superior para agregar items a la tabla.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="co-label !mb-1">Cantidad</label>
+                          <input
+                            type="number"
+                            className="co-table-input text-center"
+                            min="0.01"
+                            step="0.01"
+                            value={d.cantidad}
+                            onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="co-label !mb-1">Precio Unitario ($)</label>
+                          <input
+                            type="number"
+                            className="co-table-input text-right"
+                            min="0"
+                            step="0.01"
+                            value={d.precioUnitario}
+                            onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 bg-slate-50/70 rounded-xl p-2.5 mt-1 text-center">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-slate-400 font-semibold uppercase">Subtotal</span>
+                          <span className="text-xs font-bold text-slate-700 font-mono mt-0.5">{formatUSD(sub)}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-slate-400 font-semibold uppercase">Total + IVA</span>
+                          <span className="text-xs font-bold text-blue-600 font-mono mt-0.5">{formatUSD(totalWithIva)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
 
         {/* Observaciones and Submit footer */}
         <div className="flex flex-wrap md:flex-nowrap gap-6">
@@ -654,6 +755,39 @@ export const NuevaProformaPage = () => {
           }}
         />
       )}
+
+      <style>{`
+        .co-input, .co-table-input {
+          box-sizing: border-box !important;
+        }
+        .co-add-item-bar {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: end;
+          gap: 12px;
+        }
+        .co-items-desktop-only { display: block; }
+        .co-items-mobile-only { display: none; }
+        
+        @media (max-width: 768px) {
+          .co-add-item-bar {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+          }
+          .co-add-item-bar > div {
+            width: 100% !important;
+            min-width: 0 !important;
+            flex: none !important;
+          }
+          .co-add-item-bar button {
+            width: 100% !important;
+            margin-top: 8px;
+          }
+          .co-items-desktop-only { display: none !important; }
+          .co-items-mobile-only { display: block !important; }
+        }
+      `}</style>
     </div>
   );
 };

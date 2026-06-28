@@ -164,132 +164,260 @@ export function MaterialHistorialPage() {
       {/* Tab Panel */}
       <div className="hist-panel-card">
         {activeTab === 'compras' && (
-          <div className="overflow-x-auto">
-            <table className="hist-table">
-              <thead>
-                <tr>
-                  <th>No. Orden</th>
-                  <th>Fecha Compra</th>
-                  <th>Proveedor</th>
-                  <th className="text-center">Cant. Solicitada</th>
-                  <th className="text-center">Cant. Recibida</th>
-                  <th className="text-right">Precio Unit.</th>
-                  <th className="text-right">Total</th>
-                  <th>Estado OC</th>
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            <div className="hist-desktop-only">
+              <div className="overflow-x-auto">
+                <table className="hist-table">
+                  <thead>
+                    <tr>
+                      <th>No. Orden</th>
+                      <th>Fecha Compra</th>
+                      <th>Proveedor</th>
+                      <th className="text-center">Cant. Solicitada</th>
+                      <th className="text-center">Cant. Recibida</th>
+                      <th className="text-right">Precio Unit.</th>
+                      <th className="text-right">Total</th>
+                      <th>Estado OC</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {compras.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="hist-empty-cell">
+                          No hay compras registradas para este material.
+                        </td>
+                      </tr>
+                    ) : (
+                      compras.map((compra) => (
+                        <tr key={compra.id}>
+                          <td className="font-bold text-indigo-600">{compra.numero}</td>
+                          <td>{fmtDate(compra.fecha)}</td>
+                          <td className="font-semibold text-slate-700">{compra.proveedor}</td>
+                          <td className="text-center">{compra.cantidad}</td>
+                          <td className="text-center font-bold text-emerald-600">
+                            {compra.cantidadRecibida !== null ? compra.cantidadRecibida : '—'}
+                          </td>
+                          <td className="text-right">{fmtCurrency(compra.precioUnitario)}</td>
+                          <td className="text-right font-extrabold text-slate-800">
+                            {fmtCurrency(compra.subtotal)}
+                          </td>
+                          <td>
+                            <span className={`hist-status-badge ${compra.estado?.toLowerCase()}`}>
+                              {compra.estado}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards for Compras */}
+            <div className="hist-mobile-only">
+              <div className="hist-mobile-cards-grid">
                 {compras.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="hist-empty-cell">
-                      No hay compras registradas para este material.
-                    </td>
-                  </tr>
+                  <div className="hist-empty-mobile">
+                    No hay compras registradas para este material.
+                  </div>
                 ) : (
                   compras.map((compra) => (
-                    <tr key={compra.id}>
-                      <td className="font-bold text-indigo-600">{compra.numero}</td>
-                      <td>{fmtDate(compra.fecha)}</td>
-                      <td className="font-semibold text-slate-700">{compra.proveedor}</td>
-                      <td className="text-center">{compra.cantidad}</td>
-                      <td className="text-center font-bold text-emerald-600">
-                        {compra.cantidadRecibida !== null ? compra.cantidadRecibida : '—'}
-                      </td>
-                      <td className="text-right">{fmtCurrency(compra.precioUnitario)}</td>
-                      <td className="text-right font-extrabold text-slate-800">
-                        {fmtCurrency(compra.subtotal)}
-                      </td>
-                      <td>
-                        <span className={`hist-status-badge ${compra.estado?.toLowerCase()}`}>
-                          {compra.estado}
-                        </span>
-                      </td>
-                    </tr>
+                    <div key={compra.id} className="hist-mobile-card">
+                      <div className="hist-card-header">
+                        <span className="hist-card-title text-indigo-600 font-bold">Orden: {compra.numero}</span>
+                        <span className={`hist-status-badge ${compra.estado?.toLowerCase()}`}>{compra.estado}</span>
+                      </div>
+                      <div className="hist-card-body">
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Fecha Compra:</span>
+                          <span className="hist-card-value">{fmtDate(compra.fecha)}</span>
+                        </div>
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Proveedor:</span>
+                          <span className="hist-card-value font-semibold text-slate-700">{compra.proveedor}</span>
+                        </div>
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Cant. Solicitada:</span>
+                          <span className="hist-card-value">{compra.cantidad}</span>
+                        </div>
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Cant. Recibida:</span>
+                          <span className="hist-card-value text-emerald-600 font-bold">
+                            {compra.cantidadRecibida !== null ? compra.cantidadRecibida : '—'}
+                          </span>
+                        </div>
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Precio Unitario:</span>
+                          <span className="hist-card-value">{fmtCurrency(compra.precioUnitario)}</span>
+                        </div>
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Total:</span>
+                          <span className="hist-card-value font-extrabold text-slate-800">{fmtCurrency(compra.subtotal)}</span>
+                        </div>
+                      </div>
+                    </div>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          </>
         )}
 
         {activeTab === 'usos' && (
-          <div className="overflow-x-auto">
-            <table className="hist-table">
-              <thead>
-                <tr>
-                  <th>Proyecto</th>
-                  <th>Cliente</th>
-                  <th>Fecha de Uso</th>
-                  <th className="text-center">Cantidad</th>
-                  <th>Responsable</th>
-                  <th>Notas / Observaciones</th>
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            <div className="hist-desktop-only">
+              <div className="overflow-x-auto">
+                <table className="hist-table">
+                  <thead>
+                    <tr>
+                      <th>Proyecto</th>
+                      <th>Cliente</th>
+                      <th>Fecha de Uso</th>
+                      <th className="text-center">Cantidad</th>
+                      <th>Responsable</th>
+                      <th>Notas / Observaciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usos.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="hist-empty-cell">
+                          No se registran retiros ni consumos de este material en proyectos.
+                        </td>
+                      </tr>
+                    ) : (
+                      usos.map((uso, idx) => (
+                        <tr key={idx}>
+                          <td className="font-bold text-slate-800">{uso.proyectoNombre}</td>
+                          <td className="font-medium text-slate-600">{uso.cliente}</td>
+                          <td>{fmtDate(uso.fecha)}</td>
+                          <td className="text-center font-black text-indigo-600">
+                            {uso.cantidad} {uso.unidad}
+                          </td>
+                          <td>
+                            <span className="hist-user-chip">{uso.responsable}</span>
+                          </td>
+                          <td className="text-slate-500 italic">{uso.observacion || 'Sin observaciones'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards for Usos */}
+            <div className="hist-mobile-only">
+              <div className="hist-mobile-cards-grid">
                 {usos.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="hist-empty-cell">
-                      No se registran retiros ni consumos de este material en proyectos.
-                    </td>
-                  </tr>
+                  <div className="hist-empty-mobile">
+                    No se registran retiros ni consumos de este material en proyectos.
+                  </div>
                 ) : (
                   usos.map((uso, idx) => (
-                    <tr key={idx}>
-                      <td className="font-bold text-slate-800">{uso.proyectoNombre}</td>
-                      <td className="font-medium text-slate-600">{uso.cliente}</td>
-                      <td>{fmtDate(uso.fecha)}</td>
-                      <td className="text-center font-black text-indigo-600">
-                        {uso.cantidad} {uso.unidad}
-                      </td>
-                      <td>
+                    <div key={idx} className="hist-mobile-card">
+                      <div className="hist-card-header">
+                        <span className="hist-card-title text-slate-800 font-bold">{uso.proyectoNombre}</span>
                         <span className="hist-user-chip">{uso.responsable}</span>
-                      </td>
-                      <td className="text-slate-500 italic">{uso.observacion || 'Sin observaciones'}</td>
-                    </tr>
+                      </div>
+                      <div className="hist-card-body">
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Cliente:</span>
+                          <span className="hist-card-value font-medium text-slate-600">{uso.cliente}</span>
+                        </div>
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Fecha de Uso:</span>
+                          <span className="hist-card-value">{fmtDate(uso.fecha)}</span>
+                        </div>
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Cantidad:</span>
+                          <span className="hist-card-value text-indigo-600 font-black">{uso.cantidad} {uso.unidad}</span>
+                        </div>
+                        <div className="hist-card-notes-block">
+                          <span className="hist-card-label">Notas / Observaciones:</span>
+                          <p className="hist-card-notes">{uso.observacion || 'Sin observaciones'}</p>
+                        </div>
+                      </div>
+                    </div>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          </>
         )}
 
         {activeTab === 'movimientos' && (
-          <div className="overflow-x-auto">
-            <table className="hist-table">
-              <thead>
-                <tr>
-                  <th>Fecha / Hora</th>
-                  <th>Tipo</th>
-                  <th className="text-center">Cantidad</th>
-                  <th>Motivo / Evento</th>
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            <div className="hist-desktop-only">
+              <div className="overflow-x-auto">
+                <table className="hist-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha / Hora</th>
+                      <th>Tipo</th>
+                      <th className="text-center">Cantidad</th>
+                      <th>Motivo / Evento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {movimientos.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="hist-empty-cell">
+                          No hay registros de movimientos manuales de inventario.
+                        </td>
+                      </tr>
+                    ) : (
+                      movimientos.map((mov) => (
+                        <tr key={mov.id}>
+                          <td>{new Date(mov.fecha).toLocaleString('es-EC')}</td>
+                          <td>
+                            <span className={`hist-mov-badge ${mov.tipo}`}>
+                              {mov.tipo === 'entrada' ? 'Entrada' : 'Salida'}
+                            </span>
+                          </td>
+                          <td className="text-center font-extrabold">
+                            {mov.tipo === 'entrada' ? '+' : '-'}{mov.cantidad}
+                          </td>
+                          <td className="text-slate-650 font-medium">{mov.motivo}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards for Movimientos */}
+            <div className="hist-mobile-only">
+              <div className="hist-mobile-cards-grid">
                 {movimientos.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="hist-empty-cell">
-                      No hay registros de movimientos manuales de inventario.
-                    </td>
-                  </tr>
+                  <div className="hist-empty-mobile">
+                    No hay registros de movimientos manuales de inventario.
+                  </div>
                 ) : (
                   movimientos.map((mov) => (
-                    <tr key={mov.id}>
-                      <td>{new Date(mov.fecha).toLocaleString('es-EC')}</td>
-                      <td>
-                        <span className={`hist-mov-badge ${mov.tipo}`}>
-                          {mov.tipo === 'entrada' ? 'Entrada' : 'Salida'}
-                        </span>
-                      </td>
-                      <td className="text-center font-extrabold">
-                        {mov.tipo === 'entrada' ? '+' : '-'}{mov.cantidad}
-                      </td>
-                      <td className="text-slate-650 font-medium">{mov.motivo}</td>
-                    </tr>
+                    <div key={mov.id} className="hist-mobile-card">
+                      <div className="hist-card-header">
+                        <span className="hist-card-date">{new Date(mov.fecha).toLocaleString('es-EC')}</span>
+                        <span className={`hist-mov-badge ${mov.tipo}`}>{mov.tipo === 'entrada' ? 'Entrada' : 'Salida'}</span>
+                      </div>
+                      <div className="hist-card-body">
+                        <div className="hist-card-row">
+                          <span className="hist-card-label">Cantidad:</span>
+                          <span className="hist-card-value font-extrabold">{mov.tipo === 'entrada' ? '+' : '-'}{mov.cantidad}</span>
+                        </div>
+                        <div className="hist-card-notes-block">
+                          <span className="hist-card-label">Motivo / Evento:</span>
+                          <p className="hist-card-notes">{mov.motivo}</p>
+                        </div>
+                      </div>
+                    </div>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

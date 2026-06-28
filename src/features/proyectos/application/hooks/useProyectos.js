@@ -103,6 +103,9 @@ export function useProyectos() {
       
       // Actualizar estado local
       dispatch({ type: ACTIONS.DELETE_PROYECTO, payload: { id } });
+
+      // Notificar a la cola de impresión que se actualice para limpiar la caché en memoria del frontend
+      window.dispatchEvent(new Event('print-queue-updated'));
     } catch (error) {
       console.error('Error al eliminar proyecto:', error);
       throw error;

@@ -118,11 +118,11 @@ export const ColasImpresionPage = () => {
 
   // Pagination for History
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 25;
 
   // Pagination for Queue
   const [queuePage, setQueuePage] = useState(1);
-  const queueItemsPerPage = 15;
+  const queueItemsPerPage = 25;
 
   // Selected Job Details Modal
   const [selectedJobDetails, setSelectedJobDetails] = useState(null);
@@ -723,51 +723,6 @@ export const ColasImpresionPage = () => {
                         </div>
                       </div>
 
-                      {/* Progress and Timer section */}
-                      <div className="printing-progress-section">
-                        <div className="progress-header-row">
-                          <span className="progress-label">
-                            {activeJob.status === "Listo" ? "Preparado" : activeJob.status === "Pausado" ? "Impresión en Pausa" : "Progreso de Impresión"}
-                          </span>
-                          <span className="progress-time-counter">
-                            {formatTime(activeJob.elapsedSeconds)}
-                          </span>
-                        </div>
-                        
-                        {/* Interactive Progress Bar */}
-                        {(() => {
-                          const estimatedTotalSeconds = activeJob.copies * 180; // 3 minutes per copy
-                          const progressPercent = activeJob.status === "Listo" 
-                            ? 0 
-                            : Math.min(100, Math.floor((activeJob.elapsedSeconds / estimatedTotalSeconds) * 100));
-                          
-                          return (
-                            <div className="progress-container-outer">
-                              <div className="progress-bar-track">
-                                <div 
-                                  className={`progress-bar-fill ${activeJob.status.toLowerCase()}`}
-                                  style={{ width: `${progressPercent}%` }}
-                                >
-                                  {progressPercent > 5 && activeJob.status === "Imprimiendo" && (
-                                    <div className="progress-shimmer"></div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="progress-footer">
-                                <span className="progress-percent-text">{progressPercent}% completado</span>
-                                <span className="progress-estimate-text">
-                                  {activeJob.status === "Listo" 
-                                    ? "Espera inicio" 
-                                    : activeJob.status === "Pausado" 
-                                    ? "Pausado" 
-                                    : `Est. ${formatTime(Math.max(0, estimatedTotalSeconds - activeJob.elapsedSeconds))} restantes`}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                      </div>
                     </div>
                   </div>
 
@@ -886,139 +841,261 @@ export const ColasImpresionPage = () => {
 
             <div className="queue-table-wrapper">
               {queue.length > 0 ? (
-                <table className="queue-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '36px' }}>Pos</th>
-                      <th style={{ width: '18%' }}>Documento</th>
-                      <th style={{ width: '12%' }}>Cliente</th>
-                      <th style={{ width: '70px' }}>Urgencia</th>
-                      <th style={{ width: '90px' }}>Copias</th>
-                      <th style={{ width: '16%' }}>Sustrato / Medidas</th>
-                      <th style={{ width: '10%' }}>Enviado por</th>
-                      <th style={{ width: '110px' }}>Fecha Envío</th>
-                      <th style={{ width: '80px' }}>Estado</th>
-                      <th style={{ width: '130px', textAlign: 'center' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedQueue.map((job, index) => (
-                      <tr key={job.id}>
-                        <td>
-                          <span className="queue-position-badge">{(queuePage - 1) * queueItemsPerPage + index + 1}</span>
-                        </td>
+                <>
+                  <div className="colas-desktop-only">
+                    <table className="queue-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '36px' }}>Pos</th>
+                          <th style={{ width: '18%' }}>Documento</th>
+                          <th style={{ width: '12%' }}>Cliente</th>
+                          <th style={{ width: '70px' }}>Urgencia</th>
+                          <th style={{ width: '90px' }}>Copias</th>
+                          <th style={{ width: '16%' }}>Sustrato / Medidas</th>
+                          <th style={{ width: '10%' }}>Enviado por</th>
+                          <th style={{ width: '110px' }}>Fecha Envío</th>
+                          <th style={{ width: '80px' }}>Estado</th>
+                          <th style={{ width: '130px', textAlign: 'center' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedQueue.map((job, index) => (
+                          <tr key={job.id}>
+                            <td>
+                              <span className="queue-position-badge">{(queuePage - 1) * queueItemsPerPage + index + 1}</span>
+                            </td>
 
-                         <td style={{ fontWeight: 600, color: '#1e293b', verticalAlign: 'middle' }}>
-                           {(() => {
-                             const files = parseJobFiles(job);
-                             return (
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                 <span style={{ color: '#0f172a', display: 'block' }}>{job.name}</span>
-                                 {files.length > 0 && (
-                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.2rem' }}>
-                                     {files.map((f, i) => (
-                                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '0.15rem 0.35rem', borderRadius: '6px', maxWidth: '200px' }} title={f.name}>
-                                         <div style={{ width: '20px', height: '20px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                           {isImageFile(f.name, f.url) ? (
-                                             <img src={f.url} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                           ) : (
-                                             <span style={{ fontSize: '9px' }}>📄</span>
-                                           )}
-                                         </div>
-                                         <span style={{ fontSize: '0.65rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
-                                           {f.name}
-                                         </span>
+                             <td style={{ fontWeight: 600, color: '#1e293b', verticalAlign: 'middle' }}>
+                               {(() => {
+                                 const files = parseJobFiles(job);
+                                 return (
+                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                     <span style={{ color: '#0f172a', display: 'block' }}>{job.name}</span>
+                                     {files.length > 0 && (
+                                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.2rem' }}>
+                                         {files.map((f, i) => (
+                                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '0.15rem 0.35rem', borderRadius: '6px', maxWidth: '200px' }} title={f.name}>
+                                             <div style={{ width: '20px', height: '20px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                               {isImageFile(f.name, f.url) ? (
+                                                 <img src={f.url} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                               ) : (
+                                                 <span style={{ fontSize: '9px' }}>📄</span>
+                                               )}
+                                             </div>
+                                             <span style={{ fontSize: '0.65rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                               {f.name}
+                                             </span>
+                                           </div>
+                                         ))}
                                        </div>
-                                     ))}
+                                     )}
                                    </div>
-                                 )}
-                               </div>
-                             );
-                           })()}
-                         </td>
+                                 );
+                               })()}
+                             </td>
 
-                        <td style={{ fontWeight: 500, color: '#475569' }}>
-                          <div>{job.client || 'Sin cliente'}</div>
-                          {job.proyectoNombre && (
-                            <div style={{ fontSize: '0.725rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.15rem' }}>
-                              {job.proyectoNombre}
-                            </div>
-                          )}
-                        </td>
-                        <td>{renderPriorityBadge(job.urgency)}</td>
-                        <td>{job.copies} {job.copies === 1 ? 'copia' : 'copias'}</td>
-                        <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                            <span style={{ fontWeight: 600 }}>{job.format}</span>
-                            <span style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 500 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
-                            {job.notes && (
-                              <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={job.notes}>
-                                Obs: {job.notes}
+                            <td style={{ fontWeight: 500, color: '#475569' }}>
+                              <div>{job.client || 'Sin cliente'}</div>
+                              {job.proyectoNombre && (
+                                <div style={{ fontSize: '0.725rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.15rem' }}>
+                                  {job.proyectoNombre}
+                                </div>
+                              )}
+                            </td>
+                            <td>{renderPriorityBadge(job.urgency)}</td>
+                            <td>{job.copies} {job.copies === 1 ? 'copia' : 'copias'}</td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                <span style={{ fontWeight: 600 }}>{job.format}</span>
+                                <span style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 500 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
+                                {job.notes && (
+                                  <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={job.notes}>
+                                    Obs: {job.notes}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td>{job.sentBy || 'Usuario'}</td>
+                            <td style={{ fontSize: '0.85rem', color: '#64748b' }}>{job.sentAt || 'Sin fecha'}</td>
+                            <td>
+                              <span className="queue-status-badge status-waiting">
+                                {job.status}
                               </span>
-                            )}
-                          </div>
-                        </td>
-                        <td>{job.sentBy || 'Usuario'}</td>
-                        <td style={{ fontSize: '0.85rem', color: '#64748b' }}>{job.sentAt || 'Sin fecha'}</td>
-                        <td>
-                          <span className="queue-status-badge status-waiting">
-                            {job.status}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="action-buttons-group" style={{ justifyContent: 'center' }}>
-                            <button 
-                              type="button" 
-                              onClick={() => handleOpenPrepModal(job)}
-                              className="btn-action btn-action-play" 
-                              title="Cargar e Imprimir"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                              </svg>
-                            </button>
-                            
-                            <button 
-                              type="button" 
-                              onClick={() => handleMoveUp((queuePage - 1) * queueItemsPerPage + index)}
-                              className="btn-action btn-action-up" 
-                              title="Subir prioridad"
-                              disabled={(queuePage - 1) * queueItemsPerPage + index === 0}
-                              style={(queuePage - 1) * queueItemsPerPage + index === 0 ? { opacity: 0.35, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-                              </svg>
-                            </button>
+                            </td>
+                            <td>
+                              <div className="action-buttons-group" style={{ justifyContent: 'center' }}>
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleOpenPrepModal(job)}
+                                  className="btn-action btn-action-play" 
+                                  title="Cargar e Imprimir"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                                  </svg>
+                                </button>
+                                
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleMoveUp((queuePage - 1) * queueItemsPerPage + index)}
+                                  className="btn-action btn-action-up" 
+                                  title="Subir prioridad"
+                                  disabled={(queuePage - 1) * queueItemsPerPage + index === 0}
+                                  style={(queuePage - 1) * queueItemsPerPage + index === 0 ? { opacity: 0.35, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                                  </svg>
+                                </button>
 
-                            <a 
-                              href={getDownloadUrl(job)}
-                              download={job.name}
-                              className="btn-action btn-action-download" 
-                              title="Descargar archivo"
-                              style={{ textDecoration: 'none' }}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                            </a>
+                                <a 
+                                  href={getDownloadUrl(job)}
+                                  download={job.name}
+                                  className="btn-action btn-action-download" 
+                                  title="Descargar archivo"
+                                  style={{ textDecoration: 'none' }}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                  </svg>
+                                </a>
 
-                            <button 
-                              type="button" 
-                              onClick={() => handleCancelQueueJob(job.id)}
-                              className="btn-action btn-action-cancel" 
-                              title="Cancelar trabajo"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                              </svg>
-                            </button>
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleCancelQueueJob(job.id)}
+                                  className="btn-action btn-action-cancel" 
+                                  title="Cancelar trabajo"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Cards View */}
+                  <div className="colas-mobile-only">
+                    <div className="colas-mobile-cards-grid">
+                      {paginatedQueue.map((job, index) => {
+                        const files = parseJobFiles(job);
+                        const realIndex = (queuePage - 1) * queueItemsPerPage + index;
+                        return (
+                          <div key={job.id} className="colas-mobile-card">
+                            <div className="colas-card-header">
+                              <span className="colas-card-pos">#{realIndex + 1}</span>
+                              <div className="colas-card-title-group">
+                                <span className="colas-card-title">{job.name}</span>
+                                <span className="colas-card-client">{job.client || 'Sin cliente'}</span>
+                                {job.proyectoNombre && (
+                                  <span className="colas-card-project">{job.proyectoNombre}</span>
+                                )}
+                              </div>
+                              {renderPriorityBadge(job.urgency)}
+                            </div>
+                            <div className="colas-card-body">
+                              {files.length > 0 && (
+                                <div className="colas-card-files">
+                                  {files.map((f, i) => (
+                                    <div key={i} className="colas-card-file-chip" title={f.name}>
+                                      <div className="colas-card-file-preview">
+                                        {isImageFile(f.name, f.url) ? (
+                                          <img src={f.url} alt="thumb" />
+                                        ) : (
+                                          <span>📄</span>
+                                        )}
+                                      </div>
+                                      <span className="colas-card-file-name">{f.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="colas-card-row">
+                                <span className="colas-card-label">Sustrato / Formato:</span>
+                                <span className="colas-card-value font-bold">{job.format}</span>
+                              </div>
+                              <div className="colas-card-row">
+                                <span className="colas-card-label">Medidas:</span>
+                                <span className="colas-card-value text-blue-600">{job.width || 1.0}m x {job.height || 1.0}m</span>
+                              </div>
+                              <div className="colas-card-row">
+                                <span className="colas-card-label">Copias:</span>
+                                <span className="colas-card-value">{job.copies}</span>
+                              </div>
+                              <div className="colas-card-row">
+                                <span className="colas-card-label">Enviado por:</span>
+                                <span className="colas-card-value">{job.sentBy || 'Usuario'}</span>
+                              </div>
+                              <div className="colas-card-row">
+                                <span className="colas-card-label">Fecha Envío:</span>
+                                <span className="colas-card-value date">{job.sentAt || 'Sin fecha'}</span>
+                              </div>
+                              {job.notes && (
+                                <div className="colas-card-notes">
+                                  <strong>Notas:</strong> {job.notes}
+                                </div>
+                              )}
+                            </div>
+                            <div className="colas-card-actions">
+                              <button 
+                                type="button" 
+                                onClick={() => handleOpenPrepModal(job)}
+                                className="btn-action-mobile btn-play" 
+                                title="Cargar e Imprimir"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                                </svg>
+                                <span>Imprimir</span>
+                              </button>
+                              
+                              <button 
+                                type="button" 
+                                onClick={() => handleMoveUp(realIndex)}
+                                className="btn-action-mobile btn-up" 
+                                title="Subir prioridad"
+                                disabled={realIndex === 0}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                                </svg>
+                                <span>Priorizar</span>
+                              </button>
+
+                              <a 
+                                href={getDownloadUrl(job)}
+                                download={job.name}
+                                className="btn-action-mobile btn-download" 
+                                title="Descargar archivo"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                <span>Bajar</span>
+                              </a>
+
+                              <button 
+                                type="button" 
+                                onClick={() => handleCancelQueueJob(job.id)}
+                                className="btn-action-mobile btn-cancel" 
+                                title="Cancelar trabajo"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                                <span>Cancelar</span>
+                              </button>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
               ) : (
                 <div className="empty-queue-msg" style={{ padding: '4rem 0' }}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="empty-queue-icon">
@@ -1112,98 +1189,189 @@ export const ColasImpresionPage = () => {
 
           <div className="queue-table-wrapper">
             {paginatedHistory.length > 0 ? (
-              <table className="queue-table history-table-clickable">
-                <thead>
-                  <tr>
-                    <th style={{ width: '90px' }}>Finalización</th>
-                    <th style={{ width: '16%' }}>Documento</th>
-                    <th style={{ width: '11%' }}>Cliente</th>
-                    <th style={{ width: '70px' }}>Urgencia</th>
-                    <th style={{ width: '80px' }}>Copias</th>
-                    <th style={{ width: '14%' }}>Sustrato / Medidas</th>
-                    <th style={{ width: '9%' }}>Enviado por</th>
-                    <th style={{ width: '10%' }}>Responsable</th>
-                    <th style={{ width: '70px' }}>Duración</th>
-                    <th style={{ width: '80px' }}>Estado</th>
-                    <th style={{ width: '50px', textAlign: 'center' }}>Ver</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedHistory.map((job) => (
-                    <tr 
-                      key={job.id} 
-                      onClick={() => { setSelectedJobDetails(job); setShowDetailsModal(true); }}
-                      style={{ cursor: 'pointer' }}
-                      title="Haz clic para ver la ficha técnica detallada"
-                    >
-                      <td style={{ fontWeight: 600, color: '#64748b' }}>{job.completedAt}</td>
-                      <td style={{ fontWeight: 600, color: '#1e293b' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          <span>{job.name}</span>
+              <>
+                <div className="colas-desktop-only">
+                  <table className="queue-table history-table-clickable">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '90px' }}>Finalización</th>
+                        <th style={{ width: '16%' }}>Documento</th>
+                        <th style={{ width: '11%' }}>Cliente</th>
+                        <th style={{ width: '70px' }}>Urgencia</th>
+                        <th style={{ width: '80px' }}>Copias</th>
+                        <th style={{ width: '14%' }}>Sustrato / Medidas</th>
+                        <th style={{ width: '9%' }}>Enviado por</th>
+                        <th style={{ width: '10%' }}>Responsable</th>
+                        <th style={{ width: '70px' }}>Duración</th>
+                        <th style={{ width: '80px' }}>Estado</th>
+                        <th style={{ width: '50px', textAlign: 'center' }}>Ver</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedHistory.map((job) => (
+                        <tr 
+                          key={job.id} 
+                          onClick={() => { setSelectedJobDetails(job); setShowDetailsModal(true); }}
+                          style={{ cursor: 'pointer' }}
+                          title="Haz clic para ver la ficha técnica detallada"
+                        >
+                          <td style={{ fontWeight: 600, color: '#64748b' }}>{job.completedAt}</td>
+                          <td style={{ fontWeight: 600, color: '#1e293b' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <span>{job.name}</span>
+                              <a 
+                                href={getDownloadUrl(job)}
+                                download={job.name}
+                                onClick={e => e.stopPropagation()} // Stop row click event from bubbling to tr
+                                style={{ color: 'var(--color-primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '0.2,rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600 }}
+                                title="Descargar archivo"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                Descargar
+                              </a>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 500, color: '#475569' }}>
+                            <div>{job.client || 'Sin cliente'}</div>
+                            {job.proyectoNombre && (
+                              <div style={{ fontSize: '0.725rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.15rem' }}>
+                                {job.proyectoNombre}
+                              </div>
+                            )}
+                          </td>
+                          <td>{renderPriorityBadge(job.urgency)}</td>
+                          <td>{job.copies} {job.copies === 1 ? 'copia' : 'copias'}</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                              <span style={{ fontWeight: 600 }}>{job.format}</span>
+                              <span style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 500 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
+                              {job.notes && (
+                                <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={job.notes}>
+                                  Obs: {job.notes}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td>{job.sentBy || 'Usuario'}</td>
+                          <td>{job.responsible || 'ISAM'}</td>
+                          <td>{formatTime(job.elapsedSeconds)}</td>
+                          <td>
+                            <span className={`queue-status-badge ${job.status === 'Completado' ? 'status-completed' : 'status-canceled'}`}>
+                              {job.status === 'Completado' ? 'Completado' : 'Cancelado'}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button 
+                              type="button" 
+                              className="btn-action" 
+                              title="Ver Ficha Técnica"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedJobDetails(job);
+                                setShowDetailsModal(true);
+                              }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="colas-mobile-only">
+                  <div className="colas-mobile-cards-grid">
+                    {paginatedHistory.map((job) => (
+                      <div 
+                        key={job.id} 
+                        className="colas-mobile-card history-card"
+                        onClick={() => { setSelectedJobDetails(job); setShowDetailsModal(true); }}
+                      >
+                        <div className="colas-card-header">
+                          <span className="colas-card-date">{job.completedAt}</span>
+                          <div className="colas-card-title-group">
+                            <span className="colas-card-title">{job.name}</span>
+                            <span className="colas-card-client">{job.client || 'Sin cliente'}</span>
+                            {job.proyectoNombre && (
+                              <span className="colas-card-project">{job.proyectoNombre}</span>
+                            )}
+                          </div>
+                          <span className={`queue-status-badge ${job.status === 'Completado' ? 'status-completed' : 'status-canceled'}`}>
+                            {job.status === 'Completado' ? 'Completado' : 'Cancelado'}
+                          </span>
+                        </div>
+                        <div className="colas-card-body">
+                          <div className="colas-card-row">
+                            <span className="colas-card-label">Sustrato / Formato:</span>
+                            <span className="colas-card-value font-bold">{job.format}</span>
+                          </div>
+                          <div className="colas-card-row">
+                            <span className="colas-card-label">Medidas:</span>
+                            <span className="colas-card-value text-blue-600">{job.width || 1.0}m x {job.height || 1.0}m</span>
+                          </div>
+                          <div className="colas-card-row">
+                            <span className="colas-card-label">Copias:</span>
+                            <span className="colas-card-value">{job.copies}</span>
+                          </div>
+                          <div className="colas-card-row">
+                            <span className="colas-card-label">Urgencia:</span>
+                            <span className="colas-card-value">{renderPriorityBadge(job.urgency)}</span>
+                          </div>
+                          <div className="colas-card-row">
+                            <span className="colas-card-label">Enviado por:</span>
+                            <span className="colas-card-value">{job.sentBy || 'Usuario'}</span>
+                          </div>
+                          <div className="colas-card-row">
+                            <span className="colas-card-label">Responsable:</span>
+                            <span className="colas-card-value">{job.responsible || 'ISAM'}</span>
+                          </div>
+                          <div className="colas-card-row">
+                            <span className="colas-card-label">Duración:</span>
+                            <span className="colas-card-value">{formatTime(job.elapsedSeconds)}</span>
+                          </div>
+                        </div>
+                        <div className="colas-card-actions">
                           <a 
                             href={getDownloadUrl(job)}
                             download={job.name}
-                            onClick={e => e.stopPropagation()} // Stop row click event from bubbling to tr
-                            style={{ color: 'var(--color-primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600 }}
+                            onClick={e => e.stopPropagation()}
+                            className="btn-action-mobile btn-download" 
                             title="Descargar archivo"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                             </svg>
-                            Descargar
+                            <span>Descargar</span>
                           </a>
+                          <button 
+                            type="button" 
+                            className="btn-action-mobile btn-details" 
+                            title="Ver Ficha Técnica"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedJobDetails(job);
+                              setShowDetailsModal(true);
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            <span>Detalle</span>
+                          </button>
                         </div>
-                      </td>
-                      <td style={{ fontWeight: 500, color: '#475569' }}>
-                        <div>{job.client || 'Sin cliente'}</div>
-                        {job.proyectoNombre && (
-                          <div style={{ fontSize: '0.725rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.15rem' }}>
-                            {job.proyectoNombre}
-                          </div>
-                        )}
-                      </td>
-                      <td>{renderPriorityBadge(job.urgency)}</td>
-                      <td>{job.copies} {job.copies === 1 ? 'copia' : 'copias'}</td>
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                          <span style={{ fontWeight: 600 }}>{job.format}</span>
-                          <span style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 500 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
-                          {job.notes && (
-                            <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={job.notes}>
-                              Obs: {job.notes}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td>{job.sentBy || 'Usuario'}</td>
-                      <td>{job.responsible || 'ISAM'}</td>
-                      <td>{formatTime(job.elapsedSeconds)}</td>
-                      <td>
-                        <span className={`queue-status-badge ${job.status === 'Completado' ? 'status-completed' : 'status-canceled'}`}>
-                          {job.status === 'Completado' ? 'Completado' : 'Cancelado'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button 
-                          type="button" 
-                          className="btn-action" 
-                          title="Ver Ficha Técnica"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedJobDetails(job);
-                            setShowDetailsModal(true);
-                          }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="empty-queue-msg" style={{ padding: '4rem 0' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="empty-queue-icon">

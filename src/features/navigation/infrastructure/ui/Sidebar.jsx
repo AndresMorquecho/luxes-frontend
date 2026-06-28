@@ -54,7 +54,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const canViewFinanzas = canViewReportesFinancieros || canViewCierreCaja || (!isImpresion && !isTaller);
   const canViewTareas = true;
   const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
-  const canViewInstalaciones = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller;
+  const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller);
   const canViewCompras = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion || isTaller;
   const canViewRelaciones = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
 
@@ -662,16 +662,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         <span className="sidebar-submenu-text">{isImpresion || isTaller ? 'Órdenes activas' : 'Órdenes de Compra'}</span>
                       </Link>
                     </li>
-                    {(isImpresion || isTaller) && (
-                      <li className={currentPath.startsWith('/compras/historial') ? 'submenu-active' : ''}>
-                        <Link to="/compras/historial" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Historial de órdenes</span>
-                        </Link>
-                      </li>
-                    )}
+
                     <li className={currentPath.startsWith('/compras/recepcion') ? 'submenu-active' : ''}>
                       <Link to="/compras/recepcion" className="sidebar-submenu-link">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">

@@ -237,6 +237,13 @@ export const VentasPage = () => {
           to   { transform: scale(1) translateY(0); opacity: 1; }
         }
         .animate-ve-modal-in { animation: ve-modal-in 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+        .ve-desktop-only { display: block; }
+        .ve-mobile-only { display: none; }
+        @media (max-width: 768px) {
+          .ve-desktop-only { display: none !important; }
+          .ve-mobile-only { display: block !important; }
+        }
       `}</style>
 
       {/* Header */}
@@ -311,21 +318,85 @@ export const VentasPage = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-slate-100/60 bg-slate-50/50">
-                  <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proforma</th>
-                  <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</th>
-                  <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fecha</th>
-                  <th className="text-right px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total</th>
-                  <th className="text-right px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cobrado</th>
-                  <th className="text-right px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pendiente</th>
-                  <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estado</th>
-                  <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-24">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100/40">
+          <>
+            <div className="ve-desktop-only">
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-slate-100/60 bg-slate-50/50">
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proforma</th>
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</th>
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fecha</th>
+                      <th className="text-right px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total</th>
+                      <th className="text-right px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cobrado</th>
+                      <th className="text-right px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pendiente</th>
+                      <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estado</th>
+                      <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-24">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/40">
+                    {paginated.map((v) => {
+                      const subtotal = v.items.reduce((s, item) => s + (item.cantidad || 0) * (item.precioUnitario || 0), 0);
+                      const total = subtotal * (1 + (v.iva || 0));
+                      const cobrado = (v.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
+                      const pendiente = Math.max(0, total - cobrado);
+
+                      return (
+                        <tr key={v.id} className="ve-tr">
+                          <td className="px-5 py-4">
+                            <span className="font-mono text-[12px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{v.id}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="font-semibold text-slate-800">{v.cliente}</div>
+                            {v.email && <div className="text-[11px] text-slate-400 mt-0.5">{v.email}</div>}
+                          </td>
+                          <td className="px-5 py-4 text-slate-500 text-[12px]">{v.fecha}</td>
+                          <td className="px-5 py-4 text-right font-bold text-slate-800 font-mono">{fmt(total)}</td>
+                          <td className="px-5 py-4 text-right font-semibold text-emerald-600 font-mono">{fmt(cobrado)}</td>
+                          <td className="px-5 py-4 text-right font-semibold text-amber-600 font-mono">{fmt(pendiente)}</td>
+                          <td className="px-5 py-4 text-center">
+                            {pendiente > 0.01 ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200" title={`Falta cobrar ${fmt(pendiente)}`}>
+                                Pendiente
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200">
+                                Pagado
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => navigate(`/proformas/detalle/${v.id}`)}
+                                className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" 
+                                title="Ver Detalle">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                </svg>
+                              </button>
+                              {pendiente > 0.01 && (
+                                <button onClick={() => handleOpenAbono(v, pendiente, total)}
+                                  className="p-2 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors" 
+                                  title="Registrar Cobro/Abono">
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards for Ventas */}
+            <div className="ve-mobile-only p-4">
+              <div className="flex flex-col gap-4">
                 {paginated.map((v) => {
                   const subtotal = v.items.reduce((s, item) => s + (item.cantidad || 0) * (item.precioUnitario || 0), 0);
                   const total = subtotal * (1 + (v.iva || 0));
@@ -333,59 +404,62 @@ export const VentasPage = () => {
                   const pendiente = Math.max(0, total - cobrado);
 
                   return (
-                    <tr key={v.id} className="ve-tr">
-                      <td className="px-5 py-4">
-                        <span className="font-mono text-[12px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{v.id}</span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="font-semibold text-slate-800">{v.cliente}</div>
-                        {v.email && <div className="text-[11px] text-slate-400 mt-0.5">{v.email}</div>}
-                      </td>
-                      <td className="px-5 py-4 text-slate-500 text-[12px]">{v.fecha}</td>
-                      <td className="px-5 py-4 text-right font-bold text-slate-800 font-mono">{fmt(total)}</td>
-                      <td className="px-5 py-4 text-right font-semibold text-emerald-600 font-mono">{fmt(cobrado)}</td>
-                      <td className="px-5 py-4 text-right font-semibold text-amber-600 font-mono">{fmt(pendiente)}</td>
-                      <td className="px-5 py-4 text-center">
-                        {pendiente > 0.01 ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200" title={`Falta cobrar ${fmt(pendiente)}`}>
-                            Pendiente
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200">
-                            Pagado
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center justify-center gap-1">
+                    <div key={v.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                      <div className="flex justify-between items-center border-b border-slate-50 pb-2">
+                        <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">{v.id}</span>
+                        <span className="text-slate-400 text-xs">{v.fecha}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <div className="font-bold text-slate-800 text-sm">{v.cliente}</div>
+                        {v.email && <div className="text-[11px] text-slate-400">{v.email}</div>}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 bg-slate-50/50 rounded-xl p-2.5 mt-1 text-center">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-slate-400 font-semibold uppercase">Total</span>
+                          <span className="text-xs font-bold text-slate-800 font-mono mt-0.5">{fmt(total)}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-slate-400 font-semibold uppercase">Cobrado</span>
+                          <span className="text-xs font-bold text-emerald-600 font-mono mt-0.5">{fmt(cobrado)}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-slate-400 font-semibold uppercase">Saldo</span>
+                          <span className="text-xs font-bold text-amber-600 font-mono mt-0.5">{fmt(pendiente)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-50">
+                        <div>
+                          {pendiente > 0.01 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                              Pendiente
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Pagado
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
                           <button onClick={() => navigate(`/proformas/detalle/${v.id}`)}
-                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" 
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1"
                             title="Ver Detalle">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                            </svg>
+                            Ver
                           </button>
                           {pendiente > 0.01 && (
                             <button onClick={() => handleOpenAbono(v, pendiente, total)}
-                              className="p-2 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors" 
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center gap-1"
                               title="Registrar Cobro/Abono">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                              </svg>
+                              Cobrar
                             </button>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-                {paginated.length === 0 && (
-                  <tr><td colSpan={8} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron registros de ventas</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          </>
         )}
 
         {totalPages > 1 && (

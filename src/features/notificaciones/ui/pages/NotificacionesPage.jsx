@@ -57,14 +57,27 @@ const getNotificationRoute = (notification) => {
     return '/proformas';
   }
 
-  // Instalación iniciada o completada
+  // Instalación iniciada o completada / Montaje
   if (title.includes('instalación') || title.includes('instalacion')
-    || message.includes('instalación') || message.includes('instalacion')) {
+    || message.includes('instalación') || message.includes('instalacion')
+    || title.includes('montaje') || message.includes('montaje')) {
+    
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const userRole = (user?.rol || '').toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'administrador';
+
     const proyectoId = notification.proyectoId
       || notification.data?.proyectoId
-      || (notification.message || '').match(/PROY-\d+/i)?.[0];
-    if (proyectoId) return `/proyectos/${proyectoId}`;
-    return '/instalaciones';
+      || (notification.message || '').match(/PROY-\d+/i)?.[0]
+      || (notification.message || '').match(/[0-9a-fA-F]{24}/)?.[0];
+      
+    if (isAdmin) {
+      if (proyectoId) return `/proyectos/${proyectoId}`;
+      return '/proyectos';
+    } else {
+      if (proyectoId) return `/proyectos/${proyectoId}`;
+      return '/instalaciones';
+    }
   }
   
   return null;

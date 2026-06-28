@@ -117,8 +117,22 @@ export async function registrarMovimiento(materialId, body) {
 
 // ── Préstamos ───────────────────────────────────────────────────────────────
 
-export async function getPrestamos(estado) {
-  const url = estado ? `/api/inventario/prestamos?estado=${estado}` : '/api/inventario/prestamos';
+export async function getPrestamos(options) {
+  const params = new URLSearchParams();
+  if (typeof options === 'string') {
+    params.append('estado', options);
+  } else if (options && typeof options === 'object') {
+    const { estado, page, limit, fechaInicio, fechaFin, searchTool, filterPersona } = options;
+    if (estado) params.append('estado', estado);
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    if (fechaInicio) params.append('fechaInicio', fechaInicio);
+    if (fechaFin) params.append('fechaFin', fechaFin);
+    if (searchTool) params.append('searchTool', searchTool);
+    if (filterPersona) params.append('filterPersona', filterPersona);
+  }
+
+  const url = `/api/inventario/prestamos?${params.toString()}`;
   const res = await fetch(url, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener préstamos');

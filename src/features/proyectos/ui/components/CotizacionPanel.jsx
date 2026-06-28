@@ -153,7 +153,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
           
           {/* Dropdown de resultados */}
           {isDropdownOpen && (
-            <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-80 overflow-y-auto">
+            <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-72 overflow-y-auto overflow-x-hidden">
               {filteredProformas.length === 0 ? (
                 <div className="p-6 text-center text-slate-500">
                   {proformas.length === 0 
@@ -169,12 +169,14 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
                     className="w-full flex items-center justify-between p-4 hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors text-left"
                     onClick={() => handleSelect(c)}
                   >
-                    <div className="flex-1 pr-4">
-                      <p className="text-sm font-bold text-slate-800 mb-0.5">{c.id}</p>
-                      <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-                        <span className="font-semibold text-slate-600">{c.cliente}</span>
-                        <span className="flex items-center gap-1"><FileText size={12} className="text-slate-400" /> {c.items?.length || 0} ítem(s)</span>
-                        <span className="flex items-center gap-1"><Calendar size={12} className="text-slate-400" /> {c.fecha}</span>
+                    <div className="flex-1 pr-2 min-w-0">
+                      <p className="text-sm font-bold text-slate-800 mb-0.5 truncate">{c.id}</p>
+                      <div className="flex flex-col gap-0.5 text-xs text-slate-500 flex-wrap">
+                        <span className="font-semibold text-slate-600 truncate">{c.cliente}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1"><FileText size={12} className="text-slate-400" /> {c.items?.length || 0} ítem(s)</span>
+                          <span className="flex items-center gap-1"><Calendar size={12} className="text-slate-400" /> {c.fecha}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -198,7 +200,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
             Proformas Vinculadas
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {selectedCotizaciones.map(c => (
               <div key={c.id} className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col shadow-sm group hover:border-blue-300 transition-colors">
                 <div className="flex items-start justify-between mb-3">
