@@ -948,3 +948,186 @@
   padding-top: 0;
   border-top: none;
 }
+
+/* ── Pagination styling ────────────────────────────────────────────────── */
+.prest-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  margin-top: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.prest-pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.prest-page-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.prest-page-btn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #1e293b;
+}
+.prest-page-btn.active-page {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: transparent;
+}
+.prest-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.prest-pagination-info {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* ── DateRangePicker custom container ───────────────────────────────────── */
+.prest-datepicker-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 240px;
+}
+.prest-datepicker-container label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── Card layout for mobile ──────────────────────────────────────────────── */
+.prest-mobile-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.prest-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.025);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  text-align: left;
+}
+.prest-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.025);
+}
+.prest-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.prest-card-tool {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.prest-card-tool-name {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+.prest-card-tool-code {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.1rem;
+}
+.prest-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-top: 1px dashed #e2e8f0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.prest-card-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.prest-card-field-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.prest-card-field-value {
+  font-size: 0.85rem;
+  color: #334155;
+  font-weight: 500;
+}
+.prest-card-field-value .prest-unit {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+.prest-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+.prest-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+.prest-card-actions button {
+  width: 100%;
+  text-align: center;
+}
+
+/* ── Responsive toggles ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .devoluciones-desktop-only {
+    display: none !important;
+  }
+  .prest-devoluciones-mobile-only {
+    display: block !important;
+  }
+  
+  .prest-datepicker-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (min-width: 769px) {
+  .devoluciones-desktop-only {
+    display: block !important;
+  }
+  .prest-devoluciones-mobile-only {
+    display: none !important;
+  }
+}

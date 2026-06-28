@@ -8,6 +8,7 @@ import {
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import './ComprasPage.css';
 
 const ESTADOS = ['pendiente_aprobacion', 'aprobada', 'recibida', 'cancelada'];
@@ -61,7 +62,8 @@ export const ComprasPage = () => {
   const [ordenTotal, setOrdenTotal] = useState(0);
   const [ordenSearch, setOrdenSearch] = useState('');
   const [ordenLoading, setOrdenLoading] = useState(true);
-  const perPage = 8;
+  const [fechas, setFechas] = useState({ start: '', end: '' });
+  const perPage = 25;
 
   // ── PDF state ──
   const [isPDFOpen, setIsPDFOpen] = useState(false);
@@ -114,12 +116,14 @@ export const ComprasPage = () => {
         estados: (isImpresion || isTaller)
           ? ['pendiente_aprobacion', 'aprobada', 'parcialmente_recibida']
           : undefined,
+        fechaInicio: fechas.start || undefined,
+        fechaFin: fechas.end || undefined
       });
       setOrdenes(data.items || []);
       setOrdenTotal(data.total || 0);
     } catch { setOrdenes([]); setOrdenTotal(0); }
     finally { setOrdenLoading(false); }
-  }, [ordenPage, ordenSearch, isImpresion, isTaller, currentUser]);
+  }, [ordenPage, ordenSearch, isImpresion, isTaller, currentUser, fechas]);
 
   const loadMetodos = useCallback(async () => {
     try { const m = await getMetodosPago(); setMetodos(m); } catch {}
@@ -131,11 +135,15 @@ export const ComprasPage = () => {
     loadMetodos();
   }, [loadStats, loadOrdenes, loadMetodos]);
 
+  useEffect(() => {
+    setOrdenPage(1);
+  }, [fechas, ordenSearch]);
+
   // ── Search debounce ──
   const handleOrdenSearchChange = (e) => {
     const val = e.target.value;
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => { setOrdenSearch(val); setOrdenPage(1); }, 350);
+    searchTimer.current = setTimeout(() => { setOrdenSearch(val); }, 350);
   };
 
   const handleOrdenDelete = async (id) => {
@@ -228,6 +236,31 @@ export const ComprasPage = () => {
 
   const ordenTotalPages = Math.max(1, Math.ceil(ordenTotal / perPage));
 
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    let start = Math.max(1, ordenPage - Math.floor(maxVisible / 2));
+    let end = Math.min(ordenTotalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          type="button"
+          className={`prest-page-btn ${ordenPage === i ? 'active-page' : ''}`}
+          onClick={() => setOrdenPage(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
+
   return (
     <div className="co-page animate-slide-up">
 
@@ -275,14 +308,24 @@ export const ComprasPage = () => {
 
       {/* Table Card */}
       <div className="co-card co-table-card">
-        <div className="co-table-header">
-          <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input className="co-search-inline" placeholder="Buscar por número, proveedor o concepto…" onChange={handleOrdenSearchChange} id="search-ordenes" />
+        <div className="co-table-header" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-2" style={{ flex: '1 1 200px' }}>
+            <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input className="co-search-inline" placeholder="Buscar por número, proveedor o concepto…" onChange={handleOrdenSearchChange} id="search-ordenes" />
+          </div>
+          <div className="prest-datepicker-container">
+            <DateRangePicker
+              value={fechas}
+              onChange={(val) => setFechas({ start: val.start, end: val.end })}
+              placeholder="Rango de fechas"
+            />
+          </div>
         </div>
 
-        <div className="overflow-x-auto relative">
+        {/* Desktop View: Table */}
+        <div className="overflow-x-auto relative devoluciones-desktop-only">
           {ordenLoading && (
             <div className="co-loader-box co-loader-overlay">
               <div className="co-spinner" />
@@ -370,13 +413,130 @@ export const ComprasPage = () => {
             </table>
           </div>
 
+        {/* Mobile View: Cards */}
+        <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
+          <div className="prest-mobile-cards">
+            {ordenLoading && (
+              <div className="flex justify-center py-8">
+                <div className="co-spinner" />
+              </div>
+            )}
+            {!ordenLoading && ordenes.map(o => (
+              <div key={o.id} className="prest-card">
+                <div className="prest-card-header">
+                  <div>
+                    <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>{o.numero}</span>
+                    <span className="prest-card-tool-name">{o.proveedor?.nombre || '—'}</span>
+                  </div>
+                  <span className="co-badge" style={{ background: ESTADO_BADGES[o.estado]?.bg, color: ESTADO_BADGES[o.estado]?.color, fontSize: '0.7rem' }}>
+                    {ESTADO_BADGES[o.estado]?.label || o.estado}
+                  </span>
+                </div>
+                <div className="prest-card-body">
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Emisor</span>
+                    <span className="prest-card-field-value">{o.usuario?.nombre || '—'}</span>
+                  </div>
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Fecha</span>
+                    <span className="prest-card-field-value">{fmtDate(o.fecha)}</span>
+                  </div>
+                  <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                    <span className="prest-card-field-label">Concepto</span>
+                    <span className="prest-card-field-value">{o.concepto || '—'}</span>
+                  </div>
+                  <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                    <span className="prest-card-field-label">Observaciones</span>
+                    <span className="prest-card-field-value text-slate-500" style={{ fontSize: '0.75rem' }}>{o.notas || '—'}</span>
+                  </div>
+                  {isAdmin && (
+                    <div className="prest-card-field">
+                      <span className="prest-card-field-label">Total</span>
+                      <span className="prest-card-field-value" style={{ fontWeight: 700 }}>{fmt(o.total)}</span>
+                    </div>
+                  )}
+                  {isAdmin && (
+                    <div className="prest-card-field">
+                      <span className="prest-card-field-label">Pago</span>
+                      <span className="prest-card-field-value">
+                        <span className="co-badge" style={{ background: PAGO_BADGES[o.estadoPago]?.bg, color: PAGO_BADGES[o.estadoPago]?.color, fontSize: '0.7rem' }}>
+                          {PAGO_BADGES[o.estadoPago]?.label || o.estadoPago}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="prest-card-footer">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex gap-2">
+                      <button onClick={() => openPDFPreview(o)} className="co-action-btn co-action-blue" title="Ver Previsualización PDF" style={{ border: '1px solid #e2e8f0' }}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                      </button>
+                      {o.estado === 'cancelada' && o.notas && (
+                        <button
+                          onClick={() => openViewReasonModal(o.notas, o.numero)}
+                          className="co-action-btn co-action-red"
+                          style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid #fecaca' }}
+                          title="Ver Motivo de Rechazo"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    {isAdmin && (
+                      <div className="flex gap-2">
+                        <button onClick={() => navigate(`/compras/editar/${o.id}`)} className="co-action-btn co-action-blue" title="Editar" style={{ border: '1px solid #e2e8f0' }}>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                          </svg>
+                        </button>
+                        <button onClick={() => handleOrdenDelete(o.id)} className="co-action-btn co-action-red" title="Eliminar" style={{ border: '1px solid #fecaca' }}>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!ordenLoading && ordenes.length === 0 && (
+              <div className="prest-empty text-center py-8">
+                No se encontraron órdenes de compra
+              </div>
+            )}
+          </div>
+        </div>
+
         {ordenTotalPages > 1 && (
-          <div className="co-pagination">
-            <span className="text-xs font-medium text-slate-400">{ordenTotal} orden{ordenTotal !== 1 ? 'es' : ''}</span>
-            <div className="flex items-center gap-1">
-              <button disabled={ordenPage <= 1} onClick={() => setOrdenPage(p => p - 1)} className="co-page-btn">‹</button>
-              <span className="text-xs font-semibold text-slate-500 px-2">{ordenPage} / {ordenTotalPages}</span>
-              <button disabled={ordenPage >= ordenTotalPages} onClick={() => setOrdenPage(p => p + 1)} className="co-page-btn">›</button>
+          <div className="prest-pagination">
+            <span className="prest-pagination-info">
+              {ordenTotal} órdenes ({ordenPage} de {ordenTotalPages})
+            </span>
+            <div className="prest-pagination-pages">
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={ordenPage <= 1}
+                onClick={() => setOrdenPage(p => p - 1)}
+              >
+                &lt;
+              </button>
+              {renderPageButtons()}
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={ordenPage >= ordenTotalPages}
+                onClick={() => setOrdenPage(p => p + 1)}
+              >
+                &gt;
+              </button>
             </div>
           </div>
         )}
@@ -436,7 +596,7 @@ export const ComprasPage = () => {
                     <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={abonoSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
                       {abonoSaving && <div className="co-spinner-sm" />}
-                      Registrar Abono
+                      Registrar Gasto
                     </button>
                   </div>
                 </form>

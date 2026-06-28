@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getOrdenes } from '../../../compras/application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { RecepcionNav } from './RecepcionNav';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import './RecepcionInsumos.css';
 
 const fmtDate = (d) => d
@@ -27,7 +28,8 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const perPage = 10;
+  const [fechas, setFechas] = useState({ start: '', end: '' });
+  const perPage = 25;
   const searchTimer = useRef(null);
 
   const loadOrdenes = useCallback(async () => {
@@ -39,6 +41,8 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
         search: search || undefined,
         estado: 'recibida',
         creadorRol: (isImpresion || isTaller) ? user?.rol : undefined,
+        fechaInicio: fechas.start || undefined,
+        fechaFin: fechas.end || undefined
       });
       setOrdenes(data.items || []);
       setTotal(data.total || 0);
@@ -49,16 +53,20 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
     } finally {
       setLoading(false);
     }
-  }, [page, search, isImpresion, isTaller, user]);
+  }, [page, search, isImpresion, isTaller, user, fechas]);
 
   useEffect(() => {
     loadOrdenes();
   }, [loadOrdenes]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [fechas, search]);
+
   const handleSearchChange = (e) => {
     const val = e.target.value;
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => { setSearch(val); setPage(1); }, 350);
+    searchTimer.current = setTimeout(() => { setSearch(val); }, 350);
   };
 
   const countRecibidos = (orden) =>
@@ -68,6 +76,31 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
     (orden.detalles || []).filter(d => d.descargableInventario && (d.cantidadRecibida ?? 0) > 0).length;
 
   const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    let start = Math.max(1, page - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          type="button"
+          className={`prest-page-btn ${page === i ? 'active-page' : ''}`}
+          onClick={() => setPage(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
 
   return (
     <div className="ri-page animate-slide-up">
@@ -84,18 +117,28 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
       <RecepcionNav basePath={basePath} />
 
       <div className="ri-card ri-table-card">
-        <div className="ri-table-header">
-          <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input
-            className="ri-search-inline"
-            placeholder="Buscar por número, proveedor, concepto o solicitante…"
-            onChange={handleSearchChange}
-          />
+        <div className="ri-table-header" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-2" style={{ flex: '1 1 200px' }}>
+            <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              className="ri-search-inline"
+              placeholder="Buscar por número, proveedor, concepto o solicitante…"
+              onChange={handleSearchChange}
+            />
+          </div>
+          <div className="prest-datepicker-container">
+            <DateRangePicker
+              value={fechas}
+              onChange={(val) => setFechas({ start: val.start, end: val.end })}
+              placeholder="Rango de fechas"
+            />
+          </div>
         </div>
 
-        <div className="overflow-x-auto relative">
+        {/* Desktop View: Table */}
+        <div className="overflow-x-auto relative devoluciones-desktop-only">
           {loading && (
             <div className="ri-loader-box ri-loader-overlay">
               <div className="ri-spinner" />
@@ -148,13 +191,90 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
           </table>
         </div>
 
+        {/* Mobile View: Cards */}
+        <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
+          <div className="prest-mobile-cards">
+            {loading && (
+              <div className="flex justify-center py-8">
+                <div className="ri-spinner" />
+              </div>
+            )}
+            {!loading && ordenes.map(o => (
+              <div key={o.id} className="prest-card">
+                <div className="prest-card-header">
+                  <div>
+                    <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>{o.numero}</span>
+                    <span className="prest-card-tool-name">{o.proveedor?.nombre || '—'}</span>
+                  </div>
+                  <span className="ri-badge-inv" style={{ fontSize: '0.7rem' }}>
+                    {countRecibidos(o)} items
+                  </span>
+                </div>
+                <div className="prest-card-body">
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Fecha de llegada</span>
+                    <span className="prest-card-field-value">{fmtDateTime(o.fechaRecepcion)}</span>
+                  </div>
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Recibido por</span>
+                    <span className="prest-card-field-value">{o.recibidoPor?.nombre || '—'}</span>
+                  </div>
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Solicitante</span>
+                    <span className="prest-card-field-value">{o.usuario?.nombre || '—'}</span>
+                  </div>
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">A Inventario</span>
+                    <span className="prest-card-field-value">
+                      <span className="ri-badge-inv">{countInventario(o)}</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="prest-card-footer">
+                  <div className="prest-card-actions">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`${basePath}/historial/${o.id}`)}
+                      className="ri-btn-ver"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                    >
+                      Ver detalle
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!loading && ordenes.length === 0 && (
+              <div className="prest-empty text-center py-8">
+                No hay productos recibidos registrados aún.
+              </div>
+            )}
+          </div>
+        </div>
+
         {totalPages > 1 && (
-          <div className="ri-pagination">
-            <span className="text-xs font-medium text-slate-400">{total} registro{total !== 1 ? 's' : ''}</span>
-            <div className="flex items-center gap-1">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="ri-page-btn">‹</button>
-              <span className="text-xs font-semibold text-slate-500 px-2">{page} / {totalPages}</span>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="ri-page-btn">›</button>
+          <div className="prest-pagination">
+            <span className="prest-pagination-info">
+              {total} registros ({page} de {totalPages})
+            </span>
+            <div className="prest-pagination-pages">
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={page <= 1}
+                onClick={() => setPage(p => p - 1)}
+              >
+                &lt;
+              </button>
+              {renderPageButtons()}
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => p + 1)}
+              >
+                &gt;
+              </button>
             </div>
           </div>
         )}

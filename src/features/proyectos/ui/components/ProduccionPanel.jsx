@@ -7,7 +7,7 @@ import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 
-export function ProduccionPanel({ proyectoId }) {
+export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const { proyecto } = useProyecto(proyectoId);
   const { getJobsByProyectoId, addJobToQueue } = usePrintQueue();
   const [activeSubTab, setActiveSubTab] = useState('timeline'); // 'timeline' or 'enviar'
@@ -329,14 +329,14 @@ export function ProduccionPanel({ proyectoId }) {
                 return (
                   <div key={job.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                     {/* Job Header */}
-                    <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${config.bg} ${config.color}`}>
+                    <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={`p-2 rounded-lg shrink-0 ${config.bg} ${config.color}`}>
                           <StatusIcon size={18} />
                         </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-slate-800">{job.name}</h4>
-                          <p className="text-xs text-slate-500">{job.copies} cop. • {job.format} • {job.width}m x {job.height}m</p>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-bold text-slate-800 truncate" title={job.name}>{job.name}</h4>
+                          <p className="text-xs text-slate-500 truncate" title={`${job.copies} cop. • ${job.format} • ${job.width}m x ${job.height}m`}>{job.copies} cop. • {job.format} • {job.width}m x {job.height}m</p>
                           {(() => {
                             const files = parseJobFiles(job);
                             if (files.length > 0) {
@@ -348,9 +348,9 @@ export function ProduccionPanel({ proyectoId }) {
                               };
 
                               return (
-                                <div className="flex flex-wrap gap-2 mt-2">
+                                <div className="flex flex-wrap gap-2 mt-2 min-w-0">
                                   {files.map((f, i) => (
-                                    <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-1.5 pr-2.5 py-1 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                    <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-1.5 pr-2.5 py-1 rounded-xl shadow-sm hover:shadow-md transition-shadow max-w-full min-w-0">
                                       <div className="w-8 h-8 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 flex items-center justify-center">
                                         {isImageFile(f.name, f.url) ? (
                                           <img src={f.url} alt="preview" className="w-full h-full object-cover" />
@@ -375,7 +375,7 @@ export function ProduccionPanel({ proyectoId }) {
                           })()}
                         </div>
                       </div>
-                      <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md ${config.bg} ${config.color} border ${config.border}`}>
+                      <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md ${config.bg} ${config.color} border ${config.border} shrink-0 align-self-start sm:align-self-auto`}>
                         {job.trackingStatus}
                       </span>
                     </div>
@@ -485,14 +485,14 @@ export function ProduccionPanel({ proyectoId }) {
       ) : (
         /* Enviar a Impresión Form */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-4 mb-5 flex items-center justify-between">
-            <div>
+          <div className="border-b border-slate-100 pb-4 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-slate-800">Enviar Trabajo a Impresión</h3>
               <p className="text-xs text-slate-500 mt-1">Configura las especificaciones del archivo y encola el trabajo directamente en el taller.</p>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-lg text-xs font-bold">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-lg text-xs font-bold shrink-0">
               <Lock size={14} />
-              <span>Proyecto: {proyecto?.id}</span>
+              <span className="truncate max-w-[140px]" title={proyecto?.id}>Proyecto: {proyecto?.id}</span>
             </div>
           </div>
 
@@ -506,12 +506,12 @@ export function ProduccionPanel({ proyectoId }) {
 
               return (
                 <div className="flex flex-col gap-1.5 mb-2 animate-slide-up">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <ImageIcon size={14} className="text-purple-500" />
-                      <span>Archivos de Diseño Vinculados ({archivosArte.length})</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-w-0">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 min-w-0">
+                      <ImageIcon size={14} className="text-purple-500 shrink-0" />
+                      <span className="truncate">Archivos de Diseño Vinculados ({archivosArte.length})</span>
                     </label>
-                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-100 animate-pulse">
+                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-100 shrink-0 self-start sm:self-auto">
                       Se enviarán todos automáticamente
                     </span>
                   </div>
@@ -546,6 +546,12 @@ export function ProduccionPanel({ proyectoId }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Documento a Imprimir</label>
               {!file ? (
+                soloLectura ? (
+                  <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center bg-slate-50 flex flex-col items-center justify-center gap-2 opacity-50 cursor-not-allowed select-none">
+                    <Lock size={28} className="text-slate-300" />
+                    <span className="text-sm font-semibold text-slate-400">Solo lectura — proyecto concluido</span>
+                  </div>
+                ) : (
                 <div 
                   className={`border-2 border-dashed rounded-xl p-6 text-center bg-slate-50 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
                     isDragOver ? 'border-blue-500 bg-blue-50/50' : 'border-slate-300 hover:border-blue-500 hover:bg-slate-100/50'
@@ -567,34 +573,38 @@ export function ProduccionPanel({ proyectoId }) {
                   <span className="text-sm font-semibold text-slate-700">Arrastra tus archivos o haz clic para buscar</span>
                   <span className="text-xs text-slate-500">PDF, AI, PNG, JPG, EPS (Cualquier tamaño)</span>
                 </div>
+                )
               ) : (
                 <div className="flex flex-col bg-blue-50 border border-blue-200 p-4 rounded-xl gap-3">
-                  <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                    <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-blue-100 pb-2 gap-2 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                         <FileText size={20} />
                       </div>
-                      <div className="flex flex-col overflow-hidden">
+                      <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-sm font-bold text-blue-800 truncate" title={file.name}>{file.name}</span>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-slate-500 truncate">
                           {file.isMultiple ? 'Múltiples archivos listos para enviar' : (fileFromProject ? file.sizeDisplay || 'Archivo de diseño aprobado' : `${(file.size / 1024 / 1024).toFixed(2)} MB`)}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0 justify-end sm:justify-start">
                       {fileFromProject && (
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-md uppercase tracking-wider shrink-0">
                           Diseño
                         </span>
                       )}
-                      <button 
-                        type="button" 
-                        onClick={() => { setFile(null); setFileFromProject(false); }} 
-                        className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                        title="Remover archivos"
-                      >
-                        <XCircle size={18} />
-                      </button>
+                      {/* Only allow removing file if it is NOT from design phase and project is NOT read-only */}
+                      {!fileFromProject && !soloLectura && (
+                        <button 
+                          type="button" 
+                          onClick={() => { setFile(null); setFileFromProject(false); }} 
+                          className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors shrink-0"
+                          title="Remover archivos"
+                        >
+                          <XCircle size={18} />
+                        </button>
+                      )}
                     </div>
                   </div>
                   {/* If multiple, display the list of files */}
@@ -721,7 +731,7 @@ export function ProduccionPanel({ proyectoId }) {
             <div className="flex justify-end pt-3">
               <button 
                 type="submit" 
-                disabled={!file}
+                disabled={!file || soloLectura}
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
               >
                 <Printer size={16} />

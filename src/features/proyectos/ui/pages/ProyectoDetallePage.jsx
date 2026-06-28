@@ -178,9 +178,7 @@ export default function ProyectoDetallePage() {
         {subTab === 'fases' ? (
           <>
             {/* Timeline + Progreso */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 relative">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 overflow-x-auto">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 relative">
               <FaseTimeline 
                 faseActual={proyecto.faseActual} 
                 fases={proyecto.fases} 
@@ -188,8 +186,6 @@ export default function ProyectoDetallePage() {
                 onFaseClick={(fId) => setFaseVista(fId)}
                 requiereInstalacion={proyecto.requiereInstalacion}
               />
-            </div>
-          </div>
           <div className="mt-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
@@ -204,7 +200,7 @@ export default function ProyectoDetallePage() {
         {/* Panel de fase actual / vista */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
           <div
-            className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 rounded-t-2xl"
+            className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 rounded-t-2xl gap-3"
             style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
           >
             <div>
@@ -226,7 +222,7 @@ export default function ProyectoDetallePage() {
             <FaseBadge faseId={faseActiva} />
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {faseActiva === 'INSTALACION' ? (
               <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
             ) : faseActiva === 'COTIZACION' ? (

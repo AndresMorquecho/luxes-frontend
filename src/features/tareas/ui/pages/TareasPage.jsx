@@ -11,6 +11,7 @@ import {
 } from '../../application/tareasService';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { notifyNotificationsUpdated } from '../../../notificaciones/application/notificationsService';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import './TareasPage.css';
 
 const PRIORIDAD_CONFIG = {
@@ -41,6 +42,7 @@ export default function TareasPage() {
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroPrioridad, setFiltroPrioridad] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [fechas, setFechas] = useState({ start: '', end: '' });
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -60,13 +62,18 @@ export default function TareasPage() {
 
   const [activeTab, setActiveTab] = useState(isAdmin ? 'todas' : 'mis-tareas');
 
-  const LIMIT = 10;
+  const LIMIT = 25;
 
   // ── Fetch Data ─────────────────────────────────────────────────────────────
   const fetchTareas = useCallback(async () => {
     setLoading(true);
     try {
-      const filters = { page, limit: LIMIT };
+      const filters = {
+        page,
+        limit: LIMIT,
+        fechaInicio: fechas.start || undefined,
+        fechaFin: fechas.end || undefined
+      };
       
       if (filtroEstado) {
         filters.estado = filtroEstado;
@@ -101,7 +108,7 @@ export default function TareasPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filtroEstado, filtroPrioridad, searchQuery, activeTab, isAdmin]);
+  }, [page, filtroEstado, filtroPrioridad, searchQuery, activeTab, isAdmin, fechas]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -126,6 +133,10 @@ export default function TareasPage() {
   useEffect(() => { fetchTareas(); }, [fetchTareas]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [fechas, filtroEstado, filtroPrioridad, searchQuery, activeTab]);
 
   // ── Modal Handlers ─────────────────────────────────────────────────────────
   const openCreateModal = () => {
@@ -268,6 +279,31 @@ export default function TareasPage() {
     return new Date(tarea.fechaLimite) < new Date();
   };
 
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    let start = Math.max(1, page - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          type="button"
+          className={`prest-page-btn ${page === i ? 'active-page' : ''}`}
+          onClick={() => setPage(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="tareas-page">
@@ -320,28 +356,35 @@ export default function TareasPage() {
       <div className="tareas-toolbar">
         <div className="tareas-tabs">
           {isAdmin && (
-            <button className={`tab-btn ${activeTab === 'todas' ? 'active' : ''}`} onClick={() => { setActiveTab('todas'); setFiltroEstado(''); setPage(1); }}>
+            <button className={`tab-btn ${activeTab === 'todas' ? 'active' : ''}`} onClick={() => { setActiveTab('todas'); setFiltroEstado(''); }}>
               Todas las Tareas
             </button>
           )}
-          <button className={`tab-btn ${activeTab === 'mis-tareas' ? 'active' : ''}`} onClick={() => { setActiveTab('mis-tareas'); setFiltroEstado(''); setPage(1); }}>
+          <button className={`tab-btn ${activeTab === 'mis-tareas' ? 'active' : ''}`} onClick={() => { setActiveTab('mis-tareas'); setFiltroEstado(''); }}>
             Mis Tareas
           </button>
-          <button className={`tab-btn ${activeTab === 'historial' ? 'active' : ''}`} onClick={() => { setActiveTab('historial'); setFiltroEstado(''); setPage(1); }}>
+          <button className={`tab-btn ${activeTab === 'historial' ? 'active' : ''}`} onClick={() => { setActiveTab('historial'); setFiltroEstado(''); }}>
             Historial
           </button>
         </div>
-        <div className="tareas-filters">
+        <div className="tareas-filters" style={{ gap: '0.6rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
           {isAdmin && (activeTab === 'todas' || activeTab === 'historial') && (
             <input
               type="text"
               placeholder="Buscar tarea..."
               className="tareas-search-input"
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              onChange={(e) => { setSearchQuery(e.target.value); }}
             />
           )}
-          <select value={filtroEstado} onChange={(e) => { setFiltroEstado(e.target.value); setPage(1); }} className="tareas-filter-select">
+          <div className="prest-datepicker-container" style={{ minWidth: '220px' }}>
+            <DateRangePicker
+              value={fechas}
+              onChange={(val) => setFechas({ start: val.start, end: val.end })}
+              placeholder="Rango de fechas"
+            />
+          </div>
+          <select value={filtroEstado} onChange={(e) => { setFiltroEstado(e.target.value); }} className="tareas-filter-select">
             {activeTab === 'historial' ? (
               <>
                 <option value="">Todo el historial</option>
@@ -356,7 +399,7 @@ export default function TareasPage() {
               </>
             )}
           </select>
-          <select value={filtroPrioridad} onChange={(e) => { setFiltroPrioridad(e.target.value); setPage(1); }} className="tareas-filter-select">
+          <select value={filtroPrioridad} onChange={(e) => { setFiltroPrioridad(e.target.value); }} className="tareas-filter-select">
             <option value="">Todas las prioridades</option>
             <option value="alta">Alta</option>
             <option value="media">Media</option>
@@ -501,20 +544,29 @@ export default function TareasPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="tareas-pagination">
-          <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="pagination-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" width="12" height="12" style={{ display: 'inline', marginRight: '4px' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            Anterior
-          </button>
-          <span className="pagination-info">Página {page} de {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="pagination-btn">
-            Siguiente
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" width="12" height="12" style={{ display: 'inline', marginLeft: '4px' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
-          </button>
+        <div className="prest-pagination" style={{ background: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(20px)' }}>
+          <span className="prest-pagination-info">
+            {total} tareas ({page} de {totalPages})
+          </span>
+          <div className="prest-pagination-pages">
+            <button
+              type="button"
+              className="prest-page-btn"
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+            >
+              &lt;
+            </button>
+            {renderPageButtons()}
+            <button
+              type="button"
+              className="prest-page-btn"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => p + 1)}
+            >
+              &gt;
+            </button>
+          </div>
         </div>
       )}
 
@@ -597,14 +649,14 @@ export default function TareasPage() {
                           style={{ paddingLeft: '2rem' }}
                         />
                         <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          width="16" 
-                          height="16" 
-                          style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
+                           xmlns="http://www.w3.org/2000/svg" 
+                           fill="none" 
+                           viewBox="0 0 24 24" 
+                           stroke="currentColor" 
+                           strokeWidth="2" 
+                           width="16" 
+                           height="16" 
+                           style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                         </svg>

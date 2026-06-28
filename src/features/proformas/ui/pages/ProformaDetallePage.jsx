@@ -309,36 +309,52 @@ export const ProformaDetallePage = () => {
         </div>
       </div>
 
-      {/* Items Table Card */}
+      {/* Items Card */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-6">
-        <div className="px-6 py-4 border-b border-slate-100">
+        <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="text-sm font-bold text-slate-800">Ítems de la Proforma</h2>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
-              <th className="text-left px-6 py-3.5">Descripción del Producto/Servicio</th>
-              <th className="text-center px-6 py-3.5 w-24">Cantidad</th>
-              <th className="text-right px-6 py-3.5 w-36">Precio Unitario</th>
-              <th className="text-right px-6 py-3.5 w-36">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {(proforma.items || []).map((item, idx) => (
-              <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
-                <td className="px-6 py-4 text-slate-800 font-medium">{item.descripcion}</td>
-                <td className="px-6 py-4 text-center text-slate-600 font-mono">{item.cantidad.toFixed(2)}</td>
-                <td className="px-6 py-4 text-right text-slate-600 font-mono">{formatUSD(item.precioUnitario)}</td>
-                <td className="px-6 py-4 text-right text-slate-800 font-bold font-mono">
-                  {formatUSD(item.cantidad * item.precioUnitario)}
-                </td>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
+                <th className="text-left px-6 py-3.5">Descripción</th>
+                <th className="text-center px-4 py-3.5 w-24">Cantidad</th>
+                <th className="text-right px-4 py-3.5 w-32">P. Unitario</th>
+                <th className="text-right px-4 py-3.5 w-32">Subtotal</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {(proforma.items || []).map((item, idx) => (
+                <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
+                  <td className="px-6 py-4 text-slate-800 font-medium">{item.descripcion}</td>
+                  <td className="px-4 py-4 text-center text-slate-600 font-mono">{item.cantidad.toFixed(2)}</td>
+                  <td className="px-4 py-4 text-right text-slate-600 font-mono">{formatUSD(item.precioUnitario)}</td>
+                  <td className="px-4 py-4 text-right text-slate-800 font-bold font-mono">{formatUSD(item.cantidad * item.precioUnitario)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile item cards */}
+        <div className="sm:hidden divide-y divide-slate-100">
+          {(proforma.items || []).map((item, idx) => (
+            <div key={idx} className="px-4 py-3 flex flex-col gap-1">
+              <p className="text-sm font-semibold text-slate-800">{item.descripcion}</p>
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>Cant: <span className="font-mono font-semibold text-slate-700">{item.cantidad.toFixed(2)}</span></span>
+                <span>P/u: <span className="font-mono font-semibold text-slate-700">{formatUSD(item.precioUnitario)}</span></span>
+                <span className="font-mono font-bold text-slate-800">{formatUSD(item.cantidad * item.precioUnitario)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Totals Summary */}
-        <div className="border-t border-slate-100 bg-slate-50/50 p-6 flex flex-col items-end">
+        <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4 flex flex-col items-end">
           <div className="w-full max-w-xs space-y-2 text-sm">
             <div className="flex justify-between text-slate-500">
               <span>Subtotal:</span>
@@ -359,43 +375,71 @@ export const ProformaDetallePage = () => {
       {/* Payments History Card */}
       {proforma.estado !== 'Pendiente' && (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-slate-800">Historial de Cobros y Abonos</h2>
-            <div className="flex items-center gap-4 text-xs font-semibold">
+            <div className="flex items-center gap-3 text-xs font-semibold">
               <span className="text-emerald-600">Cobrado: {formatUSD(totalCobrado)}</span>
               {totalPendiente > 0.01 ? (
-                <span className="text-amber-600">Pendiente: {formatUSD(totalPendiente)}</span>
+                <span className="px-2 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg">
+                  Pendiente: {formatUSD(totalPendiente)}
+                </span>
               ) : (
-                <span className="text-blue-600">Liquidada totalmente</span>
+                <span className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
+                  Liquidada totalmente
+                </span>
               )}
             </div>
           </div>
 
           {(proforma.abonos && proforma.abonos.length > 0) ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
-                  <th className="text-left px-6 py-3">ID Cobro</th>
-                  <th className="text-left px-6 py-3">Fecha</th>
-                  <th className="text-left px-6 py-3">Caja / Cuenta</th>
-                  <th className="text-left px-6 py-3">Referencia</th>
-                  <th className="text-right px-6 py-3">Monto</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
+            <>
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
+                      <th className="text-left px-5 py-3">ID</th>
+                      <th className="text-left px-5 py-3">Fecha</th>
+                      <th className="text-left px-5 py-3">Caja / Cuenta</th>
+                      <th className="text-left px-5 py-3">Referencia</th>
+                      <th className="text-right px-5 py-3">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {proforma.abonos.map((ab) => (
+                      <tr key={ab.id}>
+                        <td className="px-5 py-3 font-mono text-xs text-slate-500">{ab.id.split('-')[0]}...</td>
+                        <td className="px-5 py-3 text-slate-600">{ab.fecha}</td>
+                        <td className="px-5 py-3 font-semibold text-slate-700">{ab.metodoPago?.nombre || 'General'}</td>
+                        <td className="px-5 py-3 text-slate-500 text-xs">{ab.referencia || 'N/A'}</td>
+                        <td className="px-5 py-3 text-right font-bold text-slate-800 font-mono">{formatUSD(ab.monto)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile abono cards */}
+              <div className="sm:hidden divide-y divide-slate-100">
                 {proforma.abonos.map((ab) => (
-                  <tr key={ab.id}>
-                    <td className="px-6 py-3 font-mono text-xs text-slate-500">{ab.id.split('-')[0]}...</td>
-                    <td className="px-6 py-3 text-slate-600">{ab.fecha}</td>
-                    <td className="px-6 py-3 font-semibold text-slate-700">
-                      {ab.metodoPago?.nombre || 'General'}
-                    </td>
-                    <td className="px-6 py-3 text-slate-500 text-xs">{ab.referencia || 'N/A'}</td>
-                    <td className="px-6 py-3 text-right font-bold text-slate-800 font-mono">{formatUSD(ab.monto)}</td>
-                  </tr>
+                  <div key={ab.id} className="px-4 py-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-700">{ab.metodoPago?.nombre || 'Caja General'}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{ab.fecha}</span>
+                      </div>
+                      <span className="text-sm font-extrabold text-slate-800 font-mono">{formatUSD(ab.monto)}</span>
+                    </div>
+                    {ab.referencia && (
+                      <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded px-2 py-1">
+                        Ref: {ab.referencia}
+                      </span>
+                    )}
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           ) : (
             <div className="p-6 text-center text-slate-400 text-sm">
               No se han registrado abonos en esta proforma.

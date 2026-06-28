@@ -5,6 +5,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { RecepcionNav } from './RecepcionNav';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import './RecepcionInsumos.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -41,7 +42,8 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
   const [ordenTotal, setOrdenTotal] = useState(0);
   const [ordenSearch, setOrdenSearch] = useState('');
   const [ordenLoading, setOrdenLoading] = useState(true);
-  const perPage = 10;
+  const [fechas, setFechas] = useState({ start: '', end: '' });
+  const perPage = 25;
 
   // Estados para PDF preview
   const [isPDFOpen, setIsPDFOpen] = useState(false);
@@ -57,7 +59,9 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
         limit: perPage,
         search: ordenSearch || undefined,
         pendienteRecepcion: true,
-        creadorRol: (isImpresion || isTaller) ? user?.rol : undefined
+        creadorRol: (isImpresion || isTaller) ? user?.rol : undefined,
+        fechaInicio: fechas.start || undefined,
+        fechaFin: fechas.end || undefined
       });
       setOrdenes(data.items || []);
       setOrdenTotal(data.total || 0);
@@ -68,16 +72,20 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
     } finally {
       setOrdenLoading(false);
     }
-  }, [ordenPage, ordenSearch, isImpresion, isTaller, user]);
+  }, [ordenPage, ordenSearch, isImpresion, isTaller, user, fechas]);
 
   useEffect(() => {
     loadOrdenes();
   }, [loadOrdenes]);
 
+  useEffect(() => {
+    setOrdenPage(1);
+  }, [fechas, ordenSearch]);
+
   const handleOrdenSearchChange = (e) => {
     const val = e.target.value;
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => { setOrdenSearch(val); setOrdenPage(1); }, 350);
+    searchTimer.current = setTimeout(() => { setOrdenSearch(val); }, 350);
   };
 
   const handleRecepcionar = (ordenId) => {
@@ -93,6 +101,31 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
     (orden.detalles || []).filter(d => (d.cantidadRecibida ?? 0) > 0).length;
 
   const ordenTotalPages = Math.max(1, Math.ceil(ordenTotal / perPage));
+
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    let start = Math.max(1, ordenPage - Math.floor(maxVisible / 2));
+    let end = Math.min(ordenTotalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          type="button"
+          className={`prest-page-btn ${ordenPage === i ? 'active-page' : ''}`}
+          onClick={() => setOrdenPage(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
 
   return (
     <div className="ri-page animate-slide-up">
@@ -116,18 +149,28 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
 
       {/* Table Card */}
       <div className="ri-card ri-table-card">
-        <div className="ri-table-header">
-          <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input 
-            className="ri-search-inline" 
-            placeholder="Buscar por número, proveedor o concepto…" 
-            onChange={handleOrdenSearchChange} 
-          />
+        <div className="ri-table-header" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-2" style={{ flex: '1 1 200px' }}>
+            <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input 
+              className="ri-search-inline" 
+              placeholder="Buscar por número, proveedor o concepto…" 
+              onChange={handleOrdenSearchChange} 
+            />
+          </div>
+          <div className="prest-datepicker-container">
+            <DateRangePicker
+              value={fechas}
+              onChange={(val) => setFechas({ start: val.start, end: val.end })}
+              placeholder="Rango de fechas"
+            />
+          </div>
         </div>
 
-        <div className="overflow-x-auto relative">
+        {/* Desktop View: Table */}
+        <div className="overflow-x-auto relative devoluciones-desktop-only">
           {ordenLoading && (
             <div className="ri-loader-box ri-loader-overlay">
               <div className="ri-spinner" />
@@ -218,13 +261,112 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
           </table>
         </div>
 
+        {/* Mobile View: Cards */}
+        <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
+          <div className="prest-mobile-cards">
+            {ordenLoading && (
+              <div className="flex justify-center py-8">
+                <div className="ri-spinner" />
+              </div>
+            )}
+            {!ordenLoading && ordenes.map(o => (
+              <div key={o.id} className="prest-card">
+                <div className="prest-card-header">
+                  <div>
+                    <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>{o.numero}</span>
+                    <span className="prest-card-tool-name">{o.proveedor?.nombre || '—'}</span>
+                  </div>
+                  <span className="ri-badge-parcial" style={{ fontSize: '0.7rem' }}>
+                    {o.detalles?.length || 0} items
+                  </span>
+                </div>
+                <div className="prest-card-body">
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Solicitante</span>
+                    <span className="prest-card-field-value">{o.usuario?.nombre || '—'}</span>
+                  </div>
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Fecha</span>
+                    <span className="prest-card-field-value">{fmtDate(o.fechaAprobacion || o.fecha)}</span>
+                  </div>
+                  <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                    <span className="prest-card-field-label">Concepto</span>
+                    <span className="prest-card-field-value">{o.concepto || '—'}</span>
+                  </div>
+                  {!isTaller && (
+                    <div className="prest-card-field">
+                      <span className="prest-card-field-label">Total</span>
+                      <span className="prest-card-field-value" style={{ fontWeight: 700 }}>{fmt(o.total)}</span>
+                    </div>
+                  )}
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Progreso</span>
+                    <span className="prest-card-field-value">
+                      {o.estado === 'parcialmente_recibida' ? (
+                        <span className="ri-badge-parcial">
+                          {countRecibidos(o)}/{o.detalles?.length || 0} recibidos
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">0/{o.detalles?.length || 0} recibidos</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <div className="prest-card-footer">
+                  <div className="prest-card-actions" style={{ gap: '0.5rem' }}>
+                    {!isTaller && (
+                      <button
+                        type="button"
+                        onClick={() => handleVerOrden(o)}
+                        className="ri-btn-ver"
+                        style={{ flex: 1, justifyContent: 'center' }}
+                      >
+                        Ver Orden
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRecepcionar(o.id)}
+                      className="ri-btn-recepcionar"
+                      style={{ flex: 2, justifyContent: 'center' }}
+                    >
+                      Recibir productos
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!ordenLoading && ordenes.length === 0 && (
+              <div className="prest-empty text-center py-8">
+                No hay órdenes con productos pendientes
+              </div>
+            )}
+          </div>
+        </div>
+
         {ordenTotalPages > 1 && (
-          <div className="ri-pagination">
-            <span className="text-xs font-medium text-slate-400">{ordenTotal} orden{ordenTotal !== 1 ? 'es' : ''}</span>
-            <div className="flex items-center gap-1">
-              <button disabled={ordenPage <= 1} onClick={() => setOrdenPage(p => p - 1)} className="ri-page-btn">‹</button>
-              <span className="text-xs font-semibold text-slate-500 px-2">{ordenPage} / {ordenTotalPages}</span>
-              <button disabled={ordenPage >= ordenTotalPages} onClick={() => setOrdenPage(p => p + 1)} className="ri-page-btn">›</button>
+          <div className="prest-pagination">
+            <span className="prest-pagination-info">
+              {ordenTotal} órdenes ({ordenPage} de {ordenTotalPages})
+            </span>
+            <div className="prest-pagination-pages">
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={ordenPage <= 1}
+                onClick={() => setOrdenPage(p => p - 1)}
+              >
+                &lt;
+              </button>
+              {renderPageButtons()}
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={ordenPage >= ordenTotalPages}
+                onClick={() => setOrdenPage(p => p + 1)}
+              >
+                &gt;
+              </button>
             </div>
           </div>
         )}

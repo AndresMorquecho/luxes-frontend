@@ -818,7 +818,7 @@
 
 @media (max-width: 768px) {
   .instalaciones-container {
-    padding: 0.75rem 0.75rem 2rem 0.75rem !important;
+    padding: 0.75rem 0.75rem calc(80px + env(safe-area-inset-bottom)) 0.75rem !important;
   }
 
   .instalaciones-header-box {
@@ -961,4 +961,64 @@
     font-size: 0.9rem !important;
   }
 }
+
+/* ── Custom Pagination & DatePicker styling for Instalaciones ── */
+.prest-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  margin-top: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.prest-pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.prest-page-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.prest-page-btn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #1e293b;
+}
+.prest-page-btn.active-page {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: transparent;
+}
+.prest-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.prest-pagination-info {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #64748b;
+}
+.prest-datepicker-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 240px;
+}
+
 

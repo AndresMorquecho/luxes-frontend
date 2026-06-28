@@ -477,5 +477,63 @@
   .mobile-nav-item.active::after {
     width: 24px;
   }
+
+  /* ── Center Floating Button (FAB) for Taller Mobile Navbar ─────────────── */
+  .mobile-nav-item-fab {
+    position: relative;
+    z-index: 105;
+    overflow: visible !important;
+  }
+  
+  /* Disable the active top line for the FAB */
+  .mobile-nav-item-fab::after {
+    display: none !important;
+  }
+  
+  .mobile-nav-fab-circle {
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(29, 78, 216, 0.35);
+    border: 4px solid #ffffff;
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .mobile-nav-item-fab:active .mobile-nav-fab-circle {
+    transform: translateX(-50%) scale(0.9);
+    box-shadow: 0 2px 8px rgba(29, 78, 216, 0.25);
+  }
+  
+  .mobile-nav-item-fab.active .mobile-nav-fab-circle {
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+    transform: translateX(-50%) translateY(-2px);
+  }
+  
+  .mobile-nav-item-fab .mobile-nav-label {
+    margin-top: 30px;
+    font-weight: 700;
+  }
+
+  .mobile-nav-item-fab .mobile-nav-icon {
+    width: 20px;
+    height: 20px;
+    color: #ffffff !important;
+    filter: none !important;
+  }
+
+  /* Hide bottom nav when keyboard/input is focused to prevent viewport overlapping */
+  body:has(input:focus, textarea:focus, select:focus) .mobile-bottom-nav {
+    display: none !important;
+  }
 }
 

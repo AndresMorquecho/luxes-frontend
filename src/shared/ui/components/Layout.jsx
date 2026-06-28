@@ -62,12 +62,49 @@ export const Layout = ({ children, user, onLogout }) => {
     setIsSearchFocused(false);
   };
 
+  const [hideBottomNav, setHideBottomNav] = useState(false);
+
   useEffect(() => {
+    const handleFocus = () => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.tagName === 'SELECT' || 
+        activeEl.isContentEditable
+      );
+      setHideBottomNav(!!isInput);
+    };
+
+    document.addEventListener('focusin', handleFocus);
+    document.addEventListener('focusout', handleFocus);
+
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.tagName === 'SELECT'
+      );
+      if (isInput && window.visualViewport && window.visualViewport.height < window.innerHeight * 0.8) {
+        setHideBottomNav(true);
+      }
     };
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+    }
+
+    return () => {
+      document.removeEventListener('focusin', handleFocus);
+      document.removeEventListener('focusout', handleFocus);
+      window.removeEventListener('resize', handleResize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
+      }
+    };
   }, []);
 
   // Close mobile sidebar on route change
@@ -77,20 +114,29 @@ export const Layout = ({ children, user, onLogout }) => {
 
   const isAsistenciaMode = user?.rol === 'asistencia';
   const isTallerMobile = isMobile && user?.rol?.toLowerCase() === 'taller';
+  const isImpresionMobile = isMobile && ['impresion', 'impresión'].includes(user?.rol?.toLowerCase());
+  const isVentasDisenadorMobile = isMobile && ['ventas / diseñador', 'ventas/diseñador', 'ventas', 'diseñador'].includes(user?.rol?.toLowerCase());
+  const isBottomNavMobile = isTallerMobile || isImpresionMobile || isVentasDisenadorMobile;
 
   const unreadCount = useUnreadNotifications(user, {
-    enabled: user?.rol?.toLowerCase() === 'taller',
+    enabled: ['taller', 'impresion', 'impresión', 'ventas / diseñador', 'ventas/diseñador', 'ventas', 'diseñador'].includes(user?.rol?.toLowerCase()),
   });
 
   const isTabActive = (path) => {
     if (path === '/notificaciones') {
       return location.pathname === '/notificaciones';
     }
+    if (path === '/compras') {
+      return location.pathname === '/compras' || 
+             location.pathname.startsWith('/compras/historial') || 
+             location.pathname.startsWith('/compras/nueva') || 
+             location.pathname.startsWith('/compras/editar');
+    }
     return location.pathname.startsWith(path);
   };
 
   return (
-    <div className={`layout-container ${isMobile ? 'mobile' : ''} ${isMobileOpen ? 'mobile-open' : ''} ${(!isMobile && isCollapsed) ? 'collapsed' : ''} ${isAsistenciaMode ? 'kiosk-layout' : ''} ${isTallerMobile ? 'mobile-taller-layout' : ''}`}>
+    <div className={`layout-container ${isMobile ? 'mobile' : ''} ${isMobileOpen ? 'mobile-open' : ''} ${(!isMobile && isCollapsed) ? 'collapsed' : ''} ${isAsistenciaMode ? 'kiosk-layout' : ''} ${isBottomNavMobile ? 'mobile-taller-layout' : ''}`}>
       {isAsistenciaMode ? (
         <header className="w-full flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white" style={{ height: '70px', fontFamily: "'Inter', sans-serif" }}>
           <div className="flex items-center gap-3">
@@ -110,13 +156,13 @@ export const Layout = ({ children, user, onLogout }) => {
             Cerrar Sesión
           </button>
         </header>
-      ) : isTallerMobile ? (
+      ) : isBottomNavMobile ? (
         <header className="mobile-taller-header">
           <div className="mobile-taller-logo-box">
             <img src="/LogoGlobo.png" alt="Luxes Logo" className="mobile-taller-logo" />
             <div className="mobile-taller-user-info">
-              <span className="mobile-taller-brand">Luxes Taller</span>
-              <span className="mobile-taller-username">{user?.nombre || 'Taller'}</span>
+              <span className="mobile-taller-brand">Luxes {isTallerMobile ? 'Taller' : isImpresionMobile ? 'Impresión' : 'Diseño / Ventas'}</span>
+              <span className="mobile-taller-username">{user?.nombre || (isTallerMobile ? 'Taller' : isImpresionMobile ? 'Impresión' : 'Ventas')}</span>
             </div>
           </div>
           <div className="mobile-taller-header-actions">
@@ -189,14 +235,14 @@ export const Layout = ({ children, user, onLogout }) => {
       )}
 
       {/* Backdrop overlay for mobile drawer */}
-      {isMobile && isMobileOpen && !isTallerMobile && (
+      {isMobile && isMobileOpen && (
         <div 
           className="sidebar-overlay"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      {!isAsistenciaMode && !isTallerMobile && (
+      {!isAsistenciaMode && (!isBottomNavMobile || (isMobile && isMobileOpen)) && (
         <Sidebar 
           isCollapsed={isMobile ? false : isCollapsed} 
           onMouseEnter={() => {
@@ -214,52 +260,134 @@ export const Layout = ({ children, user, onLogout }) => {
         {children}
       </main>
 
-      {isTallerMobile && (
+      {isBottomNavMobile && !hideBottomNav && (
         <nav className="mobile-bottom-nav">
-          <Link to="/instalaciones" className={`mobile-nav-item ${isTabActive('/instalaciones') ? 'active' : ''}`}>
-            <div className="mobile-nav-icon-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-              </svg>
-            </div>
-            <span className="mobile-nav-label">Instalaciones</span>
-          </Link>
+          {isVentasDisenadorMobile ? (
+            <>
+              {/* Ventas / Diseñador Tabs */}
+              <Link to="/tareas" className={`mobile-nav-item ${isTabActive('/tareas') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Tareas</span>
+              </Link>
 
-          <Link to="/tareas" className={`mobile-nav-item ${isTabActive('/tareas') ? 'active' : ''}`}>
-            <div className="mobile-nav-icon-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-              </svg>
-            </div>
-            <span className="mobile-nav-label">Tareas</span>
-          </Link>
+              <Link to="/proformas" className={`mobile-nav-item ${isTabActive('/proformas') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Proformas</span>
+              </Link>
 
-          <Link to="/devoluciones" className={`mobile-nav-item ${isTabActive('/devoluciones') ? 'active' : ''}`}>
-            <div className="mobile-nav-icon-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
-              </svg>
-            </div>
-            <span className="mobile-nav-label">Devoluciones</span>
-          </Link>
-          
-          <Link to="/compras/recepcion" className={`mobile-nav-item ${isTabActive('/compras/recepcion') ? 'active' : ''}`}>
-            <div className="mobile-nav-icon-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-              </svg>
-            </div>
-            <span className="mobile-nav-label">Recibir</span>
-          </Link>
-          
-          <Link to="/compras" className={`mobile-nav-item ${isTabActive('/compras') ? 'active' : ''}`}>
-            <div className="mobile-nav-icon-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12a1.125 1.125 0 0 1 1.263-1.123h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0z" />
-              </svg>
-            </div>
-            <span className="mobile-nav-label">Compras</span>
-          </Link>
+              {/* Central FAB - Gestión de Proyectos ("Proyectos") */}
+              <Link to="/proyectos" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/proyectos') ? 'active' : ''}`}>
+                <div className="mobile-nav-fab-circle">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 012.008 1.24l.885 1.77a2.25 2.25 0 002.007 1.24h1.98a2.25 2.25 0 002.007-1.24l.885-1.77a2.25 2.25 0 012.007-1.24h3.86m-18 0a2.25 2.25 0 00-2.25 2.25v.9a2.25 2.25 0 002.25 2.25h16.5a2.25 2.25 0 002.25-2.25v-.9a2.25 2.25 0 00-2.25-2.25m-18 0V7.5A2.25 2.25 0 012.25 5.25h16.5A2.25 2.25 0 0121 7.5v6m-18 0h18" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Proyectos</span>
+              </Link>
+
+              <Link to="/ventas" className={`mobile-nav-item ${isTabActive('/ventas') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5M5.25 7.5h13.5m-12 3h10.5M7.5 13.5h9M9 16.5h6" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Ventas</span>
+              </Link>
+
+              {/* Más menu button */}
+              <button 
+                type="button" 
+                onClick={() => setIsMobileOpen(true)}
+                className={`mobile-nav-item ${isMobileOpen ? 'active' : ''}`}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Más</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Taller / Impresion Tabs */}
+              <Link to="/tareas" className={`mobile-nav-item ${isTabActive('/tareas') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Tareas</span>
+              </Link>
+
+              {isTallerMobile ? (
+                <Link to="/devoluciones" className={`mobile-nav-item ${isTabActive('/devoluciones') ? 'active' : ''}`}>
+                  <div className="mobile-nav-icon-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
+                    </svg>
+                  </div>
+                  <span className="mobile-nav-label">Devoluc.</span>
+                </Link>
+              ) : (
+                <Link to="/inventario" className={`mobile-nav-item ${isTabActive('/inventario') ? 'active' : ''}`}>
+                  <div className="mobile-nav-icon-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                    </svg>
+                  </div>
+                  <span className="mobile-nav-label">Inventario</span>
+                </Link>
+              )}
+
+              {isTallerMobile ? (
+                <Link to="/instalaciones" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/instalaciones') ? 'active' : ''}`}>
+                  <div className="mobile-nav-fab-circle">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="mobile-nav-icon">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                    </svg>
+                  </div>
+                  <span className="mobile-nav-label">Instalac.</span>
+                </Link>
+              ) : (
+                <Link to="/colas-impresion" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/colas-impresion') ? 'active' : ''}`}>
+                  <div className="mobile-nav-fab-circle">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-nav-icon">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2m2 4h6a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4" />
+                    </svg>
+                  </div>
+                  <span className="mobile-nav-label">Cola Imp.</span>
+                </Link>
+              )}
+              
+              <Link to="/compras/recepcion" className={`mobile-nav-item ${isTabActive('/compras/recepcion') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Recibir</span>
+              </Link>
+              
+              <Link to="/compras" className={`mobile-nav-item ${isTabActive('/compras') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12a1.125 1.125 0 0 1 1.263-1.123h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0z" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Compras</span>
+              </Link>
+            </>
+          )}
         </nav>
       )}
     </div>

@@ -38,6 +38,7 @@ export function InstalacionPanel({ proyectoId }) {
   } = useInstalacion(proyectoId);
 
   const [seccionActiva, setSeccionActiva] = useState('datos');
+  const [insumosOpen, setInsumosOpen] = useState(false);
   const { state, dispatch } = useProyectosContext();
   const [aprobaciones, setAprobaciones] = useState({}); // { [sku]: cantidad }
   const [comentarioOC, setComentarioOC] = useState('');
@@ -302,46 +303,74 @@ export function InstalacionPanel({ proyectoId }) {
             )}
           </div>
 
-          {/* Bottom Section: Insumos Retirados (Full width) */}
-          <div className="p-6 bg-slate-50/30 border-t border-slate-100 flex-1 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Package size={15} className="text-slate-400" />
-                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">Insumos Retirados</h4>
-              </div>
-              {materiales.filter(m => m.cantidadLlevada > 0).length === 0 ? (
-                <p className="text-xs text-slate-400 italic py-2">
-                  No hay registro de materiales retirados.
-                </p>
-              ) : (
-                <div className="overflow-x-auto thin-scrollbar">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-150/40 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="pb-1.5 font-semibold">Material</th>
-                        <th className="pb-1.5 text-center font-semibold">Cant.</th>
-                        <th className="pb-1.5 font-semibold text-right">Responsable</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {materiales
-                        .filter(m => m.cantidadLlevada > 0)
-                        .map((m, idx) => (
-                          <tr key={idx} className="text-slate-650">
-                            <td className="py-1.5 font-medium">{m.nombre}</td>
-                            <td className="py-1.5 text-center font-bold text-slate-800">{m.cantidadLlevada} <span className="text-[10px] font-normal text-slate-400">{m.unidad}</span></td>
-                            <td className="py-1.5 text-right font-medium text-slate-500">
-                              <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/40">
-                                {m.responsable || '—'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+          {/* Bottom Section: Insumos Retirados — Accordion Cards */}
+          <div className="p-4 bg-slate-50/30 border-t border-slate-100 flex-1 flex flex-col">
+            {(() => {
+              const insumosRetirados = materiales.filter(m => m.cantidadLlevada > 0);
+              return (
+                <>
+                  {/* Accordion Header */}
+                  <button
+                    type="button"
+                    onClick={() => setInsumosOpen(p => !p)}
+                    className="w-full flex items-center justify-between gap-2 text-left mb-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Package size={15} className="text-slate-400 shrink-0" />
+                      <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">Insumos Retirados</h4>
+                      {insumosRetirados.length > 0 && (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5">
+                          {insumosRetirados.length}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`text-slate-400 transition-transform duration-200 ${insumosOpen ? 'rotate-180' : ''}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                    </span>
+                  </button>
+
+                  {/* Accordion Body */}
+                  {insumosRetirados.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic py-2">
+                      No hay registro de materiales retirados.
+                    </p>
+                  ) : insumosOpen ? (
+                    <div className="space-y-2 animate-slide-up">
+                      {insumosRetirados.map((m, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm"
+                        >
+                          {/* Icon + Name */}
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
+                              <Package size={13} className="text-slate-400" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-slate-800 truncate">{m.nombre}</p>
+                              {m.responsable && (
+                                <p className="text-[10px] text-slate-400 truncate">{m.responsable}</p>
+                              )}
+                            </div>
+                          </div>
+                          {/* Quantity badge */}
+                          <span className="text-xs font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg shrink-0">
+                            {m.cantidadLlevada}
+                            <span className="text-[10px] font-normal text-slate-400 ml-1">{m.unidad}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    insumosRetirados.length > 0 && (
+                      <p className="text-xs text-slate-500 italic">
+                        {insumosRetirados.length} insumo{insumosRetirados.length > 1 ? 's' : ''} retirado{insumosRetirados.length > 1 ? 's' : ''}. Toca para expandir.
+                      </p>
+                    )
+                  )}
+                </>
+              );
+            })()}
           </div>
 
         </div>

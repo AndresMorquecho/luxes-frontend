@@ -18,7 +18,7 @@ import './InventarioPage.css';
 import { NuevoProductoModal } from './NuevoProductoModal.jsx';
 
 // ── Helper ─────────────────────────────────────────────────────────────────
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 25;
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
 const fmtCompra = (d) => d ? new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const elapsed = (fechaSalida) => {
@@ -318,6 +318,7 @@ export function InventarioPage() {
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
   const isTaller = userRole === 'TALLER';
   const lockedCategory = getInventarioCategoriaPorRol(user);
+  const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
 
   const [activeTab, setActiveTab] = useState('consumibles');
   const [activeCategory, setActiveCategory] = useState(lockedCategory || '');
@@ -569,12 +570,12 @@ export function InventarioPage() {
             <input className="inv-search-inp" placeholder="Buscar..." value={search}
               onChange={e=>setSearch(e.target.value)}/>
           </div>
-          {activeTab === 'consumibles' && (
+          {isAdmin && activeTab === 'consumibles' && (
             <button className="inv-btn-primary" onClick={() => setProductoModal(true)}>
               <Plus size={16}/> Nuevo producto
             </button>
           )}
-          {!isImpresion && !isTaller && activeTab === 'herramientas' && (
+          {isAdmin && !isImpresion && !isTaller && activeTab === 'herramientas' && (
             <button className="inv-btn-primary" onClick={() => setMatModal('new')}>
               <Plus size={16}/> Nuevo Material
             </button>
@@ -593,61 +594,135 @@ export function InventarioPage() {
           {/* ── Consumibles Tab ── */}
           {activeTab === 'consumibles' && (
             <div className="inv-table-card">
-              <table className="inv-table">
-                <thead>
-                  <tr>
-                    <th>Material</th>
-                    <th>Unidad</th>
-                    <th>Stock</th>
-                    <th>Mínimo</th>
-                    <th>Estado</th>
-                    <th>Costo Unit.</th>
-                    <th>CPP</th>
-                    {!isTaller && <th>Últ. compra</th>}
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div className="inv-desktop-only">
+                <table className="inv-table">
+                  <thead>
+                    <tr>
+                      <th>Material</th>
+                      <th>Unidad</th>
+                      <th>Stock</th>
+                      <th>Mínimo</th>
+                      <th>Estado</th>
+                      <th>Costo Unit.</th>
+                      <th>CPP</th>
+                      {!isTaller && <th>Últ. compra</th>}
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.length === 0 && (
+                      <tr><td colSpan={isTaller ? 8 : 9} className="inv-empty">Sin consumibles registrados.</td></tr>
+                    )}
+                    {items.map(item => {
+                      const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
+                      const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
+                      return (
+                        <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
+                          <td className="inv-td-name">{item.nombre}</td>
+                          <td>{item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid'}</td>
+                          <td className="inv-td-stock">
+                            <strong>{isLogistico ? '—' : item.stockActual}</strong>
+                          </td>
+                          <td className="inv-td-min">{isLogistico ? '—' : item.stockMinimo}</td>
+                          <td>{stockBadge(item)}</td>
+                          <td>{fmt(item.precioCosto)}</td>
+                          <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
+                            {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
+                          </td>
+                          {!isTaller && (
+                            <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                              {fmtCompra(item.ultimaFechaCompra)}
+                            </td>
+                          )}
+                          <td className="inv-td-actions">
+                            <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
+                              <Clock size={14}/>
+                            </button>
+                            {isAdmin && (
+                              <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                                <Edit2 size={14}/>
+                              </button>
+                            )}
+                            {isAdmin && (
+                              <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                                <Trash2 size={14}/>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="inv-mobile-only">
+                <div className="inv-mobile-cards-grid">
                   {items.length === 0 && (
-                    <tr><td colSpan={isTaller ? 8 : 9} className="inv-empty">Sin consumibles registrados.</td></tr>
+                    <div className="inv-empty-mobile">Sin consumibles registrados.</div>
                   )}
                   {items.map(item => {
                     const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
                     const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
+                    const unidad = item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid';
                     return (
-                      <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
-                        <td className="inv-td-name">{item.nombre}</td>
-                        <td>{item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid'}</td>
-                        <td className="inv-td-stock">
-                          <strong>{isLogistico ? '—' : item.stockActual}</strong>
-                        </td>
-                        <td className="inv-td-min">{isLogistico ? '—' : item.stockMinimo}</td>
-                        <td>{stockBadge(item)}</td>
-                        <td>{fmt(item.precioCosto)}</td>
-                        <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
-                          {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
-                        </td>
-                        {!isTaller && (
-                          <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                            {fmtCompra(item.ultimaFechaCompra)}
-                          </td>
-                        )}
-                        <td className="inv-td-actions">
-                          <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
-                            <Clock size={14}/>
+                      <div key={item.id} className={`inv-mobile-card ${isWarn ? 'warn' : ''}`}>
+                        <div className="inv-card-header">
+                          <span className="inv-card-title">{item.nombre}</span>
+                          {stockBadge(item)}
+                        </div>
+                        <div className="inv-card-body">
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Unidad:</span>
+                            <span className="inv-card-value">{unidad}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Stock Actual:</span>
+                            <span className="inv-card-value highlight">{isLogistico ? '—' : item.stockActual}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Stock Mínimo:</span>
+                            <span className="inv-card-value">{isLogistico ? '—' : item.stockMinimo}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Costo Unitario:</span>
+                            <span className="inv-card-value">{fmt(item.precioCosto)}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">CPP:</span>
+                            <span className="inv-card-value cpp">{fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}</span>
+                          </div>
+                          {!isTaller && (
+                            <div className="inv-card-row">
+                              <span className="inv-card-label">Última Compra:</span>
+                              <span className="inv-card-value date">{fmtCompra(item.ultimaFechaCompra)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="inv-card-actions">
+                          <button type="button" className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)}>
+                            <Clock size={15}/>
+                            <span>Historial</span>
                           </button>
-                          <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                            <Edit2 size={14}/>
-                          </button>
-                          <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                            <Trash2 size={14}/>
-                          </button>
-                        </td>
-                      </tr>
+                          {isAdmin && (
+                            <button type="button" className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                              <Edit2 size={15}/>
+                              <span>Editar</span>
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button type="button" className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                              <Trash2 size={15}/>
+                              <span>Eliminar</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </div>
               {totalPages > 1 && (
                 <div className="inv-pagination">
                   <div className="inv-pagination-info">
@@ -693,72 +768,146 @@ export function InventarioPage() {
           {/* ── Herramientas Tab ── */}
           {activeTab === 'herramientas' && (
             <div className="inv-table-card">
-              <table className="inv-table">
-                <thead>
-                  <tr>
-                    <th>Código</th>
-                    <th>Herramienta / Equipo</th>
-                    <th>Marca / Modelo</th>
-                    <th>Serie / Características</th>
-                    <th>Categoría</th>
-                    <th>Estado Uso</th>
-                    <th>Disponibles</th>
-                    <th>A Cargo</th>
-                    <th>Valor</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div className="inv-desktop-only">
+                <table className="inv-table">
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Herramienta / Equipo</th>
+                      <th>Marca / Modelo</th>
+                      <th>Serie / Características</th>
+                      <th>Categoría</th>
+                      <th>Estado Uso</th>
+                      <th>Disponibles</th>
+                      <th>A Cargo</th>
+                      <th>Valor</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.length === 0 && (
+                      <tr><td colSpan={10} className="inv-empty">Sin herramientas registradas.</td></tr>
+                    )}
+                    {items.map(item => {
+                      const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
+                      const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
+                      return (
+                        <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
+                          <td style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.8rem', color: '#64748b' }}>
+                            {item.codigo || '—'}
+                          </td>
+                          <td className="inv-td-name">
+                            <Wrench size={14} className="inv-row-icon"/>
+                            {item.nombre}
+                          </td>
+                          <td>
+                            {item.marca || item.modelo ? `${item.marca || ''} ${item.modelo ? `/ ${item.modelo}` : ''}` : '—'}
+                          </td>
+                          <td style={{ fontSize: '0.8rem', color: '#475569', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.serie}>
+                            {item.serie || '—'}
+                          </td>
+                          <td>
+                            <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>
+                              {item.categoria || 'Taller'}
+                            </span>
+                          </td>
+                          <td>
+                            {usoBadge(item.estadoUso)}
+                          </td>
+                          <td className="inv-td-stock"><strong>{item.stockActual}</strong></td>
+                          <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
+                            {item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}
+                          </td>
+                          <td>{fmt(item.precioCosto)}</td>
+                          <td className="inv-td-actions">
+                            <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
+                              <Clock size={14}/>
+                            </button>
+                            {isAdmin && (
+                              <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                                <Edit2 size={14}/>
+                              </button>
+                            )}
+                            {isAdmin && (
+                              <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                                <Trash2 size={14}/>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="inv-mobile-only">
+                <div className="inv-mobile-cards-grid">
                   {items.length === 0 && (
-                    <tr><td colSpan={10} className="inv-empty">Sin herramientas registradas.</td></tr>
+                    <div className="inv-empty-mobile">Sin herramientas registradas.</div>
                   )}
                   {items.map(item => {
                     const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
                     const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
                     return (
-                      <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
-                        <td style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.8rem', color: '#64748b' }}>
-                          {item.codigo || '—'}
-                        </td>
-                        <td className="inv-td-name">
-                          <Wrench size={14} className="inv-row-icon"/>
-                          {item.nombre}
-                        </td>
-                        <td>
-                          {item.marca || item.modelo ? `${item.marca || ''} ${item.modelo ? `/ ${item.modelo}` : ''}` : '—'}
-                        </td>
-                        <td style={{ fontSize: '0.8rem', color: '#475569', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.serie}>
-                          {item.serie || '—'}
-                        </td>
-                        <td>
-                          <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>
-                            {item.categoria || 'Taller'}
-                          </span>
-                        </td>
-                        <td>
+                      <div key={item.id} className={`inv-mobile-card ${isWarn ? 'warn' : ''}`}>
+                        <div className="inv-card-header">
+                          <div className="inv-card-title-group">
+                            <span className="inv-card-code">{item.codigo || 'S/C'}</span>
+                            <span className="inv-card-title">{item.nombre}</span>
+                          </div>
                           {usoBadge(item.estadoUso)}
-                        </td>
-                        <td className="inv-td-stock"><strong>{item.stockActual}</strong></td>
-                        <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
-                          {item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}
-                        </td>
-                        <td>{fmt(item.precioCosto)}</td>
-                        <td className="inv-td-actions">
-                          <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
-                            <Clock size={14}/>
+                        </div>
+                        <div className="inv-card-body">
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Marca/Modelo:</span>
+                            <span className="inv-card-value">{item.marca || item.modelo ? `${item.marca || ''} ${item.modelo ? `/ ${item.modelo}` : ''}` : '—'}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Serie/Desc:</span>
+                            <span className="inv-card-value desc" title={item.serie}>{item.serie || '—'}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Categoría:</span>
+                            <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>{item.categoria || 'Taller'}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Disponibles:</span>
+                            <span className="inv-card-value highlight">{item.stockActual}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">A Cargo:</span>
+                            <span className="inv-card-value">{item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}</span>
+                          </div>
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Valor:</span>
+                            <span className="inv-card-value">{fmt(item.precioCosto)}</span>
+                          </div>
+                        </div>
+                        <div className="inv-card-actions">
+                          <button type="button" className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)}>
+                            <Clock size={15}/>
+                            <span>Historial</span>
                           </button>
-                          <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                            <Edit2 size={14}/>
-                          </button>
-                          <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                            <Trash2 size={14}/>
-                          </button>
-                        </td>
-                      </tr>
+                          {isAdmin && (
+                            <button type="button" className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                              <Edit2 size={15}/>
+                              <span>Editar</span>
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button type="button" className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                              <Trash2 size={15}/>
+                              <span>Eliminar</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </div>
               {totalPages > 1 && (
                 <div className="inv-pagination">
                   <div className="inv-pagination-info">

@@ -1,6 +1,6 @@
 // src/features/instalaciones/ui/InstalacionesPage.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProyectos } from '../../proyectos/application/hooks/useProyectos.js';
 import { useProyectosContext } from '../../proyectos/application/context/ProyectosContext.jsx';
@@ -8,6 +8,7 @@ import {
   Wrench, Search, Play, CheckCircle2, User, MapPin, 
   Calendar, Clock, CheckCircle, Eye, ClipboardList, AlertTriangle 
 } from 'lucide-react';
+import { DateRangePicker } from '../../../shared/ui/components/DateRangePicker.jsx';
 import './InstalacionesPage.css';
 
 const PRIORIDAD_COLORS = {
@@ -43,6 +44,9 @@ export function InstalacionesPage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('EN_PROGRESO'); // Default to EN_PROGRESO (Pendientes + En Curso)
+  const [fechas, setFechas] = useState({ start: '', end: '' });
+  const [page, setPage] = useState(1);
+  const LIMIT = 20;
 
   // Filtrar proyectos que requieren instalación y que YA están en la fase de instalación o posteriores
   const proyectosInstalacion = todosLosProyectos.filter(p => 
@@ -93,8 +97,34 @@ export function InstalacionesPage() {
       matchesTab = isFinished;
     }
 
-    return matchesSearch && matchesTab;
+    // 3. Filtro de Rango de Fechas
+    let matchesDates = true;
+    const projDateStr = p.fases?.INSTALACION?.datos?.fechaInstalacion || p.fechaCreacion || p.fecha;
+    if (projDateStr) {
+      const projDate = new Date(projDateStr);
+      if (fechas.start) {
+        const start = new Date(fechas.start);
+        start.setHours(0,0,0,0);
+        if (projDate < start) matchesDates = false;
+      }
+      if (fechas.end) {
+        const end = new Date(fechas.end);
+        end.setHours(23,59,59,999);
+        if (projDate > end) matchesDates = false;
+      }
+    }
+
+    return matchesSearch && matchesTab && matchesDates;
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, activeTab, fechas]);
+
+  const total = filteredInstallations.length;
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
+  const startIndex = (page - 1) * LIMIT;
+  const paginatedInstallations = filteredInstallations.slice(startIndex, startIndex + LIMIT);
 
   // Obtener iniciales de los empleados
   function getInitials(name = '') {
@@ -106,6 +136,31 @@ export function InstalacionesPage() {
       .join('')
       .toUpperCase();
   }
+
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    let start = Math.max(1, page - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          type="button"
+          className={`prest-page-btn ${page === i ? 'active-page' : ''}`}
+          onClick={() => setPage(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
 
   return (
     <div className="instalaciones-container">
@@ -172,6 +227,13 @@ export function InstalacionesPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <div className="prest-datepicker-container">
+          <DateRangePicker
+            value={fechas}
+            onChange={(val) => setFechas({ start: val.start, end: val.end })}
+            placeholder="Rango de fechas"
+          />
+        </div>
 
         <div className="instalaciones-tabs">
           <button
@@ -208,7 +270,7 @@ export function InstalacionesPage() {
       </div>
 
       {/* List layout */}
-      {filteredInstallations.length === 0 ? (
+      {paginatedInstallations.length === 0 ? (
         <div className="instalaciones-empty-state">
           <div className="empty-state-icon-box">
             <Wrench size={32} />
@@ -220,7 +282,7 @@ export function InstalacionesPage() {
         </div>
       ) : (
         <div className="instalaciones-list-container">
-          {filteredInstallations.map((proyecto) => {
+          {paginatedInstallations.map((proyecto) => {
             const datosInstalacion = proyecto.fases?.INSTALACION?.datos || {};
             const isStarted = !!(datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion);
             const isFinished = ['ENTREGA', 'COMPLETADO'].includes(proyecto.faseActual) || datosInstalacion.instalacionCompletada === true;
@@ -366,6 +428,34 @@ export function InstalacionesPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Bar */}
+      {totalPages > 1 && (
+        <div className="prest-pagination" style={{ background: '#ffffff', marginTop: '1.5rem' }}>
+          <span className="prest-pagination-info">
+            {total} instalaciones ({page} de {totalPages})
+          </span>
+          <div className="prest-pagination-pages">
+            <button
+              type="button"
+              className="prest-page-btn"
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+            >
+              &lt;
+            </button>
+            {renderPageButtons()}
+            <button
+              type="button"
+              className="prest-page-btn"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => p + 1)}
+            >
+              &gt;
+            </button>
+          </div>
         </div>
       )}
     </div>
