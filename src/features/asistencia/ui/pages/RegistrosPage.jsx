@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig } from '../../application/asistenciaService';
 import { getOpcionesMarcacion, puedeRegistrarMarcacion } from '../../helpers/asistenciaHelpers';
 import { MarcacionPickerModal } from '../components/MarcacionPickerModal';
-import { HorasExtrasPendientesPanel } from '../components/HorasExtrasPendientesPanel';
 import { getHorarioEsperado, getHorarioLabel, getEstadoAlmuerzo, normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../helpers/horarioLaboral';
 import { HorarioDelDiaBanner, HorarioEditModal } from '../components/HorarioDelDiaBanner';
 import { MarcacionHorarioCell } from '../components/MarcacionHorarioCell';
@@ -12,7 +11,7 @@ import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
-import { isAsistenciaUser } from '../../../../shared/utils/userRoleHelpers';
+import { isAsistenciaUser, normalizeUserForSession } from '../../../../shared/utils/userRoleHelpers';
 import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
 
 
@@ -540,7 +539,7 @@ const KioskView = () => {
 
 export const RegistrosPage = () => {
   const userStr = localStorage.getItem('user');
-  const userObj = userStr ? JSON.parse(userStr) : null;
+  const userObj = userStr ? normalizeUserForSession(JSON.parse(userStr)) : null;
   const isKioskMode = isAsistenciaUser(userObj);
 
   if (isKioskMode) {
@@ -781,8 +780,6 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         onSave={handleSaveHorario}
         saving={savingHorario}
       />
-
-      <HorasExtrasPendientesPanel />
 
       {/* KPIs Grid - placed above calendar selector, in a single row */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-6">

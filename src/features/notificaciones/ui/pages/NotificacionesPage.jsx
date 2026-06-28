@@ -44,6 +44,11 @@ const getNotificationRoute = (notification) => {
     return '/colas-impresion';
   }
 
+  // Horas extras pendientes de aprobación
+  if (title.includes('horas extras') || message.includes('horas extras')) {
+    return '/nomina/horas-extras';
+  }
+
   // Proformas (aprobación, rechazo, nueva pendiente)
   if (title.includes('proforma') || message.includes('proforma')) {
     const match = (notification.message || '').match(/PROF-\d+/i)

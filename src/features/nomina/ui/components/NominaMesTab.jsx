@@ -516,7 +516,11 @@ const DetalleIngresosModal = ({
         adapter.getOvertime(fechaInicio, fechaFin)
       ]);
       setRecords(ingresosData);
-      const empOvertime = overtimeData.filter(he => he.colaboradorId === empleadoId);
+      const empOvertime = overtimeData.filter(
+        (he) =>
+          he.colaboradorId === empleadoId &&
+          (he.aprobacionEstado === 'APROBADA' || !he.aprobacionEstado),
+      );
       setHorasExtras(empOvertime);
     } catch (err) {
       console.error(err);
@@ -784,6 +788,37 @@ const computeSubtotal = (emp, cp, includeIess = true) => {
   return cp.netoRecibir ?? 0;
 };
 
+/** Separa el neto a pagar: mensualidad (sueldo quincena + otros − descuentos) y horas extras aprobadas. */
+const splitNetoPago = (netoTotal, horasExtras) => {
+  const neto = Number(netoTotal) || 0;
+  const he = Math.max(0, Number(horasExtras) || 0);
+  const netoHorasExtras = Math.min(he, neto);
+  const netoMensualidad = Math.round((neto - netoHorasExtras) * 100) / 100;
+  return { netoMensualidad, netoHorasExtras, netoTotal: neto };
+};
+
+const resolveAbonado = (cp, raw) =>
+  cp?.totalAbonado ?? (raw?.abonos ?? []).reduce((s, a) => s + Number(a.monto || 0), 0);
+
+/** Saldo pendiente de pago de nómina (no incluye HE sin aprobar). */
+const computePendientePago = (cp, raw, totalBrutoFallback = 0) => {
+  const neto = cp?.netoRecibir ?? totalBrutoFallback ?? 0;
+  const abonado = resolveAbonado(cp, raw);
+  return Math.max(0, Math.round((neto - abonado) * 100) / 100);
+};
+
+const sumPendingHEInRange = (pendingList, fechaInicio, fechaFin) => {
+  const map = {};
+  (pendingList || []).forEach((p) => {
+    if (p.aprobacionEstado && p.aprobacionEstado !== 'PENDIENTE') return;
+    const fecha = String(p.fecha).split('T')[0];
+    if (fecha < fechaInicio || fecha > fechaFin) return;
+    const id = p.colaboradorId;
+    map[id] = (map[id] || 0) + Number(p.total || 0);
+  });
+  return map;
+};
+
 /** Sueldo bruto quincenal: contrato = mitad fija; por asistencia = prorrateo. */
 const resolveTotalBruto = (emp, cp, raw) => {
   if (cp?.totalBruto > 0) return cp.totalBruto;
@@ -795,7 +830,24 @@ const resolveTotalBruto = (emp, cp, raw) => {
     : calcSueldoBrutoQuincena(emp.sueldoDiario, diasT, diasLab);
 };
 
-const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onPagarCross, onCellChange, onOpenEgresos, onOpenIngresos }) => {
+const QuincenaTable = ({
+  label,
+  quincenaNum,
+  rows,
+  crossPendientes,
+  pendingOvertime = [],
+  fechaInicio,
+  fechaFin,
+  onPagar,
+  onPagarCross,
+  onCellChange,
+  onOpenEgresos,
+  onOpenIngresos,
+}) => {
+  const pendingHEByEmp = useMemo(
+    () => sumPendingHEInRange(pendingOvertime, fechaInicio, fechaFin),
+    [pendingOvertime, fechaInicio, fechaFin],
+  );
   const totalSueldoDiario = useMemo(
     () => rows.reduce((s, r) => {
       const diasLab = r.raw?.diasLaborables ?? r.cp?.diasLaborables ?? 15;
@@ -821,8 +873,35 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
   const totalOtrosEgress = useMemo(() => rows.reduce((s, r) => s + (r.cp?.egresos?.dctoGenerico ?? 0), 0), [rows]);
   const totalSumaEgresos = useMemo(() => rows.reduce((s, r) => s + (r.cp?.sumaEgresos ?? 0), 0), [rows]);
   const totalNeto = useMemo(() => rows.reduce((s, r) => s + (r.cp?.netoRecibir ?? 0), 0), [rows]);
-  const totalAbonado = useMemo(() => rows.reduce((s, r) => s + (r.cp?.totalAbonado ?? 0), 0), [rows]);
-  const totalPendiente = useMemo(() => rows.reduce((s, r) => s + Math.max(0, (r.cp?.netoRecibir ?? 0) - (r.cp?.totalAbonado ?? 0)), 0), [rows]);
+  const totalNetoMens = useMemo(
+    () => rows.reduce((s, r) => {
+      const he = r.cp?.ingresos?.horasExtras ?? 0;
+      return s + splitNetoPago(r.cp?.netoRecibir ?? 0, he).netoMensualidad;
+    }, 0),
+    [rows],
+  );
+  const totalNetoHE = useMemo(
+    () => rows.reduce((s, r) => {
+      const he = r.cp?.ingresos?.horasExtras ?? 0;
+      return s + splitNetoPago(r.cp?.netoRecibir ?? 0, he).netoHorasExtras;
+    }, 0),
+    [rows],
+  );
+  const totalAbonado = useMemo(
+    () => rows.reduce((s, r) => s + resolveAbonado(r.cp, r.raw), 0),
+    [rows],
+  );
+  const totalPendiente = useMemo(
+    () => rows.reduce((s, r) => {
+      const totalB = resolveTotalBruto(r.emp, r.cp, r.raw);
+      return s + computePendientePago(r.cp, r.raw, totalB);
+    }, 0),
+    [rows],
+  );
+  const totalHEPendiente = useMemo(
+    () => Object.values(pendingHEByEmp).reduce((s, v) => s + v, 0),
+    [pendingHEByEmp],
+  );
 
   return (
     <div className="flex flex-col w-full">
@@ -836,9 +915,9 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-100 sticky left-0 z-40 border-r-2 border-r-slate-350 w-[320px] min-w-[320px] max-w-[320px]">Colaborador</th>
               <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-50">Sueldo Base</th>
               <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-violet-50 text-violet-950">Provisiones (no neto)</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950">Ingresos al Neto (+)</th>
+              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950">Ingresos al Neto (+)</th>
               <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-red-50 text-red-950">Egresos / Descuentos (-)</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-blue-50 text-blue-950">Liquidación Final</th>
+              <th colSpan={6} className="border border-slate-200 px-2 py-2 text-center bg-blue-50 text-blue-950">Liquidación Final</th>
               <th rowSpan={2} className="border border-slate-200 px-2 py-2.5 text-center w-28 bg-slate-100 text-slate-700">Acción</th>
             </tr>
             <tr className="bg-slate-50 text-[11px] uppercase font-bold text-slate-600 border-b border-slate-200">
@@ -855,6 +934,7 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950">Acum. D3</th>
               <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950">Acum. D4</th>
 
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900" title="Monto de horas extras aprobadas en el período">H. Extras</th>
               <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-emerald-50 text-emerald-900">Ingresos Var.</th>
               <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900">F. Res.</th>
               <th className="border border-slate-200 px-1 py-2 text-center bg-emerald-100 text-emerald-950 font-black">Total +</th>
@@ -863,7 +943,10 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-red-50 text-red-900">Egresos Varios</th>
               <th className="border border-slate-200 px-1 py-2 text-center bg-red-100 text-red-950 font-black">Total -</th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center bg-blue-100 text-blue-950 font-black">Neto</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[78px] bg-blue-50 text-blue-900 font-bold" title="Sueldo quincena y otros ingresos, menos descuentos">Neto Mens.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 font-bold" title="Monto neto por horas extras aprobadas">Neto H.E.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-amber-50 text-amber-900 font-bold" title="Horas extras registradas, pendientes de aprobación">H.E. Pend.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-blue-100 text-blue-950 font-black">Total</th>
               <th className="border border-slate-200 px-1 py-2 text-center bg-green-100 text-green-950 font-black">Pagado</th>
               <th className="border border-slate-200 px-1 py-2 text-center bg-orange-100 text-orange-950 font-black">Pendiente</th>
             </tr>
@@ -877,11 +960,12 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               const diasT       = cp?.diasLaborados ?? raw?.diasLaborados ?? 0;
               const totalB      = resolveTotalBruto(emp, cp, raw);
               
-              const totalAb     = (raw?.abonos ?? []).reduce((s, a) => s + a.monto, 0);
+              const totalAb     = resolveAbonado(cp, raw);
               const cross       = crossPendientes?.find(p => p.empId === emp.id);
+              const hePendiente = pendingHEByEmp[emp.id] || 0;
 
-              // Valores de ingresos y egresos
-              const he          = raw?.ingresos?.horasExtras ?? 0;
+              // Valores de ingresos y egresos (HE = solo aprobadas, viene del backend)
+              const he          = cp?.ingresos?.horasExtras ?? raw?.ingresos?.horasExtras ?? 0;
               const te          = raw?.ingresos?.trabajosEnEmpresa ?? 0;
               const fr          = raw?.ingresos?.fondosReserva ?? 0;
               const iessVal     = raw?.egresos?.iess ?? 0;
@@ -899,6 +983,8 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               const ep          = cp?.estadoPago ?? 'PENDIENTE';
               const badge       = ESTADO_BADGE[ep] ?? ESTADO_BADGE.PENDIENTE;
               const subtotalNeto = cp?.netoRecibir ?? totalB;
+              const { netoMensualidad, netoHorasExtras } = splitNetoPago(subtotalNeto, he);
+              const pendientePago = computePendientePago(cp, raw, totalB);
               const subtotalIngr = cp?.sumaIngresos ?? 0;
               const subtotalEgr  = cp?.sumaEgresos ?? 0;
 
@@ -946,14 +1032,20 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
                   </td>
 
                   {/* Ingresos al neto */}
+                  <td
+                    className="border border-slate-200 text-center px-1.5 py-2 bg-emerald-50/50 text-emerald-800 font-bold text-xs"
+                    title="Horas extras aprobadas en Registro de Horas Extras"
+                  >
+                    {he > 0 ? formatUSD(he) : '—'}
+                  </td>
                   <td className="border border-slate-200 text-center p-0.5 bg-emerald-50/5 hover:bg-emerald-50/20 transition-colors group/cell relative">
                     <button
                       onClick={() => onOpenIngresos(emp.id, emp.nombre)}
                       className="w-full h-full flex items-center justify-center gap-1.5 py-2 px-1 text-xs font-semibold text-slate-800 transition-all outline-none border border-transparent rounded hover:border-emerald-200 cursor-pointer"
                     >
-                      {(he + te) > 0 ? (
+                      {te > 0 ? (
                         <>
-                          <span className="text-emerald-700 font-bold">{formatUSD(he + te)}</span>
+                          <span className="text-emerald-700 font-bold">{formatUSD(te)}</span>
                           <span className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-100 transition-all duration-200 flex items-center justify-center bg-emerald-600 text-white rounded-full w-4 h-4 shadow-xs">
                             <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -1019,9 +1111,20 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
                   <td className="border border-slate-200 text-center px-1.5 py-2 bg-red-50/40 font-bold text-red-700 text-xs">{formatUSD(subtotalEgr)}</td>
 
                   {/* Liquidación Final */}
+                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-blue-50/40 font-bold text-blue-900 text-xs">
+                    {formatUSD(netoMensualidad)}
+                  </td>
+                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-emerald-50/50 font-bold text-emerald-800 text-xs">
+                    {netoHorasExtras > 0 ? formatUSD(netoHorasExtras) : '—'}
+                  </td>
+                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-amber-50/60 font-bold text-amber-800 text-xs" title="Aún no aprobado — no suma en el neto">
+                    {hePendiente > 0 ? formatUSD(hePendiente) : '—'}
+                  </td>
                   <td className="border border-slate-200 text-center px-1.5 py-2 bg-blue-50/30 font-black text-blue-900 text-xs">{formatUSD(subtotalNeto)}</td>
                   <td className="border border-slate-200 text-center px-1.5 py-2 bg-green-50/30 font-bold text-green-700 text-xs">{totalAb > 0 ? formatUSD(totalAb) : '—'}</td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-orange-50/30 font-bold text-orange-700 text-xs">{totalAb > 0 && totalAb < subtotalNeto ? formatUSD(subtotalNeto - totalAb) : totalAb >= subtotalNeto ? '—' : formatUSD(subtotalNeto)}</td>
+                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-orange-50/30 font-bold text-orange-700 text-xs">
+                    {pendientePago > 0 ? formatUSD(pendientePago) : '—'}
+                  </td>
 
                   <td className="border border-slate-200 text-center px-1.5 py-1.5">
                     <div className="flex justify-center items-center">
@@ -1030,7 +1133,7 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
                           {badge.label}
                         </span>
                       ) : (
-                        <button onClick={() => onPagar(emp, cp, subtotalNeto, subtotalNeto - totalAb)}
+                        <button onClick={() => onPagar(emp, cp, subtotalNeto, pendientePago)}
                           className="w-full py-1.5 rounded-lg bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider hover:bg-slate-700 shadow-xs transition-all cursor-pointer">
                           {ep === 'ABONO_PARCIAL' ? 'Abonar' : 'Pagar'}
                         </button>
@@ -1054,7 +1157,8 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-900 text-xs bg-violet-200">{formatUSD(totalAcumD3)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-900 text-xs bg-violet-200">{formatUSD(totalAcumD4)}</td>
 
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalHE + totalTE)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalHE)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalTE)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalFR)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 bg-emerald-200 text-emerald-950 font-black text-xs">{formatUSD(totalSumaIngresos)}</td>
 
@@ -1062,6 +1166,9 @@ const QuincenaTable = ({ label, quincenaNum, rows, crossPendientes, onPagar, onP
               <td className="border border-slate-200 text-center px-1 py-2.5 text-red-800 text-xs bg-red-100">{formatUSD(totalAnticipos + totalMultas + totalOtrosEgress)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 bg-red-200 text-red-950 font-black text-xs">{formatUSD(totalSumaEgresos)}</td>
 
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-50 text-blue-900 font-extrabold text-xs">{formatUSD(totalNetoMens)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-emerald-50 text-emerald-800 font-extrabold text-xs">{formatUSD(totalNetoHE)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-amber-100 text-amber-900 font-extrabold text-xs">{formatUSD(totalHEPendiente)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-100 text-blue-900 font-extrabold text-xs">{formatUSD(totalNeto)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 bg-green-100 text-green-700 font-extrabold text-xs">{formatUSD(totalAbonado)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 bg-orange-100 text-orange-700 font-extrabold text-xs">{formatUSD(totalPendiente)}</td>
@@ -1091,6 +1198,7 @@ export const NominaMesTab = () => {
   const [savingBulk, setSavingBulk] = useState(false);
   const [activeEgresoModal, setActiveEgresoModal] = useState(null);
   const [activeIngresoModal, setActiveIngresoModal] = useState(null);
+  const [pendingOvertime, setPendingOvertime] = useState([]);
 
   const handleOpenEgresos = (empleadoId, empleadoNombre) => {
     const dates = activeTab === 'q1' ? fechas1 : fechas2;
@@ -1121,15 +1229,16 @@ export const NominaMesTab = () => {
     if (!adapter) return;
     setLoading(true);
     try {
-      const emps = await adapter.getEmployees();
-      setEmployees(emps);
-
-      const [p1, p2] = await Promise.all([
+      const [emps, p1, p2, pending] = await Promise.all([
+        adapter.getEmployees(),
         adapter.getPayrolls(fechas1.fechaInicio, fechas1.fechaFin),
         adapter.getPayrolls(fechas2.fechaInicio, fechas2.fechaFin),
+        adapter.getPendingOvertime?.() ?? Promise.resolve([]),
       ]);
+      setEmployees(emps);
       setQ1Raw(p1);
       setQ2Raw(p2);
+      setPendingOvertime(Array.isArray(pending) ? pending : []);
       setHasUnsavedChanges(false);
     } catch (err) {
       console.error(err);
@@ -1350,6 +1459,26 @@ export const NominaMesTab = () => {
   const totalQ1 = q1Rows.reduce((s, r) => s + computeSubtotal(r.emp, r.cp, false), 0);
   const totalQ2 = q2Rows.reduce((s, r) => s + computeSubtotal(r.emp, r.cp, true), 0);
 
+  const mesNetoSplit = useMemo(() => {
+    const allRows = [...q1Rows, ...q2Rows];
+    return allRows.reduce(
+      (acc, r) => {
+        const he = r.cp?.ingresos?.horasExtras ?? 0;
+        const { netoMensualidad, netoHorasExtras } = splitNetoPago(r.cp?.netoRecibir ?? 0, he);
+        return {
+          netoMensualidad: acc.netoMensualidad + netoMensualidad,
+          netoHorasExtras: acc.netoHorasExtras + netoHorasExtras,
+        };
+      },
+      { netoMensualidad: 0, netoHorasExtras: 0 },
+    );
+  }, [q1Rows, q2Rows]);
+
+  const mesHEPendiente = useMemo(() => {
+    const map = sumPendingHEInRange(pendingOvertime, fechas1.fechaInicio, fechas2.fechaFin);
+    return Object.values(map).reduce((s, v) => s + v, 0);
+  }, [pendingOvertime, fechas1, fechas2]);
+
   const totalPagado = totalPagadoQ1 + totalPagadoQ2;
   const totalPendiente = (totalQ1 + totalQ2) - totalPagado;
 
@@ -1431,6 +1560,12 @@ export const NominaMesTab = () => {
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Nómina Mes</p>
             <p className="text-2xl font-black text-slate-800 mt-1">{formatUSD(totalQ1 + totalQ2)}</p>
+            <p className="text-[10px] text-slate-500 mt-1 font-semibold">
+              Mensualidad {formatUSD(mesNetoSplit.netoMensualidad)} · H. Extras {formatUSD(mesNetoSplit.netoHorasExtras)}
+              {mesHEPendiente > 0 && (
+                <span className="text-amber-700"> · H.E. pend. {formatUSD(mesHEPendiente)}</span>
+              )}
+            </p>
           </div>
           <div className="p-3 bg-slate-50 rounded-lg text-slate-500">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1525,6 +1660,9 @@ export const NominaMesTab = () => {
             quincenaNum={1}
             rows={q1Rows}
             crossPendientes={Object.values(crossPendientes).filter(p => p.quincenaOrigen === 2)}
+            pendingOvertime={pendingOvertime}
+            fechaInicio={fechas1.fechaInicio}
+            fechaFin={fechas1.fechaFin}
             onPagar={(emp, cp, sub, restante) => handlePagar(emp, cp, sub, restante, 1)}
             onPagarCross={(emp, cross) => handlePagarCross(emp, cross)}
             onCellChange={handleCellChange}
@@ -1537,6 +1675,9 @@ export const NominaMesTab = () => {
             quincenaNum={2}
             rows={q2Rows}
             crossPendientes={Object.values(crossPendientes).filter(p => p.quincenaOrigen === 1)}
+            pendingOvertime={pendingOvertime}
+            fechaInicio={fechas2.fechaInicio}
+            fechaFin={fechas2.fechaFin}
             onPagar={(emp, cp, sub, restante) => handlePagar(emp, cp, sub, restante, 2)}
             onPagarCross={(emp, cross) => handlePagarCross(emp, cross)}
             onCellChange={handleCellChange}
