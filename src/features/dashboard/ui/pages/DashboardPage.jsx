@@ -68,14 +68,7 @@ export default function DashboardPage() {
     loadData(rango);
   }, [rango]);
 
-  // Timer simulation to increment elapsedSeconds of the printing job in real-time
-  useEffect(() => {
-    if (!activeJobState || activeJobState.status !== 'Imprimiendo') return;
-    const timer = setInterval(() => {
-      setActiveJobState(prev => prev ? { ...prev, elapsedSeconds: prev.elapsedSeconds + 1 } : null);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [activeJobState?.id, activeJobState?.status]);
+
 
   if (loading || !summary) {
     return (
@@ -242,15 +235,7 @@ export default function DashboardPage() {
         .animate-fade-in {
           animation: fadeIn 0.3s ease-out forwards;
         }
-        @keyframes shimmer {
-          0% { background-position: -200px 0; }
-          100% { background-position: 200px 0; }
-        }
-        .progress-shimmer {
-          background: linear-gradient(90deg, #10b981 25%, #34d399 50%, #10b981 75%);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite linear;
-        }
+
       `}</style>
 
       {/* Header section (Minimal & Borderless) */}
@@ -621,40 +606,6 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      {/* Progress Bar Area */}
-                      <div className="pt-3">
-                        {(() => {
-                          const estimatedTotalSeconds = activeJobState.copies * 180; // 3 minutes per copy
-                          const progressPercent = activeJobState.status === 'Listo'
-                            ? 0
-                            : Math.min(100, Math.floor((activeJobState.elapsedSeconds / estimatedTotalSeconds) * 100));
-
-                          return (
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500">
-                                <span>{activeJobState.status === 'Listo' ? 'Preparado' : 'Progreso de Impresión'}</span>
-                                <span className="currency-val">{progressPercent}%</span>
-                              </div>
-                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full transition-all duration-1000 ${
-                                    activeJobState.status === 'Imprimiendo' ? 'progress-shimmer' : 'bg-amber-400'
-                                  }`}
-                                  style={{ width: `${progressPercent}%` }}
-                                />
-                              </div>
-                              <div className="flex justify-between text-[9px] text-slate-400 font-semibold">
-                                <span className="currency-val">{formatTime(activeJobState.elapsedSeconds)} transcurridos</span>
-                                <span>
-                                  {activeJobState.status === 'Listo'
-                                    ? 'Espera inicio manual'
-                                    : `Est. ${formatTime(Math.max(0, estimatedTotalSeconds - activeJobState.elapsedSeconds))} restantes`}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
 
                       {/* Notes Callout if exists */}
                       {activeJobState.notes && (

@@ -46,7 +46,9 @@ export const Layout = ({ children, user, onLogout }) => {
         { name: 'Recibir productos', path: '/compras/recepcion' },
         { name: 'Compras de Materiales', path: '/compras' }
       ]
-    : modules;
+    : (user?.rol?.toLowerCase() === 'admin' || user?.rol?.toLowerCase() === 'administrador')
+      ? modules.filter(m => m.path !== '/instalaciones')
+      : modules;
 
   const filteredModules = searchQuery.trim() === ''
     ? []

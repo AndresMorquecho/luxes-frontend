@@ -59,10 +59,13 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
         (disenoFase.datos?.archivoArte ? [disenoFase.datos.archivoArte] : []);
       const nuevoArchivos = [...actualArchivos, ...uploadedFiles];
       
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+
       // Actualizar el estado local y backend
       updateFaseDatos('DISEÑO', { 
         archivosArte: nuevoArchivos,
-        archivoArte: nuevoArchivos[0] || null
+        archivoArte: nuevoArchivos[0] || null,
+        disenadorNombre: user?.nombre || 'Diseñador'
       });
     } catch (error) {
       console.error('Error al subir archivos:', error);
@@ -86,7 +89,11 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
 
   const handleAprobarHoy = () => {
     const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    updateFaseDatos('DISEÑO', { fechaAprobacionDiseno: hoy });
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    updateFaseDatos('DISEÑO', { 
+      fechaAprobacionDiseno: hoy,
+      disenadorNombre: user?.nombre || 'Diseñador'
+    });
   };
 
   return (

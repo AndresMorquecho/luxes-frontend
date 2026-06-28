@@ -26,12 +26,7 @@ export function getInstalacionCompletionBlockers(datos = {}, opts = {}) {
     faltantes.push('Registra al menos un material para la obra');
   }
 
-  const ocSinRecibir = ordenes.filter((oc) => (oc.estado || '').toUpperCase() === 'APROBADA');
-  if (ocSinRecibir.length > 0) {
-    faltantes.push(
-      `Recibe ${ocSinRecibir.length} orden(es) de compra aprobada(s) antes de cerrar la obra`,
-    );
-  }
+
 
   if (!datos.evidencias?.length) {
     faltantes.push('Sube al menos una evidencia fotográfica del trabajo realizado');

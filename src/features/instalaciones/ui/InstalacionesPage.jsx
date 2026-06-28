@@ -42,23 +42,28 @@ export function InstalacionesPage() {
   const { ordenesCompra = [] } = state || {};
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('TODAS'); // TODAS, PENDIENTES, ACTIVAS, COMPLETADAS
+  const [activeTab, setActiveTab] = useState('EN_PROGRESO'); // Default to EN_PROGRESO (Pendientes + En Curso)
 
-  // Filtrar proyectos que requieren instalación
-  const proyectosInstalacion = todosLosProyectos.filter(p => p.requiereInstalacion === true);
+  // Filtrar proyectos que requieren instalación y que YA están en la fase de instalación o posteriores
+  const proyectosInstalacion = todosLosProyectos.filter(p => 
+    p.requiereInstalacion === true && 
+    ['INSTALACION', 'ENTREGA', 'COMPLETADO'].includes(p.faseActual)
+  );
+
+  const getStarted = (p) => !!(p.fases?.INSTALACION?.datos?.fechaInstalacion && p.fases?.INSTALACION?.datos?.horaInstalacion);
+  const getFinished = (p) => ['ENTREGA', 'COMPLETADO'].includes(p.faseActual) || p.fases?.INSTALACION?.datos?.instalacionCompletada === true;
 
   // Estadísticas KPI
   const stats = {
     total: proyectosInstalacion.length,
     pendientes: proyectosInstalacion.filter(p => 
-      ['COTIZACION', 'DISEÑO', 'PRODUCCION'].includes(p.faseActual)
+      p.faseActual === 'INSTALACION' && !getFinished(p) && !getStarted(p)
     ).length,
     activas: proyectosInstalacion.filter(p => 
-      p.faseActual === 'INSTALACION' && p.fases?.INSTALACION?.datos?.instalacionCompletada !== true
+      p.faseActual === 'INSTALACION' && !getFinished(p) && getStarted(p)
     ).length,
     completadas: proyectosInstalacion.filter(p => 
-      ['ENTREGA', 'COMPLETADO'].includes(p.faseActual) || 
-      p.fases?.INSTALACION?.datos?.instalacionCompletada === true
+      getFinished(p)
     ).length,
   };
 
@@ -75,15 +80,17 @@ export function InstalacionesPage() {
 
     // 2. Filtro de Pestaña/Estado
     let matchesTab = true;
-    const isInstalacionCompletada = p.fases?.INSTALACION?.datos?.instalacionCompletada === true;
-    const isProyectoCompletado = ['ENTREGA', 'COMPLETADO'].includes(p.faseActual);
+    const isFinished = getFinished(p);
+    const isStarted = getStarted(p);
 
-    if (activeTab === 'PENDIENTES') {
-      matchesTab = ['COTIZACION', 'DISEÑO', 'PRODUCCION'].includes(p.faseActual);
+    if (activeTab === 'EN_PROGRESO') {
+      matchesTab = !isFinished;
+    } else if (activeTab === 'PENDIENTES') {
+      matchesTab = p.faseActual === 'INSTALACION' && !isFinished && !isStarted;
     } else if (activeTab === 'ACTIVAS') {
-      matchesTab = p.faseActual === 'INSTALACION' && !isInstalacionCompletada;
+      matchesTab = p.faseActual === 'INSTALACION' && !isFinished && isStarted;
     } else if (activeTab === 'COMPLETADAS') {
-      matchesTab = isProyectoCompletado || isInstalacionCompletada;
+      matchesTab = isFinished;
     }
 
     return matchesSearch && matchesTab;
@@ -168,28 +175,34 @@ export function InstalacionesPage() {
 
         <div className="instalaciones-tabs">
           <button
-            onClick={() => setActiveTab('TODAS')}
-            className={`tab-pill-btn ${activeTab === 'TODAS' ? 'active' : ''}`}
+            onClick={() => setActiveTab('EN_PROGRESO')}
+            className={`tab-pill-btn ${activeTab === 'EN_PROGRESO' ? 'active' : ''}`}
           >
-            Todas ({stats.total})
+            Pendientes / En Curso ({stats.pendientes + stats.activas})
           </button>
           <button
             onClick={() => setActiveTab('PENDIENTES')}
             className={`tab-pill-btn ${activeTab === 'PENDIENTES' ? 'active' : ''}`}
           >
-            Pendientes ({stats.pendientes})
+            Por Iniciar ({stats.pendientes})
           </button>
           <button
             onClick={() => setActiveTab('ACTIVAS')}
             className={`tab-pill-btn ${activeTab === 'ACTIVAS' ? 'active' : ''}`}
           >
-            En Curso ({stats.activas})
+            En Montaje ({stats.activas})
           </button>
           <button
             onClick={() => setActiveTab('COMPLETADAS')}
             className={`tab-pill-btn ${activeTab === 'COMPLETADAS' ? 'active' : ''}`}
           >
             Completadas ({stats.completadas})
+          </button>
+          <button
+            onClick={() => setActiveTab('TODAS')}
+            className={`tab-pill-btn ${activeTab === 'TODAS' ? 'active' : ''}`}
+          >
+            Todas ({stats.total})
           </button>
         </div>
       </div>

@@ -723,51 +723,6 @@ export const ColasImpresionPage = () => {
                         </div>
                       </div>
 
-                      {/* Progress and Timer section */}
-                      <div className="printing-progress-section">
-                        <div className="progress-header-row">
-                          <span className="progress-label">
-                            {activeJob.status === "Listo" ? "Preparado" : activeJob.status === "Pausado" ? "Impresión en Pausa" : "Progreso de Impresión"}
-                          </span>
-                          <span className="progress-time-counter">
-                            {formatTime(activeJob.elapsedSeconds)}
-                          </span>
-                        </div>
-                        
-                        {/* Interactive Progress Bar */}
-                        {(() => {
-                          const estimatedTotalSeconds = activeJob.copies * 180; // 3 minutes per copy
-                          const progressPercent = activeJob.status === "Listo" 
-                            ? 0 
-                            : Math.min(100, Math.floor((activeJob.elapsedSeconds / estimatedTotalSeconds) * 100));
-                          
-                          return (
-                            <div className="progress-container-outer">
-                              <div className="progress-bar-track">
-                                <div 
-                                  className={`progress-bar-fill ${activeJob.status.toLowerCase()}`}
-                                  style={{ width: `${progressPercent}%` }}
-                                >
-                                  {progressPercent > 5 && activeJob.status === "Imprimiendo" && (
-                                    <div className="progress-shimmer"></div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="progress-footer">
-                                <span className="progress-percent-text">{progressPercent}% completado</span>
-                                <span className="progress-estimate-text">
-                                  {activeJob.status === "Listo" 
-                                    ? "Espera inicio" 
-                                    : activeJob.status === "Pausado" 
-                                    ? "Pausado" 
-                                    : `Est. ${formatTime(Math.max(0, estimatedTotalSeconds - activeJob.elapsedSeconds))} restantes`}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                      </div>
                     </div>
                   </div>
 
