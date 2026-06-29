@@ -97,41 +97,59 @@ export default function ProyectoDetallePage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-20 shadow-sm">
-        <div className="w-full mx-auto flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20 shadow-sm">
+        <div className="w-full mx-auto flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
+          {/* Título + metadatos */}
+          <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
             <button
               onClick={() => navigate('/proyectos')}
-              className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+              className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors shrink-0 mt-0.5"
+              aria-label="Volver a proyectos"
             >
               <ArrowLeft size={18} />
             </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold text-slate-800">{proyecto.nombre}</h1>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-2">
+                <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-snug flex-1 min-w-0">
+                  {proyecto.nombre}
+                </h1>
                 <button
                   onClick={() => setIsDetailsModalOpen(true)}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
                   title="Ver más detalles"
                 >
                   <Eye size={16} />
                 </button>
               </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                <span className="flex items-center gap-1" title="Cliente">
-                  <User size={12} /> {proyecto.cliente.empresa} • {proyecto.cliente.nombre}
+
+              <div className="mt-2.5 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
+                <span className="flex items-start gap-1.5 min-w-0" title="Cliente">
+                  <User size={12} className="shrink-0 mt-0.5" />
+                  <span className="leading-relaxed min-w-0">
+                    <span className="block sm:inline font-medium text-slate-600">{proyecto.cliente.empresa}</span>
+                    <span className="hidden sm:inline mx-1 text-slate-300">•</span>
+                    <span className="block sm:inline text-slate-500">{proyecto.cliente.nombre}</span>
+                  </span>
                 </span>
-                <span className="flex items-center gap-1" title="Entrega estimada">
-                  <Calendar size={12} className={estaVencido ? 'text-red-500' : ''} /> 
-                  <span className={estaVencido ? 'text-red-500 font-semibold' : 'font-medium'}>
-                    {proyecto.fechaEntregaEstimada ? `Entrega: ${proyecto.fechaEntregaEstimada}` : 'Sin fecha'}
+
+                <span
+                  className={`flex items-center gap-1.5 shrink-0 ${
+                    estaVencido ? 'text-red-500' : 'text-slate-600'
+                  }`}
+                  title="Entrega estimada"
+                >
+                  <Calendar size={12} className={`shrink-0 ${estaVencido ? 'text-red-500' : 'text-slate-400'}`} />
+                  <span className={`whitespace-nowrap ${estaVencido ? 'font-semibold' : 'font-medium'}`}>
+                    {proyecto.fechaEntregaEstimada ? `Entrega: ${proyecto.fechaEntregaEstimada}` : 'Sin fecha de entrega'}
                   </span>
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Badges */}
+          <div className="flex items-center gap-2 flex-wrap pl-11 sm:pl-0 md:justify-end md:shrink-0">
             <span
               className="text-xs font-bold px-2.5 py-1 rounded-full"
               style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
@@ -149,23 +167,23 @@ export default function ProyectoDetallePage() {
         </div>
       </div>
 
-      <div className="w-full mx-auto px-6 py-6 space-y-6">
+      <div className="w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5 sm:space-y-6">
 
         {/* Selector de sub-pestañas principales */}
-        <div className="flex gap-2 border-b border-slate-200 pb-px">
+        <div className="flex gap-1 sm:gap-2 border-b border-slate-200 pb-px overflow-x-auto">
           <button
             onClick={() => setSubTab('fases')}
-            className={`px-5 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer
+            className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
               ${subTab === 'fases'
                 ? 'border-indigo-500 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
-            Flujo de Trabajo (Fases)
+            Flujo de Trabajo
           </button>
           {canViewGastos && (
             <button
               onClick={() => setSubTab('gastos')}
-              className={`px-5 py-3 font-bold text-sm border-b-2 transition-all cursor-pointer
+              className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
                 ${subTab === 'gastos'
                   ? 'border-indigo-500 text-indigo-600'
                   : 'border-transparent text-slate-500 hover:text-slate-700'}`}

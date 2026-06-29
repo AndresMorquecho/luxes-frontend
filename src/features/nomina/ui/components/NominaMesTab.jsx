@@ -775,7 +775,7 @@ const CellInput = ({ value, onChange, disabled = false, placeholder = "0" }) => 
   <input
     type="number"
     step="0.01"
-    value={value === 0 ? '' : value}
+    value={value == null || value === 0 ? '' : value}
     onChange={e => onChange(parseFloat(e.target.value) || 0)}
     disabled={disabled}
     placeholder={placeholder}
@@ -910,45 +910,45 @@ const QuincenaTable = ({
       </div>
       <div className="overflow-auto max-h-[520px] relative border-t border-slate-200">
         <table className="min-w-full text-xs border-collapse">
-          <thead className="sticky top-0 z-30 shadow-xs">
+          <thead className="z-30 shadow-xs">
             <tr className="bg-slate-100 text-xs uppercase font-bold text-slate-700 border-b border-slate-200">
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-100 sticky left-0 z-40 border-r-2 border-r-slate-350 w-[320px] min-w-[320px] max-w-[320px]">Colaborador</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-50">Sueldo Base</th>
-              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-violet-50 text-violet-950">Provisiones (no neto)</th>
-              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950">Ingresos al Neto (+)</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-red-50 text-red-950">Egresos / Descuentos (-)</th>
-              <th colSpan={6} className="border border-slate-200 px-2 py-2 text-center bg-blue-50 text-blue-950">Liquidación Final</th>
-              <th rowSpan={2} className="border border-slate-200 px-2 py-2.5 text-center w-28 bg-slate-100 text-slate-700">Acción</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-100 sticky top-0 left-0 z-40 border-r-2 border-r-slate-350 w-[320px] min-w-[320px] max-w-[320px]">Colaborador</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-50 sticky top-0 z-30">Sueldo Base</th>
+              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-violet-50 text-violet-950 sticky top-0 z-30">Provisiones (no neto)</th>
+              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950 sticky top-0 z-30">Ingresos al Neto (+)</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-red-50 text-red-950 sticky top-0 z-30">Egresos / Descuentos (-)</th>
+              <th colSpan={6} className="border border-slate-200 px-2 py-2 text-center bg-blue-50 text-blue-950 sticky top-0 z-30">Liquidación Final</th>
+              <th rowSpan={2} className="border border-slate-200 px-2 py-2.5 text-center w-28 bg-slate-100 text-slate-700 sticky top-0 z-30">Acción</th>
             </tr>
             <tr className="bg-slate-50 text-[11px] uppercase font-bold text-slate-600 border-b border-slate-200">
-              <th className="border border-slate-200 px-1 py-2 text-center w-[40px] min-w-[40px] max-w-[40px] sticky left-0 z-40 bg-slate-100">#</th>
-              <th className="border border-slate-200 px-2 py-2 text-left w-[190px] min-w-[190px] max-w-[190px] sticky left-[40px] z-40 bg-slate-100">Nombres</th>
-              <th className="border border-slate-200 px-2 py-2 text-center w-[90px] min-w-[90px] max-w-[90px] sticky left-[230px] z-40 bg-slate-100 border-r-2 border-r-slate-300">Contrato</th>
+              <th className="border border-slate-200 px-1 py-2 text-center w-[40px] min-w-[40px] max-w-[40px] sticky top-[38px] left-0 z-40 bg-slate-100">#</th>
+              <th className="border border-slate-200 px-2 py-2 text-left w-[190px] min-w-[190px] max-w-[190px] sticky top-[38px] left-[40px] z-40 bg-slate-100">Nombres</th>
+              <th className="border border-slate-200 px-2 py-2 text-center w-[90px] min-w-[90px] max-w-[90px] sticky top-[38px] left-[230px] z-40 bg-slate-100 border-r-2 border-r-slate-300">Contrato</th>
               
-              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50">Diario</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-slate-50">Días T.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50">Sueldo B.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50 sticky top-[38px] z-30">Diario</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-slate-50 sticky top-[38px] z-30">Días T.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50 sticky top-[38px] z-30">Sueldo B.</th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900">Prov. D3</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900">Prov. D4</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950">Acum. D3</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950">Acum. D4</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900 sticky top-[38px] z-30">Prov. D3</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900 sticky top-[38px] z-30">Prov. D4</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950 sticky top-[38px] z-30">Acum. D3</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950 sticky top-[38px] z-30">Acum. D4</th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900" title="Monto de horas extras aprobadas en el período">H. Extras</th>
-              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-emerald-50 text-emerald-900">Ingresos Var.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900">F. Res.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-emerald-100 text-emerald-950 font-black">Total +</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30" title="Monto de horas extras aprobadas en el período">H. Extras</th>
+              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30">Ingresos Var.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30">F. Res.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-emerald-100 text-emerald-950 font-black sticky top-[38px] z-30">Total +</th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-red-50 text-red-900">IESS</th>
-              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-red-50 text-red-900">Egresos Varios</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-red-100 text-red-950 font-black">Total -</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-red-50 text-red-900 sticky top-[38px] z-30">IESS</th>
+              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-red-50 text-red-900 sticky top-[38px] z-30">Egresos Varios</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-red-100 text-red-950 font-black sticky top-[38px] z-30">Total -</th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[78px] bg-blue-50 text-blue-900 font-bold" title="Sueldo quincena y otros ingresos, menos descuentos">Neto Mens.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 font-bold" title="Monto neto por horas extras aprobadas">Neto H.E.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-amber-50 text-amber-900 font-bold" title="Horas extras registradas, pendientes de aprobación">H.E. Pend.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-blue-100 text-blue-950 font-black">Total</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-green-100 text-green-950 font-black">Pagado</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-orange-100 text-orange-950 font-black">Pendiente</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[78px] bg-blue-50 text-blue-900 font-bold sticky top-[38px] z-30" title="Sueldo quincena y otros ingresos, menos descuentos">Neto Mens.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 font-bold sticky top-[38px] z-30" title="Monto neto por horas extras aprobadas">Neto H.E.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-amber-50 text-amber-900 font-bold sticky top-[38px] z-30" title="Horas extras registradas, pendientes de aprobación">H.E. Pend.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-blue-100 text-blue-950 font-black sticky top-[38px] z-30">Total</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-green-100 text-green-950 font-black sticky top-[38px] z-30">Pagado</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-orange-100 text-orange-950 font-black sticky top-[38px] z-30">Pendiente</th>
             </tr>
           </thead>
 
@@ -1145,7 +1145,7 @@ const QuincenaTable = ({
             })}
           </tbody>
 
-          <tfoot className="sticky bottom-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] font-black text-[11px] uppercase">
+          <tfoot className="font-black text-[11px] uppercase shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             <tr className="bg-slate-100 border-t-2 border-slate-350">
               <td colSpan={3} className="border border-slate-200 px-3 py-2.5 text-slate-700 uppercase tracking-widest sticky left-0 z-40 bg-slate-100 border-r-2 border-r-slate-300 w-[320px] min-w-[320px] max-w-[320px]">TOTALES</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalSueldoDiario)}</td>
@@ -1190,7 +1190,7 @@ export const NominaMesTab = () => {
   const [employees, setEmployees] = useState([]);
   const [q1Raw, setQ1Raw] = useState([]);
   const [q2Raw, setQ2Raw] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [payTarget, setPayTarget] = useState(null);
   const [activeTab, setActiveTab] = useState('q1');
   
@@ -1560,12 +1560,12 @@ export const NominaMesTab = () => {
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Nómina Mes</p>
             <p className="text-2xl font-black text-slate-800 mt-1">{formatUSD(totalQ1 + totalQ2)}</p>
-            <p className="text-[10px] text-slate-500 mt-1 font-semibold">
+            <div className="text-[10px] text-slate-500 mt-1 font-semibold">
               Mensualidad {formatUSD(mesNetoSplit.netoMensualidad)} · H. Extras {formatUSD(mesNetoSplit.netoHorasExtras)}
               {mesHEPendiente > 0 && (
                 <span className="text-amber-700"> · H.E. pend. {formatUSD(mesHEPendiente)}</span>
               )}
-            </p>
+            </div>
           </div>
           <div className="p-3 bg-slate-50 rounded-lg text-slate-500">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1652,10 +1652,11 @@ export const NominaMesTab = () => {
         </button>
       </div>
 
-      {/* Table Container */}
+      {/* Table Container — ambas quincenas montadas; evita desmontaje brusco con sticky (React 19) */}
       <div className="bg-white rounded-b-xl border-x border-b border-slate-200 shadow-xs overflow-hidden min-h-[250px] transition-all">
-        {activeTab === 'q1' ? (
+        <div className={activeTab === 'q1' ? '' : 'hidden'} aria-hidden={activeTab !== 'q1'}>
           <QuincenaTable
+            key={`q1-${year}-${month}`}
             label={`PRIMERA QUINCENA — ${mesLabel} ${year} (01 AL 15)`}
             quincenaNum={1}
             rows={q1Rows}
@@ -1669,8 +1670,10 @@ export const NominaMesTab = () => {
             onOpenEgresos={handleOpenEgresos}
             onOpenIngresos={handleOpenIngresos}
           />
-        ) : (
+        </div>
+        <div className={activeTab === 'q2' ? '' : 'hidden'} aria-hidden={activeTab !== 'q2'}>
           <QuincenaTable
+            key={`q2-${year}-${month}`}
             label={`SEGUNDA QUINCENA — ${mesLabel} ${year} (16 AL ${new Date(year, month, 0).getDate()})`}
             quincenaNum={2}
             rows={q2Rows}
@@ -1684,7 +1687,7 @@ export const NominaMesTab = () => {
             onOpenEgresos={handleOpenEgresos}
             onOpenIngresos={handleOpenIngresos}
           />
-        )}
+        </div>
       </div>
 
       {payTarget && (

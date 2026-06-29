@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Sidebar } from '../../../features/navigation/infrastructure/ui/Sidebar';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications.js';
+import { isAdminUser } from '../../utils/userRoleHelpers.js';
 import './Layout.css';
 
 export const Layout = ({ children, user, onLogout }) => {
@@ -113,27 +114,47 @@ export const Layout = ({ children, user, onLogout }) => {
   }, [location]);
 
   const isAsistenciaMode = user?.rol === 'asistencia';
+  const isAdminMobile = isMobile && isAdminUser(user);
   const isTallerMobile = isMobile && user?.rol?.toLowerCase() === 'taller';
   const isImpresionMobile = isMobile && ['impresion', 'impresión'].includes(user?.rol?.toLowerCase());
   const isVentasDisenadorMobile = isMobile && ['ventas / diseñador', 'ventas/diseñador', 'ventas', 'diseñador'].includes(user?.rol?.toLowerCase());
-  const isBottomNavMobile = isTallerMobile || isImpresionMobile || isVentasDisenadorMobile;
+  const isBottomNavMobile = isAdminMobile || isTallerMobile || isImpresionMobile || isVentasDisenadorMobile;
 
   const unreadCount = useUnreadNotifications(user, {
-    enabled: ['taller', 'impresion', 'impresión', 'ventas / diseñador', 'ventas/diseñador', 'ventas', 'diseñador'].includes(user?.rol?.toLowerCase()),
+    enabled: isBottomNavMobile,
   });
 
   const isTabActive = (path) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
     if (path === '/notificaciones') {
       return location.pathname === '/notificaciones';
     }
+    if (path === '/nomina/nomina-del-mes') {
+      return location.pathname.startsWith('/nomina');
+    }
+    if (path === '/compras/aprobaciones') {
+      return location.pathname.startsWith('/compras/aprobacion');
+    }
     if (path === '/compras') {
-      return location.pathname === '/compras' || 
-             location.pathname.startsWith('/compras/historial') || 
-             location.pathname.startsWith('/compras/nueva') || 
+      return location.pathname === '/compras' ||
+             location.pathname.startsWith('/compras/historial') ||
+             location.pathname.startsWith('/compras/nueva') ||
              location.pathname.startsWith('/compras/editar');
     }
     return location.pathname.startsWith(path);
   };
+
+  const mobileBrandLabel = isAdminMobile
+    ? 'Admin'
+    : isTallerMobile
+      ? 'Taller'
+      : isImpresionMobile
+        ? 'Impresión'
+        : 'Diseño / Ventas';
+
+  const mobileUserLabel = user?.nombre || mobileBrandLabel;
 
   return (
     <div className={`layout-container ${isMobile ? 'mobile' : ''} ${isMobileOpen ? 'mobile-open' : ''} ${(!isMobile && isCollapsed) ? 'collapsed' : ''} ${isAsistenciaMode ? 'kiosk-layout' : ''} ${isBottomNavMobile ? 'mobile-taller-layout' : ''}`}>
@@ -161,8 +182,8 @@ export const Layout = ({ children, user, onLogout }) => {
           <div className="mobile-taller-logo-box">
             <img src="/LogoGlobo.png" alt="Luxes Logo" className="mobile-taller-logo" />
             <div className="mobile-taller-user-info">
-              <span className="mobile-taller-brand">Luxes {isTallerMobile ? 'Taller' : isImpresionMobile ? 'Impresión' : 'Diseño / Ventas'}</span>
-              <span className="mobile-taller-username">{user?.nombre || (isTallerMobile ? 'Taller' : isImpresionMobile ? 'Impresión' : 'Ventas')}</span>
+              <span className="mobile-taller-brand">Luxes {mobileBrandLabel}</span>
+              <span className="mobile-taller-username">{mobileUserLabel}</span>
             </div>
           </div>
           <div className="mobile-taller-header-actions">
@@ -262,7 +283,59 @@ export const Layout = ({ children, user, onLogout }) => {
 
       {isBottomNavMobile && !hideBottomNav && (
         <nav className="mobile-bottom-nav">
-          {isVentasDisenadorMobile ? (
+          {isAdminMobile ? (
+            <>
+              <Link to="/proformas" className={`mobile-nav-item ${isTabActive('/proformas') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Proformas</span>
+              </Link>
+
+              <Link to="/compras/aprobaciones" className={`mobile-nav-item ${isTabActive('/compras/aprobaciones') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Compras</span>
+              </Link>
+
+              <Link to="/proyectos" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/proyectos') ? 'active' : ''}`}>
+                <div className="mobile-nav-fab-circle">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 012.008 1.24l.885 1.77a2.25 2.25 0 002.007 1.24h1.98a2.25 2.25 0 002.007-1.24l.885-1.77a2.25 2.25 0 012.007-1.24h3.86m-18 0a2.25 2.25 0 00-2.25 2.25v.9a2.25 2.25 0 002.25 2.25h16.5a2.25 2.25 0 002.25-2.25v-.9a2.25 2.25 0 00-2.25-2.25m-18 0V7.5A2.25 2.25 0 012.25 5.25h16.5A2.25 2.25 0 0121 7.5v6m-18 0h18" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Proyectos</span>
+              </Link>
+
+              <Link to="/nomina/nomina-del-mes" className={`mobile-nav-item ${isTabActive('/nomina/nomina-del-mes') ? 'active' : ''}`}>
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Nómina</span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setIsMobileOpen(true)}
+                className={`mobile-nav-item ${isMobileOpen ? 'active' : ''}`}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-nav-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                  </svg>
+                </div>
+                <span className="mobile-nav-label">Más</span>
+              </button>
+            </>
+          ) : isVentasDisenadorMobile ? (
             <>
               {/* Ventas / Diseñador Tabs */}
               <Link to="/tareas" className={`mobile-nav-item ${isTabActive('/tareas') ? 'active' : ''}`}>
