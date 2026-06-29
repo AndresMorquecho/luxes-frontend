@@ -204,7 +204,7 @@ export const Layout = ({ children, user, onLogout }) => {
             </button>
           </div>
         </header>
-      ) : (
+      ) : isMobile ? (
         /* Top mobile header */
         <header className="mobile-header">
           <button 
@@ -253,7 +253,7 @@ export const Layout = ({ children, user, onLogout }) => {
             )}
           </div>
         </header>
-      )}
+      ) : null}
 
       {/* Backdrop overlay for mobile drawer */}
       {isMobile && isMobileOpen && (
