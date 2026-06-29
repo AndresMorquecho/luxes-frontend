@@ -9,7 +9,7 @@ export const initialNominaState = {
   activePeriod: {
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
-    type: "mensual",
+    type: 'mensual',
   },
   selectedEmployeeId: null, // Para ver Rol de Pago o Editar
 };

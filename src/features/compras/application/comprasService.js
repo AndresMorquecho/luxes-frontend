@@ -19,12 +19,18 @@ export async function getProveedores() {
 
 export async function getOrdenes(options = {}) {
   const params = new URLSearchParams();
-  const { page, limit, search, estado, estadoPago } = options;
+  const { page, limit, search, estado, estados, estadoPago, creadorRol, creadorId, pendienteRecepcion, fechaInicio, fechaFin } = options;
   if (page) params.append('page', page);
   if (limit) params.append('limit', limit);
   if (search) params.append('search', search);
   if (estado) params.append('estado', estado);
+  if (estados?.length) params.append('estados', estados.join(','));
   if (estadoPago) params.append('estadoPago', estadoPago);
+  if (creadorRol) params.append('creadorRol', creadorRol);
+  if (creadorId) params.append('creadorId', creadorId);
+  if (pendienteRecepcion) params.append('pendienteRecepcion', 'true');
+  if (fechaInicio) params.append('fechaInicio', fechaInicio);
+  if (fechaFin) params.append('fechaFin', fechaFin);
 
   const url = `/api/compras?${params.toString()}`;
   const res = await fetch(url, { headers: getHeaders() });
@@ -103,8 +109,12 @@ export async function getCuentasPorPagar(options = {}) {
 
 // ── Métodos de Pago ─────────────────────────────────────────────────────────
 
-export async function getMetodosPago() {
-  const res = await fetch('/api/compras/metodos-pago', { headers: getHeaders() });
+export async function getMetodosPago(desde, hasta) {
+  const params = new URLSearchParams();
+  if (desde) params.append('desde', desde);
+  if (hasta) params.append('hasta', hasta);
+  const url = `/api/compras/metodos-pago${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener métodos de pago');
   return data.data;
@@ -148,13 +158,13 @@ export async function getComprasStats() {
 
 // ── Recepción de Orden ──────────────────────────────────────────────────────
 
-export async function recepcionarOrden(id, detalles) {
+export async function recepcionarOrden(id, body) {
   const res = await fetch(`/api/compras/${id}/recepcion`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ detalles }),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al recepcionar orden');
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar productos recibidos');
   return data.data;
 }

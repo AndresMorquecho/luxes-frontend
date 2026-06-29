@@ -6,61 +6,125 @@ const getHeaders = () => {
   };
 };
 
-const parseResponse = async (response) => {
-  const text = await response.text();
-  let data = null;
+export const getProformas = async (filters = {}) => {
+  const params = new URLSearchParams();
+  
+  if (filters.page) params.append('page', filters.page);
+  if (filters.limit) params.append('limit', filters.limit);
+  if (filters.search) params.append('search', filters.search);
+  if (filters.estado) params.append('estado', filters.estado);
+  if (filters.fechaDesde) params.append('fechaDesde', filters.fechaDesde);
+  if (filters.fechaHasta) params.append('fechaHasta', filters.fechaHasta);
+  if (filters.clienteId) params.append('clienteId', filters.clienteId);
 
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    if (response.status === 502 || response.status === 503) {
-      throw new Error(
-        'No se pudo conectar con el servidor. Asegúrate de que el backend esté corriendo (npm run dev en luxes-backend).'
-      );
-    }
-    throw new Error(`Respuesta inválida del servidor (${response.status})`);
+  const queryString = params.toString();
+  const url = `/api/proformas${queryString ? `?${queryString}` : ''}`;
+  
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al obtener proformas');
   }
-
-  if (!response.ok || !data?.success) {
-    throw new Error(data?.error?.message || `Error en la operación (${response.status})`);
-  }
-
-  return data.data;
-};
-
-export const getProformas = async () => {
-  return parseResponse(await fetch('/api/proformas', { headers: getHeaders() }));
+  return data;
 };
 
 export const saveProforma = async (proforma) => {
-  const isEdit = Boolean(proforma.id);
+  const isEdit = !!proforma.id;
   const url = isEdit ? `/api/proformas/${proforma.id}` : '/api/proformas';
   const method = isEdit ? 'PUT' : 'POST';
 
-  return parseResponse(
-    await fetch(url, {
-      method,
-      headers: getHeaders(),
-      body: JSON.stringify(proforma),
-    })
-  );
+  const res = await fetch(url, {
+    method,
+    headers: getHeaders(),
+    body: JSON.stringify(proforma),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al guardar proforma');
+  }
+  return data.data;
 };
 
 export const deleteProforma = async (id) => {
-  return parseResponse(
-    await fetch(`/api/proformas/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    })
-  );
+  const res = await fetch(`/api/proformas/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al eliminar proforma');
+  }
+  return id;
 };
 
-export const updateProformaEstado = async (id, estado) => {
-  return parseResponse(
-    await fetch(`/api/proformas/${id}/estado`, {
-      method: 'PATCH',
-      headers: getHeaders(),
-      body: JSON.stringify({ estado }),
-    })
-  );
+export const updateProformaEstado = async (id, estado, metodoPagoId = null) => {
+  const res = await fetch(`/api/proformas/${id}/estado`, {
+    method: 'PATCH',
+    headers: getHeaders(),
+    body: JSON.stringify({ estado, metodoPagoId }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al actualizar estado');
+  }
+  return data.data;
+};
+
+export const getProformaById = async (id) => {
+  const res = await fetch(`/api/proformas/${id}`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al obtener proforma');
+  }
+  return data.data;
+};
+
+export const aprobarProforma = async (id, { monto, metodoPagoId, referencia }) => {
+  const res = await fetch(`/api/proformas/${id}/aprobar`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ monto, metodoPagoId, referencia }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al aprobar proforma');
+  }
+  return data.data;
+};
+
+export const rechazarProforma = async (id) => {
+  const res = await fetch(`/api/proformas/${id}/rechazar`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al rechazar proforma');
+  }
+  return data.data;
+};
+
+export const enviarProforma = async (id) => {
+  const res = await fetch(`/api/proformas/${id}/enviar`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al enviar proforma');
+  }
+  return data.data;
+};
+
+export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referencia }) => {
+  const res = await fetch(`/api/proformas/${id}/abonos`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ monto, metodoPagoId, referencia }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al registrar abono');
+  }
+  return data.data;
 };

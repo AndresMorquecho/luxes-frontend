@@ -6,6 +6,33 @@ const getHeaders = () => {
   };
 };
 
+/** Categoría de inventario según rol: Impresión, Taller o libre (admin). */
+export function getInventarioCategoriaPorRol(user) {
+  const rol = (user?.rol ?? JSON.parse(localStorage.getItem('user') || '{}')?.rol ?? '').toLowerCase();
+  if (rol === 'impresión' || rol === 'impresion') return 'Impresión';
+  if (rol === 'taller') return 'Taller';
+  return undefined;
+}
+
+/** Arma opciones de consulta respetando el inventario del rol. */
+export function buildMaterialesQuery(options = {}) {
+  const categoriaRol = getInventarioCategoriaPorRol();
+  const { categoria, ...rest } = options;
+  return {
+    page: 1,
+    limit: 500,
+    ...rest,
+    ...(categoriaRol ? { categoria: categoriaRol } : categoria ? { categoria } : {}),
+  };
+}
+
+/** Normaliza la respuesta del API (array plano o { items, total }). */
+export function normalizeMaterialesList(data) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
 // ── Materiales ─────────────────────────────────────────────────────────────
 
 export async function getMateriales(options = {}) {
@@ -90,8 +117,22 @@ export async function registrarMovimiento(materialId, body) {
 
 // ── Préstamos ───────────────────────────────────────────────────────────────
 
-export async function getPrestamos(estado) {
-  const url = estado ? `/api/inventario/prestamos?estado=${estado}` : '/api/inventario/prestamos';
+export async function getPrestamos(options) {
+  const params = new URLSearchParams();
+  if (typeof options === 'string') {
+    params.append('estado', options);
+  } else if (options && typeof options === 'object') {
+    const { estado, page, limit, fechaInicio, fechaFin, searchTool, filterPersona } = options;
+    if (estado) params.append('estado', estado);
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    if (fechaInicio) params.append('fechaInicio', fechaInicio);
+    if (fechaFin) params.append('fechaFin', fechaFin);
+    if (searchTool) params.append('searchTool', searchTool);
+    if (filterPersona) params.append('filterPersona', filterPersona);
+  }
+
+  const url = `/api/inventario/prestamos?${params.toString()}`;
   const res = await fetch(url, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener préstamos');
@@ -107,11 +148,20 @@ export async function registrarPrestamo(body) {
   return data.data;
 }
 
-export async function devolverPrestamo(id) {
+export async function devolverPrestamo(id, body = {}) {
   const res = await fetch(`/api/inventario/prestamos/${id}/retorno`, {
-    method: 'PUT', headers: getHeaders(),
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar devolución');
+  return data.data;
+}
+
+export async function getMaterialHistorial(id) {
+  const res = await fetch(`/api/inventario/${id}/historial`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener historial del material');
   return data.data;
 }

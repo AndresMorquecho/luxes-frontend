@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate } from 'react-router-dom';
 import {
   getOrdenes, updateOrden, deleteOrden, getComprasStats,
@@ -7,12 +7,15 @@ import {
 } from '../../application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import './ComprasPage.css';
 
 const ESTADOS = ['pendiente_aprobacion', 'aprobada', 'recibida', 'cancelada'];
 const ESTADO_BADGES = {
   pendiente_aprobacion: { bg: 'rgba(245,158,11,0.1)',  color: '#f59e0b', label: 'Pendiente Aprobación' },
   aprobada:             { bg: 'rgba(59,130,246,0.1)',   color: '#3b82f6', label: 'Aprobada' },
+  parcialmente_recibida: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Recepción Parcial' },
   recibida:             { bg: 'rgba(16,185,129,0.1)',   color: '#10b981', label: 'Recibida' },
   cancelada:            { bg: 'rgba(239,68,68,0.08)',   color: '#ef4444', label: 'Cancelada' },
 };
@@ -48,6 +51,8 @@ export const ComprasPage = () => {
   const [currentUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
   const userRole = (currentUser?.rol || '').toLowerCase();
   const isAdmin = userRole === 'admin' || userRole === 'administrador';
+  const isImpresion = userRole === 'impresión' || userRole === 'impresion';
+  const isTaller = userRole === 'taller';
 
   const [stats, setStats] = useState({ totalOrdenes: 0, pendientes: 0, totalGastado: 0, totalDeuda: 0 });
 
@@ -57,7 +62,8 @@ export const ComprasPage = () => {
   const [ordenTotal, setOrdenTotal] = useState(0);
   const [ordenSearch, setOrdenSearch] = useState('');
   const [ordenLoading, setOrdenLoading] = useState(true);
-  const perPage = 8;
+  const [fechas, setFechas] = useState({ start: '', end: '' });
+  const perPage = 25;
 
   // ── PDF state ──
   const [isPDFOpen, setIsPDFOpen] = useState(false);
@@ -102,12 +108,22 @@ export const ComprasPage = () => {
   const loadOrdenes = useCallback(async () => {
     setOrdenLoading(true);
     try {
-      const data = await getOrdenes({ page: ordenPage, limit: perPage, search: ordenSearch || undefined });
+      const data = await getOrdenes({
+        page: ordenPage,
+        limit: perPage,
+        search: ordenSearch || undefined,
+        creadorRol: (isImpresion || isTaller) ? currentUser?.rol : undefined,
+        estados: (isImpresion || isTaller)
+          ? ['pendiente_aprobacion', 'aprobada', 'parcialmente_recibida']
+          : undefined,
+        fechaInicio: fechas.start || undefined,
+        fechaFin: fechas.end || undefined
+      });
       setOrdenes(data.items || []);
       setOrdenTotal(data.total || 0);
     } catch { setOrdenes([]); setOrdenTotal(0); }
     finally { setOrdenLoading(false); }
-  }, [ordenPage, ordenSearch]);
+  }, [ordenPage, ordenSearch, isImpresion, isTaller, currentUser, fechas]);
 
   const loadMetodos = useCallback(async () => {
     try { const m = await getMetodosPago(); setMetodos(m); } catch {}
@@ -119,11 +135,15 @@ export const ComprasPage = () => {
     loadMetodos();
   }, [loadStats, loadOrdenes, loadMetodos]);
 
+  useEffect(() => {
+    setOrdenPage(1);
+  }, [fechas, ordenSearch]);
+
   // ── Search debounce ──
   const handleOrdenSearchChange = (e) => {
     const val = e.target.value;
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => { setOrdenSearch(val); setOrdenPage(1); }, 350);
+    searchTimer.current = setTimeout(() => { setOrdenSearch(val); }, 350);
   };
 
   const handleOrdenDelete = async (id) => {
@@ -182,6 +202,7 @@ export const ComprasPage = () => {
       descripcion: d.descripcion,
       cantidadOriginal: d.cantidad,
       cantidadRecibida: String(d.cantidad),
+      descargableInventario: !!d.materialId,
     }));
     setRecepcionDetalles(details);
     setRecepcionModalOpen(true);
@@ -191,13 +212,19 @@ export const ComprasPage = () => {
     e.preventDefault();
     setRecepcionSaving(true);
     try {
-      const payload = recepcionDetalles.map(d => ({
-        materialId: d.materialId,
-        cantidad: parseFloat(d.cantidadRecibida) || 0,
-      }));
+      const items = recepcionDetalles.filter(d => (parseFloat(d.cantidadRecibida) || 0) > 0);
+      const payload = {
+        fechaRecepcion: new Date().toISOString().split('T')[0],
+        detalles: items.map(d => ({
+          detalleId: d.id,
+          materialId: d.materialId,
+          cantidad: parseFloat(d.cantidadRecibida) || 0,
+          descargableInventario: d.descargableInventario === true && !!d.materialId,
+        })),
+      };
 
       await recepcionarOrden(recepcionOrden.id, payload);
-      toast.success('Insumos recibidos e ingresados al inventario con éxito');
+      toast.success('Productos registrados con éxito');
       setRecepcionModalOpen(false);
       loadOrdenes(); loadStats();
     } catch (err) {
@@ -209,14 +236,43 @@ export const ComprasPage = () => {
 
   const ordenTotalPages = Math.max(1, Math.ceil(ordenTotal / perPage));
 
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    let start = Math.max(1, ordenPage - Math.floor(maxVisible / 2));
+    let end = Math.min(ordenTotalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          type="button"
+          className={`prest-page-btn ${ordenPage === i ? 'active-page' : ''}`}
+          onClick={() => setOrdenPage(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
+
   return (
     <div className="co-page animate-slide-up">
 
       {/* Header */}
       <div className="co-card co-header">
         <div>
-          <h1 className="co-title">Órdenes de Compra</h1>
-          <p className="co-subtitle">Solicitud, control y emisión de compras de materiales y activos</p>
+          <h1 className="co-title">{isImpresion || isTaller ? 'Órdenes activas' : 'Órdenes de Compra'}</h1>
+          <p className="co-subtitle">
+            {isImpresion || isTaller
+              ? 'Solicitudes pendientes, aprobadas o en recepción de tu área'
+              : 'Solicitud, control y emisión de compras de materiales y activos'}
+          </p>
         </div>
         <button onClick={() => navigate('/compras/nueva')} className="co-btn-primary" id="btn-nueva-orden">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -224,13 +280,17 @@ export const ComprasPage = () => {
         </button>
       </div>
 
+      {(isImpresion || isTaller) && <ComprasOperativoNav />}
+
       {/* KPI Cards */}
       <div className="co-kpi-grid">
         {[
           { label: 'Total Órdenes', value: stats.totalOrdenes, color: '#3b82f6', icon: 'M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12a1.125 1.125 0 0 1 1.263-1.123h12.974c.576 0 1.059.435 1.119 1.007z' },
           { label: 'Pendientes Aprobación', value: stats.pendientes, color: '#f59e0b', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-          { label: 'Total Gastado', value: fmt(stats.totalGastado), color: '#10b981', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-          { label: 'Deuda Pendiente', value: fmt(stats.totalDeuda), color: '#ef4444', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
+          ...(isAdmin ? [
+            { label: 'Total Gastado', value: fmt(stats.totalGastado), color: '#10b981', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+            { label: 'Deuda Pendiente', value: fmt(stats.totalDeuda), color: '#ef4444', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' }
+          ] : [])
         ].map((kpi, i) => (
           <div key={i} className="co-card co-kpi-card">
             <div className="co-kpi-icon" style={{ background: `${kpi.color}15` }}>
@@ -248,18 +308,30 @@ export const ComprasPage = () => {
 
       {/* Table Card */}
       <div className="co-card co-table-card">
-        <div className="co-table-header">
-          <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input className="co-search-inline" placeholder="Buscar por número, proveedor o concepto…" onChange={handleOrdenSearchChange} id="search-ordenes" />
+        <div className="co-table-header" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-2" style={{ flex: '1 1 200px' }}>
+            <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input className="co-search-inline" placeholder="Buscar por número, proveedor o concepto…" onChange={handleOrdenSearchChange} id="search-ordenes" />
+          </div>
+          <div className="prest-datepicker-container">
+            <DateRangePicker
+              value={fechas}
+              onChange={(val) => setFechas({ start: val.start, end: val.end })}
+              placeholder="Rango de fechas"
+            />
+          </div>
         </div>
 
-        {ordenLoading ? (
-          <div className="co-loader-box"><div className="co-spinner" /></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="co-table">
+        {/* Desktop View: Table */}
+        <div className="overflow-x-auto relative devoluciones-desktop-only">
+          {ordenLoading && (
+            <div className="co-loader-box co-loader-overlay">
+              <div className="co-spinner" />
+            </div>
+          )}
+          <table className="co-table">
               <thead>
                 <tr>
                   <th>Orden</th>
@@ -268,14 +340,14 @@ export const ComprasPage = () => {
                   <th>Fecha</th>
                   <th>Concepto</th>
                   <th>Observación / Notas</th>
-                  <th className="text-right">Total</th>
+                  {isAdmin && <th className="text-right">Total</th>}
                   <th className="text-center">Estado</th>
-                  <th className="text-center">Pago</th>
+                  {isAdmin && <th className="text-center">Pago</th>}
                   <th className="text-center w-44">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {ordenes.map(o => (
+                {!ordenLoading && ordenes.map(o => (
                   <tr key={o.id} className="co-tr">
                     <td className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
                     <td className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
@@ -283,17 +355,19 @@ export const ComprasPage = () => {
                     <td className="text-slate-500 text-xs">{fmtDate(o.fecha)}</td>
                     <td className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
                     <td className="text-slate-400 text-xs max-w-[150px] truncate" title={o.notas}>{o.notas || '—'}</td>
-                    <td className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>
+                    {isAdmin && <td className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>}
                     <td className="text-center">
                       <span className="co-badge" style={{ background: ESTADO_BADGES[o.estado]?.bg, color: ESTADO_BADGES[o.estado]?.color }}>
                         {ESTADO_BADGES[o.estado]?.label || o.estado}
                       </span>
                     </td>
-                    <td className="text-center">
-                      <span className="co-badge" style={{ background: PAGO_BADGES[o.estadoPago]?.bg, color: PAGO_BADGES[o.estadoPago]?.color }}>
-                        {PAGO_BADGES[o.estadoPago]?.label || o.estadoPago}
-                      </span>
-                    </td>
+                    {isAdmin && (
+                      <td className="text-center">
+                        <span className="co-badge" style={{ background: PAGO_BADGES[o.estadoPago]?.bg, color: PAGO_BADGES[o.estadoPago]?.color }}>
+                          {PAGO_BADGES[o.estadoPago]?.label || o.estadoPago}
+                        </span>
+                      </td>
+                    )}
                     <td>
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => openPDFPreview(o)} className="co-action-btn co-action-blue" title="Ver Previsualización PDF">
@@ -314,57 +388,163 @@ export const ComprasPage = () => {
                             </svg>
                           </button>
                         )}
-                        {o.estado === 'aprobada' && (
-                          <button onClick={() => openRecepcionModal(o)} className="co-action-btn co-action-purple" title="Recibir Insumos/Pedido">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                            </svg>
-                          </button>
+                        {isAdmin && (
+                          <>
+                            <button onClick={() => navigate(`/compras/editar/${o.id}`)} className="co-action-btn co-action-blue" title="Editar">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                              </svg>
+                            </button>
+                            <button onClick={() => handleOrdenDelete(o.id)} className="co-action-btn co-action-red" title="Eliminar">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </>
                         )}
-                        {o.estadoPago !== 'pagado' && (
-                          <button onClick={() => openAbonoModal(o)} className="co-action-btn co-action-green" title="Registrar Abono">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                            </svg>
-                          </button>
-                        )}
-                        <button onClick={() => navigate(`/compras/editar/${o.id}`)} className="co-action-btn co-action-blue" title="Editar">
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!ordenLoading && ordenes.length === 0 && (
+                  <tr><td colSpan={isAdmin ? 10 : 8} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron órdenes de compra</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+        {/* Mobile View: Cards */}
+        <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
+          <div className="prest-mobile-cards">
+            {ordenLoading && (
+              <div className="flex justify-center py-8">
+                <div className="co-spinner" />
+              </div>
+            )}
+            {!ordenLoading && ordenes.map(o => (
+              <div key={o.id} className="prest-card">
+                <div className="prest-card-header">
+                  <div>
+                    <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>{o.numero}</span>
+                    <span className="prest-card-tool-name">{o.proveedor?.nombre || '—'}</span>
+                  </div>
+                  <span className="co-badge" style={{ background: ESTADO_BADGES[o.estado]?.bg, color: ESTADO_BADGES[o.estado]?.color, fontSize: '0.7rem' }}>
+                    {ESTADO_BADGES[o.estado]?.label || o.estado}
+                  </span>
+                </div>
+                <div className="prest-card-body">
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Emisor</span>
+                    <span className="prest-card-field-value">{o.usuario?.nombre || '—'}</span>
+                  </div>
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Fecha</span>
+                    <span className="prest-card-field-value">{fmtDate(o.fecha)}</span>
+                  </div>
+                  <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                    <span className="prest-card-field-label">Concepto</span>
+                    <span className="prest-card-field-value">{o.concepto || '—'}</span>
+                  </div>
+                  <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                    <span className="prest-card-field-label">Observaciones</span>
+                    <span className="prest-card-field-value text-slate-500" style={{ fontSize: '0.75rem' }}>{o.notas || '—'}</span>
+                  </div>
+                  {isAdmin && (
+                    <div className="prest-card-field">
+                      <span className="prest-card-field-label">Total</span>
+                      <span className="prest-card-field-value" style={{ fontWeight: 700 }}>{fmt(o.total)}</span>
+                    </div>
+                  )}
+                  {isAdmin && (
+                    <div className="prest-card-field">
+                      <span className="prest-card-field-label">Pago</span>
+                      <span className="prest-card-field-value">
+                        <span className="co-badge" style={{ background: PAGO_BADGES[o.estadoPago]?.bg, color: PAGO_BADGES[o.estadoPago]?.color, fontSize: '0.7rem' }}>
+                          {PAGO_BADGES[o.estadoPago]?.label || o.estadoPago}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="prest-card-footer">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex gap-2">
+                      <button onClick={() => openPDFPreview(o)} className="co-action-btn co-action-blue" title="Ver Previsualización PDF" style={{ border: '1px solid #e2e8f0' }}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                      </button>
+                      {o.estado === 'cancelada' && o.notas && (
+                        <button
+                          onClick={() => openViewReasonModal(o.notas, o.numero)}
+                          className="co-action-btn co-action-red"
+                          style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid #fecaca' }}
+                          title="Ver Motivo de Rechazo"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    {isAdmin && (
+                      <div className="flex gap-2">
+                        <button onClick={() => navigate(`/compras/editar/${o.id}`)} className="co-action-btn co-action-blue" title="Editar" style={{ border: '1px solid #e2e8f0' }}>
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
                           </svg>
                         </button>
-                        <button onClick={() => handleOrdenDelete(o.id)} className="co-action-btn co-action-red" title="Eliminar">
+                        <button onClick={() => handleOrdenDelete(o.id)} className="co-action-btn co-action-red" title="Eliminar" style={{ border: '1px solid #fecaca' }}>
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                           </svg>
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-                {ordenes.length === 0 && (
-                  <tr><td colSpan={10} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron órdenes de compra</td></tr>
-                )}
-              </tbody>
-            </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!ordenLoading && ordenes.length === 0 && (
+              <div className="prest-empty text-center py-8">
+                No se encontraron órdenes de compra
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {ordenTotalPages > 1 && (
-          <div className="co-pagination">
-            <span className="text-xs font-medium text-slate-400">{ordenTotal} orden{ordenTotal !== 1 ? 'es' : ''}</span>
-            <div className="flex items-center gap-1">
-              <button disabled={ordenPage <= 1} onClick={() => setOrdenPage(p => p - 1)} className="co-page-btn">‹</button>
-              <span className="text-xs font-semibold text-slate-500 px-2">{ordenPage} / {ordenTotalPages}</span>
-              <button disabled={ordenPage >= ordenTotalPages} onClick={() => setOrdenPage(p => p + 1)} className="co-page-btn">›</button>
+          <div className="prest-pagination">
+            <span className="prest-pagination-info">
+              {ordenTotal} órdenes ({ordenPage} de {ordenTotalPages})
+            </span>
+            <div className="prest-pagination-pages">
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={ordenPage <= 1}
+                onClick={() => setOrdenPage(p => p - 1)}
+              >
+                &lt;
+              </button>
+              {renderPageButtons()}
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={ordenPage >= ordenTotalPages}
+                onClick={() => setOrdenPage(p => p + 1)}
+              >
+                &gt;
+              </button>
             </div>
           </div>
         )}
       </div>
 
       {/* Registrar Abono Modal */}
-      {abonoModalOpen && createPortal(
-        <>
+      <ModalPortal open={abonoModalOpen}>
+        <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in">
@@ -416,26 +596,24 @@ export const ComprasPage = () => {
                     <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={abonoSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
                       {abonoSaving && <div className="co-spinner-sm" />}
-                      Registrar Abono
+                      Registrar Gasto
                     </button>
                   </div>
                 </form>
               </div>
             </div>
           </div>
-        </>,
-        document.body
-      )}
+        </div>
+      </ModalPortal>
 
-      {/* Recepción de Insumos Modal */}
-      {recepcionModalOpen && createPortal(
-        <>
+      <ModalPortal open={recepcionModalOpen}>
+        <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setRecepcionModalOpen(false)} />
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in" style={{ maxWidth: '720px', width: '95%' }}>
               <div className="co-modal-header">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">Recepción de Insumos e Inventario</h2>
+                  <h2 className="text-lg font-bold text-slate-800">Recibir productos</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Orden: <span className="font-semibold text-slate-700">{recepcionOrden?.numero}</span> &middot; Proveedor: <span className="font-semibold text-slate-700">{recepcionOrden?.proveedor?.nombre}</span>
                   </p>
@@ -454,6 +632,7 @@ export const ComprasPage = () => {
                           <th className="py-2 px-3 text-xs font-bold text-slate-500 text-center w-24">Tipo</th>
                           <th className="py-2 px-3 text-xs font-bold text-slate-500 text-right w-28">Cant. Pedida</th>
                           <th className="py-2 px-3 text-xs font-bold text-slate-500 text-right w-36">Cant. Recibida</th>
+                          <th className="py-2 px-3 text-xs font-bold text-slate-500 text-center w-28">Inventario</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -487,6 +666,19 @@ export const ComprasPage = () => {
                                 required
                               />
                             </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <input
+                                type="checkbox"
+                                checked={det.descargableInventario && !!det.materialId}
+                                disabled={!det.materialId}
+                                title={det.materialId ? 'Suma al inventario' : 'Sin material vinculado'}
+                                onChange={(e) => {
+                                  setRecepcionDetalles(prev => prev.map((item, idx) =>
+                                    idx === index ? { ...item, descargableInventario: e.target.checked } : item
+                                  ));
+                                }}
+                              />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -498,7 +690,7 @@ export const ComprasPage = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div>
-                      <span className="font-bold">Nota importante:</span> Confirmar la recepción incrementará automáticamente el stock de los artículos marcados como <span className="font-bold text-slate-800">Insumo</span> y registrará movimientos de entrada en el inventario. Las órdenes recibidas cambiarán su estado a <span className="font-bold text-slate-800">"recibida"</span>.
+                      <span className="font-bold">Nota:</span> Solo los items con <span className="font-bold text-slate-800">Inventario</span> marcado y vinculados a un material ingresarán al stock (lona, vinil por metro). Desmarca para tinta u otros que no se controlan así.
                     </div>
                   </div>
 
@@ -506,28 +698,30 @@ export const ComprasPage = () => {
                     <button type="button" onClick={() => setRecepcionModalOpen(false)} className="co-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={recepcionSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', boxShadow: '0 4px 14px rgba(139,92,246,0.3)' }}>
                       {recepcionSaving && <div className="co-spinner-sm" />}
-                      Confirmar Recepción de Insumos
+                      Confirmar productos recibidos
                     </button>
                   </div>
                 </form>
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </div>
+      </ModalPortal>
+
+      {isPDFOpen && previewOC && (
+        <PDFPreviewModal
+          isOpen
+          onClose={() => {
+            setIsPDFOpen(false);
+            deferClose(() => setPreviewOC(null));
+          }}
+          oc={previewOC}
+          title="Orden de Compra"
+        />
       )}
 
-      {/* Visor Reutilizable de PDF */}
-      <PDFPreviewModal
-        isOpen={isPDFOpen}
-        onClose={() => setIsPDFOpen(false)}
-        oc={previewOC}
-        title="Orden de Compra"
-      />
-
-      {/* Modal Premium Ver Motivo de Rechazo */}
-      {viewReasonOpen && createPortal(
-        <>
+      <ModalPortal open={viewReasonOpen}>
+        <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setViewReasonOpen(false)} />
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in" style={{ maxWidth: '480px' }}>
@@ -554,9 +748,8 @@ export const ComprasPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
-      )}
+        </div>
+      </ModalPortal>
     </div>
   );
 };

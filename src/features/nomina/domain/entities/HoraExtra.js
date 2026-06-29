@@ -24,6 +24,7 @@ export class HoraExtra {
     descripcion,
     valorPorHora = 2.50,
     total,
+    estado = 'DEUDOR',
   }) {
     this.id = id || Math.random().toString(36).substr(2, 9);
     this.fecha = fecha;
@@ -33,6 +34,7 @@ export class HoraExtra {
     this.descripcion = descripcion;
     this.valorPorHora = Number(valorPorHora);
     this.total = total !== undefined ? Number(total) : this.horas * this.valorPorHora;
+    this.estado = estado;
   }
 
   /**

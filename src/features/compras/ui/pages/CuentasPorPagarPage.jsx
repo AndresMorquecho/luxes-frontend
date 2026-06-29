@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats
 } from '../../application/comprasService';
@@ -69,7 +70,7 @@ export const CuentasPorPagarPage = () => {
       });
       setAbonoModalOpen(false);
       loadStats(); loadCxP();
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setAbonoSaving(false); }
   };
 
@@ -121,8 +122,9 @@ export const CuentasPorPagarPage = () => {
         {cxpLoading ? (
           <div className="co-loader-box"><div className="co-spinner" /></div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="co-table">
+          <>
+            <div className="overflow-x-auto devoluciones-desktop-only">
+              <table className="co-table">
               <thead>
                 <tr>
                   <th>Orden</th><th>Proveedor</th><th className="text-right">Monto Total</th>
@@ -160,7 +162,60 @@ export const CuentasPorPagarPage = () => {
                 )}
               </tbody>
             </table>
-          </div>
+            </div>
+
+            <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
+              <div className="prest-mobile-cards">
+                {cxpItems.map((c) => (
+                  <div key={c.id} className="prest-card">
+                    <div className="prest-card-header">
+                      <div>
+                        <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>
+                          {c.ordenCompra?.numero || '—'}
+                        </span>
+                        <span className="prest-card-tool-name">{c.ordenCompra?.proveedor?.nombre || '—'}</span>
+                      </div>
+                      <span className="co-badge" style={{ background: CXP_BADGES[c.estado]?.bg, color: CXP_BADGES[c.estado]?.color, fontSize: '0.7rem' }}>
+                        {CXP_BADGES[c.estado]?.label || c.estado}
+                      </span>
+                    </div>
+                    <div className="prest-card-body">
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Monto Total</span>
+                        <span className="prest-card-field-value">{fmt(c.montoTotal)}</span>
+                      </div>
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Pagado</span>
+                        <span className="prest-card-field-value" style={{ color: '#10b981', fontWeight: 700 }}>{fmt(c.montoPagado)}</span>
+                      </div>
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Saldo</span>
+                        <span className="prest-card-field-value" style={{ color: '#ef4444', fontWeight: 700 }}>{fmt(c.saldo)}</span>
+                      </div>
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Vencimiento</span>
+                        <span className="prest-card-field-value">{fmtDate(c.fechaVencimiento)}</span>
+                      </div>
+                    </div>
+                    {c.estado !== 'pagado' && (
+                      <div className="prest-card-footer">
+                        <button
+                          type="button"
+                          onClick={() => openAbonoModal(c.ordenCompra)}
+                          className="w-full py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+                        >
+                          Registrar Abono
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {cxpItems.length === 0 && (
+                  <div className="prest-empty text-center py-8 text-slate-400 text-sm">No hay cuentas por pagar</div>
+                )}
+              </div>
+            </div>
+          </>
         )}
 
         {cxpTotalPages > 1 && (
@@ -176,8 +231,9 @@ export const CuentasPorPagarPage = () => {
       </div>
 
       {/* Registrar Abono Modal */}
-      {abonoModalOpen && createPortal(
-        <>
+      {abonoModalOpen && (
+        <ModalPortal>
+        <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in">
@@ -210,15 +266,27 @@ export const CuentasPorPagarPage = () => {
                     <select className="co-input" value={abonoForm.metodoPagoId}
                       onChange={e => setAbonoForm(p => ({ ...p, metodoPagoId: e.target.value }))} required>
                       <option value="">Seleccionar método…</option>
-                      {metodos.filter(m => m.activo).map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                      {metodos.filter(m => m.activo).map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre} ({fmt(m.saldoActual || 0)})
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className="co-label">Monto ($)</label>
                     <input type="number" className="co-input" step="0.01" min="0.01"
-                      max={abonoOrden?.cuentaPorPagar?.saldo || 999999}
+                      max={abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 999999}
                       value={abonoForm.monto}
-                      onChange={e => setAbonoForm(p => ({ ...p, monto: e.target.value }))} required />
+                      onChange={e => {
+                        const val = e.target.value;
+                        const maxVal = abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 0;
+                        if (parseFloat(val) > maxVal) {
+                          setAbonoForm(p => ({ ...p, monto: maxVal.toString() }));
+                        } else {
+                          setAbonoForm(p => ({ ...p, monto: val }));
+                        }
+                      }} required />
                   </div>
                   <div>
                     <label className="co-label">Referencia (Nro. cheque, transferencia, etc.)</label>
@@ -227,7 +295,7 @@ export const CuentasPorPagarPage = () => {
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
                     <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={abonoSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
+                    <button type="submit" disabled={abonoSaving || !abonoForm.monto || parseFloat(abonoForm.monto) <= 0 || parseFloat(abonoForm.monto) > (abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 0)} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
                       {abonoSaving && <div className="co-spinner-sm" />}
                       Registrar Abono
                     </button>
@@ -236,8 +304,8 @@ export const CuentasPorPagarPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
+        </div>
+        </ModalPortal>
       )}
     </div>
   );

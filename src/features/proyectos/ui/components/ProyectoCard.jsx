@@ -2,9 +2,10 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Calendar } from 'lucide-react';
+import { AlertTriangle, Calendar, Trash2 } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
+import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { FaseBadge } from './FaseBadge.jsx';
 import { ProgressBar } from './ProgressBar.jsx';
 
@@ -13,7 +14,7 @@ import { ProgressBar } from './ProgressBar.jsx';
  *
  * @param {{ proyecto: object, onEditarFase?: function }} props
  */
-export function ProyectoCard({ proyecto, onEditarFase }) {
+export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
   const navigate = useNavigate();
   const faseConfig = getFaseConfig(proyecto.faseActual);
   const prioridadConfig = PRIORIDADES_CONFIG[proyecto.prioridad] || PRIORIDADES_CONFIG.MEDIA;
@@ -22,14 +23,6 @@ export function ProyectoCard({ proyecto, onEditarFase }) {
     proyecto.fechaEntregaEstimada &&
     proyecto.estado !== 'COMPLETADO' &&
     new Date(proyecto.fechaEntregaEstimada) < new Date();
-
-  function getIniciales(nombre) {
-    return nombre
-      .split(' ')
-      .slice(0, 2)
-      .map((n) => n[0])
-      .join('');
-  }
 
   return (
     <div
@@ -43,12 +36,26 @@ export function ProyectoCard({ proyecto, onEditarFase }) {
           <h3 className="font-semibold text-slate-800 text-sm leading-tight line-clamp-2">
             {proyecto.nombre}
           </h3>
-          <span
-            className="text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0"
-            style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
-          >
-            {prioridadConfig.label}
-          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <span
+              className="text-xs font-bold px-1.5 py-0.5 rounded-md"
+              style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
+            >
+              {prioridadConfig.label}
+            </span>
+            {onEliminar && (
+              <button
+                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Eliminar proyecto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEliminar(proyecto);
+                }}
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Cliente */}
@@ -60,13 +67,7 @@ export function ProyectoCard({ proyecto, onEditarFase }) {
         {/* Footer */}
         <div className="flex items-center justify-between mt-3">
           {/* Responsable */}
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-            style={{ backgroundColor: '#1e40af' }}
-            title={proyecto.responsable}
-          >
-            {getIniciales(proyecto.responsable)}
-          </div>
+          <PersonInitialsAvatar name={proyecto.responsable} seed={proyecto.responsable} size="xs" />
 
           {/* Fecha */}
           <div className={`flex items-center gap-1 text-xs ${estaVencido ? 'text-red-500' : 'text-slate-400'}`}>

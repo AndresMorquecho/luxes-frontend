@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { getOrdenes } from '../../../compras/application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
-import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal';
+import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { RecepcionNav } from './RecepcionNav';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import './RecepcionInsumos.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -28,15 +30,20 @@ const mapOrdenToPDFFormat = (orden) => {
   };
 };
 
-export const RecepcionInsumosListPage = () => {
+export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) => {
   const navigate = useNavigate();
+  const [user] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
+  const userRole = (user?.rol || '').toUpperCase();
+  const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
+  const isTaller = userRole === 'TALLER';
   
   const [ordenes, setOrdenes] = useState([]);
   const [ordenPage, setOrdenPage] = useState(1);
   const [ordenTotal, setOrdenTotal] = useState(0);
   const [ordenSearch, setOrdenSearch] = useState('');
   const [ordenLoading, setOrdenLoading] = useState(true);
-  const perPage = 10;
+  const [fechas, setFechas] = useState({ start: '', end: '' });
+  const perPage = 25;
 
   // Estados para PDF preview
   const [isPDFOpen, setIsPDFOpen] = useState(false);
@@ -51,7 +58,10 @@ export const RecepcionInsumosListPage = () => {
         page: ordenPage,
         limit: perPage,
         search: ordenSearch || undefined,
-        estado: 'aprobada' // Solo órdenes aprobadas
+        pendienteRecepcion: true,
+        creadorRol: (isImpresion || isTaller) ? user?.rol : undefined,
+        fechaInicio: fechas.start || undefined,
+        fechaFin: fechas.end || undefined
       });
       setOrdenes(data.items || []);
       setOrdenTotal(data.total || 0);
@@ -62,20 +72,24 @@ export const RecepcionInsumosListPage = () => {
     } finally {
       setOrdenLoading(false);
     }
-  }, [ordenPage, ordenSearch]);
+  }, [ordenPage, ordenSearch, isImpresion, isTaller, user, fechas]);
 
   useEffect(() => {
     loadOrdenes();
   }, [loadOrdenes]);
 
+  useEffect(() => {
+    setOrdenPage(1);
+  }, [fechas, ordenSearch]);
+
   const handleOrdenSearchChange = (e) => {
     const val = e.target.value;
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => { setOrdenSearch(val); setOrdenPage(1); }, 350);
+    searchTimer.current = setTimeout(() => { setOrdenSearch(val); }, 350);
   };
 
   const handleRecepcionar = (ordenId) => {
-    navigate(`/inventario/recepcion/${ordenId}`);
+    navigate(`${basePath}/${ordenId}`);
   };
 
   const handleVerOrden = (orden) => {
@@ -83,15 +97,43 @@ export const RecepcionInsumosListPage = () => {
     setIsPDFOpen(true);
   };
 
+  const countRecibidos = (orden) =>
+    (orden.detalles || []).filter(d => (d.cantidadRecibida ?? 0) > 0).length;
+
   const ordenTotalPages = Math.max(1, Math.ceil(ordenTotal / perPage));
+
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    let start = Math.max(1, ordenPage - Math.floor(maxVisible / 2));
+    let end = Math.min(ordenTotalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          type="button"
+          className={`prest-page-btn ${ordenPage === i ? 'active-page' : ''}`}
+          onClick={() => setOrdenPage(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
 
   return (
     <div className="ri-page animate-slide-up">
       {/* Header */}
       <div className="ri-card ri-header">
         <div>
-          <h1 className="ri-title">Recepción de Insumos</h1>
-          <p className="ri-subtitle">Registra la entrada de materiales al almacén desde órdenes de compra aprobadas</p>
+          <h1 className="ri-title">Recibir productos</h1>
+          <p className="ri-subtitle">Órdenes aprobadas con productos pendientes — registra cantidades, fecha de llegada e inventario</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="ri-stat-badge">
@@ -103,49 +145,75 @@ export const RecepcionInsumosListPage = () => {
         </div>
       </div>
 
+      <RecepcionNav basePath={basePath} />
+
       {/* Table Card */}
       <div className="ri-card ri-table-card">
-        <div className="ri-table-header">
-          <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input 
-            className="ri-search-inline" 
-            placeholder="Buscar por número, proveedor o concepto…" 
-            onChange={handleOrdenSearchChange} 
-          />
+        <div className="ri-table-header" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-2" style={{ flex: '1 1 200px' }}>
+            <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input 
+              className="ri-search-inline" 
+              placeholder="Buscar por número, proveedor o concepto…" 
+              onChange={handleOrdenSearchChange} 
+            />
+          </div>
+          <div className="prest-datepicker-container">
+            <DateRangePicker
+              value={fechas}
+              onChange={(val) => setFechas({ start: val.start, end: val.end })}
+              placeholder="Rango de fechas"
+            />
+          </div>
         </div>
 
-        {ordenLoading ? (
-          <div className="ri-loader-box"><div className="ri-spinner" /></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="ri-table">
-              <thead>
-                <tr>
-                  <th>Orden</th>
-                  <th>Proveedor</th>
-                  <th>Solicitante</th>
-                  <th>Fecha Aprobación</th>
-                  <th>Concepto</th>
-                  <th className="text-right">Total</th>
-                  <th className="text-center">Items</th>
-                  <th className="text-center w-48">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordenes.map(o => (
-                  <tr key={o.id} className="ri-tr">
-                    <td className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
-                    <td className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
-                    <td className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
-                    <td className="text-slate-500 text-xs">{fmtDate(o.fecha)}</td>
-                    <td className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
-                    <td className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>
-                    <td className="text-center text-slate-600 text-sm font-semibold">{o.detalles?.length || 0}</td>
-                    <td>
-                      <div className="flex items-center justify-center gap-2">
+        {/* Desktop View: Table */}
+        <div className="overflow-x-auto relative devoluciones-desktop-only">
+          {ordenLoading && (
+            <div className="ri-loader-box ri-loader-overlay">
+              <div className="ri-spinner" />
+            </div>
+          )}
+          <table className="ri-table">
+            <thead>
+              <tr>
+                <th>Orden</th>
+                <th>Proveedor</th>
+                <th>Solicitante</th>
+                <th>Fecha Aprobación</th>
+                <th>Concepto</th>
+                <th className={`text-right ${isTaller ? 'ri-col-hidden' : ''}`}>Total</th>
+                <th className="text-center">Items</th>
+                <th className="text-center">Progreso</th>
+                <th className="text-center w-48">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!ordenLoading && ordenes.map(o => (
+                <tr key={o.id} className="ri-tr">
+                  <td data-label="Orden" className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
+                  <td data-label="Proveedor" className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
+                  <td data-label="Solicitante" className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
+                  <td data-label="Fecha" className="text-slate-500 text-xs">{fmtDate(o.fechaAprobacion || o.fecha)}</td>
+                  <td data-label="Concepto" className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
+                  <td data-label="Total" className={`text-right font-semibold text-slate-800 ${isTaller ? 'ri-col-hidden' : ''}`}>{fmt(o.total)}</td>
+                  <td data-label="Items" className="text-center text-slate-600 text-sm font-semibold">{o.detalles?.length || 0}</td>
+                  <td data-label="Progreso" className="text-center">
+                    {o.estado === 'parcialmente_recibida' ? (
+                      <span className="ri-badge-parcial">
+                        {countRecibidos(o)}/{o.detalles?.length || 0}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">0/{o.detalles?.length || 0}</span>
+                    )}
+                  </td>
+                  <td data-label="Acciones">
+                    <div className="flex items-center justify-center gap-2">
+                      {!isTaller && (
                         <button
+                          type="button"
                           onClick={() => handleVerOrden(o)}
                           className="ri-btn-ver"
                           title="Ver Orden de Compra"
@@ -156,61 +224,165 @@ export const RecepcionInsumosListPage = () => {
                           </svg>
                           Ver
                         </button>
-                        <button
-                          onClick={() => handleRecepcionar(o.id)}
-                          className="ri-btn-recepcionar"
-                          title="Recepcionar Insumos"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                          </svg>
-                          Recepcionar
-                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRecepcionar(o.id)}
+                        className="ri-btn-recepcionar"
+                        title="Recibir productos de la orden"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                        </svg>
+                        Recibir productos
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!ordenLoading && ordenes.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                        </svg>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-                {ordenes.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="text-center py-16">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
-                          <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-600">No hay órdenes pendientes de recepción</p>
-                          <p className="text-xs text-slate-400 mt-1">Las órdenes aprobadas aparecerán aquí</p>
-                        </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-600">No hay órdenes con productos pendientes</p>
+                        <p className="text-xs text-slate-400 mt-1">Las órdenes aprobadas aparecerán aquí</p>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile View: Cards */}
+        <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
+          <div className="prest-mobile-cards">
+            {ordenLoading && (
+              <div className="flex justify-center py-8">
+                <div className="ri-spinner" />
+              </div>
+            )}
+            {!ordenLoading && ordenes.map(o => (
+              <div key={o.id} className="prest-card">
+                <div className="prest-card-header">
+                  <div>
+                    <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>{o.numero}</span>
+                    <span className="prest-card-tool-name">{o.proveedor?.nombre || '—'}</span>
+                  </div>
+                  <span className="ri-badge-parcial" style={{ fontSize: '0.7rem' }}>
+                    {o.detalles?.length || 0} items
+                  </span>
+                </div>
+                <div className="prest-card-body">
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Solicitante</span>
+                    <span className="prest-card-field-value">{o.usuario?.nombre || '—'}</span>
+                  </div>
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Fecha</span>
+                    <span className="prest-card-field-value">{fmtDate(o.fechaAprobacion || o.fecha)}</span>
+                  </div>
+                  <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                    <span className="prest-card-field-label">Concepto</span>
+                    <span className="prest-card-field-value">{o.concepto || '—'}</span>
+                  </div>
+                  {!isTaller && (
+                    <div className="prest-card-field">
+                      <span className="prest-card-field-label">Total</span>
+                      <span className="prest-card-field-value" style={{ fontWeight: 700 }}>{fmt(o.total)}</span>
+                    </div>
+                  )}
+                  <div className="prest-card-field">
+                    <span className="prest-card-field-label">Progreso</span>
+                    <span className="prest-card-field-value">
+                      {o.estado === 'parcialmente_recibida' ? (
+                        <span className="ri-badge-parcial">
+                          {countRecibidos(o)}/{o.detalles?.length || 0} recibidos
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">0/{o.detalles?.length || 0} recibidos</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <div className="prest-card-footer">
+                  <div className="prest-card-actions" style={{ gap: '0.5rem' }}>
+                    {!isTaller && (
+                      <button
+                        type="button"
+                        onClick={() => handleVerOrden(o)}
+                        className="ri-btn-ver"
+                        style={{ flex: 1, justifyContent: 'center' }}
+                      >
+                        Ver Orden
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRecepcionar(o.id)}
+                      className="ri-btn-recepcionar"
+                      style={{ flex: 2, justifyContent: 'center' }}
+                    >
+                      Recibir productos
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!ordenLoading && ordenes.length === 0 && (
+              <div className="prest-empty text-center py-8">
+                No hay órdenes con productos pendientes
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {ordenTotalPages > 1 && (
-          <div className="ri-pagination">
-            <span className="text-xs font-medium text-slate-400">{ordenTotal} orden{ordenTotal !== 1 ? 'es' : ''}</span>
-            <div className="flex items-center gap-1">
-              <button disabled={ordenPage <= 1} onClick={() => setOrdenPage(p => p - 1)} className="ri-page-btn">‹</button>
-              <span className="text-xs font-semibold text-slate-500 px-2">{ordenPage} / {ordenTotalPages}</span>
-              <button disabled={ordenPage >= ordenTotalPages} onClick={() => setOrdenPage(p => p + 1)} className="ri-page-btn">›</button>
+          <div className="prest-pagination">
+            <span className="prest-pagination-info">
+              {ordenTotal} órdenes ({ordenPage} de {ordenTotalPages})
+            </span>
+            <div className="prest-pagination-pages">
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={ordenPage <= 1}
+                onClick={() => setOrdenPage(p => p - 1)}
+              >
+                &lt;
+              </button>
+              {renderPageButtons()}
+              <button
+                type="button"
+                className="prest-page-btn"
+                disabled={ordenPage >= ordenTotalPages}
+                onClick={() => setOrdenPage(p => p + 1)}
+              >
+                &gt;
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* PDF Preview Modal */}
-      <PDFPreviewModal
-        isOpen={isPDFOpen}
-        onClose={() => setIsPDFOpen(false)}
-        oc={previewOC}
-        title="Orden de Compra"
-      />
+      {isPDFOpen && previewOC && (
+        <PDFPreviewModal
+          isOpen
+          onClose={() => {
+            setIsPDFOpen(false);
+            deferClose(() => setPreviewOC(null));
+          }}
+          oc={previewOC}
+          title="Orden de Compra"
+        />
+      )}
     </div>
   );
 };

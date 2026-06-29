@@ -6,51 +6,40 @@ const getHeaders = () => {
   };
 };
 
-const parseResponse = async (response) => {
-  const text = await response.text();
-  let data = null;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    if (response.status === 502 || response.status === 503) {
-      throw new Error(
-        'No se pudo conectar con el servidor. Asegúrate de que el backend esté corriendo (npm run dev en luxes-backend).'
-      );
-    }
-    throw new Error(`Respuesta inválida del servidor (${response.status})`);
-  }
-
-  if (!response.ok || !data?.success) {
-    throw new Error(data?.error?.message || `Error en la operación (${response.status})`);
-  }
-
-  return data.data;
-};
-
 export async function getClientes() {
-  return parseResponse(await fetch('/api/clientes', { headers: getHeaders() }));
+  const res = await fetch('/api/clientes', { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al obtener clientes');
+  }
+  return data.data;
 }
 
 export async function saveCliente(cliente) {
-  const isEdit = Boolean(cliente.id);
+  const isEdit = !!cliente.id;
   const url = isEdit ? `/api/clientes/${cliente.id}` : '/api/clientes';
   const method = isEdit ? 'PUT' : 'POST';
 
-  return parseResponse(
-    await fetch(url, {
-      method,
-      headers: getHeaders(),
-      body: JSON.stringify(cliente),
-    })
-  );
+  const res = await fetch(url, {
+    method,
+    headers: getHeaders(),
+    body: JSON.stringify(cliente),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al guardar cliente');
+  }
+  return data.data;
 }
 
 export async function deleteCliente(id) {
-  return parseResponse(
-    await fetch(`/api/clientes/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    })
-  );
+  const res = await fetch(`/api/clientes/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al eliminar cliente');
+  }
+  return id;
 }

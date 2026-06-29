@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { getPagosPorMes, marcarPagado, marcarPendiente, calcularSalarioMensual } from '../../application/nominaMesService';
+import { getPersonInitials } from '../../../../shared/utils/personInitials.js';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const fmt = (n) => '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -156,12 +157,12 @@ export const NominaDelMesPage = () => {
                   <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                        <span className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 overflow-hidden normal-case leading-none"
                           style={{ backgroundColor: 'rgba(29,78,216,0.08)', color: '#1d4ed8' }}>
-                          {r.nombre?.charAt(0)?.toUpperCase() ?? '?'}
+                          <span className="normal-case">{getPersonInitials(r.nombre)}</span>
                         </span>
                         <div>
-                          <div className="font-semibold text-slate-800">{r.nombre}</div>
+                          <div className="font-semibold text-slate-800 normal-case">{r.nombre}</div>
                           <div className="text-xs text-slate-400">{r.departamento}</div>
                         </div>
                       </div>

@@ -32,17 +32,22 @@ const parseResponse = async (response) => {
     throw new Error(data?.error?.message || `Error en la operación (${response.status})`);
   }
 
+  if (data.data && data.message) {
+    data.data.message = data.message;
+  }
+
   return data.data;
 };
 
 export const DOCUMENTO_TIPOS = [
-  { id: 'cedula_frontal', label: 'Cédula (frontal)', required: true },
-  { id: 'cedula_posterior', label: 'Cédula (posterior)', required: true },
-  { id: 'contrato', label: 'Contrato laboral', required: true },
+  { id: 'cedula_frontal', label: 'Cédula (frontal)', required: false },
+  { id: 'cedula_posterior', label: 'Cédula (posterior)', required: false },
+  { id: 'contrato', label: 'Contrato laboral', required: false },
   { id: 'titulo', label: 'Título profesional', required: false },
   { id: 'certificado', label: 'Certificado / capacitación', required: false },
   { id: 'antecedentes', label: 'Record policial / antecedentes', required: false },
   { id: 'curriculum', label: 'Curriculum vitae', required: false },
+  { id: 'planilla_luz', label: 'Planilla de luz', required: false },
   { id: 'otro', label: 'Otro documento', required: false },
 ];
 
@@ -101,10 +106,14 @@ export const saveEmpleado = async (empleado) => {
     departamento: empleado.departamento ?? '',
     telefono: empleado.telefono ?? '',
     correo: empleado.correo ?? '',
+    username: empleado.username ?? '',
     contraseña: empleado.contraseña ?? '123456',
+    rol: empleado.rol ?? '',
+    roleId: empleado.roleId ?? '',
     cuentaBanco: empleado.cuentaBanco ?? '',
     banco: empleado.banco ?? '',
     tipoContrato: empleado.tipoContrato ?? 'Fijo',
+    tieneContrato: empleado.tieneContrato ?? true,
     sueldoDiario: Number(empleado.sueldoDiario) || 0,
     direccion: empleado.direccion ?? '',
     foto: empleado.foto ?? '',

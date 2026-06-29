@@ -53,7 +53,7 @@ export class NominaMockAdapter extends NominaRepositoryPort {
           diasLaborados: diffDias,
           permisoHoras: 0,
           ingresos: {
-            decimoCuarto: 40.17,
+            decimoCuarto: 38.33,
             decimoTercero: 0, // se calculará reactivamente
             horasExtras: 0,
             trabajosEnEmpresa: 0,
@@ -149,5 +149,38 @@ export class NominaMockAdapter extends NominaRepositoryPort {
     });
 
     return horasExtras.map(he => new HoraExtra(he));
+  }
+
+  /**
+   * Obtiene la lista de vacaciones registradas
+   * @returns {Promise<Array<object>>}
+   */
+  async getVacations() {
+    try {
+      return JSON.parse(localStorage.getItem('luxes_vacaciones') || '[]');
+    } catch { return []; }
+  }
+
+  /**
+   * Guarda o actualiza un registro de vacaciones
+   * @param {string} empleadoId
+   * @param {number} año
+   * @param {Array<string>} diasTomados
+   * @returns {Promise<object>}
+   */
+  async saveVacation(empleadoId, año, diasTomados) {
+    let current = [];
+    try {
+      current = JSON.parse(localStorage.getItem('luxes_vacaciones') || '[]');
+    } catch {}
+
+    const idx = current.findIndex(v => v.empleadoId === empleadoId && v.año === año);
+    if (idx === -1) {
+      current.push({ empleadoId, año, diasTomados });
+    } else {
+      current[idx] = { ...current[idx], diasTomados };
+    }
+    localStorage.setItem('luxes_vacaciones', JSON.stringify(current));
+    return { empleadoId, año, diasTomados };
   }
 }

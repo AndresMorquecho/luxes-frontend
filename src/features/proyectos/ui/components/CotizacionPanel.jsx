@@ -3,15 +3,24 @@ import { Search, FileText, Eye, X, CheckCircle, Clock, FileEdit, Calendar } from
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { getProformas } from '../../../proformas/application/proformasService.js';
 import { ProformaPDF } from '../../../proformas/ui/components/ProformaPDF.jsx';
+import { getProyectos } from '../../application/proyectosService.js';
 
 export function CotizacionPanel({ proyectoId, soloLectura }) {
-  const { proyecto } = useProyecto(proyectoId);
+  const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedCotizaciones, setSelectedCotizaciones] = useState(proyecto?.fases?.COTIZACION?.cotizacionesSeleccionadas || []);
+  const [selectedCotizaciones, setSelectedCotizaciones] = useState(proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas || []);
   const [previewOriginal, setPreviewOriginal] = useState(null);
   const [proformas, setProformas] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
   const searchRef = useRef(null);
+
+  // Actualizar selectedCotizaciones cuando cambie el proyecto (útil después de refrescar)
+  useEffect(() => {
+    if (proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas) {
+      setSelectedCotizaciones(proyecto.fases.COTIZACION.datos.cotizacionesSeleccionadas);
+    }
+  }, [proyecto]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -24,11 +33,33 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   }, []);
 
   useEffect(() => {
-    getProformas().then(all => setProformas(all));
+    const filters = { limit: 1000, estado: 'Aprobada' };
+    if (proyecto?.clienteId) {
+      filters.clienteId = proyecto.clienteId;
+    }
+    getProformas(filters).then(response => {
+      // Handle both response formats: {data: []} or direct array
+      const proformasData = response?.data || response || [];
+      setProformas(Array.isArray(proformasData) ? proformasData : []);
+    }).catch(err => {
+      console.error('Error loading proformas:', err);
+      setProformas([]);
+    });
+  }, [proyecto?.clienteId]);
+
+  useEffect(() => {
+    getProyectos({ limit: 1000 }).then(response => {
+      const projectsData = response?.data || response || [];
+      setAllProjects(Array.isArray(projectsData) ? projectsData : []);
+    }).catch(err => {
+      console.error('Error loading all projects:', err);
+      setAllProjects([]);
+    });
   }, []);
 
   const normProformas = proformas.map(p => ({
     id: p.id,
+    clienteId: p.clienteId,
     cliente: p.cliente,
     creadoPor: '—',
     fecha: p.fecha,
@@ -38,21 +69,56 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
     iva: p.iva,
   }));
 
-  // Filtrar proformas que no estén ya seleccionadas
+  const isRelatedToClient = (c) => {
+    if (!proyecto) return false;
+    // Comparar por clienteId si ambos existen
+    if (c.clienteId && proyecto.clienteId) {
+      return c.clienteId === proyecto.clienteId;
+    }
+    // Si no, comparar nombres como respaldo
+    const profClient = (c.cliente || '').trim().toLowerCase();
+    const projClient = (proyecto.cliente?.nombre || proyecto.clienteNombre || '').trim().toLowerCase();
+    return profClient === projClient;
+  };
+
+  const isLinkedToOtherProject = (proformaId) => {
+    return allProjects.some(proj => 
+      proj.id !== proyectoId &&
+      (proj.estado === 'ACTIVO' || proj.estado === 'PAUSADO') &&
+      proj.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas?.some(sc => sc.id === proformaId)
+    );
+  };
+
+  // Filtrar proformas: solo Aprobadas/Pagadas, del mismo cliente, que no estén ya seleccionadas ni vinculadas a otros proyectos activos, y que coincidan con la búsqueda
   const filteredProformas = normProformas.filter(c => 
+    (c.estado === 'Aprobada' || c.estado === 'Pagada') &&
+    isRelatedToClient(c) &&
     !selectedCotizaciones.find(sc => sc.id === c.id) &&
+    !isLinkedToOtherProject(c.id) &&
     (c.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
      c.cliente.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleSelect = (cotizacion) => {
-    setSelectedCotizaciones([...selectedCotizaciones, cotizacion]);
+    const nuevasCotizaciones = [...selectedCotizaciones, cotizacion];
+    setSelectedCotizaciones(nuevasCotizaciones);
     setSearchTerm('');
     setIsDropdownOpen(false);
+    
+    // Guardar automáticamente en el backend
+    if (!soloLectura) {
+      updateFaseDatos('COTIZACION', { cotizacionesSeleccionadas: nuevasCotizaciones });
+    }
   };
 
   const handleRemove = (id) => {
-    setSelectedCotizaciones(selectedCotizaciones.filter(c => c.id !== id));
+    const nuevasCotizaciones = selectedCotizaciones.filter(c => c.id !== id);
+    setSelectedCotizaciones(nuevasCotizaciones);
+    
+    // Guardar automáticamente en el backend
+    if (!soloLectura) {
+      updateFaseDatos('COTIZACION', { cotizacionesSeleccionadas: nuevasCotizaciones });
+    }
   };
 
   const getEstadoIcon = (estado) => {
@@ -87,10 +153,14 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
           
           {/* Dropdown de resultados */}
           {isDropdownOpen && (
-            <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-80 overflow-y-auto">
+            <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-72 overflow-y-auto overflow-x-hidden">
               {filteredProformas.length === 0 ? (
                 <div className="p-6 text-center text-slate-500">
-                  {proformas.length === 0 ? 'No hay proformas disponibles.' : `No se encontraron proformas para "${searchTerm}"`}
+                  {proformas.length === 0 
+                    ? 'No hay proformas disponibles.' 
+                    : normProformas.filter(p => p.estado === 'Aprobada' || p.estado === 'Pagada').length === 0
+                    ? 'No hay proformas aprobadas disponibles.'
+                    : `No se encontraron proformas aprobadas para "${searchTerm}"`}
                 </div>
               ) : (
                 filteredProformas.map(c => (
@@ -99,12 +169,14 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
                     className="w-full flex items-center justify-between p-4 hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors text-left"
                     onClick={() => handleSelect(c)}
                   >
-                    <div className="flex-1 pr-4">
-                      <p className="text-sm font-bold text-slate-800 mb-0.5">{c.id}</p>
-                      <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-                        <span className="font-semibold text-slate-600">{c.cliente}</span>
-                        <span className="flex items-center gap-1"><FileText size={12} className="text-slate-400" /> {c.items?.length || 0} ítem(s)</span>
-                        <span className="flex items-center gap-1"><Calendar size={12} className="text-slate-400" /> {c.fecha}</span>
+                    <div className="flex-1 pr-2 min-w-0">
+                      <p className="text-sm font-bold text-slate-800 mb-0.5 truncate">{c.id}</p>
+                      <div className="flex flex-col gap-0.5 text-xs text-slate-500 flex-wrap">
+                        <span className="font-semibold text-slate-600 truncate">{c.cliente}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1"><FileText size={12} className="text-slate-400" /> {c.items?.length || 0} ítem(s)</span>
+                          <span className="flex items-center gap-1"><Calendar size={12} className="text-slate-400" /> {c.fecha}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -128,7 +200,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
             Proformas Vinculadas
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {selectedCotizaciones.map(c => (
               <div key={c.id} className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col shadow-sm group hover:border-blue-300 transition-colors">
                 <div className="flex items-start justify-between mb-3">

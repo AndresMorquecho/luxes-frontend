@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import {
   getUsuarios,
   createUsuario,
@@ -24,8 +24,11 @@ const initial = (name) => name?.charAt(0)?.toUpperCase() ?? '?';
 
 const ROL_COLORS = {
   administrador: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1' },
-  'servicio al cliente': { bg: 'rgba(236,72,153,0.1)', color: '#ec4899' },
-  user: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+  taller: { bg: 'rgba(16,185,129,0.1)', color: '#10b981' },
+  'ventas / diseñador': { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
+  'ventas / disenador': { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
+  'impresión': { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+  impresion: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
   default: { bg: 'rgba(148,163,184,0.1)', color: '#64748b' }
 };
 
@@ -150,25 +153,30 @@ export const UsuariosPage = () => {
         rol: selectedRoleObj?.name || userForm.rol
       };
 
+      const successMessage = editingUser
+        ? 'Usuario actualizado correctamente'
+        : 'Usuario creado correctamente';
+
       if (editingUser) {
-        // Edit User
         const updated = await updateUsuario(editingUser.id, payload);
         setUsers(prev => prev.map(u => (u.id === editingUser.id ? updated : u)));
-        toast.success('Usuario actualizado correctamente');
       } else {
-        // Create User
         const created = await createUsuario(payload);
         setUsers(prev => [created, ...prev]);
-        toast.success('Usuario creado correctamente');
       }
-      setUserModalOpen(false);
-      // Reload logs to show audit record
-      const updatedLogs = await getAuditLogs();
-      setAuditLogs(updatedLogs);
+
+      deferClose(() => {
+        setUserModalOpen(false);
+        setSaving(false);
+        toast.success(successMessage);
+      });
+      deferClose(async () => {
+        const updatedLogs = await getAuditLogs();
+        setAuditLogs(updatedLogs);
+      });
     } catch (err) {
+      deferClose(() => setSaving(false));
       toast.error(err instanceof Error ? err.message : 'Error al guardar el usuario');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -200,14 +208,16 @@ export const UsuariosPage = () => {
     setSaving(true);
     try {
       await cambiarUsuarioPassword(passwordUser.id, newPassword);
-      setPasswordModalOpen(false);
+      deferClose(() => setPasswordModalOpen(false));
       toast.success('Contraseña actualizada correctamente');
-      const updatedLogs = await getAuditLogs();
-      setAuditLogs(updatedLogs);
+      deferClose(async () => {
+        const updatedLogs = await getAuditLogs();
+        setAuditLogs(updatedLogs);
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al actualizar contraseña');
     } finally {
-      setSaving(false);
+      deferClose(() => setSaving(false));
     }
   };
 
@@ -223,7 +233,7 @@ export const UsuariosPage = () => {
       setUsers(prev => prev.filter(u => u.id !== id));
       const updatedLogs = await getAuditLogs();
       setAuditLogs(updatedLogs);
-      toast.success('Usuario eliminado correctamente');
+      deferClose(() => toast.success('Usuario eliminado correctamente'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar usuario');
     }
@@ -263,13 +273,15 @@ export const UsuariosPage = () => {
         setRoles(prev => [...prev, created]);
         toast.success('Rol creado correctamente');
       }
-      setRoleModalOpen(false);
-      const updatedLogs = await getAuditLogs();
-      setAuditLogs(updatedLogs);
+      deferClose(() => setRoleModalOpen(false));
+      deferClose(async () => {
+        const updatedLogs = await getAuditLogs();
+        setAuditLogs(updatedLogs);
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al guardar el rol');
     } finally {
-      setSaving(false);
+      deferClose(() => setSaving(false));
     }
   };
 
@@ -1048,14 +1060,14 @@ export const UsuariosPage = () => {
       )}
 
       {/* --- MODAL CREAR/EDITAR USUARIO --- */}
-      {userModalOpen && createPortal(
-        <>
-          <div className="us-modal-overlay" onClick={() => setUserModalOpen(false)} />
+      <ModalPortal open={userModalOpen}>
+        <div className="us-modal-portal-root">
+          <div className="us-modal-overlay" onClick={() => deferClose(() => setUserModalOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-us-modal-in max-h-[95vh] flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
-                <button type="button" onClick={() => setUserModalOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setUserModalOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1204,9 +1216,12 @@ export const UsuariosPage = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" onClick={() => setUserModalOpen(false)} className="us-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setUserModalOpen(false))} className="us-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="us-btn-primary-purple">
-                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1.5" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!saving}
+                      />
                       {editingUser ? 'Guardar cambios' : 'Crear Usuario'}
                     </button>
                   </div>
@@ -1214,20 +1229,19 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
-      )}
+        </div>
+      </ModalPortal>
 
       {/* --- MODAL CAMBIAR CONTRASEÑA --- */}
-      {passwordModalOpen && createPortal(
-        <>
+      <ModalPortal open={passwordModalOpen}>
+        <div className="us-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
-            onClick={() => setPasswordModalOpen(false)} />
+            onClick={() => deferClose(() => setPasswordModalOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl animate-us-modal-in flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                 <h2 className="text-sm font-bold text-slate-800">Cambiar Contraseña</h2>
-                <button type="button" onClick={() => setPasswordModalOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setPasswordModalOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1276,7 +1290,7 @@ export const UsuariosPage = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => setPasswordModalOpen(false)} className="us-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setPasswordModalOpen(false))} className="us-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="us-btn-primary-purple">
                       Actualizar
                     </button>
@@ -1285,20 +1299,19 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
-      )}
+        </div>
+      </ModalPortal>
 
       {/* --- MODAL CREAR/EDITAR ROL --- */}
-      {roleModalOpen && createPortal(
-        <>
+      <ModalPortal open={roleModalOpen}>
+        <div className="us-modal-portal-root">
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
-            onClick={() => setRoleModalOpen(false)} />
+            onClick={() => deferClose(() => setRoleModalOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-us-modal-in max-h-[90vh] flex flex-col border border-slate-100">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 className="text-lg font-bold text-slate-800">{editingRole ? 'Editar Rol' : 'Nuevo Rol'}</h2>
-                <button type="button" onClick={() => setRoleModalOpen(false)}
+                <button type="button" onClick={() => deferClose(() => setRoleModalOpen(false))}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1353,9 +1366,12 @@ export const UsuariosPage = () => {
                   </div>
 
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 shrink-0">
-                    <button type="button" onClick={() => setRoleModalOpen(false)} className="us-btn-ghost">Cancelar</button>
+                    <button type="button" onClick={() => deferClose(() => setRoleModalOpen(false))} className="us-btn-ghost">Cancelar</button>
                     <button type="submit" disabled={saving} className="us-btn-primary-purple">
-                      {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!saving}
+                      />
                       {editingRole ? 'Guardar cambios' : 'Crear Rol'}
                     </button>
                   </div>
@@ -1363,9 +1379,8 @@ export const UsuariosPage = () => {
               </div>
             </div>
           </div>
-        </>,
-        document.body
-      )}
+        </div>
+      </ModalPortal>
     </div>
   );
 };

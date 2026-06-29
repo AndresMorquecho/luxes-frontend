@@ -19,37 +19,38 @@ function urlBase64ToUint8Array(base64String) {
 
 export function usePushNotifications() {
   const subscribeUser = useCallback(async (user) => {
-    // 1. Check browser compatibility
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.warn('Push Notifications are not supported in this browser.');
+    if (import.meta.env.DEV) {
       return;
     }
 
-    // 2. Register Service Worker explicitly
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+      return;
+    }
+
     let registration;
     try {
       registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      console.log('Service Worker registered successfully:', registration.scope);
     } catch (err) {
       console.error('Service Worker registration failed:', err);
       return;
     }
 
-    // 3. Check if user is authenticated
-    if (!user) {
-      console.log('No user provided. Skipping push notifications subscription.');
-      return;
-    }
-
     try {
-      // 4. Request browser notification permissions
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        console.warn('Notification permission denied by user.');
-        return;
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          return;
+        }
       }
 
-      // 5. Wait for SW to be ready
       const readyReg = await navigator.serviceWorker.ready;
 
       // 6. Subscribe to Push Manager

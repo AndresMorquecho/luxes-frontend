@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNomina } from '../../application/hooks/useNomina';
+import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 
 const MOCK_ASISTENCIA = [
   { id: 1, empleadoId: 1, fecha: '2026-06-01', entrada: '08:00', salida: '17:00', estado: 'Presente' },
@@ -66,10 +67,8 @@ export const RegistroAsistenciaPage = () => {
                   <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-md bg-blue-50 border border-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
-                          {emp?.nombre?.charAt(0).toUpperCase() || '?'}
-                        </div>
-                        <span className="font-medium text-gray-800">{emp?.nombre || `ID ${r.empleadoId}`}</span>
+                        <PersonInitialsAvatar name={emp?.nombre} seed={emp?.id} size="sm" />
+                        <span className="font-medium text-gray-800 normal-case">{emp?.nombre || `ID ${r.empleadoId}`}</span>
                       </div>
                     </td>
                     <td className="px-5 py-3 text-xs text-gray-600">{r.fecha}</td>

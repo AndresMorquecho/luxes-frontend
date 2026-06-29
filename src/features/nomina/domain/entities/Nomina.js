@@ -52,8 +52,14 @@ export class Nomina {
 
     // Ingresos
     this.ingresos = {
-      decimoCuarto: Number(ingresos.decimoCuarto ?? 40.17),
+      decimoCuarto: Number(ingresos.decimoCuarto ?? 0),
       decimoTercero: Number(ingresos.decimoTercero ?? 0),
+      provisionDecimo3: Number(ingresos.provisionDecimo3 ?? 0),
+      provisionDecimo4: Number(ingresos.provisionDecimo4 ?? 0),
+      acumuladoDecimo3: Number(ingresos.acumuladoDecimo3 ?? 0),
+      acumuladoDecimo4: Number(ingresos.acumuladoDecimo4 ?? 0),
+      pagoDecimo3: Number(ingresos.pagoDecimo3 ?? 0),
+      pagoDecimo4: Number(ingresos.pagoDecimo4 ?? 0),
       horasExtras: Number(ingresos.horasExtras ?? 0),
       trabajosEnEmpresa: Number(ingresos.trabajosEnEmpresa ?? 0),
       fondosReserva: Number(ingresos.fondosReserva ?? 0),

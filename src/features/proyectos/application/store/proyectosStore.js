@@ -7,6 +7,7 @@ import { calcularProgreso } from '../../domain/use-cases/calcularProgreso.js';
 export const ACTIONS = {
   SET_PROYECTOS: 'SET_PROYECTOS',
   UPDATE_PROYECTO: 'UPDATE_PROYECTO',
+  DELETE_PROYECTO: 'DELETE_PROYECTO',
   AVANZAR_FASE: 'AVANZAR_FASE',
   RETROCEDER_FASE: 'RETROCEDER_FASE',
   ADD_PROYECTO: 'ADD_PROYECTO',
@@ -53,6 +54,12 @@ export function proyectosReducer(state, action) {
         proyectos: state.proyectos.map((p) =>
           p.id === action.payload.id ? { ...p, ...action.payload.cambios } : p
         ),
+      };
+
+    case ACTIONS.DELETE_PROYECTO:
+      return {
+        ...state,
+        proyectos: state.proyectos.filter((p) => p.id !== action.payload.id),
       };
 
     case ACTIONS.UPDATE_INVENTARIO_ITEM:

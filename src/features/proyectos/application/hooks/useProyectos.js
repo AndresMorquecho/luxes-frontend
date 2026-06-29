@@ -59,14 +59,33 @@ export function useProyectos() {
   }, [proyectos]);
 
   async function addProyecto(datos) {
-    const nuevo = crearProyecto(datos);
-    dispatch({ type: ACTIONS.ADD_PROYECTO, payload: nuevo });
-    // Persistence is handled automatically by ProyectosContext auto-save effect
-    return nuevo;
+    try {
+      // Guardar en el backend primero
+      const nuevoProyecto = await adapter.save(datos);
+      
+      // Luego actualizar el estado local con el proyecto que retornó el backend
+      dispatch({ type: ACTIONS.ADD_PROYECTO, payload: nuevoProyecto });
+      
+      return nuevoProyecto;
+    } catch (error) {
+      console.error('Error al crear proyecto:', error);
+      throw error;
+    }
   }
 
   async function updateProyecto(id, cambios) {
-    dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios } });
+    try {
+      // Actualizar en backend
+      const proyectoActualizado = await adapter.update(id, cambios);
+      
+      // Actualizar estado local
+      dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios } });
+      
+      return proyectoActualizado;
+    } catch (error) {
+      console.error('Error al actualizar proyecto:', error);
+      throw error;
+    }
   }
 
   function avanzarFaseProyecto(id) {
@@ -75,6 +94,22 @@ export function useProyectos() {
 
   function retrocederFaseProyecto(id) {
     dispatch({ type: ACTIONS.RETROCEDER_FASE, payload: { id } });
+  }
+
+  async function deleteProyecto(id) {
+    try {
+      // Eliminar en backend
+      await adapter.delete(id);
+      
+      // Actualizar estado local
+      dispatch({ type: ACTIONS.DELETE_PROYECTO, payload: { id } });
+
+      // Notificar a la cola de impresión que se actualice para limpiar la caché en memoria del frontend
+      window.dispatchEvent(new Event('print-queue-updated'));
+    } catch (error) {
+      console.error('Error al eliminar proyecto:', error);
+      throw error;
+    }
   }
 
   return {
@@ -88,6 +123,7 @@ export function useProyectos() {
     responsablesUnicos,
     addProyecto,
     updateProyecto,
+    deleteProyecto,
     avanzarFaseProyecto,
     retrocederFaseProyecto,
   };

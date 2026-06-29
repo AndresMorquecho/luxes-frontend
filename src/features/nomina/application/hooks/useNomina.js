@@ -129,13 +129,19 @@ export function useNomina() {
    */
   const saveOvertimeRecords = useCallback(async (horasExtras) => {
     if (!adapter) return;
-    horasExtras.forEach(he => he.validate());
-    const { fechaInicio, fechaFin } = fechasActuales;
-    const saved = await adapter.saveOvertime(horasExtras, fechaInicio, fechaFin);
-
-    const updatedOvertime = await adapter.getOvertime(fechaInicio, fechaFin);
-    dispatch({ type: NOMINA_ACTIONS.SET_OVERTIME, payload: updatedOvertime });
-    return saved;
+    try {
+      horasExtras.forEach(he => he.validate());
+      const { fechaInicio, fechaFin } = fechasActuales;
+      const saved = await adapter.saveOvertime(horasExtras, fechaInicio, fechaFin);
+      
+      // Volver a cargar horas extras para mantener sincronía
+      const updatedOvertime = await adapter.getOvertime(fechaInicio, fechaFin);
+      dispatch({ type: NOMINA_ACTIONS.SET_OVERTIME, payload: updatedOvertime });
+      return saved;
+    } catch (err) {
+      alert(`Error al guardar horas extras: ${err.message}`);
+      throw err;
+    }
   }, [adapter, fechasActuales, dispatch]);
 
   /**
@@ -147,24 +153,37 @@ export function useNomina() {
 
   // --- CÁLCULOS REACTIVOS USANDO CASOS DE USO ---
 
-  // 1. Calcular individualmente todas las nóminas activas
+  // 1. Obtener resumen acumulado de horas extras por colaborador
+  const overtimeSummary = useMemo(() => {
+    return calcularHorasExtras(state.employees, state.overtime);
+  }, [state.employees, state.overtime]);
+
+  // 2. Calcular individualmente todas las nóminas activas
   const calculatedPayrolls = useMemo(() => {
     return state.payrolls.map(nomina => {
       const emp = state.employees.find(e => e.id === nomina.empleadoId);
       if (!emp) return null;
-      return calcularNomina(emp, nomina);
-    }).filter(Boolean);
-  }, [state.payrolls, state.employees]);
 
-  // 2. Obtener resumen financiero global del período
+      // Obtener el total de horas extras acumulado para este empleado en el período actual
+      const totalHE = overtimeSummary.porColaborador[emp.id]?.total || 0;
+
+      // Inyectar el acumulado de horas extras dinámicamente en el objeto de nómina
+      const nominaConHE = {
+        ...nomina,
+        ingresos: {
+          ...nomina.ingresos,
+          horasExtras: totalHE
+        }
+      };
+
+      return calcularNomina(emp, nominaConHE);
+    }).filter(Boolean);
+  }, [state.payrolls, state.employees, overtimeSummary]);
+
+  // 3. Obtener resumen financiero global del período
   const globalSummary = useMemo(() => {
     return obtenerResumenNomina(calculatedPayrolls);
   }, [calculatedPayrolls]);
-
-  // 3. Obtener resumen acumulado de horas extras por colaborador
-  const overtimeSummary = useMemo(() => {
-    return calcularHorasExtras(state.employees, state.overtime);
-  }, [state.employees, state.overtime]);
 
   // Empleado actualmente seleccionado
   const selectedEmployee = useMemo(() => {

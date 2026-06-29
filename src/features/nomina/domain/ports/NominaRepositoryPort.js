@@ -52,4 +52,23 @@ export class NominaRepositoryPort {
   async saveOvertime(horasExtras) {
     throw new Error("Método 'saveOvertime' requiere fechaInicio y fechaFin. Use la firma extendida del adaptador API.");
   }
+
+  /**
+   * Obtiene la lista de vacaciones registradas
+   * @returns {Promise<Array<object>>}
+   */
+  async getVacations() {
+    throw new Error("Método 'getVacations' no implementado.");
+  }
+
+  /**
+   * Guarda o actualiza un registro de vacaciones
+   * @param {string} empleadoId
+   * @param {number} año
+   * @param {Array<string>} diasTomados
+   * @returns {Promise<object>}
+   */
+  async saveVacation(empleadoId, año, diasTomados) {
+    throw new Error("Método 'saveVacation' no implementado.");
+  }
 }

@@ -1,14 +1,12 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { GastosGeneralesPage } from './pages/GastosGeneralesPage';
-import { GastosCarrosPage } from './pages/GastosCarrosPage';
+import { GastosPage } from './pages/GastosPage';
 
-export default function GastosFeature() {
+export default function GastosFeature({ defaultTab }) {
   return (
     <Routes>
-      <Route index element={<GastosGeneralesPage />} />
-      <Route path="carros" element={<GastosCarrosPage />} />
-      <Route path="*" element={<Navigate to="/gastos" replace />} />
+      <Route index element={<GastosPage defaultTab={defaultTab} />} />
+      <Route path="*" element={<Navigate to={defaultTab === 'cierre' ? '/cierre-caja' : defaultTab === 'reportes' ? '/reportes-financieros' : '/gastos'} replace />} />
     </Routes>
   );
 }

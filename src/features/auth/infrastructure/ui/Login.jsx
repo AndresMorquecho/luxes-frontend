@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getPostLoginPath, normalizeUserForSession } from '../../../../shared/utils/userRoleHelpers';
 import './Login.css';
 
 export const Login = ({ onLogin }) => {
@@ -38,7 +39,9 @@ export const Login = ({ onLogin }) => {
 
       // Simulate a small delay for the beautiful balloon loading animation
       setTimeout(() => {
-        onLogin(data.data.token, data.data.user);
+        const normalized = normalizeUserForSession(data.data.user);
+        onLogin(data.data.token, normalized);
+        navigate(getPostLoginPath(normalized), { replace: true });
       }, 1000);
     } catch (err) {
       setIsLoading(false);

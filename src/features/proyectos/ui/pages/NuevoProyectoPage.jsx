@@ -2,11 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Check, Search, ChevronDown, Info, ClipboardList, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Search, ChevronDown, Info, ClipboardList } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
-import { empleadosDisponiblesMock } from '../../infrastructure/mock/proyectosData.js';
 import { getClientes } from '../../../clientes/application/clientesService.js';
-import { getProformas } from '../../../proformas/application/proformasService.js';
+import { getTodayDateISO } from '../../domain/utils/proyectoDates.js';
 
 const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'URGENTE'];
 const PRIORIDAD_COLORS = {
@@ -20,6 +19,7 @@ const EMPTY_FORM = {
   nombre: '',
   descripcion: '',
   prioridad: 'MEDIA',
+  fechaInicio: getTodayDateISO(),
   fechaEntregaEstimada: '',
   responsable: '',
   etiquetaInput: '',
@@ -27,7 +27,6 @@ const EMPTY_FORM = {
   clienteId: '',
   responsableId: '',
   requiereInstalacion: true,
-  montoEstimado: '',
   notasCotizacion: '',
 };
 
@@ -39,28 +38,45 @@ export default function NuevoProyectoPage() {
   const [guardando, setGuardando] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [clientesLoading, setClientesLoading] = useState(true);
+  const [empleados, setEmpleados] = useState([]);
+  const [empleadosLoading, setEmpleadosLoading] = useState(true);
 
   useEffect(() => {
+    // Cargar clientes
     getClientes().then(data => {
-      setClientes(data);
+      const clientesData = data?.data || data || [];
+      setClientes(Array.isArray(clientesData) ? clientesData : []);
+      setClientesLoading(false);
+    }).catch(err => {
+      console.error('Error al cargar clientes:', err);
       setClientesLoading(false);
     });
+
+    // Cargar empleados
+    const token = localStorage.getItem('token');
+    fetch('/api/empleados', {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          const empleadosData = Array.isArray(data.data) ? data.data : [];
+          setEmpleados(empleadosData);
+        }
+        setEmpleadosLoading(false);
+      })
+      .catch(err => {
+        console.error('Error al cargar empleados:', err);
+        setEmpleadosLoading(false);
+      });
   }, []);
 
   const [proformas, setProformas] = useState([]);
   const [proformasLoading, setProformasLoading] = useState(false);
 
-  useEffect(() => {
-    if (!form.clienteId) { setProformas([]); return; }
-    const clienteObj = clientes.find(c => c.id === form.clienteId);
-    if (!clienteObj) { setProformas([]); return; }
-    setProformasLoading(true);
-    getProformas().then(all => {
-      const nombreLower = clienteObj.nombre.toLowerCase();
-      setProformas(all.filter(p => p.cliente.toLowerCase().includes(nombreLower) || nombreLower.includes(p.cliente.toLowerCase())));
-      setProformasLoading(false);
-    });
-  }, [form.clienteId, clientes]);
+  // Remove proformas vinculadas section - not needed here
 
   // Estados para buscadores
   const [clientSearch, setClientSearch] = useState('');
@@ -101,10 +117,13 @@ export default function NuevoProyectoPage() {
         nombre: form.nombre,
         descripcion: form.descripcion,
         prioridad: form.prioridad,
+        fechaInicio: form.fechaInicio,
+        fechaCreacion: form.fechaInicio,
         fechaEntregaEstimada: form.fechaEntregaEstimada || null,
         responsable: form.responsable,
         etiquetas: form.etiquetas,
         requiereInstalacion: form.requiereInstalacion,
+        clienteId: form.clienteId,
         cliente: {
           nombre: clienteObj.nombre,
           empresa: clienteObj.tipo === 'Empresa' ? clienteObj.nombre : '',
@@ -112,7 +131,6 @@ export default function NuevoProyectoPage() {
           email: clienteObj.email,
           direccion: clienteObj.direccion || '',
         },
-        montoEstimado: parseFloat(form.montoEstimado) || 0,
         notasCotizacion: form.notasCotizacion,
       });
       navigate(`/proyectos/${proyecto.id}`);
@@ -243,36 +261,6 @@ export default function NuevoProyectoPage() {
             )}
           </div>
 
-          {form.clienteId && (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
-                <FileText size={14} className="text-blue-500" />
-                Proformas vinculadas
-              </label>
-              {proformasLoading ? (
-                <div className="text-xs text-slate-400 py-2">Cargando proformas…</div>
-              ) : proformas.length > 0 ? (
-                <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                  {proformas.map(pf => (
-                    <div key={pf.id} className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5">
-                      <div>
-                        <p className="text-xs font-bold text-blue-800">{pf.id}</p>
-                        <p className="text-[10px] text-blue-600 mt-0.5">{pf.items.length} ítem(s) · Total {pf.items.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0).toLocaleString('es-EC', { style: 'currency', currency: 'USD' })}</p>
-                      </div>
-                      <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                        pf.estado === 'Aprobada' ? 'bg-green-100 text-green-700' :
-                        pf.estado === 'Rechazada' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>{pf.estado}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-xs text-slate-400 italic py-2">No hay proformas vinculadas a este cliente.</div>
-              )}
-            </div>
-          )}
-
           <div className="flex-1 flex flex-col">
             <label className="block text-sm font-semibold text-slate-700 mb-2">Descripción del trabajo</label>
             <textarea
@@ -369,8 +357,8 @@ export default function NuevoProyectoPage() {
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setResponsableDropdownOpen(false)} />
                   <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-60 overflow-y-auto overflow-hidden">
-                    {empleadosDisponiblesMock.filter(e => e.nombre.toLowerCase().includes(responsableSearch.toLowerCase())).length > 0 ? (
-                      empleadosDisponiblesMock.filter(e => e.nombre.toLowerCase().includes(responsableSearch.toLowerCase())).map(emp => (
+                    {empleados.filter(e => e.nombre.toLowerCase().includes(responsableSearch.toLowerCase())).length > 0 ? (
+                      empleados.filter(e => e.nombre.toLowerCase().includes(responsableSearch.toLowerCase())).map(emp => (
                         <div
                           key={emp.id}
                           className={`px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0
@@ -391,6 +379,18 @@ export default function NuevoProyectoPage() {
                   </div>
                 </>
               )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Fecha de inicio</label>
+              <input
+                type="date"
+                className="w-full border border-slate-200 bg-slate-100 rounded-xl px-4 py-3 text-sm text-slate-700 cursor-default"
+                value={form.fechaInicio}
+                readOnly
+                title="Se registra automáticamente al crear el proyecto"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Se guarda con la fecha de hoy al crear el proyecto.</p>
             </div>
 
             <div>
@@ -434,28 +434,14 @@ export default function NuevoProyectoPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Monto ($)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                placeholder="0.00"
-                value={form.montoEstimado}
-                onChange={(e) => set('montoEstimado', e.target.value)}
-              />
-            </div>
-            <div>
-               <label className="block text-sm font-semibold text-slate-700 mb-2">Notas iniciales</label>
-              <input
-                className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                placeholder="Referencia de pago..."
-                value={form.notasCotizacion}
-                onChange={(e) => set('notasCotizacion', e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Notas iniciales</label>
+            <textarea
+              className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none transition-colors min-h-[80px]"
+              placeholder="Referencia de pago, observaciones..."
+              value={form.notasCotizacion}
+              onChange={(e) => set('notasCotizacion', e.target.value)}
+            />
           </div>
 
         </div>

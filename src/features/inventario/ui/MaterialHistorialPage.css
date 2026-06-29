@@ -1,0 +1,462 @@
+/* src/features/inventario/ui/MaterialHistorialPage.css */
+
+.hist-page {
+  font-family: 'DM Sans', sans-serif;
+  padding: 1.5rem 2rem;
+  width: 100%;
+  color: #1e293b;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading & Error */
+.hist-loading-container,
+.hist-error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 2rem;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px border-slate-100;
+  max-width: 500px;
+  margin: 4rem auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.hist-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Header Section */
+.hist-header {
+  margin-bottom: 2rem;
+}
+
+.hist-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 1.25rem;
+}
+
+.hist-back:hover {
+  background: #f1f5f9;
+  color: #334155;
+  transform: translateX(-3px);
+}
+
+.hist-header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.hist-category-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #e0e7ff;
+  color: #4f46e5;
+  padding: 0.25rem 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.hist-title {
+  font-size: 1.85rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.hist-subtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.hist-badge-control {
+  display: flex;
+  align-items: center;
+}
+
+.hist-logistics-badge {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.4rem 0.85rem;
+  border-radius: 10px;
+}
+
+.hist-tracked-badge {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 10px;
+}
+
+/* KPI Cards */
+.hist-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2.25rem;
+}
+
+.hist-kpi-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.hist-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+}
+
+.hist-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hist-kpi-icon.purchases { background: #eff6ff; color: #3b82f6; }
+.hist-kpi-icon.usage { background: #faf5ff; color: #a855f7; }
+.hist-kpi-icon.stock { background: #f0fdf4; color: #22c55e; }
+.hist-kpi-icon.cpp { background: #fef2f2; color: #ef4444; }
+
+.hist-kpi-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.hist-kpi-val {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.hist-kpi-lbl {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+/* Tabs */
+.hist-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+  padding-bottom: 2px;
+  overflow-x: auto;
+}
+
+.hist-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.hist-tab-btn:hover {
+  color: #0f172a;
+}
+
+.hist-tab-btn.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+
+/* Panel Card & Table */
+.hist-panel-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.hist-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.hist-table th {
+  background: #f8fafc;
+  padding: 1rem 1.25rem;
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.hist-table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.hist-table tr:last-child td {
+  border-bottom: none;
+}
+
+.hist-table tr:hover td {
+  background: #f8fafc/50;
+}
+
+.hist-empty-cell {
+  text-align: center;
+  padding: 4rem 2rem !important;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Chips and Badges */
+.hist-user-chip {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.hist-status-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.hist-status-badge.recibida,
+.hist-status-badge.completado {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.hist-status-badge.aprobada,
+.hist-status-badge.parcialmente_recibida {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.hist-status-badge.pendiente_aprobacion {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.hist-mov-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.hist-mov-badge.entrada {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.hist-mov-badge.salida {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Responsiveness & Mobile Cards */
+.hist-desktop-only {
+  display: block;
+}
+.hist-mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .hist-page {
+    padding: 1rem;
+  }
+  .hist-title {
+    font-size: 1.5rem;
+  }
+  .hist-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .hist-header-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .hist-desktop-only {
+    display: none !important;
+  }
+  .hist-mobile-only {
+    display: block !important;
+  }
+  
+  .hist-mobile-cards-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8fafc;
+  }
+  
+  .hist-mobile-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .hist-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.5rem;
+    gap: 0.5rem;
+  }
+  
+  .hist-card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    word-break: break-word;
+  }
+  
+  .hist-card-date {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+  }
+  
+  .hist-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  
+  .hist-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.825rem;
+  }
+  
+  .hist-card-row.block {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .hist-card-label {
+    color: #64748b;
+    font-weight: 500;
+  }
+  
+  .hist-card-label.block {
+    display: block;
+    margin-bottom: 0.15rem;
+  }
+  
+  .hist-card-value {
+    color: #334155;
+    font-weight: 600;
+    text-align: right;
+  }
+  
+  .hist-card-notes-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-top: 0.25rem;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 0.5rem;
+  }
+  
+  .hist-card-notes {
+    font-size: 0.775rem;
+    color: #475569;
+    font-style: italic;
+    background-color: #f8fafc;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border-left: 2.5px solid #cbd5e1;
+    margin: 0;
+  }
+  
+  .hist-empty-mobile {
+    text-align: center;
+    padding: 2rem;
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 0.85rem;
+  }
+}

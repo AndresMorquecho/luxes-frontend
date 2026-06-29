@@ -6,99 +6,176 @@ const getHeaders = () => {
   };
 };
 
-const parseResponse = async (response) => {
-  const text = await response.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    if (response.status === 502 || response.status === 503) {
-      throw new Error('No se pudo conectar con el servidor. Asegúrate de que el backend esté corriendo.');
-    }
-    throw new Error(`Respuesta inválida del servidor (${response.status})`);
-  }
-  if (!response.ok || !data?.success) {
-    throw new Error(data?.error?.message || `Error en la operación (${response.status})`);
-  }
+export const CATEGORIAS = ['oficina', 'mantenimiento', 'servicios', 'logistica', 'vehiculos', 'varios'];
+
+export async function getMetodosPago(desde, hasta) {
+  const params = new URLSearchParams();
+  if (desde) params.append('desde', desde);
+  if (hasta) params.append('hasta', hasta);
+  const url = `/api/compras/metodos-pago${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener métodos de pago');
   return data.data;
-};
+}
 
-export const CATEGORIAS = ['oficina', 'mantenimiento', 'servicios', 'logistica', 'varios'];
+// ── Gastos Generales ─────────────────────────────────────────────────────────
 
-export const TIPOS_MANTENIMIENTO = [
-  { id: 'cambio_aceite', label: 'Cambio de aceite' },
-  { id: 'filtro_aceite', label: 'Filtro de aceite' },
-  { id: 'filtro_aire', label: 'Filtro de aire' },
-  { id: 'llantas', label: 'Llantas / rotación' },
-  { id: 'frenos', label: 'Frenos' },
-  { id: 'bateria', label: 'Batería' },
-  { id: 'alineacion', label: 'Alineación y balanceo' },
-  { id: 'soat', label: 'SOAT' },
-  { id: 'matricula', label: 'Matrícula' },
-  { id: 'revision_tecnica', label: 'Revisión técnica' },
-  { id: 'lavado', label: 'Lavado' },
-  { id: 'combustible', label: 'Combustible' },
-  { id: 'otro', label: 'Otro' },
-];
+export async function getGastos() {
+  const res = await fetch('/api/gastos', { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener gastos');
+  return data.data;
+}
 
-export const getGastos = async () =>
-  parseResponse(await fetch('/api/gastos', { headers: getHeaders() }));
-
-export const saveGasto = async (gasto) => {
-  const isEdit = Boolean(gasto.id);
+export async function saveGasto(gasto) {
+  const isEdit = !!gasto.id;
   const url = isEdit ? `/api/gastos/${gasto.id}` : '/api/gastos';
-  return parseResponse(
-    await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(gasto) })
-  );
-};
+  const method = isEdit ? 'PUT' : 'POST';
 
-export const deleteGasto = async (id) =>
-  parseResponse(await fetch(`/api/gastos/${id}`, { method: 'DELETE', headers: getHeaders() }));
+  const res = await fetch(url, {
+    method,
+    headers: getHeaders(),
+    body: JSON.stringify(gasto),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al guardar gasto');
+  return data.data;
+}
 
-export const getVehiculos = async () =>
-  parseResponse(await fetch('/api/gastos/vehiculos', { headers: getHeaders() }));
+export async function deleteGasto(id) {
+  const res = await fetch(`/api/gastos/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar gasto');
+  return data.data;
+}
 
-export const saveVehiculo = async (vehiculo) => {
-  const isEdit = Boolean(vehiculo.id);
-  const url = isEdit ? `/api/gastos/vehiculos/${vehiculo.id}` : '/api/gastos/vehiculos';
-  return parseResponse(
-    await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(vehiculo) })
-  );
-};
+// ── Vehículos ────────────────────────────────────────────────────────────────
 
-export const deleteVehiculo = async (id) =>
-  parseResponse(await fetch(`/api/gastos/vehiculos/${id}`, { method: 'DELETE', headers: getHeaders() }));
+export async function getVehiculos() {
+  const res = await fetch('/api/vehiculos', { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener vehículos');
+  return data.data;
+}
 
-export const saveMantenimiento = async (vehiculoId, mantenimiento) => {
-  const isEdit = Boolean(mantenimiento.id);
-  const url = isEdit
-    ? `/api/gastos/vehiculos/${vehiculoId}/mantenimientos/${mantenimiento.id}`
-    : `/api/gastos/vehiculos/${vehiculoId}/mantenimientos`;
-  return parseResponse(
-    await fetch(url, {
-      method: isEdit ? 'PUT' : 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ ...mantenimiento, vehiculoId }),
-    })
-  );
-};
+export async function getVehiculoDetails(id) {
+  const res = await fetch(`/api/vehiculos/${id}`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener detalles del vehículo');
+  return data.data;
+}
 
-export const deleteMantenimiento = async (id) =>
-  parseResponse(await fetch(`/api/gastos/mantenimientos/${id}`, { method: 'DELETE', headers: getHeaders() }));
+export async function saveVehiculo(vehiculo) {
+  const isEdit = !!vehiculo.id;
+  const url = isEdit ? `/api/vehiculos/${vehiculo.id}` : '/api/vehiculos';
+  const method = isEdit ? 'PUT' : 'POST';
 
-export const labelTipoMantenimiento = (tipo) =>
-  TIPOS_MANTENIMIENTO.find((t) => t.id === tipo)?.label ?? tipo;
+  const res = await fetch(url, {
+    method,
+    headers: getHeaders(),
+    body: JSON.stringify(vehiculo),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al guardar vehículo');
+  return data.data;
+}
 
-export const estadoMantenimiento = (mant, kmActual = 0) => {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  if (mant.fechaProxima) {
-    const prox = new Date(`${mant.fechaProxima}T12:00:00`);
-    if (prox < hoy) return 'vencido';
-    const dias = Math.ceil((prox - hoy) / (1000 * 60 * 60 * 24));
-    if (dias <= 30) return 'proximo';
+export async function deleteVehiculo(id) {
+  const res = await fetch(`/api/vehiculos/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar vehículo');
+  return data.data;
+}
+
+// ── Mantenimientos de Vehículo ───────────────────────────────────────────────
+
+export async function addMantenimiento(vehiculoId, mantenimiento) {
+  const res = await fetch(`/api/vehiculos/${vehiculoId}/mantenimientos`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(mantenimiento),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar mantenimiento');
+  return data.data;
+}
+
+export async function updateMantenimiento(mantenimientoId, mantenimiento) {
+  const res = await fetch(`/api/vehiculos/mantenimientos/${mantenimientoId}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(mantenimiento),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al actualizar mantenimiento');
+  return data.data;
+}
+
+export async function deleteMantenimiento(mantenimientoId) {
+  const res = await fetch(`/api/vehiculos/mantenimientos/${mantenimientoId}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar mantenimiento');
+  return data.data;
+}
+
+// ── Cierres de Caja y Reportes ───────────────────────────────────────────────
+
+export async function getCierrePreview(desde, hasta) {
+  const res = await fetch(`/api/gastos/cierre/preview?desde=${desde}&hasta=${hasta}`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener vista previa de cierre');
+  return data.data;
+}
+
+export async function saveCierre(cierre) {
+  const res = await fetch('/api/gastos/cierre', {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(cierre),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al guardar cierre de caja');
+  return data.data;
+}
+
+export async function getCierres() {
+  const res = await fetch('/api/gastos/cierre', { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener cierres de caja');
+  return data.data;
+}
+
+export async function getFinancialDashboard(desde = '', hasta = '') {
+  let url = '/api/gastos/reportes/dashboard';
+  if (desde || hasta) {
+    url += `?desde=${desde}&hasta=${hasta}`;
   }
-  if (mant.kmProximo != null && kmActual >= mant.kmProximo) return 'vencido';
-  if (mant.kmProximo != null && kmActual >= mant.kmProximo - 2000) return 'proximo';
-  return 'ok';
-};
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener reportes financieros');
+  return data.data;
+}
+
+export async function getDashboardSummary(desde = '', hasta = '') {
+  let url = '/api/gastos/reportes/dashboard-summary';
+  const params = [];
+  if (desde) params.push(`desde=${desde}`);
+  if (hasta) params.push(`hasta=${hasta}`);
+  if (params.length) url += `?${params.join('&')}`;
+
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener resumen de operaciones');
+  return data.data;
+}
+

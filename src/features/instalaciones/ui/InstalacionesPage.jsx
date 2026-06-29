@@ -1,6 +1,6 @@
 // src/features/instalaciones/ui/InstalacionesPage.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProyectos } from '../../proyectos/application/hooks/useProyectos.js';
 import { useProyectosContext } from '../../proyectos/application/context/ProyectosContext.jsx';
@@ -8,6 +8,7 @@ import {
   Wrench, Search, Play, CheckCircle2, User, MapPin, 
   Calendar, Clock, CheckCircle, Eye, ClipboardList, AlertTriangle 
 } from 'lucide-react';
+import { DateRangePicker } from '../../../shared/ui/components/DateRangePicker.jsx';
 import './InstalacionesPage.css';
 
 const PRIORIDAD_COLORS = {
@@ -42,24 +43,31 @@ export function InstalacionesPage() {
   const { ordenesCompra = [] } = state || {};
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('TODAS'); // TODAS, PENDIENTES, ACTIVAS, COMPLETADAS
+  const [activeTab, setActiveTab] = useState('EN_PROGRESO'); // Default to EN_PROGRESO (Pendientes + En Curso)
+  const [fechas, setFechas] = useState({ start: '', end: '' });
+  const [page, setPage] = useState(1);
+  const LIMIT = 20;
 
-  // Modal de Completar Instalación
-  const [selectedProyecto, setSelectedProyecto] = useState(null);
-  const [notasCierre, setNotasCierre] = useState('');
+  // Filtrar proyectos que requieren instalación y que YA están en la fase de instalación o posteriores
+  const proyectosInstalacion = todosLosProyectos.filter(p => 
+    p.requiereInstalacion === true && 
+    ['INSTALACION', 'ENTREGA', 'COMPLETADO'].includes(p.faseActual)
+  );
 
-  // Filtrar proyectos que requieren instalación
-  const proyectosInstalacion = todosLosProyectos.filter(p => p.requiereInstalacion === true);
+  const getStarted = (p) => !!(p.fases?.INSTALACION?.datos?.fechaInstalacion && p.fases?.INSTALACION?.datos?.horaInstalacion);
+  const getFinished = (p) => ['ENTREGA', 'COMPLETADO'].includes(p.faseActual) || p.fases?.INSTALACION?.datos?.instalacionCompletada === true;
 
   // Estadísticas KPI
   const stats = {
     total: proyectosInstalacion.length,
     pendientes: proyectosInstalacion.filter(p => 
-      ['COTIZACION', 'DISEÑO', 'PRODUCCION'].includes(p.faseActual)
+      p.faseActual === 'INSTALACION' && !getFinished(p) && !getStarted(p)
     ).length,
-    activas: proyectosInstalacion.filter(p => p.faseActual === 'INSTALACION').length,
+    activas: proyectosInstalacion.filter(p => 
+      p.faseActual === 'INSTALACION' && !getFinished(p) && getStarted(p)
+    ).length,
     completadas: proyectosInstalacion.filter(p => 
-      ['ENTREGA', 'COMPLETADO'].includes(p.faseActual)
+      getFinished(p)
     ).length,
   };
 
@@ -76,72 +84,47 @@ export function InstalacionesPage() {
 
     // 2. Filtro de Pestaña/Estado
     let matchesTab = true;
-    if (activeTab === 'PENDIENTES') {
-      matchesTab = ['COTIZACION', 'DISEÑO', 'PRODUCCION'].includes(p.faseActual);
+    const isFinished = getFinished(p);
+    const isStarted = getStarted(p);
+
+    if (activeTab === 'EN_PROGRESO') {
+      matchesTab = !isFinished;
+    } else if (activeTab === 'PENDIENTES') {
+      matchesTab = p.faseActual === 'INSTALACION' && !isFinished && !isStarted;
     } else if (activeTab === 'ACTIVAS') {
-      matchesTab = p.faseActual === 'INSTALACION';
+      matchesTab = p.faseActual === 'INSTALACION' && !isFinished && isStarted;
     } else if (activeTab === 'COMPLETADAS') {
-      matchesTab = ['ENTREGA', 'COMPLETADO'].includes(p.faseActual);
+      matchesTab = isFinished;
     }
 
-    return matchesSearch && matchesTab;
+    // 3. Filtro de Rango de Fechas
+    let matchesDates = true;
+    const projDateStr = p.fases?.INSTALACION?.datos?.fechaInstalacion || p.fechaCreacion || p.fecha;
+    if (projDateStr) {
+      const projDate = new Date(projDateStr);
+      if (fechas.start) {
+        const start = new Date(fechas.start);
+        start.setHours(0,0,0,0);
+        if (projDate < start) matchesDates = false;
+      }
+      if (fechas.end) {
+        const end = new Date(fechas.end);
+        end.setHours(23,59,59,999);
+        if (projDate > end) matchesDates = false;
+      }
+    }
+
+    return matchesSearch && matchesTab && matchesDates;
   });
 
-  // Iniciar la instalación (Guardar fecha y hora)
-  function handleIniciarInstalacion(proyecto) {
-    const now = new Date();
-    const fecha = now.toISOString().split('T')[0];
-    const hora = now.toTimeString().slice(0, 5);
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, activeTab, fechas]);
 
-    const datosInstalacion = proyecto.fases?.INSTALACION?.datos || {};
-
-    const cambios = {
-      fases: {
-        ...proyecto.fases,
-        INSTALACION: {
-          ...proyecto.fases?.INSTALACION,
-          datos: {
-            ...datosInstalacion,
-            fechaInstalacion: fecha,
-            horaInstalacion: hora,
-            direccionInstalacion: datosInstalacion.direccionInstalacion || proyecto.cliente?.direccion || '',
-          }
-        }
-      }
-    };
-
-    updateProyecto(proyecto.id, cambios);
-  }
-
-  // Guardar y avanzar fase a Entrega
-  function handleGuardarCierreInstalacion() {
-    if (!selectedProyecto) return;
-
-    const datosInstalacion = selectedProyecto.fases?.INSTALACION?.datos || {};
-
-    const cambios = {
-      fases: {
-        ...selectedProyecto.fases,
-        INSTALACION: {
-          ...selectedProyecto.fases?.INSTALACION,
-          completada: true,
-          fechaCompletada: new Date().toISOString().split('T')[0],
-          datos: {
-            ...datosInstalacion,
-            instalacionCompletada: true,
-            notasCierre: notasCierre,
-          }
-        }
-      }
-    };
-
-    updateProyecto(selectedProyecto.id, cambios);
-    avanzarFaseProyecto(selectedProyecto.id);
-
-    // Resetear modal
-    setSelectedProyecto(null);
-    setNotasCierre('');
-  }
+  const total = filteredInstallations.length;
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
+  const startIndex = (page - 1) * LIMIT;
+  const paginatedInstallations = filteredInstallations.slice(startIndex, startIndex + LIMIT);
 
   // Obtener iniciales de los empleados
   function getInitials(name = '') {
@@ -153,6 +136,31 @@ export function InstalacionesPage() {
       .join('')
       .toUpperCase();
   }
+
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxVisible = 5;
+    let start = Math.max(1, page - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      buttons.push(
+        <button
+          key={i}
+          type="button"
+          className={`prest-page-btn ${page === i ? 'active-page' : ''}`}
+          onClick={() => setPage(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
 
   return (
     <div className="instalaciones-container">
@@ -219,25 +227,32 @@ export function InstalacionesPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <div className="prest-datepicker-container">
+          <DateRangePicker
+            value={fechas}
+            onChange={(val) => setFechas({ start: val.start, end: val.end })}
+            placeholder="Rango de fechas"
+          />
+        </div>
 
         <div className="instalaciones-tabs">
           <button
-            onClick={() => setActiveTab('TODAS')}
-            className={`tab-pill-btn ${activeTab === 'TODAS' ? 'active' : ''}`}
+            onClick={() => setActiveTab('EN_PROGRESO')}
+            className={`tab-pill-btn ${activeTab === 'EN_PROGRESO' ? 'active' : ''}`}
           >
-            Todas ({stats.total})
+            Pendientes / En Curso ({stats.pendientes + stats.activas})
           </button>
           <button
             onClick={() => setActiveTab('PENDIENTES')}
             className={`tab-pill-btn ${activeTab === 'PENDIENTES' ? 'active' : ''}`}
           >
-            Pendientes ({stats.pendientes})
+            Por Iniciar ({stats.pendientes})
           </button>
           <button
             onClick={() => setActiveTab('ACTIVAS')}
             className={`tab-pill-btn ${activeTab === 'ACTIVAS' ? 'active' : ''}`}
           >
-            En Curso ({stats.activas})
+            En Montaje ({stats.activas})
           </button>
           <button
             onClick={() => setActiveTab('COMPLETADAS')}
@@ -245,11 +260,17 @@ export function InstalacionesPage() {
           >
             Completadas ({stats.completadas})
           </button>
+          <button
+            onClick={() => setActiveTab('TODAS')}
+            className={`tab-pill-btn ${activeTab === 'TODAS' ? 'active' : ''}`}
+          >
+            Todas ({stats.total})
+          </button>
         </div>
       </div>
 
-      {/* Grid List */}
-      {filteredInstallations.length === 0 ? (
+      {/* List layout */}
+      {paginatedInstallations.length === 0 ? (
         <div className="instalaciones-empty-state">
           <div className="empty-state-icon-box">
             <Wrench size={32} />
@@ -260,11 +281,11 @@ export function InstalacionesPage() {
           </p>
         </div>
       ) : (
-        <div className="instalaciones-cards-grid">
-          {filteredInstallations.map((proyecto) => {
+        <div className="instalaciones-list-container">
+          {paginatedInstallations.map((proyecto) => {
             const datosInstalacion = proyecto.fases?.INSTALACION?.datos || {};
             const isStarted = !!(datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion);
-            const isFinished = ['ENTREGA', 'COMPLETADO'].includes(proyecto.faseActual);
+            const isFinished = ['ENTREGA', 'COMPLETADO'].includes(proyecto.faseActual) || datosInstalacion.instalacionCompletada === true;
             
             const personalAsignado = datosInstalacion.personalAsignado || [];
             const materiales = datosInstalacion.materiales || [];
@@ -272,84 +293,53 @@ export function InstalacionesPage() {
             const priorityClass = PRIORIDAD_COLORS[proyecto.prioridad] || 'media';
             const progressColor = FASE_COLORS[proyecto.faseActual] || '#6366f1';
 
-            const ocDelProyecto = ordenesCompra.filter(oc => oc.proyectoId === proyecto.id);
+            const ocDelProyecto = proyecto.ordenesCompra || [];
             const ocPendiente = ocDelProyecto.find(oc => oc.estado === 'PENDIENTE');
             const ocAprobada = ocDelProyecto.find(oc => oc.estado === 'APROBADA');
+            const ocRecibida = ocDelProyecto.find(oc => oc.estado === 'RECIBIDA');
+            const ocRechazada = ocDelProyecto.find(oc => oc.estado === 'RECHAZADA');
 
             return (
-              <div key={proyecto.id} className="instalacion-card">
-                {/* Header */}
-                <div className="instalacion-card-header">
-                  <h3 className="instalacion-card-title">{proyecto.nombre}</h3>
-                  <span className={`badge-priority ${priorityClass}`}>
-                    {proyecto.prioridad}
-                  </span>
+              <div key={proyecto.id} className="instalacion-list-row">
+                {/* Columna 1: Proyecto e Info Principal */}
+                <div className="list-col col-main">
+                  <div className="list-proj-header">
+                    <span className={`badge-priority ${priorityClass}`}>
+                      {proyecto.prioridad}
+                    </span>
+                    <span className="list-proj-id">{proyecto.id}</span>
+                  </div>
+                  <h3 className="list-proj-title">{proyecto.nombre}</h3>
                 </div>
 
-                {/* Body */}
-                <div className="instalacion-card-body">
-                  {/* Client Box */}
-                  <div className="instalacion-client-info">
-                    <span className="instalacion-client-company">{proyecto.cliente.empresa}</span>
-                    <span className="instalacion-client-contact">Contacto: {proyecto.cliente.nombre}</span>
-                  </div>
+                {/* Columna 2: Cliente */}
+                <div className="list-col col-client">
+                  <span className="list-client-empresa">{proyecto.cliente.empresa}</span>
+                  <span className="list-client-contacto">Contacto: {proyecto.cliente.nombre}</span>
+                </div>
 
-                  {/* Address */}
-                  <div className="instalacion-detail-row">
-                    <MapPin size={15} className="instalacion-detail-icon" />
-                    <span className="instalacion-detail-text" title={datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}>
+                {/* Columna 3: Dirección & Programación */}
+                <div className="list-col col-details">
+                  <div className="list-detail-item">
+                    <MapPin size={14} className="list-detail-icon" />
+                    <span className="list-detail-text" title={datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}>
                       {datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}
                     </span>
                   </div>
+                  <div className="list-detail-item mt-1.5">
+                    <Calendar size={14} className="list-detail-icon" />
+                    <span className="list-detail-text">
+                      {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion
+                        ? `${datosInstalacion.fechaInstalacion} a las ${datosInstalacion.horaInstalacion}`
+                        : 'Pendiente de arranque'
+                      }
+                    </span>
+                  </div>
+                </div>
 
-                  {/* Purchase Order Status */}
-                  {ocDelProyecto.length > 0 && (
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', margin: '0.5rem 0' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Solicitud:</span>
-                      {ocPendiente ? (
-                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '9999px', textTransform: 'uppercase', background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a' }}>
-                          OC {ocPendiente.id} Pendiente
-                        </span>
-                      ) : ocAprobada ? (
-                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '9999px', textTransform: 'uppercase', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>
-                          OC {ocAprobada.id} Aprobada
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '9999px', textTransform: 'uppercase', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
-                          OC Rechazada
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Status Block */}
-                  {isFinished ? (
-                    <div className="instalacion-state-block completed flex items-center gap-1.5">
-                      <CheckCircle size={15} />
-                      <span>Instalación Finalizada ({proyecto.fases?.INSTALACION?.fechaCompletada || 'Completada'})</span>
-                    </div>
-                  ) : proyecto.faseActual === 'INSTALACION' ? (
-                    isStarted ? (
-                      <div className="instalacion-state-block started flex items-center gap-1.5">
-                        <Clock size={15} />
-                        <span>Instalación iniciada: {datosInstalacion.fechaInstalacion} a las {datosInstalacion.horaInstalacion}</span>
-                      </div>
-                    ) : (
-                      <div className="instalacion-state-block idle flex items-center gap-1.5">
-                        <AlertTriangle size={15} />
-                        <span>Fase activa: Requiere registrar arranque</span>
-                      </div>
-                    )
-                  ) : (
-                    <div className="instalacion-state-block idle flex items-center gap-1.5" style={{ background: '#f1f5f9', borderColor: '#cbd5e1', color: '#475569' }}>
-                      <ClipboardList size={15} />
-                      <span>Fase actual del proyecto: {FASE_LABELS[proyecto.faseActual]}</span>
-                    </div>
-                  )}
-
-                  {/* Team List */}
-                  <div className="instalacion-team-group">
-                    <span className="team-label">Equipo Asignado:</span>
+                {/* Columna 4: Equipo y Materiales */}
+                <div className="list-col col-team-materials">
+                  <div className="list-team-avatars">
                     {personalAsignado.length > 0 ? (
                       <div className="team-avatars-list">
                         {personalAsignado.map((p, i) => (
@@ -366,87 +356,74 @@ export function InstalacionesPage() {
                       <span className="team-empty-msg">Sin personal asignado</span>
                     )}
                   </div>
-
-                  {/* Materials Count */}
-                  <div className="instalacion-detail-row">
-                    <Wrench size={15} className="instalacion-detail-icon" />
-                    <span className="instalacion-detail-text">
+                  <div className="list-materials-count mt-2">
+                    <Wrench size={13} style={{ color: '#94a3b8' }} />
+                    <span>
                       {materiales.length > 0 
-                        ? `${materiales.length} materiales/herramientas enlistados`
-                        : 'Sin lista de materiales registrada'
+                        ? `${materiales.length} materiales`
+                        : 'Sin materiales'
                       }
                     </span>
                   </div>
-
-                  {/* Progress bar */}
-                  <div className="instalacion-progress-box">
-                    <div className="progress-labels">
-                      <span>Progreso General</span>
-                      <span>{proyecto.progreso}%</span>
-                    </div>
-                    <div className="progress-bar-container">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          width: `${proyecto.progreso}%`, 
-                          backgroundColor: progressColor 
-                        }}
-                      />
-                    </div>
-                  </div>
                 </div>
 
-                {/* Footer Actions */}
-                <div className="instalacion-card-actions">
+                {/* Columna 5: Estado / Orden de Compra */}
+                <div className="list-col col-status">
+                  {/* Estado Montaje */}
+                  {isFinished ? (
+                    <span className="list-state-badge completed">
+                      <CheckCircle size={12} /> Completada
+                    </span>
+                  ) : proyecto.faseActual === 'INSTALACION' ? (
+                    isStarted ? (
+                      <span className="list-state-badge started">
+                        <Clock size={12} /> En Montaje
+                      </span>
+                    ) : (
+                      <span className="list-state-badge idle">
+                        <AlertTriangle size={12} /> Iniciar Montaje
+                      </span>
+                    )
+                  ) : (
+                    <span className="list-state-badge queue" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>
+                      <ClipboardList size={12} /> {FASE_LABELS[proyecto.faseActual]}
+                    </span>
+                  )}
+
+                  {/* Orden de Compra */}
+                  {ocDelProyecto.length > 0 && (
+                    <div className="mt-2">
+                      {ocPendiente ? (
+                        <span className="list-oc-badge pending">
+                          OC Pendiente
+                        </span>
+                      ) : ocAprobada ? (
+                        <span className="list-oc-badge approved">
+                          OC Aprobada
+                        </span>
+                      ) : ocRecibida ? (
+                        <span className="list-oc-badge approved">
+                          OC Recibida
+                        </span>
+                      ) : ocRechazada ? (
+                        <span className="list-oc-badge rejected">
+                          OC Rechazada
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+
+                {/* Columna 6: Acciones */}
+                <div className="list-col col-actions">
                   <button
                     onClick={() => navigate(`/instalaciones/${proyecto.id}/materiales`)}
-                    className="card-action-btn secondary"
+                    className="card-action-btn primary list-btn"
                     title="Ver ficha del proyecto"
                   >
-                    <Eye size={15} />
+                    <Eye size={14} />
                     Ver Proyecto
                   </button>
-
-                  {!isFinished && proyecto.faseActual === 'INSTALACION' && (
-                    !isStarted ? (
-                      <button
-                        onClick={() => handleIniciarInstalacion(proyecto)}
-                        className="card-action-btn primary"
-                      >
-                        <Play size={15} />
-                        Iniciar Montaje
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setSelectedProyecto(proyecto)}
-                        className="card-action-btn success"
-                      >
-                        <CheckCircle size={15} />
-                        Completar
-                      </button>
-                    )
-                  )}
-
-                  {!isFinished && proyecto.faseActual !== 'INSTALACION' && (
-                    <button
-                      className="card-action-btn secondary"
-                      disabled
-                      style={{ opacity: 0.6, cursor: 'not-allowed', backgroundColor: '#f8fafc', borderColor: '#cbd5e1' }}
-                    >
-                      En Cola
-                    </button>
-                  )}
-
-                  {isFinished && (
-                    <button
-                      className="card-action-btn secondary"
-                      disabled
-                      style={{ opacity: 0.7, cursor: 'not-allowed', color: '#059669', borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' }}
-                    >
-                      <CheckCircle size={15} />
-                      Completada
-                    </button>
-                  )}
                 </div>
               </div>
             );
@@ -454,54 +431,30 @@ export function InstalacionesPage() {
         </div>
       )}
 
-      {/* Completion Modal */}
-      {selectedProyecto && (
-        <div className="modal-overlay" onClick={() => setSelectedProyecto(null)}>
-          <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Finalizar Instalación</h3>
-              <button 
-                onClick={() => setSelectedProyecto(null)}
-                className="modal-close-btn"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <p className="text-sm text-slate-500">
-                Confirmas que la instalación en sitio para <strong>{selectedProyecto.nombre}</strong> ha concluido de forma satisfactoria.
-              </p>
-
-              <div className="form-field-group">
-                <label className="form-label">Notas de Cierre</label>
-                <textarea
-                  className="form-textarea"
-                  rows={4}
-                  placeholder="Observaciones de entrega, conformidad del cliente, problemas resueltos..."
-                  value={notasCierre}
-                  onChange={(e) => setNotasCierre(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                onClick={() => setSelectedProyecto(null)}
-                className="card-action-btn secondary"
-                style={{ flex: 'none', width: 'auto', px: '1.25rem' }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleGuardarCierreInstalacion}
-                className="card-action-btn success"
-                style={{ flex: 'none', width: 'auto', px: '1.5rem' }}
-              >
-                <CheckCircle size={15} />
-                Guardar y Avanzar Fase
-              </button>
-            </div>
+      {/* Pagination Bar */}
+      {totalPages > 1 && (
+        <div className="prest-pagination" style={{ background: '#ffffff', marginTop: '1.5rem' }}>
+          <span className="prest-pagination-info">
+            {total} instalaciones ({page} de {totalPages})
+          </span>
+          <div className="prest-pagination-pages">
+            <button
+              type="button"
+              className="prest-page-btn"
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+            >
+              &lt;
+            </button>
+            {renderPageButtons()}
+            <button
+              type="button"
+              className="prest-page-btn"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => p + 1)}
+            >
+              &gt;
+            </button>
           </div>
         </div>
       )}

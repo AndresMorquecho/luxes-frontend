@@ -7,9 +7,11 @@ import {
 } from 'lucide-react';
 import {
   getMateriales, getPrestamos, registrarPrestamo, devolverPrestamo,
+  buildMaterialesQuery,
 } from '../application/inventarioService.js';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
 import './PrestamosPage.css';
+import { unidadLabel } from './prestamosUtils.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const elapsed = (fechaSalida) => {
@@ -22,6 +24,17 @@ const elapsed = (fechaSalida) => {
 const fmtDate = (d) => d ? new Date(d).toLocaleString('es-EC', {
   day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
 }) : '—';
+const fmtDateOnly = (d) => d ? new Date(d).toLocaleDateString('es-EC', {
+  day: '2-digit', month: 'short', year: 'numeric',
+}) : '—';
+const isVencido = (p) => {
+  if (p.estado !== 'prestado' || !p.fechaDevolucionEsperada) return false;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const limite = new Date(p.fechaDevolucionEsperada);
+  limite.setHours(0, 0, 0, 0);
+  return limite < hoy;
+};
 
 // ── Registro Modal ──────────────────────────────────────────────────────────
 function NuevoPrestamoModal({ herramientas, onClose, onSave }) {
@@ -41,6 +54,11 @@ function NuevoPrestamoModal({ herramientas, onClose, onSave }) {
   const [materialId, setMaterialId] = useState('');
   const [cantidad, setCantidad] = useState(1);
   const [comentarios, setComentarios] = useState('');
+  const [fechaDevolucionEsperada, setFechaDevolucionEsperada] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  });
 
   // Sincronizar el material seleccionado por defecto cuando cambie la lista filtrada
   React.useEffect(() => {
@@ -58,7 +76,7 @@ function NuevoPrestamoModal({ herramientas, onClose, onSave }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!materialId) return;
-    await onSave({ materialId, responsableId: userId, cantidad, comentarios });
+    await onSave({ materialId, responsableId: userId, cantidad, comentarios, fechaDevolucionEsperada });
   }
 
   return (
@@ -133,6 +151,15 @@ function NuevoPrestamoModal({ herramientas, onClose, onSave }) {
                   value={cantidad} onChange={e => setCantidad(+e.target.value)} />
               </label>
 
+              <label className="prest-label">Fecha de devolución esperada *
+                <input
+                  type="date"
+                  required
+                  value={fechaDevolucionEsperada}
+                  onChange={e => setFechaDevolucionEsperada(e.target.value)}
+                />
+              </label>
+
               <label className="prest-label">Motivo / Descripción *
                 <textarea required rows={3} value={comentarios}
                   onChange={e => setComentarios(e.target.value)}
@@ -170,9 +197,12 @@ export function PrestamosPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, h] = await Promise.all([getPrestamos(), getMateriales('herramienta')]);
+      const [p, h] = await Promise.all([
+        getPrestamos(),
+        getMateriales(buildMaterialesQuery({ tipo: 'herramienta' })),
+      ]);
       setPrestamos(p);
-      setHerramientas(h);
+      setHerramientas(Array.isArray(h) ? h : h.items || []);
     } catch (e) {
       toast.error(e.message);
     } finally {
@@ -354,6 +384,7 @@ export function PrestamosPage() {
                 <th>Responsable</th>
                 <th>Cantidad</th>
                 <th>Fecha Salida</th>
+                <th>Devolución esperada</th>
                 <th>Tiempo / Retorno</th>
                 <th>Estado</th>
                 <th>Motivo</th>
@@ -363,14 +394,14 @@ export function PrestamosPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="prest-empty">
+                  <td colSpan={9} className="prest-empty">
                     {hasFilters
                       ? 'No hay préstamos que coincidan con los filtros.'
                       : 'No hay préstamos registrados.'}
                   </td>
                 </tr>
               ) : filtered.map(p => (
-                <tr key={p.id} className={`prest-tr ${p.estado}`}>
+                <tr key={p.id} className={`prest-tr ${p.estado}${isVencido(p) ? ' prest-tr--vencido' : ''}`}>
                   {/* Herramienta */}
                   <td className="prest-td-tool">
                     <div className="prest-tool-cell">
@@ -386,23 +417,28 @@ export function PrestamosPage() {
                     </div>
                   </td>
                   {/* Responsable */}
-                  <td>
-                    <div className="prest-person-cell">
-                      <div className="prest-avatar">
-                        {(p.responsable?.nombre || '?').charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="prest-person-name">{p.responsable?.nombre || 'Desconocido'}</div>
-                        <div className="prest-person-user">@{p.responsable?.username || '—'}</div>
-                      </div>
+                  <td className="prest-td-person">
+                    <div className="prest-person-cell prest-person-cell--plain">
+                      <div className="prest-person-name">{p.responsable?.nombre || 'Desconocido'}</div>
+                      <div className="prest-person-user">@{p.responsable?.username || '—'}</div>
                     </div>
                   </td>
                   {/* Cantidad */}
                   <td className="prest-td-qty">
-                    {p.cantidad} <span className="prest-unit">{p.material?.unidadMedida?.abreviacion || p.material?.unidadMedida?.nombre || 'unid'}</span>
+                    {p.cantidad} <span className="prest-unit">{unidadLabel(p.material?.unidadMedida)}</span>
                   </td>
                   {/* Fecha salida */}
                   <td className="prest-td-date">{fmtDate(p.fechaSalida)}</td>
+                  <td className={`prest-td-date ${isVencido(p) ? 'prest-td-vencido' : ''}`}>
+                    {p.fechaDevolucionEsperada ? (
+                      <>
+                        <strong>{fmtDateOnly(p.fechaDevolucionEsperada)}</strong>
+                        {isVencido(p) && (
+                          <span className="prest-vencido-badge">Vencido</span>
+                        )}
+                      </>
+                    ) : '—'}
+                  </td>
                   {/* Tiempo / retorno */}
                   <td>
                     {p.estado === 'prestado' ? (

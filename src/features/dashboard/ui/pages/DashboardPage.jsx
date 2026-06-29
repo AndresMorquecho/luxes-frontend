@@ -1,423 +1,905 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useProyectosContext } from '../../../proyectos/application/context/ProyectosContext';
-import { getProformas } from '../../../proformas/application/proformasService';
-import { getClientes } from '../../../clientes/application/clientesService';
-import { getEmpleados } from '../../../empleados/application/empleadosService';
+import { getDashboardSummary } from '../../../gastos/application/gastosService';
+import { toast } from '../../../../shared/ui/components/Toast.jsx';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
-/* ── SVG Donut ── */
-const Donut = ({ segments, size = 100, strokeWidth = 18 }) => {
-  const r = (size - strokeWidth) / 2;
-  const circ = 2 * Math.PI * r;
-  const total = segments.reduce((s, v) => s + v.value, 0) || 1;
-  let offset = 0;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
-      {segments.map((s) => {
-        const dash = (s.value / total) * circ;
-        const seg = (
-          <circle key={s.label} cx={size / 2} cy={size / 2} r={r} fill="none"
-            stroke={s.color} strokeWidth={strokeWidth} strokeDasharray={`${dash} ${circ - dash}`}
-            strokeDashoffset={-offset} transform={`rotate(-90 ${size / 2} ${size / 2})`}
-            style={{ transition: 'stroke-dasharray 0.5s ease' }} />
-        );
-        offset += dash;
-        return seg;
-      })}
-      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central"
-        className="text-sm font-bold fill-slate-800" fontFamily="Inter, sans-serif">
-        {total}
-      </text>
-    </svg>
-  );
+const FASE_LABELS = {
+  COTIZACION: 'Cotización',
+  DISENO: 'Diseño',
+  DISEÑO: 'Diseño',
+  DISENIO: 'Diseño',
+  APROBACION: 'Aprobación',
+  PRODUCCION: 'Producción',
+  INSTALACION: 'Instalación',
+  ENTREGA: 'Entrega',
+  COMPLETADO: 'Completado',
 };
 
-/* ── SVG Horizontal Bar ── */
-const HBar = ({ data }) => {
-  const m = Math.max(...data.map(d => d.value), 1);
-  const barH = 30;
-  const gap = 10;
-  const barX = 78;
-  const barMaxW = 200;
-  const h = data.length * (barH + gap) - gap;
-  return (
-    <svg width="100%" height={h + 4} viewBox={`0 0 300 ${h + 4}`} className="w-full overflow-visible" preserveAspectRatio="xMinYMid meet">
-      <defs>
-        {data.map((d, i) => (
-          <linearGradient key={d.label} id={`barGrad-${i}`} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor={d.color} stopOpacity={0.85} />
-            <stop offset="100%" stopColor={d.color} stopOpacity={1} />
-          </linearGradient>
-        ))}
-      </defs>
-      {data.map((d, i) => {
-        const y = i * (barH + gap);
-        const w = Math.max(6, (d.value / m) * barMaxW);
-        const r = barH / 2;
-        const cx = barX + w - r;
-        const path = w > r
-          ? `M${barX},${y} L${cx},${y} A${r},${r} 0 0,1 ${barX + w},${y + r} A${r},${r} 0 0,1 ${cx},${y + barH} L${barX},${y + barH} Z`
-          : `M${barX},${y} L${barX},${y + barH} Z`;
-        return (
-          <g key={d.label}>
-            <rect x={barX} y={y} width={barMaxW} height={barH} rx={r} fill="#f1f5f9" />
-            <path d={path} fill={`url(#barGrad-${i})`} style={{ transition: 'd 0.6s ease' }} />
-            <text x={barX - 6} y={y + barH / 2} textAnchor="end" dominantBaseline="central" fontSize={12} fontWeight={600} fill="#475569" fontFamily="Inter, sans-serif">{d.label}</text>
-            <text x={barX + w + 5} y={y + barH / 2} dominantBaseline="central" fontSize={12} fontWeight={800} fill={d.color} fontFamily="Inter, sans-serif">{d.value}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
+const FASE_COLORS = {
+  COTIZACION: '#64748b',
+  DISENO: '#8b5cf6',
+  DISEÑO: '#8b5cf6',
+  DISENIO: '#8b5cf6',
+  APROBACION: '#f59e0b',
+  PRODUCCION: '#3b82f6',
+  INSTALACION: '#f97316',
+  ENTREGA: '#06b6d4',
+  COMPLETADO: '#10b981',
 };
-
-/* ── SVG Column Chart ── */
-const ColumnChart = ({ data, height = 120 }) => {
-  const max = Math.max(...data.map(d => d.value), 1);
-  const cols = data.length;
-  const gap = 8;
-  const colW = Math.max(24, Math.min(40, (290 - gap * (cols - 1)) / cols));
-  const totalW = cols * colW + (cols - 1) * gap;
-  const offsetX = (300 - totalW) / 2;
-  return (
-    <svg width="100%" height={height + 24} viewBox={`0 0 300 ${height + 24}`} className="w-full overflow-visible" preserveAspectRatio="xMinYMid meet">
-      <defs>
-        <linearGradient id="colGrad" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor="#1d4ed8" stopOpacity={0.5} />
-          <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.95} />
-        </linearGradient>
-      </defs>
-      {data.map((d, i) => {
-        const x = offsetX + i * (colW + gap);
-        const barH = Math.max(4, (d.value / max) * height);
-        const y = height - barH;
-        const r = 4;
-        const path = barH > r
-          ? `M${x},${y + barH} L${x},${y + r} A${r},${r} 0 0,1 ${x + r},${y} L${x + colW - r},${y} A${r},${r} 0 0,1 ${x + colW},${y + r} L${x + colW},${y + barH} Z`
-          : `M${x},${y + barH} L${x},${y + barH} Z`;
-        const isMax = d.value === max && d.value > 0;
-        const pct = max > 0 ? Math.round((d.value / max) * 100) : 0;
-        return (
-          <g key={d.label}>
-            <rect x={x} y={0} width={colW} height={height} rx={r} fill="#f8fafc" />
-            <path d={path} fill="url(#colGrad)" style={{ transition: 'd 0.5s ease' }} />
-            {d.value > 0 && (
-              <text x={x + colW / 2} y={y - 6} textAnchor="middle" fontSize={11} fontWeight={800}
-                fill={isMax ? '#1d4ed8' : '#475569'} fontFamily="Inter, sans-serif">{d.value}</text>
-            )}
-            <text x={x + colW / 2} y={height + 14} textAnchor="middle" fontSize={10} fontWeight={600}
-              fill={isMax ? '#1d4ed8' : '#94a3b8'} fontFamily="Inter, sans-serif">{d.label}</text>
-          </g>
-        );
-      })}
-      <line x1={offsetX} y1={height} x2={offsetX + totalW} y2={height} stroke="#e2e8f0" strokeWidth={1} />
-    </svg>
-  );
-};
-
-const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { state } = useProyectosContext();
-  const { proyectos } = state;
-
-  const [proformas, setProformas] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [empleados, setEmpleados] = useState([]);
+  const [rango, setRango] = useState('mes'); // 'hoy', 'semana', 'mes'
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeJobState, setActiveJobState] = useState(null);
+  const [hoveredCat, setHoveredCat] = useState(null);
+
+  const getDatesForRange = (range) => {
+    const hasta = new Date();
+    const desde = new Date();
+
+    if (range === 'hoy') {
+      desde.setHours(0, 0, 0, 0);
+    } else if (range === 'semana') {
+      desde.setDate(desde.getDate() - 7);
+      desde.setHours(0, 0, 0, 0);
+    } else {
+      // mes
+      desde.setDate(desde.getDate() - 30);
+      desde.setHours(0, 0, 0, 0);
+    }
+
+    return {
+      desde: desde.toISOString().split('T')[0],
+      hasta: hasta.toISOString().split('T')[0]
+    };
+  };
+
+  const loadData = async (rangeType) => {
+    setLoading(true);
+    try {
+      const { desde, hasta } = getDatesForRange(rangeType);
+      const data = await getDashboardSummary(desde, hasta);
+      setSummary(data);
+      setActiveJobState(data.currentPrintingJob || null);
+    } catch (err) {
+      toast.error('Error al cargar el resumen del dashboard: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    Promise.all([getProformas(), getClientes(), getEmpleados()]).then(([p, c, e]) => {
-      setProformas(p);
-      setClientes(c);
-      setEmpleados(e);
-      setLoading(false);
-    });
-  }, []);
+    loadData(rango);
+  }, [rango]);
 
-  const prodCount = proyectos.filter(p => p.faseActual === 'PRODUCCION').length;
-  const instalCount = proyectos.filter(p => p.faseActual === 'INSTALACION').length;
 
-  const montoTotalProformas = proformas.reduce((s, p) => {
-    const sub = p.items.reduce((a, i) => a + (i.cantidad || 0) * (i.precioUnitario || 0), 0);
-    return s + sub + sub * (p.iva ?? 0.12);
-  }, 0);
 
-  const personas = clientes.filter(c => c.tipo === 'Persona').length;
-  const empresas = clientes.filter(c => c.tipo === 'Empresa').length;
-
-  const ultimasProformas = [...proformas].sort((a, b) => b.fecha?.localeCompare(a.fecha) || 0).slice(0, 5);
-  const ultimosProyectos = [...proyectos].sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || '') || 0).slice(0, 5);
-
-  /* ── Chart data ── */
-  const faseLabels = { DISENIO: 'Diseño', APROBACION: 'Aprobación', PRODUCCION: 'Producción', INSTALACION: 'Instalación', COMPLETADO: 'Completado' };
-  const faseColors = { DISENIO: '#8b5cf6', APROBACION: '#f59e0b', PRODUCCION: '#3b82f6', INSTALACION: '#f97316', COMPLETADO: '#10b981' };
-  const fasesOrder = ['DISENIO', 'APROBACION', 'PRODUCCION', 'INSTALACION', 'COMPLETADO'];
-
-  const proyFase = fasesOrder.map(f => ({ label: faseLabels[f], value: proyectos.filter(p => p.faseActual === f).length, color: faseColors[f] }));
-
-  const estadoProformas = [
-    { label: 'Pendiente', value: proformas.filter(p => p.estado === 'Pendiente').length, color: '#f59e0b' },
-    { label: 'Aprobada', value: proformas.filter(p => p.estado === 'Aprobada').length, color: '#10b981' },
-    { label: 'Pagada', value: proformas.filter(p => p.estado === 'Pagada').length, color: '#6366f1' },
-    { label: 'Rechazada', value: proformas.filter(p => p.estado === 'Rechazada').length, color: '#ef4444' },
-  ];
-
-  const clientesTipo = [
-    { label: 'Personas', value: personas, color: '#3b82f6' },
-    { label: 'Empresas', value: empresas, color: '#6366f1' },
-  ];
-
-  const proformasPorMes = () => {
-    const mesCount = {};
-    proformas.forEach(p => {
-      if (!p.fecha) return;
-      const d = new Date(p.fecha);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      mesCount[key] = (mesCount[key] || 0) + 1;
-    });
-    const today = new Date();
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      months.push({ label: MONTHS[d.getMonth()], value: mesCount[key] || 0 });
-    }
-    return months;
-  };
-
-  const badgeProy = (fase) => {
-    const map = {
-      DISENIO: 'bg-purple-100 text-purple-700',
-      APROBACION: 'bg-amber-100 text-amber-700',
-      PRODUCCION: 'bg-blue-100 text-blue-700',
-      INSTALACION: 'bg-orange-100 text-orange-700',
-      COMPLETADO: 'bg-emerald-100 text-emerald-700',
-    };
-    return map[fase] || 'bg-slate-100 text-slate-600';
-  };
-
-  if (loading) {
+  if (loading || !summary) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
+      <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-slate-800 animate-spin" />
+        <p className="text-xs font-medium text-slate-400 tracking-wider uppercase">Cargando métricas...</p>
       </div>
     );
   }
 
+  const { kpi, usersActivity, printQueue, proyectosActivos, proyectosFaseCount, recentMovements } = summary;
+
+  const formatTime = (totalSeconds) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}m ${seconds}s`;
+  };
+
+  const renderUrgencyBadge = (urgency) => {
+    if (urgency === 'Alta') {
+      return (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-wider">
+          ⚠️ Alta
+        </span>
+      );
+    }
+    if (urgency === 'Media') {
+      return (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-wider">
+          Media
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-wider">
+        Baja
+      </span>
+    );
+  };
+
+  const renderStatusBadge = (status) => {
+    if (status === 'Imprimiendo') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-250 animate-pulse">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Imprimiendo
+        </span>
+      );
+    }
+    if (status === 'Pausado') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-250">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          Pausado
+        </span>
+      );
+    }
+    if (status === 'Listo') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-250">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+          Listo
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-50 text-slate-700 border border-slate-200">
+        {status}
+      </span>
+    );
+  };
+
+  const totalProformas = kpi.porAprobar + kpi.aprobadas + kpi.pagadas + kpi.rechazadas;
+  const r = 38;
+  const circ = 2 * Math.PI * r; // ~238.76
+  const categories = [
+    { key: 'porAprobar', label: 'Pendientes', value: kpi.porAprobar, color: '#f59e0b', textClass: 'text-amber-550', hoverColor: '#d97706' },
+    { key: 'aprobadas', label: 'Aprobadas', value: kpi.aprobadas, color: '#10b981', textClass: 'text-emerald-500', hoverColor: '#059669' },
+    { key: 'pagadas', label: 'Pagadas', value: kpi.pagadas, color: '#3b82f6', textClass: 'text-blue-500', hoverColor: '#2563eb' },
+    { key: 'rechazadas', label: 'Rechazadas', value: kpi.rechazadas, color: '#ef4444', textClass: 'text-rose-500', hoverColor: '#dc2626' },
+  ];
+
+  let accumulatedOffset = 0;
+  const slices = categories.map(cat => {
+    if (cat.value === 0) return null;
+    const percentage = cat.value / (totalProformas || 1);
+    const strokeLength = percentage * circ;
+    const strokeOffset = accumulatedOffset;
+    accumulatedOffset -= strokeLength;
+    return {
+      ...cat,
+      percentage: Math.round(percentage * 100),
+      strokeLength,
+      strokeOffset
+    };
+  }).filter(Boolean);
+
   return (
-    <div className="pb-10">
-      {/* Header */}
-      <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
+    <div className="pb-16 dashboard-container max-w-[1400px] mx-auto animate-fade-in">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        
+        .dashboard-container {
+          font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+          letter-spacing: -0.01em;
+        }
+        .currency-val {
+          font-family: 'JetBrains Mono', monospace;
+          letter-spacing: -0.03em;
+        }
+        .custom-card {
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.7);
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01), 0 10px 20px -12px rgba(0, 0, 0, 0.03);
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .custom-card:hover {
+          border-color: rgba(203, 213, 225, 0.9);
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02), 0 12px 24px -10px rgba(0, 0, 0, 0.04);
+        }
+        .segment-btn {
+          font-size: 12px;
+          font-weight: 500;
+          padding: 6px 14px;
+          border-radius: 6px;
+          transition: all 0.15s ease;
+          color: #64748b;
+        }
+        .segment-btn.active {
+          background: #0f172a;
+          color: #ffffff;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .avatar-box {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+        .thin-scrollbar::-webkit-scrollbar {
+          width: 4px;
+          height: 4px;
+        }
+        .thin-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .thin-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 99px;
+        }
+        .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+
+      `}</style>
+
+      {/* Header section (Minimal & Borderless) */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Dashboard</h1>
-          <p className="text-sm text-slate-500">Resumen general del sistema LUXES</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Resumen de Operaciones</h1>
+          <p className="text-xs font-medium text-slate-400 mt-1">
+            Perspectiva general del flujo, proyectos activos y la actividad del equipo.
+          </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-slate-400">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          Todo operativo
+
+        {/* Minimal Rango Toggles */}
+        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/40">
+          <button onClick={() => setRango('hoy')} className={`segment-btn ${rango === 'hoy' ? 'active' : ''}`}>
+            Hoy
+          </button>
+          <button onClick={() => setRango('semana')} className={`segment-btn ${rango === 'semana' ? 'active' : ''}`}>
+            7 días
+          </button>
+          <button onClick={() => setRango('mes')} className={`segment-btn ${rango === 'mes' ? 'active' : ''}`}>
+            Último mes
+          </button>
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <button onClick={() => navigate('/proyectos/nuevo')}
-          className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center gap-4 hover:border-blue-300 hover:shadow-md transition-all text-left">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-blue-50">
-            <svg className="w-6 h-6 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-base font-bold text-slate-800">Nuevo Proyecto</p>
-            <p className="text-xs text-slate-400 mt-0.5">Crear un proyecto desde cero con fases y asignación</p>
-          </div>
-        </button>
-        <button onClick={() => navigate('/proformas')}
-          className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center gap-4 hover:border-blue-300 hover:shadow-md transition-all text-left">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-amber-50">
-            <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-base font-bold text-slate-800">Nueva Proforma</p>
-            <p className="text-xs text-slate-400 mt-0.5">Generar cotización o proforma para un cliente</p>
-          </div>
-        </button>
-      </div>
+      {/* Financial Status Summary — 3 cards en horizontal (móvil y escritorio) */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
+          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
+            Balance Neto
+          </span>
+          <span
+            className={`text-sm sm:text-2xl md:text-3xl font-extrabold tracking-tight currency-val mt-1.5 sm:mt-2 leading-none ${
+              kpi.balance >= 0 ? 'text-slate-900' : 'text-rose-600'
+            }`}
+          >
+            {kpi.balance >= 0 ? '+' : ''}{formatUSD(kpi.balance)}
+          </span>
+          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
+            Diferencia neta en caja y abonos
+          </span>
+        </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-blue-50">
-            <svg className="w-5 h-5 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-800">{proyectos.length}</p>
-            <p className="text-xs text-slate-500">Proyectos</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{prodCount} prod. · {instalCount} instal.</p>
-          </div>
+        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
+          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
+            Ingresos
+          </span>
+          <span className="text-sm sm:text-2xl md:text-3xl font-bold tracking-tight text-emerald-600 currency-val mt-1.5 sm:mt-2 leading-none">
+            {formatUSD(kpi.ingresos)}
+          </span>
+          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
+            Total cobrado al cliente
+          </span>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-amber-50">
-            <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-800">{proformas.length}</p>
-            <p className="text-xs text-slate-500">Proformas</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{formatUSD(montoTotalProformas)}</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50">
-            <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-800">{clientes.length}</p>
-            <p className="text-xs text-slate-500">Clientes</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{personas} pers. · {empresas} emp.</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-indigo-50">
-            <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-800">{empleados.length}</p>
-            <p className="text-xs text-slate-500">Colaboradores</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">Registrados en nómina</p>
-          </div>
+
+        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
+          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
+            Egresos
+          </span>
+          <span className="text-sm sm:text-2xl md:text-3xl font-bold tracking-tight text-rose-600 currency-val mt-1.5 sm:mt-2 leading-none">
+            {formatUSD(kpi.egresos)}
+          </span>
+          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
+            Pagos realizados y compras
+          </span>
         </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        {/* Proyectos por fase */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">Proyectos por fase</h3>
-          <HBar data={proyFase} />
-        </div>
-
-        {/* Proformas por estado */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col items-center">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 self-start">Proformas por estado</h3>
-          <Donut segments={estadoProformas} size={120} strokeWidth={20} />
-          <div className="flex flex-wrap gap-3 mt-3 justify-center">
-            {estadoProformas.filter(s => s.value > 0).map(s => (
-              <div key={s.label} className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                {s.label} <span className="font-semibold text-slate-700">{s.value}</span>
+      {/* Main Grid divided in balanced horizontal rows with matching heights */}
+      <div className="space-y-8">
+        
+        {/* ROW 1: Projects & Sales Metrics (2 Columns: 2/3 and 1/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          
+          {/* Active Projects Block (8/12 width) */}
+          <div className="lg:col-span-8 custom-card p-4 sm:p-6 flex flex-col justify-between h-full">
+            <div className="flex flex-col">
+              <div className="flex items-start sm:items-center justify-between border-b border-slate-100 pb-3 mb-4 sm:mb-5 gap-2">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Proyectos en Curso</h3>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 line-clamp-2 sm:line-clamp-none">
+                    Control de fases y avance de los proyectos vigentes
+                  </p>
+                </div>
+                <button 
+                  onClick={() => navigate('/proyectos')} 
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors shrink-0 whitespace-nowrap"
+                >
+                  Ver todos →
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Clientes por tipo */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col items-center">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 self-start">Clientes por tipo</h3>
-          <Donut segments={clientesTipo} size={120} strokeWidth={20} />
-          <div className="flex flex-wrap gap-3 mt-3 justify-center">
-            {clientesTipo.filter(s => s.value > 0).map(s => (
-              <div key={s.label} className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                {s.label} <span className="font-semibold text-slate-700">{s.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+              {proyectosActivos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <p className="text-xs font-medium text-slate-400">No hay proyectos activos en este periodo</p>
+                  <button 
+                    onClick={() => navigate('/proyectos')} 
+                    className="text-xs text-blue-600 font-semibold mt-2 hover:underline"
+                  >
+                    Ir al módulo de proyectos
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Móvil: cards horizontales deslizables */}
+                  <div className="md:hidden -mx-1">
+                    <div className="flex gap-2.5 overflow-x-auto thin-scrollbar pb-1 snap-x snap-mandatory">
+                      {proyectosActivos.slice(0, 5).map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => navigate(`/proyectos/${p.id}`)}
+                          className="snap-start shrink-0 w-[min(72vw,260px)] bg-white border border-slate-200/80 rounded-xl p-3.5 text-left shadow-sm hover:border-slate-300 active:scale-[0.98] transition-all"
+                        >
+                          <p className="text-[11px] font-bold text-slate-800 leading-snug line-clamp-2">
+                            {p.nombre}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 truncate">{p.clienteNombre}</p>
 
-      {/* Proformas por mes */}
-      {proformas.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center justify-center gap-6 mb-4">
-            <h3 className="text-sm font-semibold text-slate-700">Proformas por mes</h3>
-            <p className="text-[11px] text-slate-400">Últimos 6 meses</p>
-            <div className="flex items-center gap-4 text-xs ml-4 pl-4 border-l border-slate-200">
-              <span className="text-slate-400">Total <span className="font-bold text-slate-800">{proformas.length}</span></span>
-              <span className="text-slate-400">Promedio <span className="font-bold text-slate-800">{(proformas.length / 6).toFixed(1)}</span></span>
-            </div>
-          </div>
-          <div className="flex justify-center">
-            <div className="w-full max-w-xl">
-              <ColumnChart data={proformasPorMes()} height={180} />
-            </div>
-          </div>
-        </div>
-      )}
+                          <div className="flex items-center gap-1.5 mt-2.5">
+                            <span
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: FASE_COLORS[p.faseActual] || '#94a3b8' }}
+                            />
+                            <span className="text-[10px] font-semibold text-slate-600 truncate">
+                              {FASE_LABELS[p.faseActual] || p.faseActual}
+                            </span>
+                          </div>
 
-      {/* Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
-            <h3 className="text-sm font-semibold text-slate-700">Últimas Proformas</h3>
-            <button onClick={() => navigate('/proformas')}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">Ver todas</button>
-          </div>
-          {ultimasProformas.length === 0 ? (
-            <div className="py-10 text-center text-sm text-slate-400">Sin proformas registradas</div>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {ultimasProformas.map(p => (
-                <div key={p.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{p.cliente}</p>
-                    <p className="text-xs text-slate-400">{p.id} · {p.fecha}</p>
+                          <div className="flex items-center gap-2 mt-2.5">
+                            <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden min-w-0">
+                              <div
+                                className="bg-slate-800 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${p.progreso}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-600 currency-val shrink-0">
+                              {p.progreso}%
+                            </span>
+                          </div>
+
+                          {p.responsable && (
+                            <p className="text-[9px] text-slate-400 mt-2 truncate">
+                              Resp.: {p.responsable}
+                            </p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-3">
-                    <span className="text-sm font-bold text-slate-700">{formatUSD(p.items.reduce((s, i) => s + (i.cantidad || 0) * (i.precioUnitario || 0), 0) * (1 + (p.iva ?? 0.12)))}</span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      p.estado === 'Aprobada' ? 'bg-emerald-50 text-emerald-700' :
-                      p.estado === 'Rechazada' ? 'bg-red-50 text-red-700' :
-                      p.estado === 'Pagada' ? 'bg-indigo-50 text-indigo-700' :
-                      'bg-amber-50 text-amber-700'
-                    }`}>{p.estado}</span>
+
+                  {/* Escritorio: tabla */}
+                  <div className="hidden md:block overflow-x-auto thin-scrollbar">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="pb-3 font-semibold">Proyecto</th>
+                          <th className="pb-3 font-semibold">Fase</th>
+                          <th className="pb-3 font-semibold">Progreso</th>
+                          <th className="pb-3 font-semibold">Responsable</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {proyectosActivos.slice(0, 5).map(p => (
+                          <tr 
+                            key={p.id} 
+                            className="hover:bg-slate-50/50 cursor-pointer transition-colors group" 
+                            onClick={() => navigate(`/proyectos/${p.id}`)}
+                          >
+                            <td className="py-3 pr-4">
+                              <span className="font-semibold text-slate-800 group-hover:text-blue-600 block transition-colors text-[13px]">
+                                {p.nombre}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">{p.clienteNombre}</span>
+                            </td>
+                            <td className="py-3">
+                              <div className="flex items-center gap-1.5">
+                                <span 
+                                  className="w-1.5 h-1.5 rounded-full shrink-0" 
+                                  style={{ backgroundColor: FASE_COLORS[p.faseActual] || '#94a3b8' }}
+                                />
+                                <span className="font-medium text-slate-650">
+                                  {FASE_LABELS[p.faseActual] || p.faseActual}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-24 bg-slate-100 rounded-full h-1 shrink-0 overflow-hidden">
+                                  <div 
+                                    className="bg-slate-850 h-full rounded-full transition-all duration-500" 
+                                    style={{ width: `${p.progreso}%` }} 
+                                  />
+                                </div>
+                                <span className="font-bold text-slate-600 text-[11px] currency-val">{p.progreso}%</span>
+                              </div>
+                            </td>
+                            <td className="py-3 font-medium text-slate-500">
+                              {p.responsable || '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {proyectosActivos.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-slate-100 pt-3 sm:pt-4 mt-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Fases Activas:</span>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 sm:gap-x-4">
+                  {Object.entries(proyectosFaseCount).map(([fase, val]) => {
+                    if (val === 0) return null;
+                    return (
+                      <div key={fase} className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                        <span 
+                          className="w-1.5 h-1.5 rounded-full" 
+                          style={{ backgroundColor: FASE_COLORS[fase] || '#94a3b8' }}
+                        />
+                        <span>{FASE_LABELS[fase] || fase}: <strong className="text-slate-800 font-bold">{val}</strong></span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Proformas Overview (4/12 width) */}
+          <div className="lg:col-span-4 custom-card p-6 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">Métricas de Proformas</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Estado de cotizaciones del periodo</p>
+              </div>
+              <button 
+                onClick={() => navigate('/proformas')} 
+                className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Proformas
+              </button>
+            </div>
+
+            <div className="flex-1 flex flex-col justify-between space-y-4">
+              {/* Financial values */}
+              <div className="flex justify-between items-baseline mt-1">
+                <span className="text-xs font-semibold text-slate-500">Generado Total</span>
+                <span className="text-base font-bold text-slate-800 currency-val">
+                  {formatUSD(kpi.proformasMonto)}
+                </span>
+              </div>
+
+              {/* Large Donut Chart Centered */}
+              <div className="flex flex-col items-center justify-center py-2 border-t border-slate-50 pt-4">
+                <div className="relative w-[160px] h-[160px] flex items-center justify-center">
+                  <svg width="160" height="160" viewBox="0 0 100 100" className="transform -rotate-90">
+                    {totalProformas === 0 ? (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        fill="transparent"
+                        stroke="#f1f5f9"
+                        strokeWidth="8"
+                      />
+                    ) : (
+                      slices.map(slice => {
+                        const isHovered = hoveredCat?.key === slice.key;
+                        return (
+                          <circle
+                            key={slice.key}
+                            cx="50"
+                            cy="50"
+                            r="38"
+                            fill="transparent"
+                            stroke={isHovered ? slice.hoverColor : slice.color}
+                            strokeWidth={isHovered ? "10" : "8"}
+                            strokeDasharray={`${slice.strokeLength} ${circ - slice.strokeLength}`}
+                            strokeDashoffset={slice.strokeOffset}
+                            className="transition-all duration-200 cursor-pointer"
+                            onMouseEnter={() => setHoveredCat(slice)}
+                            onMouseLeave={() => setHoveredCat(null)}
+                          />
+                        );
+                      })
+                    )}
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-3 select-none pointer-events-none">
+                    {hoveredCat ? (
+                      <>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                          {hoveredCat.label}
+                        </span>
+                        <span className="text-2xl font-extrabold text-slate-900 currency-val leading-none">
+                          {hoveredCat.value}
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-500 mt-1 block">
+                          {hoveredCat.percentage}% del total
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-2xl font-extrabold text-slate-900 currency-val leading-none">
+                          {kpi.proformasTotal}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">
+                          Proformas
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-500 mt-1 block currency-val">
+                          {formatUSD(kpi.proformasMonto)}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
-            <h3 className="text-sm font-semibold text-slate-700">Últimos Proyectos</h3>
-            <button onClick={() => navigate('/proyectos')}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">Ver todos</button>
+              {/* Legend Grid */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-3 border-t border-slate-100 text-[11px]">
+                {categories.map(cat => {
+                  const isHovered = hoveredCat?.key === cat.key;
+                  return (
+                    <div 
+                      key={cat.key} 
+                      className={`flex items-center justify-between p-1 rounded transition-all duration-150 ${isHovered ? 'bg-slate-50 scale-[1.02]' : ''}`}
+                      onMouseEnter={() => {
+                        const pct = totalProformas > 0 ? (cat.value / totalProformas) : 0;
+                        setHoveredCat({
+                          ...cat,
+                          percentage: Math.round(pct * 100),
+                          ...cat
+                        });
+                      }}
+                      onMouseLeave={() => setHoveredCat(null)}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                        <span className={`text-slate-550 font-medium truncate ${isHovered ? 'text-slate-900 font-semibold' : ''}`}>{cat.label}</span>
+                      </div>
+                      <span className={`font-bold currency-val ${cat.textClass} ${isHovered ? 'scale-105' : ''}`}>
+                        {cat.value}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          {ultimosProyectos.length === 0 ? (
-            <div className="py-10 text-center text-sm text-slate-400">Sin proyectos registrados</div>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {ultimosProyectos.map(p => (
-                <div key={p.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/proyectos/${p.id}`)}>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{p.nombre}</p>
-                    <p className="text-xs text-slate-400">{p.cliente?.nombre || 'Sin cliente'} · {p.responsable}</p>
-                  </div>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ml-3 ${badgeProy(p.faseActual)}`}>{p.faseActual}</span>
-                </div>
-              ))}
-            </div>
-          )}
+
         </div>
+
+        {/* ROW 2: Plotter & Team Pulse (2 Columns: 2/3 and 1/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          
+          {/* Cola de Producción (8/12 width) */}
+          <div className="lg:col-span-8 custom-card p-6 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">Cola de Producción</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Plotter: Impresión activa y cola de espera</p>
+              </div>
+              <button 
+                onClick={() => navigate('/colas-impresion')} 
+                className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Cola →
+              </button>
+            </div>
+
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 mt-2">
+              
+              {/* Left Side: Active Printing Job (5/12 or 6/12 for prominence) */}
+              <div className="md:col-span-6 flex flex-col justify-between">
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Estado del Plotter</h4>
+                  {activeJobState ? (
+                    <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/5 flex flex-col justify-between min-h-[300px] hover:border-slate-200 transition-all duration-200">
+                      <div>
+                        {/* Badges Row */}
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-100/50 pb-2 mb-3">
+                          {renderStatusBadge(activeJobState.status)}
+                          {renderUrgencyBadge(activeJobState.urgency)}
+                        </div>
+
+                        {/* Title & Client */}
+                        <div className="flex items-start gap-2.5 mb-3">
+                          <div className="p-2 bg-slate-50 rounded-lg shrink-0 border border-slate-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="#64748b" className="w-5 h-5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h5 className="text-[13.5px] font-bold text-slate-800 truncate leading-tight" title={activeJobState.name}>
+                              {activeJobState.name}
+                            </h5>
+                            <span className="text-[10px] text-slate-400 block mt-1">
+                              Cliente: <strong className="text-slate-600 font-semibold">{activeJobState.client}</strong>
+                            </span>
+                            {activeJobState.proyectoNombre && (
+                              <span className="inline-block text-[9.5px] font-semibold text-violet-600 bg-violet-50/50 border border-violet-100 rounded px-1.5 py-0.5 mt-1">
+                                📁 {activeJobState.proyectoNombre}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Technical Grid */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2.5 border-y border-slate-100/50 text-[10.5px]">
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Formato / Material</span>
+                            <strong className="text-slate-700 font-semibold">{activeJobState.format}</strong>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Dimensiones</span>
+                            <strong className="text-slate-750 font-semibold currency-val">{activeJobState.width.toFixed(2)} x {activeJobState.height.toFixed(2)} m <span className="text-[9px] text-slate-400">({(activeJobState.width * activeJobState.height).toFixed(2)}m²)</span></strong>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Responsable</span>
+                            <strong className="text-slate-750 font-semibold truncate block">{activeJobState.responsible || '—'}</strong>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Copias</span>
+                            <strong className="text-slate-750 font-semibold currency-val">{activeJobState.copies} {activeJobState.copies === 1 ? 'copia' : 'copias'}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+
+                      {/* Notes Callout if exists */}
+                      {activeJobState.notes && (
+                        <div className="mt-2.5 bg-amber-50/30 border border-amber-100/50 rounded-lg p-2 text-[9.5px] text-slate-600 flex items-start gap-1.5">
+                          <span className="text-[11px] shrink-0">💡</span>
+                          <p className="line-clamp-2 leading-snug"><strong className="text-slate-700">Indicaciones:</strong> {activeJobState.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="border border-slate-100 border-dashed rounded-xl p-6 bg-slate-50/10 flex flex-col items-center justify-center text-center min-h-[300px]">
+                      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3 border border-slate-200/40">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.8">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.82l-.24 2.24H4.5a2.25 2.25 0 00-2.25 2.25v2.25c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-2.25a2.25 2.25 0 00-2.25-2.25h-1.98l-.24-2.24m-11.28 0H18.72m-12 0h12m-12 0l1.24-11.13A2.25 2.25 0 018.21 2.25h7.58a2.25 2.25 0 012.23 1.99L19.28 13.82m-12 0h12" />
+                        </svg>
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-700">Plotter Inactivo</h5>
+                      <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">No hay impresiones activas en curso. Inicie un trabajo de impresión en el taller.</p>
+                      <button 
+                        onClick={() => navigate('/colas-impresion')}
+                        className="text-[10.5px] font-bold text-blue-600 border border-blue-100 hover:bg-blue-50/50 transition-colors px-3 py-1.5 rounded-lg mt-4"
+                      >
+                        Ir a Cola de Impresión
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Side: Waiting Queue (6/12 for symmetry) */}
+              <div className="md:col-span-6 flex flex-col justify-between border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Próximos en Cola</h4>
+                    <span className="text-[9.5px] font-bold text-slate-400 bg-slate-100 rounded px-1.5 py-0.5 currency-val">
+                      {printQueue.length} en espera
+                    </span>
+                  </div>
+                  
+                  {(!printQueue || printQueue.length === 0) ? (
+                    <div className="py-10 text-center text-[11px] text-slate-400 italic min-h-[250px] flex flex-col items-center justify-center border border-slate-50 rounded-xl bg-slate-50/5">
+                      <span className="text-xl mb-1 opacity-70">📭</span>
+                      No hay trabajos en cola de espera.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[290px] overflow-y-auto thin-scrollbar pr-1">
+                      {printQueue.map((job, idx) => (
+                        <div 
+                          key={job.id} 
+                          className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl transition-all duration-150 border border-slate-100/50 hover:border-slate-200/80 cursor-pointer group"
+                          onClick={() => navigate('/colas-impresion')}
+                        >
+                          <div className="min-w-0 flex-1 pr-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9.5px] font-bold text-slate-400 bg-slate-50 group-hover:bg-white rounded px-1.5 py-0.5 border border-slate-100 currency-val">
+                                #{idx + 1}
+                              </span>
+                              <span className="text-[11.5px] font-bold text-slate-800 group-hover:text-blue-600 truncate block transition-colors">
+                                {job.name}
+                              </span>
+                            </div>
+                            <span className="text-[9.5px] text-slate-400 truncate block mt-1 ml-1">
+                              {job.client} • {job.format} • {job.copies} {job.copies === 1 ? 'copia' : 'copias'}
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                            <span className="text-[10px] font-bold text-slate-700 currency-val block">
+                              {job.width.toFixed(2)}x{job.height.toFixed(2)} m
+                            </span>
+                            {renderUrgencyBadge(job.urgency)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Team Pulse (Equipo) (4/12 width) */}
+          <div className="lg:col-span-4 custom-card p-6 flex flex-col justify-between h-full">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Estado del Equipo</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Colaboradores activos y últimas acciones realizadas</p>
+                </div>
+                <button 
+                  onClick={() => navigate('/nomina/empleados')} 
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  Nómina
+                </button>
+              </div>
+
+              <div className="space-y-4 overflow-y-auto max-h-[300px] lg:max-h-[320px] thin-scrollbar pr-1 flex-1">
+                {usersActivity.map(user => {
+                  const colors = [
+                    { bg: '#f1f5f9', txt: '#334155' }, // slate
+                    { bg: '#eff6ff', txt: '#1e40af' }, // blue
+                    { bg: '#f5f3ff', txt: '#5b21b6' }, // purple
+                    { bg: '#ecfdf5', txt: '#065f46' }, // green
+                    { bg: '#fff7ed', txt: '#9a3412' }, // orange
+                  ];
+                  const c = colors[user.nombre.length % colors.length];
+                  const initials = user.nombre.split(' ').map(n => n[0]).slice(0, 2).join('');
+
+                  return (
+                    <div key={user.id} className="group transition-all">
+                      <div className="flex items-start gap-2.5">
+                        <div className="avatar-box shrink-0" style={{ backgroundColor: c.bg, color: c.txt }}>
+                          {initials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11.5px] font-bold text-slate-800 truncate">{user.nombre}</p>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide shrink-0">
+                              {user.rol}
+                            </span>
+                          </div>
+
+                          <div className="mt-1 space-y-1 pl-0.5 border-l border-slate-100 ml-0.5">
+                            {/* Active Task */}
+                            {user.activeTask ? (
+                              <div className="text-[10px]">
+                                <span className="text-slate-600 font-semibold hover:text-blue-600 cursor-pointer" onClick={() => navigate('/tareas')}>
+                                  📋 {user.activeTask.titulo}
+                                </span>
+                                <span className={`inline-block w-1.5 h-1.5 rounded-full ml-1 ${
+                                  user.activeTask.prioridad === 'alta' ? 'bg-rose-500 animate-pulse' :
+                                  user.activeTask.prioridad === 'media' ? 'bg-amber-400' : 'bg-blue-400'
+                                }`} />
+                              </div>
+                            ) : (
+                              <p className="text-[9.5px] text-slate-400 italic">Sin tareas pendientes</p>
+                            )}
+
+                            {/* Last Action */}
+                            {user.lastAction ? (
+                              <p className="text-[10px] text-slate-400 leading-normal">
+                                ⚡ <span className="text-slate-500 font-medium">{user.lastAction.accion}</span> ({user.lastAction.modulo})
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* ROW 3: Full-width Financial Ledger (12/12) */}
+        <div className="w-full">
+          <div className="custom-card p-6 flex flex-col justify-between h-full">
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Movimientos de Caja</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Bitácora consolidada de ingresos y egresos recientes</p>
+                </div>
+                <button 
+                  onClick={() => navigate('/movimientos')} 
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  Ver historial →
+                </button>
+              </div>
+
+              {recentMovements.length === 0 ? (
+                <div className="py-12 text-center text-xs font-medium text-slate-400">
+                  No se registraron movimientos en este periodo
+                </div>
+              ) : (
+                <div className="overflow-x-auto thin-scrollbar">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="pb-3 font-semibold">Fecha</th>
+                        <th className="pb-3 font-semibold">Concepto</th>
+                        <th className="pb-3 font-semibold">Entidad / Cliente</th>
+                        <th className="pb-3 font-semibold">Responsable</th>
+                        <th className="pb-3 font-semibold">Método</th>
+                        <th className="pb-3 text-right font-semibold">Monto</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {recentMovements.slice(0, 7).map(m => (
+                        <tr key={m.id + m.origen} className="hover:bg-slate-50/40 transition-colors">
+                          <td className="py-3 font-semibold text-slate-400">
+                            {new Date(m.fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' })}
+                          </td>
+                          <td className="py-3 pr-4 font-semibold text-slate-800 max-w-[200px] truncate">
+                            {m.descripcion}
+                          </td>
+                          <td className="py-3 pr-2 text-slate-500 font-medium truncate max-w-[150px]">
+                            {m.entidad || '—'}
+                          </td>
+                          <td className="py-3 text-slate-500 font-medium">
+                            {m.usuario || '—'}
+                          </td>
+                          <td className="py-3">
+                            <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-200/30">
+                              {m.metodoPago}
+                            </span>
+                          </td>
+                          <td className={`py-3 text-right font-bold text-[13px] currency-val ${
+                            m.tipo === 'ingreso' ? 'text-emerald-600' : 'text-rose-500'
+                          }`}>
+                            {m.tipo === 'ingreso' ? '+' : '-'}{formatUSD(m.monto)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
       </div>
-
-
     </div>
   );
 }

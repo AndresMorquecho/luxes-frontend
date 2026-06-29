@@ -2,16 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/src/assets/icon/favicon.png" />
-    <link rel="apple-touch-icon" href="/src/assets/icon/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self)" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#2563eb" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <title>LUXES</title>
+    <title>LUXES 2026 Portal</title>
+    <!-- jsPDF para generación de PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+      (function () {
+        if (sessionStorage.getItem('luxes-asset-reload')) return;
+        window.addEventListener('error', function (event) {
+          var target = event.target;
+          if (!target || target.tagName !== 'SCRIPT') return;
+          sessionStorage.setItem('luxes-asset-reload', '1');
+          var clear = ('caches' in window)
+            ? caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+              })
+            : Promise.resolve();
+          clear.then(function () { window.location.reload(); });
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <div id="modal-root"></div>
+    <div id="overlay-root"></div>
     <script type="module" src="/src/app/main.jsx"></script>
   </body>
 </html>
