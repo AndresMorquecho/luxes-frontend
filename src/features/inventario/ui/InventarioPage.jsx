@@ -489,13 +489,15 @@ export function InventarioPage() {
     <div className="inv-page">
       {/* Page Header */}
       <div className="inv-page-header">
-        <div>
-          <h1 className="inv-page-title">Control de Inventario</h1>
+        <div className="inv-page-header-text">
+          <div className="inv-page-title-row">
+            <h1 className="inv-page-title">Control de Inventario</h1>
+            <button type="button" className="inv-btn-refresh" onClick={loadAll} title="Actualizar">
+              <RefreshCw size={16}/>
+            </button>
+          </div>
           <p className="inv-page-sub">Consumibles, herramientas y préstamos de equipos</p>
         </div>
-        <button className="inv-btn-refresh" onClick={loadAll} title="Actualizar">
-          <RefreshCw size={16}/>
-        </button>
       </div>
 
       {/* KPI Cards */}
@@ -519,7 +521,10 @@ export function InventarioPage() {
             <div className="inv-kpi-icon teal"><ArrowRightLeft size={20}/></div>
             <div>
               <span className="inv-kpi-value">{stats.activeLoans}</span>
-              <span className="inv-kpi-label">Préstamos Activos</span>
+              <span className="inv-kpi-label">
+                <span className="inv-kpi-label-long">Préstamos Activos</span>
+                <span className="inv-kpi-label-short">Préstamos</span>
+              </span>
             </div>
             <ExternalLink size={14} className="inv-kpi-link-icon"/>
           </div>
@@ -535,21 +540,24 @@ export function InventarioPage() {
       )}
 
       <div className="inv-toolbar">
-        <div className="inv-tab-bar">
+        <div className="inv-tab-bar" role="tablist" aria-label="Tipo de inventario">
           {visibleTabs.map(t => (
-            <button key={t.id} className={`inv-tab ${activeTab===t.id?'active':''}`}
+            <button key={t.id} type="button" role="tab" aria-selected={activeTab===t.id}
+              className={`inv-tab ${activeTab===t.id?'active':''}`}
               onClick={() => { setActiveTab(t.id); setSearch(''); }}>
-              <t.Icon size={15}/> {t.label}
+              <t.Icon size={15}/>
+              <span>{t.label}</span>
             </button>
           ))}
           {!isImpresion && !isTaller && (
-            <button className="inv-tab inv-tab--external" onClick={() => navigate('/inventario/prestamos')}>
-              <ArrowRightLeft size={15}/> Préstamos
-              <ExternalLink size={11}/>
+            <button type="button" className="inv-tab inv-tab--external" onClick={() => navigate('/inventario/prestamos')}>
+              <ArrowRightLeft size={15}/>
+              <span>Préstamos</span>
+              <ExternalLink size={11} className="inv-tab-ext-icon"/>
             </button>
           )}
         </div>
-        <div className="inv-toolbar-right" style={(isImpresion || isTaller) ? { width: '100%', justifyContent: 'space-between' } : {}}>
+        <div className="inv-toolbar-filters">
           {!isImpresion && !isTaller && (
             <div className="inv-select-wrap">
               <Filter size={14} className="inv-select-ico"/>
@@ -557,27 +565,28 @@ export function InventarioPage() {
                 className="inv-select"
                 value={activeCategory}
                 onChange={e => setActiveCategory(e.target.value)}
+                aria-label="Filtrar por categoría"
               >
-                <option value="">Todas las Categorías</option>
+                <option value="">Todas las categorías</option>
                 <option value="Taller">Taller</option>
                 <option value="Oficina">Oficina</option>
                 <option value="Impresión">Impresión</option>
               </select>
             </div>
           )}
-          <div className="inv-search-box" style={(isImpresion || isTaller) ? { flex: 1, marginRight: 0 } : {}}>
+          <div className="inv-search-box">
             <Search size={15} className="inv-search-icon"/>
-            <input className="inv-search-inp" placeholder="Buscar..." value={search}
-              onChange={e=>setSearch(e.target.value)}/>
+            <input className="inv-search-inp" placeholder="Buscar material…" value={search}
+              onChange={e=>setSearch(e.target.value)} aria-label="Buscar en inventario"/>
           </div>
           {isAdmin && activeTab === 'consumibles' && (
-            <button className="inv-btn-primary" onClick={() => setProductoModal(true)}>
-              <Plus size={16}/> Nuevo producto
+            <button type="button" className="inv-btn-primary inv-btn-primary--compact" onClick={() => setProductoModal(true)}>
+              <Plus size={16}/> <span className="inv-btn-text">Nuevo producto</span>
             </button>
           )}
           {isAdmin && !isImpresion && !isTaller && activeTab === 'herramientas' && (
-            <button className="inv-btn-primary" onClick={() => setMatModal('new')}>
-              <Plus size={16}/> Nuevo Material
+            <button type="button" className="inv-btn-primary inv-btn-primary--compact" onClick={() => setMatModal('new')}>
+              <Plus size={16}/> <span className="inv-btn-text">Nuevo material</span>
             </button>
           )}
         </div>
@@ -674,28 +683,28 @@ export function InventarioPage() {
                         </div>
                         <div className="inv-card-body">
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Unidad:</span>
+                            <span className="inv-card-label">Unidad</span>
                             <span className="inv-card-value">{unidad}</span>
                           </div>
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Stock Actual:</span>
+                            <span className="inv-card-label">Stock</span>
                             <span className="inv-card-value highlight">{isLogistico ? '—' : item.stockActual}</span>
                           </div>
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Stock Mínimo:</span>
+                            <span className="inv-card-label">Mínimo</span>
                             <span className="inv-card-value">{isLogistico ? '—' : item.stockMinimo}</span>
                           </div>
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Costo Unitario:</span>
+                            <span className="inv-card-label">Costo</span>
                             <span className="inv-card-value">{fmt(item.precioCosto)}</span>
                           </div>
                           <div className="inv-card-row">
-                            <span className="inv-card-label">CPP:</span>
+                            <span className="inv-card-label">CPP</span>
                             <span className="inv-card-value cpp">{fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}</span>
                           </div>
                           {!isTaller && (
-                            <div className="inv-card-row">
-                              <span className="inv-card-label">Última Compra:</span>
+                            <div className="inv-card-row col-span-2">
+                              <span className="inv-card-label">Última compra</span>
                               <span className="inv-card-value date">{fmtCompra(item.ultimaFechaCompra)}</span>
                             </div>
                           )}
@@ -861,27 +870,27 @@ export function InventarioPage() {
                         </div>
                         <div className="inv-card-body">
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Marca/Modelo:</span>
+                            <span className="inv-card-label">Marca / modelo</span>
                             <span className="inv-card-value">{item.marca || item.modelo ? `${item.marca || ''} ${item.modelo ? `/ ${item.modelo}` : ''}` : '—'}</span>
                           </div>
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Serie/Desc:</span>
+                            <span className="inv-card-label">Disponibles</span>
+                            <span className="inv-card-value highlight">{item.stockActual}</span>
+                          </div>
+                          <div className="inv-card-row col-span-2">
+                            <span className="inv-card-label">Serie / descripción</span>
                             <span className="inv-card-value desc" title={item.serie}>{item.serie || '—'}</span>
                           </div>
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Categoría:</span>
+                            <span className="inv-card-label">Categoría</span>
                             <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>{item.categoria || 'Taller'}</span>
                           </div>
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Disponibles:</span>
-                            <span className="inv-card-value highlight">{item.stockActual}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">A Cargo:</span>
+                            <span className="inv-card-label">A cargo</span>
                             <span className="inv-card-value">{item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}</span>
                           </div>
                           <div className="inv-card-row">
-                            <span className="inv-card-label">Valor:</span>
+                            <span className="inv-card-label">Valor</span>
                             <span className="inv-card-value">{fmt(item.precioCosto)}</span>
                           </div>
                         </div>

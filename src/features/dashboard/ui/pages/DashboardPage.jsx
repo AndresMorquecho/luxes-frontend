@@ -6,19 +6,27 @@ import { toast } from '../../../../shared/ui/components/Toast.jsx';
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
 const FASE_LABELS = {
+  COTIZACION: 'Cotización',
+  DISENO: 'Diseño',
+  DISEÑO: 'Diseño',
   DISENIO: 'Diseño',
   APROBACION: 'Aprobación',
   PRODUCCION: 'Producción',
   INSTALACION: 'Instalación',
+  ENTREGA: 'Entrega',
   COMPLETADO: 'Completado',
 };
 
 const FASE_COLORS = {
-  DISENIO: '#8b5cf6', // purple
-  APROBACION: '#f59e0b', // amber
-  PRODUCCION: '#3b82f6', // blue
-  INSTALACION: '#f97316', // orange
-  COMPLETADO: '#10b981', // emerald
+  COTIZACION: '#64748b',
+  DISENO: '#8b5cf6',
+  DISEÑO: '#8b5cf6',
+  DISENIO: '#8b5cf6',
+  APROBACION: '#f59e0b',
+  PRODUCCION: '#3b82f6',
+  INSTALACION: '#f97316',
+  ENTREGA: '#06b6d4',
+  COMPLETADO: '#10b981',
 };
 
 export default function DashboardPage() {
@@ -261,39 +269,46 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Financial Status Summary Band */}
-      <div className="bg-white border border-slate-200/70 rounded-xl p-6 mb-8 grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-100 shadow-sm">
-        {/* KPI Net Balance */}
-        <div className="pb-4 md:pb-0">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Balance Neto</span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className={`text-3xl font-extrabold tracking-tight currency-val ${kpi.balance >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
-              {kpi.balance >= 0 ? '+' : ''}{formatUSD(kpi.balance)}
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Diferencia neta en caja y abonos</span>
+      {/* Financial Status Summary — 3 cards en horizontal (móvil y escritorio) */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
+          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
+            Balance Neto
+          </span>
+          <span
+            className={`text-sm sm:text-2xl md:text-3xl font-extrabold tracking-tight currency-val mt-1.5 sm:mt-2 leading-none ${
+              kpi.balance >= 0 ? 'text-slate-900' : 'text-rose-600'
+            }`}
+          >
+            {kpi.balance >= 0 ? '+' : ''}{formatUSD(kpi.balance)}
+          </span>
+          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
+            Diferencia neta en caja y abonos
+          </span>
         </div>
 
-        {/* KPI Income */}
-        <div className="py-4 md:py-0 md:pl-6">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Ingresos</span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-3xl font-bold tracking-tight text-emerald-600 currency-val">
-              {formatUSD(kpi.ingresos)}
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Total cobrado al cliente</span>
+        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
+          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
+            Ingresos
+          </span>
+          <span className="text-sm sm:text-2xl md:text-3xl font-bold tracking-tight text-emerald-600 currency-val mt-1.5 sm:mt-2 leading-none">
+            {formatUSD(kpi.ingresos)}
+          </span>
+          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
+            Total cobrado al cliente
+          </span>
         </div>
 
-        {/* KPI Expenses */}
-        <div className="pt-4 md:pt-0 md:pl-6">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Egresos</span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-3xl font-bold tracking-tight text-rose-600 currency-val">
-              {formatUSD(kpi.egresos)}
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Pagos realizados y compras</span>
+        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
+          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
+            Egresos
+          </span>
+          <span className="text-sm sm:text-2xl md:text-3xl font-bold tracking-tight text-rose-600 currency-val mt-1.5 sm:mt-2 leading-none">
+            {formatUSD(kpi.egresos)}
+          </span>
+          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
+            Pagos realizados y compras
+          </span>
         </div>
       </div>
 
@@ -304,16 +319,18 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           
           {/* Active Projects Block (8/12 width) */}
-          <div className="lg:col-span-8 custom-card p-6 flex flex-col justify-between h-full">
+          <div className="lg:col-span-8 custom-card p-4 sm:p-6 flex flex-col justify-between h-full">
             <div className="flex flex-col">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
-                <div>
+              <div className="flex items-start sm:items-center justify-between border-b border-slate-100 pb-3 mb-4 sm:mb-5 gap-2">
+                <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-bold text-slate-900 tracking-tight">Proyectos en Curso</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Control de fases y avance de los proyectos vigentes</p>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 line-clamp-2 sm:line-clamp-none">
+                    Control de fases y avance de los proyectos vigentes
+                  </p>
                 </div>
                 <button 
                   onClick={() => navigate('/proyectos')} 
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors shrink-0 whitespace-nowrap"
                 >
                   Ver todos →
                 </button>
@@ -330,66 +347,116 @@ export default function DashboardPage() {
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto thin-scrollbar">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="pb-3 font-semibold">Proyecto</th>
-                        <th className="pb-3 font-semibold">Fase</th>
-                        <th className="pb-3 font-semibold">Progreso</th>
-                        <th className="pb-3 font-semibold">Responsable</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {proyectosActivos.slice(0, 5).map(p => (
-                        <tr 
-                          key={p.id} 
-                          className="hover:bg-slate-50/50 cursor-pointer transition-colors group" 
+                <>
+                  {/* Móvil: cards horizontales deslizables */}
+                  <div className="md:hidden -mx-1">
+                    <div className="flex gap-2.5 overflow-x-auto thin-scrollbar pb-1 snap-x snap-mandatory">
+                      {proyectosActivos.slice(0, 5).map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
                           onClick={() => navigate(`/proyectos/${p.id}`)}
+                          className="snap-start shrink-0 w-[min(72vw,260px)] bg-white border border-slate-200/80 rounded-xl p-3.5 text-left shadow-sm hover:border-slate-300 active:scale-[0.98] transition-all"
                         >
-                          <td className="py-3 pr-4">
-                            <span className="font-semibold text-slate-800 group-hover:text-blue-600 block transition-colors text-[13px]">
-                              {p.nombre}
+                          <p className="text-[11px] font-bold text-slate-800 leading-snug line-clamp-2">
+                            {p.nombre}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 truncate">{p.clienteNombre}</p>
+
+                          <div className="flex items-center gap-1.5 mt-2.5">
+                            <span
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: FASE_COLORS[p.faseActual] || '#94a3b8' }}
+                            />
+                            <span className="text-[10px] font-semibold text-slate-600 truncate">
+                              {FASE_LABELS[p.faseActual] || p.faseActual}
                             </span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">{p.clienteNombre}</span>
-                          </td>
-                          <td className="py-3">
-                            <div className="flex items-center gap-1.5">
-                              <span 
-                                className="w-1.5 h-1.5 rounded-full shrink-0" 
-                                style={{ backgroundColor: FASE_COLORS[p.faseActual] || '#94a3b8' }}
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-2.5">
+                            <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden min-w-0">
+                              <div
+                                className="bg-slate-800 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${p.progreso}%` }}
                               />
-                              <span className="font-medium text-slate-650">
-                                {FASE_LABELS[p.faseActual] || p.faseActual}
-                              </span>
                             </div>
-                          </td>
-                          <td className="py-3 pr-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-24 bg-slate-100 rounded-full h-1 shrink-0 overflow-hidden">
-                                <div 
-                                  className="bg-slate-850 h-full rounded-full transition-all duration-500" 
-                                  style={{ width: `${p.progreso}%` }} 
-                                />
-                              </div>
-                              <span className="font-bold text-slate-600 text-[11px] currency-val">{p.progreso}%</span>
-                            </div>
-                          </td>
-                          <td className="py-3 font-medium text-slate-500">
-                            {p.responsable || '—'}
-                          </td>
-                        </tr>
+                            <span className="text-[10px] font-bold text-slate-600 currency-val shrink-0">
+                              {p.progreso}%
+                            </span>
+                          </div>
+
+                          {p.responsable && (
+                            <p className="text-[9px] text-slate-400 mt-2 truncate">
+                              Resp.: {p.responsable}
+                            </p>
+                          )}
+                        </button>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </div>
+                  </div>
+
+                  {/* Escritorio: tabla */}
+                  <div className="hidden md:block overflow-x-auto thin-scrollbar">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="pb-3 font-semibold">Proyecto</th>
+                          <th className="pb-3 font-semibold">Fase</th>
+                          <th className="pb-3 font-semibold">Progreso</th>
+                          <th className="pb-3 font-semibold">Responsable</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {proyectosActivos.slice(0, 5).map(p => (
+                          <tr 
+                            key={p.id} 
+                            className="hover:bg-slate-50/50 cursor-pointer transition-colors group" 
+                            onClick={() => navigate(`/proyectos/${p.id}`)}
+                          >
+                            <td className="py-3 pr-4">
+                              <span className="font-semibold text-slate-800 group-hover:text-blue-600 block transition-colors text-[13px]">
+                                {p.nombre}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">{p.clienteNombre}</span>
+                            </td>
+                            <td className="py-3">
+                              <div className="flex items-center gap-1.5">
+                                <span 
+                                  className="w-1.5 h-1.5 rounded-full shrink-0" 
+                                  style={{ backgroundColor: FASE_COLORS[p.faseActual] || '#94a3b8' }}
+                                />
+                                <span className="font-medium text-slate-650">
+                                  {FASE_LABELS[p.faseActual] || p.faseActual}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-24 bg-slate-100 rounded-full h-1 shrink-0 overflow-hidden">
+                                  <div 
+                                    className="bg-slate-850 h-full rounded-full transition-all duration-500" 
+                                    style={{ width: `${p.progreso}%` }} 
+                                  />
+                                </div>
+                                <span className="font-bold text-slate-600 text-[11px] currency-val">{p.progreso}%</span>
+                              </div>
+                            </td>
+                            <td className="py-3 font-medium text-slate-500">
+                              {p.responsable || '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
 
             {proyectosActivos.length > 0 && (
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-3">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fases Activas:</span>
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-slate-100 pt-3 sm:pt-4 mt-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Fases Activas:</span>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 sm:gap-x-4">
                   {Object.entries(proyectosFaseCount).map(([fase, val]) => {
                     if (val === 0) return null;
                     return (

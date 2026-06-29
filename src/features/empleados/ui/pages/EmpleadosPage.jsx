@@ -211,7 +211,7 @@ export const EmpleadosPage = () => {
   };
 
   return (
-    <div className="p-6 xl:p-8 w-full animate-slide-up empleados-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="p-4 sm:p-6 xl:p-8 w-full animate-slide-up empleados-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
         .empleados-page, .empleados-page * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
         .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
@@ -239,8 +239,8 @@ export const EmpleadosPage = () => {
         }
       `}</style>
 
-      <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
             <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
@@ -251,7 +251,7 @@ export const EmpleadosPage = () => {
             <p className="text-sm text-slate-500">Registro y gestión de colaboradores</p>
           </div>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm shrink-0"
+        <button onClick={openNew} className="flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm w-full sm:w-auto shrink-0"
           style={{ backgroundColor: '#1d4ed8' }}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -262,12 +262,12 @@ export const EmpleadosPage = () => {
 
       {/* Table Card */}
       <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-semibold text-gray-800">Lista de Colaboradores</h2>
             <span className="text-xs font-medium text-gray-400">{filteredAll.length} registros</span>
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
             </svg>
@@ -276,12 +276,13 @@ export const EmpleadosPage = () => {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar colaborador..."
-              className="pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-80 min-w-[280px] transition-colors"
+              className="pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-full sm:w-80 sm:min-w-[280px] transition-colors"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto relative">
+        {/* Escritorio: tabla */}
+        <div className="hidden md:block overflow-x-auto relative">
           {loading && (
             <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px]">
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
@@ -376,9 +377,91 @@ export const EmpleadosPage = () => {
             </table>
           </div>
 
+        {/* Móvil: cards */}
+        <div className="md:hidden relative p-3 sm:p-4 space-y-3">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px] rounded-lg">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+            </div>
+          )}
+          {filtered.map((emp) => {
+            const depto = getDeptoStyle(emp.departamento);
+
+            return (
+              <div
+                key={emp.id}
+                className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900 leading-snug normal-case">{emp.nombre}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{emp.id}</p>
+                    {emp.departamento ? (
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium mt-1.5"
+                        style={{ backgroundColor: depto.bg, color: depto.text }}
+                      >
+                        {emp.departamento}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 pt-3 border-t border-slate-100 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 font-medium block">Cédula</span>
+                    <span className="text-slate-700 font-semibold">{emp.cedula || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium block">Cargo</span>
+                    <span className="text-slate-700 font-semibold truncate block">{emp.cargo || '—'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-400 font-medium block mb-1">Cuenta bancaria</span>
+                    <EmpleadoBankCell banco={emp.banco} cuentaBanco={emp.cuentaBanco} />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => handleView(emp)}
+                    className="flex-1 py-2 rounded-lg bg-slate-50 text-slate-600 border border-slate-200 text-[11px] font-bold"
+                  >
+                    Ver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(emp)}
+                    className="flex-1 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[11px] font-bold"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(emp)}
+                    className="px-3 py-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100"
+                    title="Eliminar"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {!loading && filtered.length === 0 && (
+            <div className="text-center py-10 text-sm text-slate-400">
+              {search ? 'No se encontraron colaboradores' : 'No hay colaboradores registrados'}
+            </div>
+          )}
+        </div>
+
         {/* Paginación */}
         {filteredAll.length > 0 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-gray-100">
             <div className="flex items-center gap-4">
               <span className="text-[11px] font-medium text-gray-400">
                 Página {page} de {totalPages}

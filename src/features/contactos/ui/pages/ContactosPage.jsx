@@ -107,7 +107,7 @@ export const ContactosPage = () => {
   };
 
   return (
-    <div className="p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="p-4 sm:p-6 xl:p-8 pb-24 md:pb-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -184,12 +184,12 @@ export const ContactosPage = () => {
       `}</style>
 
       {/* Header */}
-      <div className="co-card px-6 py-5 flex items-center justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Contactos</h1>
-          <p className="text-sm text-slate-400 mt-0.5 font-medium">Directorio de contactos de clientes y proveedores</p>
+      <div className="co-card px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">Contactos</h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5 font-medium">Directorio de contactos de clientes y proveedores</p>
         </div>
-        <button onClick={openNew} className="co-btn-primary">
+        <button onClick={openNew} className="co-btn-primary w-full sm:w-auto justify-center shrink-0">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -198,49 +198,49 @@ export const ContactosPage = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="co-card px-5 py-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+        <div className="co-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
             <svg className="w-5 h-5" style={{ color: '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm0 0c0 1.657 1.007 3 2.25 3S21 13.657 21 12a9 9 0 1 0-2.636 6.364M16.5 12V8.25" />
             </svg>
           </div>
           <div>
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Contactos</div>
-            <div className="text-xl font-extrabold text-slate-800 mt-0.5">{totales.total}</div>
+            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total</div>
+            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.total}</div>
           </div>
         </div>
-        <div className="co-card px-5 py-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.1)' }}>
+        <div className="co-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.1)' }}>
             <svg className="w-5 h-5" style={{ color: '#10b981' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
             </svg>
           </div>
           <div>
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Con Empresa</div>
-            <div className="text-xl font-extrabold text-slate-800 mt-0.5">{totales.conEmpresa}</div>
+            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Con empresa</div>
+            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.conEmpresa}</div>
           </div>
         </div>
-        <div className="co-card px-5 py-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.1)' }}>
+        <div className="co-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.1)' }}>
             <svg className="w-5 h-5" style={{ color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
           </div>
           <div>
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Independientes</div>
-            <div className="text-xl font-extrabold text-slate-800 mt-0.5">{totales.sinEmpresa}</div>
+            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Indep.</div>
+            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.sinEmpresa}</div>
           </div>
         </div>
       </div>
 
       {/* Table */}
       <div className="co-card">
-        <div className="px-5 py-4 border-b border-slate-100/60 flex items-center gap-3">
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100/60 flex items-center gap-3">
           <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
           </svg>
-          <input className="co-input max-w-xs !border-0 !bg-transparent !p-0 !shadow-none !text-sm !font-medium placeholder:!text-slate-400 focus:!ring-0"
+          <input className="co-input w-full sm:max-w-xs !border-0 !bg-transparent !p-0 !shadow-none !text-sm !font-medium placeholder:!text-slate-400 focus:!ring-0"
             placeholder="Buscar por nombre, email, empresa o cargo…"
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
@@ -250,77 +250,138 @@ export const ContactosPage = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-slate-100/60">
-                  <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contacto</th>
-                  <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresa</th>
-                  <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cargo</th>
-                  <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Correo / Teléfono</th>
-                  <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-24">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100/40">
-                {paginated.map((c) => (
-                  <tr key={c.id} className="co-tr">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                          style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
-                          {initial(c.nombre)}
-                        </span>
-                        <div>
-                          <div className="font-semibold text-slate-800">{c.nombre}</div>
-                          {c.notas && <div className="text-[11px] text-slate-400 mt-0.5">{c.notas}</div>}
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-slate-100/60">
+                    <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contacto</th>
+                    <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresa</th>
+                    <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cargo</th>
+                    <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Correo / Teléfono</th>
+                    <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-24">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/40">
+                  {paginated.map((c) => (
+                    <tr key={c.id} className="co-tr">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                            style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
+                            {initial(c.nombre)}
+                          </span>
+                          <div>
+                            <div className="font-semibold text-slate-800">{c.nombre}</div>
+                            {c.notas && <div className="text-[11px] text-slate-400 mt-0.5">{c.notas}</div>}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      {c.empresa ? (
-                        <span className="font-medium text-slate-700">{c.empresa}</span>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
+                      </td>
+                      <td className="px-5 py-4">
+                        {c.empresa ? (
+                          <span className="font-medium text-slate-700">{c.empresa}</span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        {c.cargo ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                            style={{ background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}>
+                            {c.cargo}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="text-slate-700 font-medium text-[12px]">{c.email}</div>
+                        <div className="text-[12px] text-slate-400 mt-0.5">{c.telefono}</div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => openEdit(c)}
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" title="Editar">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                            </svg>
+                          </button>
+                          <button onClick={() => handleDelete(c.id)}
+                            className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {paginated.length === 0 && (
+                    <tr><td colSpan={5} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron contactos</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden p-3 sm:p-4 space-y-3">
+              {paginated.map((c) => (
+                <div key={c.id} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                      style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
+                      {initial(c.nombre)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-900 leading-snug normal-case">{c.nombre}</p>
                       {c.cargo ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mt-1.5"
                           style={{ background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}>
                           {c.cargo}
                         </span>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="text-slate-700 font-medium text-[12px]">{c.email}</div>
-                      <div className="text-[12px] text-slate-400 mt-0.5">{c.telefono}</div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => openEdit(c)}
-                          className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" title="Editar">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                          </svg>
-                        </button>
-                        <button onClick={() => handleDelete(c.id)}
-                          className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 pt-3 border-t border-slate-100 text-[11px]">
+                    <div className="col-span-2">
+                      <span className="text-slate-400 font-medium block">Empresa</span>
+                      <span className="text-slate-700 font-semibold">{c.empresa || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium block">Teléfono</span>
+                      <span className="text-slate-700 font-semibold">{c.telefono || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium block">Email</span>
+                      <span className="text-slate-700 font-semibold break-all">{c.email || '—'}</span>
+                    </div>
+                    {c.notas ? (
+                      <div className="col-span-2">
+                        <span className="text-slate-400 font-medium block">Notas</span>
+                        <span className="text-slate-600">{c.notas}</span>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-                {paginated.length === 0 && (
-                  <tr><td colSpan={5} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron contactos</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <button type="button" onClick={() => openEdit(c)}
+                      className="flex-1 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[11px] font-bold">
+                      Editar
+                    </button>
+                    <button type="button" onClick={() => handleDelete(c.id)}
+                      className="px-3 py-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100" title="Eliminar">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {paginated.length === 0 && (
+                <div className="text-center py-12 text-slate-400 text-sm font-medium">No se encontraron contactos</div>
+              )}
+            </div>
+          </>
         )}
 
         {totalPages > 1 && (

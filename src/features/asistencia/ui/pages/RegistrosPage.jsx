@@ -549,6 +549,173 @@ export const RegistrosPage = () => {
   return <AdminView />;
 };
 
+const buildAsistenciaRowMeta = (marcaciones, estado) => {
+  const entrada = marcaciones.find(m => m.tipo === 'ENTRADA');
+  const inicioAlm = marcaciones.find(m => m.tipo === 'INICIO_ALMUERZO');
+  const finAlm = marcaciones.find(m => m.tipo === 'FIN_ALMUERZO');
+  const salida = marcaciones.find(m => m.tipo === 'SALIDA');
+  const isFalto = estado === 'FALTO';
+  const isPermiso = estado === 'PERMISO';
+  const isAsistio = estado === 'ASISTIO';
+  const anyMarcacionConUbicacion = marcaciones.find(m => m.ubicacionLat && m.ubicacionLng);
+  const mapsUrl = anyMarcacionConUbicacion
+    ? `https://www.google.com/maps/search/?api=1&query=${anyMarcacionConUbicacion.ubicacionLat},${anyMarcacionConUbicacion.ubicacionLng}`
+    : null;
+  let lapsos = { trabajo: '—', almuerzo: '—' };
+  if (isAsistio) lapsos = calculateLapses(marcaciones);
+  return { entrada, inicioAlm, finAlm, salida, isFalto, isPermiso, isAsistio, mapsUrl, lapsos };
+};
+
+const EstadoAsistenciaBadge = ({ estado }) => {
+  if (estado === 'ASISTIO') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-xl shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        Asistió
+      </span>
+    );
+  }
+  if (estado === 'FALTO') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-red-700 bg-red-50 border border-red-200/60 px-2.5 py-1 rounded-xl shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+        Faltó
+      </span>
+    );
+  }
+  if (estado === 'PERMISO') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-2.5 py-1 rounded-xl shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+        Permiso Pagado
+      </span>
+    );
+  }
+  return null;
+};
+
+const AlmuerzoStatusBadge = ({ almuerzo }) => {
+  if (almuerzo?.status === 'SIN_DATOS') {
+    return <span className="text-slate-300 text-xs">—</span>;
+  }
+  return (
+    <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border ${
+      almuerzo.cls === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+      almuerzo.cls === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+      almuerzo.cls === 'orange' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+      almuerzo.cls === 'indigo' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+      'bg-slate-50 text-slate-500 border-slate-200'
+    }`}>
+      {almuerzo.label}
+    </span>
+  );
+};
+
+const TotalHorasDisplay = ({ isAsistio, isPermiso, lapsos }) => {
+  if (isAsistio) {
+    return (
+      <div className="flex flex-col items-center">
+        <span className="font-bold text-slate-800 text-xs">{lapsos.trabajo}</span>
+        {lapsos.almuerzo !== '—' && (
+          <span className="text-[9px] text-slate-400 font-medium mt-0.5">Alm: {lapsos.almuerzo}</span>
+        )}
+      </div>
+    );
+  }
+  if (isPermiso) return <span className="text-indigo-600 font-bold text-xs">Día Cobrado</span>;
+  return <span className="text-slate-300 text-xs">—</span>;
+};
+
+const AsistenciaAcciones = ({ isFalto, mapsUrl, onConcederPermiso }) => {
+  if (isFalto) {
+    return (
+      <button
+        type="button"
+        onClick={onConcederPermiso}
+        className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+      >
+        Conceder Permiso
+      </button>
+    );
+  }
+  if (mapsUrl) {
+    return (
+      <a
+        href={mapsUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center gap-1 w-full sm:w-auto px-3 py-1.5 border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
+      >
+        <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+        </svg>
+        Ver Mapa
+      </a>
+    );
+  }
+  return <span className="text-xs text-slate-400">—</span>;
+};
+
+const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horarioDia, onConcederPermiso }) => {
+  const { entrada, inicioAlm, finAlm, salida, isFalto, isPermiso, isAsistio, mapsUrl, lapsos } =
+    buildAsistenciaRowMeta(marcaciones, estado);
+
+  const marcacionFields = [
+    { label: 'Entrada', marcacion: entrada, esperado: horarioDia.ENTRADA },
+    { label: 'Sal. almuerzo', marcacion: inicioAlm, esperado: horarioDia.INICIO_ALMUERZO, omitidoEsperado: !horarioDia.INICIO_ALMUERZO },
+    { label: 'Reg. almuerzo', marcacion: finAlm, esperado: horarioDia.FIN_ALMUERZO, omitidoEsperado: !horarioDia.FIN_ALMUERZO },
+    { label: 'Salida', marcacion: salida, esperado: horarioDia.SALIDA },
+  ];
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-800 leading-snug normal-case">{emp.nombre}</p>
+            <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
+          </div>
+        </div>
+        <EstadoAsistenciaBadge estado={estado} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100">
+        {marcacionFields.map(({ label, marcacion, esperado, omitidoEsperado }) => (
+          <div key={label} className="bg-slate-50/80 rounded-lg px-2 py-2 text-center min-w-0">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1 truncate">{label}</p>
+            <MarcacionHorarioCell marcacion={marcacion} esperado={esperado} omitidoEsperado={omitidoEsperado} />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-start justify-between gap-3 mt-3 pt-3 border-t border-slate-100">
+        <div>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Almuerzo</p>
+          <div className="mt-1">
+            <AlmuerzoStatusBadge almuerzo={almuerzo} />
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Total horas</p>
+          <div className="mt-1">
+            <TotalHorasDisplay isAsistio={isAsistio} isPermiso={isPermiso} lapsos={lapsos} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-slate-100">
+        <AsistenciaAcciones
+          isFalto={isFalto}
+          mapsUrl={mapsUrl}
+          onConcederPermiso={onConcederPermiso}
+        />
+      </div>
+    </div>
+  );
+};
+
 const AdminView = () => {
   const [fechaFiltro, setFechaFiltro] = useState(() => {
     return new Date().toISOString().split('T')[0];
@@ -734,7 +901,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
   };
 
   return (
-    <div className="p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="p-4 sm:p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
       <style>{`
         .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
         .kpi-card { position: relative; overflow: hidden; }
@@ -899,7 +1066,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap sm:overflow-visible">
           {[
             { key: 'TODOS', label: 'Todos' },
             { key: 'ASISTIO', label: 'Asistieron' },
@@ -908,7 +1075,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             { key: 'SIN_ALMUERZO', label: 'Sin almuerzo' },
           ].map(t => (
             <button key={t.key} onClick={() => setFiltroEstado(t.key)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 filtroEstado === t.key ? 'bg-blue-900 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}>{t.label}</button>
           ))}
@@ -932,185 +1099,121 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Prueba ajustando el filtro de búsqueda o el estado seleccionado.</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left">
-                  <th className="px-6 py-4" rowSpan={2}>Colaborador / Cargo</th>
-                  <th className="px-6 py-4 text-center" rowSpan={2}>Estado</th>
-                  <th className="px-4 py-3 text-center border-l border-slate-200/80" colSpan={4}>Marcaciones por horario</th>
-                  <th className="px-4 py-4 text-center" rowSpan={2}>Almuerzo</th>
-                  <th className="px-6 py-4 text-center" rowSpan={2}>Total Horas</th>
-                  <th className="px-6 py-4 text-right" rowSpan={2}>Acción / Mapa</th>
-                </tr>
-                <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
-                  <th className="px-4 py-2 border-l border-slate-200/80">
-                    Entrada
-                    {horarioDia.ENTRADA && <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.ENTRADA.label}</div>}
-                  </th>
-                  <th className="px-4 py-2">
-                    Sal. Almuerzo
-                    {horarioDia.INICIO_ALMUERZO
-                      ? <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.INICIO_ALMUERZO.label}</div>
-                      : <div className="text-[9px] text-slate-400 normal-case mt-0.5">opcional</div>}
-                  </th>
-                  <th className="px-4 py-2">
-                    Reg. Almuerzo
-                    {horarioDia.FIN_ALMUERZO
-                      ? <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.FIN_ALMUERZO.label}</div>
-                      : <div className="text-[9px] text-slate-400 normal-case mt-0.5">opcional</div>}
-                  </th>
-                  <th className="px-4 py-2">
-                    Salida
-                    {horarioDia.SALIDA && <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.SALIDA.label}</div>}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {rowsFiltrados.map(({ emp, marcaciones, estado, almuerzo }) => {
-                  const entrada = marcaciones.find(m => m.tipo === 'ENTRADA');
-                  const inicioAlm = marcaciones.find(m => m.tipo === 'INICIO_ALMUERZO');
-                  const finAlm = marcaciones.find(m => m.tipo === 'FIN_ALMUERZO');
-                  const salida = marcaciones.find(m => m.tipo === 'SALIDA');
-                  
-                  const isFalto = estado === 'FALTO';
-                  const isPermiso = estado === 'PERMISO';
-                  const isAsistio = estado === 'ASISTIO';
+        <>
+          <div className="hidden md:block bg-white border border-slate-200 rounded-2xl shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left">
+                    <th className="px-6 py-4" rowSpan={2}>Colaborador / Cargo</th>
+                    <th className="px-6 py-4 text-center" rowSpan={2}>Estado</th>
+                    <th className="px-4 py-3 text-center border-l border-slate-200/80" colSpan={4}>Marcaciones por horario</th>
+                    <th className="px-4 py-4 text-center" rowSpan={2}>Almuerzo</th>
+                    <th className="px-6 py-4 text-center" rowSpan={2}>Total Horas</th>
+                    <th className="px-6 py-4 text-right" rowSpan={2}>Acción / Mapa</th>
+                  </tr>
+                  <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
+                    <th className="px-4 py-2 border-l border-slate-200/80">
+                      Entrada
+                      {horarioDia.ENTRADA && <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.ENTRADA.label}</div>}
+                    </th>
+                    <th className="px-4 py-2">
+                      Sal. Almuerzo
+                      {horarioDia.INICIO_ALMUERZO
+                        ? <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.INICIO_ALMUERZO.label}</div>
+                        : <div className="text-[9px] text-slate-400 normal-case mt-0.5">opcional</div>}
+                    </th>
+                    <th className="px-4 py-2">
+                      Reg. Almuerzo
+                      {horarioDia.FIN_ALMUERZO
+                        ? <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.FIN_ALMUERZO.label}</div>
+                        : <div className="text-[9px] text-slate-400 normal-case mt-0.5">opcional</div>}
+                    </th>
+                    <th className="px-4 py-2">
+                      Salida
+                      {horarioDia.SALIDA && <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.SALIDA.label}</div>}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rowsFiltrados.map(({ emp, marcaciones, estado, almuerzo }) => {
+                    const { entrada, inicioAlm, finAlm, salida, isFalto, isPermiso, isAsistio, mapsUrl, lapsos } =
+                      buildAsistenciaRowMeta(marcaciones, estado);
 
-                  const anyMarcacionConUbicacion = marcaciones.find(m => m.ubicacionLat && m.ubicacionLng);
-                  const mapsUrl = anyMarcacionConUbicacion 
-                    ? `https://www.google.com/maps/search/?api=1&query=${anyMarcacionConUbicacion.ubicacionLat},${anyMarcacionConUbicacion.ubicacionLng}` 
-                    : null;
-                  
-                  let lapsos = { trabajo: '—', almuerzo: '—' };
-                  if (isAsistio) {
-                    lapsos = calculateLapses(marcaciones);
-                  }
-
-                  return (
-                    <tr key={emp.id} className="hover:bg-slate-50/40 transition-colors">
-                      {/* Colaborador / Cargo */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-800 truncate normal-case">{emp.nombre}</p>
-                            <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
+                    return (
+                      <tr key={emp.id} className="hover:bg-slate-50/40 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-800 truncate normal-case">{emp.nombre}</p>
+                              <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Estado */}
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {isAsistio && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-xl">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Asistió
-                          </span>
-                        )}
-                        {isFalto && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-red-700 bg-red-50 border border-red-200/60 px-2.5 py-1 rounded-xl">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            Faltó
-                          </span>
-                        )}
-                        {isPermiso && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-2.5 py-1 rounded-xl">
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                            Permiso Pagado
-                          </span>
-                        )}
-                      </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <EstadoAsistenciaBadge estado={estado} />
+                        </td>
 
-                      {/* Marcaciones con horario de referencia */}
-                      <td className="px-4 py-4 whitespace-nowrap text-center border-l border-slate-100">
-                        <MarcacionHorarioCell marcacion={entrada} esperado={horarioDia.ENTRADA} />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <MarcacionHorarioCell
-                          marcacion={inicioAlm}
-                          esperado={horarioDia.INICIO_ALMUERZO}
-                          omitidoEsperado={!horarioDia.INICIO_ALMUERZO}
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <MarcacionHorarioCell
-                          marcacion={finAlm}
-                          esperado={horarioDia.FIN_ALMUERZO}
-                          omitidoEsperado={!horarioDia.FIN_ALMUERZO}
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <MarcacionHorarioCell marcacion={salida} esperado={horarioDia.SALIDA} />
-                      </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center border-l border-slate-100">
+                          <MarcacionHorarioCell marcacion={entrada} esperado={horarioDia.ENTRADA} />
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <MarcacionHorarioCell
+                            marcacion={inicioAlm}
+                            esperado={horarioDia.INICIO_ALMUERZO}
+                            omitidoEsperado={!horarioDia.INICIO_ALMUERZO}
+                          />
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <MarcacionHorarioCell
+                            marcacion={finAlm}
+                            esperado={horarioDia.FIN_ALMUERZO}
+                            omitidoEsperado={!horarioDia.FIN_ALMUERZO}
+                          />
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <MarcacionHorarioCell marcacion={salida} esperado={horarioDia.SALIDA} />
+                        </td>
 
-                      {/* Estado almuerzo */}
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        {almuerzo?.status === 'SIN_DATOS' ? (
-                          <span className="text-slate-300 text-xs">—</span>
-                        ) : (
-                          <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border ${
-                            almuerzo.cls === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                            almuerzo.cls === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                            almuerzo.cls === 'orange' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                            almuerzo.cls === 'indigo' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                            'bg-slate-50 text-slate-500 border-slate-200'
-                          }`}>
-                            {almuerzo.label}
-                          </span>
-                        )}
-                      </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <AlmuerzoStatusBadge almuerzo={almuerzo} />
+                        </td>
 
-                      {/* Total Horas */}
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-xs font-semibold text-slate-600">
-                        {isAsistio ? (
-                          <div className="flex flex-col items-center">
-                            <span className="font-bold text-slate-800">{lapsos.trabajo}</span>
-                            {lapsos.almuerzo !== '—' && (
-                              <span className="text-[9px] text-slate-400 font-medium mt-0.5">Alm: {lapsos.almuerzo}</span>
-                            )}
-                          </div>
-                        ) : isPermiso ? (
-                          <span className="text-indigo-600 font-bold">Día Cobrado</span>
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-xs font-semibold text-slate-600">
+                          <TotalHorasDisplay isAsistio={isAsistio} isPermiso={isPermiso} lapsos={lapsos} />
+                        </td>
 
-                      {/* Acción / Mapa */}
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        {isFalto ? (
-                          <button
-                            onClick={() => handleConcederPermiso(emp.id)}
-                            className="px-3 py-1.5 text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
-                          >
-                            Conceder Permiso
-                          </button>
-                        ) : mapsUrl ? (
-                          <a
-                            href={mapsUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
-                          >
-                            <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                            </svg>
-                            Ver Mapa
-                          </a>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <AsistenciaAcciones
+                            isFalto={isFalto}
+                            mapsUrl={mapsUrl}
+                            onConcederPermiso={() => handleConcederPermiso(emp.id)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          <div className="md:hidden space-y-3">
+            {rowsFiltrados.map(({ emp, marcaciones, estado, almuerzo }) => (
+              <AsistenciaColaboradorCard
+                key={emp.id}
+                emp={emp}
+                marcaciones={marcaciones}
+                estado={estado}
+                almuerzo={almuerzo}
+                horarioDia={horarioDia}
+                onConcederPermiso={() => handleConcederPermiso(emp.id)}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

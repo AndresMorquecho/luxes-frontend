@@ -122,8 +122,9 @@ export const CuentasPorPagarPage = () => {
         {cxpLoading ? (
           <div className="co-loader-box"><div className="co-spinner" /></div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="co-table">
+          <>
+            <div className="overflow-x-auto devoluciones-desktop-only">
+              <table className="co-table">
               <thead>
                 <tr>
                   <th>Orden</th><th>Proveedor</th><th className="text-right">Monto Total</th>
@@ -161,7 +162,60 @@ export const CuentasPorPagarPage = () => {
                 )}
               </tbody>
             </table>
-          </div>
+            </div>
+
+            <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
+              <div className="prest-mobile-cards">
+                {cxpItems.map((c) => (
+                  <div key={c.id} className="prest-card">
+                    <div className="prest-card-header">
+                      <div>
+                        <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>
+                          {c.ordenCompra?.numero || '—'}
+                        </span>
+                        <span className="prest-card-tool-name">{c.ordenCompra?.proveedor?.nombre || '—'}</span>
+                      </div>
+                      <span className="co-badge" style={{ background: CXP_BADGES[c.estado]?.bg, color: CXP_BADGES[c.estado]?.color, fontSize: '0.7rem' }}>
+                        {CXP_BADGES[c.estado]?.label || c.estado}
+                      </span>
+                    </div>
+                    <div className="prest-card-body">
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Monto Total</span>
+                        <span className="prest-card-field-value">{fmt(c.montoTotal)}</span>
+                      </div>
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Pagado</span>
+                        <span className="prest-card-field-value" style={{ color: '#10b981', fontWeight: 700 }}>{fmt(c.montoPagado)}</span>
+                      </div>
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Saldo</span>
+                        <span className="prest-card-field-value" style={{ color: '#ef4444', fontWeight: 700 }}>{fmt(c.saldo)}</span>
+                      </div>
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Vencimiento</span>
+                        <span className="prest-card-field-value">{fmtDate(c.fechaVencimiento)}</span>
+                      </div>
+                    </div>
+                    {c.estado !== 'pagado' && (
+                      <div className="prest-card-footer">
+                        <button
+                          type="button"
+                          onClick={() => openAbonoModal(c.ordenCompra)}
+                          className="w-full py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+                        >
+                          Registrar Abono
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {cxpItems.length === 0 && (
+                  <div className="prest-empty text-center py-8 text-slate-400 text-sm">No hay cuentas por pagar</div>
+                )}
+              </div>
+            </div>
+          </>
         )}
 
         {cxpTotalPages > 1 && (

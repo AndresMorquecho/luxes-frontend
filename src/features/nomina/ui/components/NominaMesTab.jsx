@@ -908,7 +908,7 @@ const QuincenaTable = ({
       <div className="bg-slate-700 text-white text-center py-2.5 font-bold text-xs tracking-wider uppercase shrink-0">
         {label}
       </div>
-      <div className="overflow-auto max-h-[520px] relative border-t border-slate-200">
+      <div className="hidden md:block overflow-auto max-h-[520px] relative border-t border-slate-200">
         <table className="min-w-full text-xs border-collapse">
           <thead className="z-30 shadow-xs">
             <tr className="bg-slate-100 text-xs uppercase font-bold text-slate-700 border-b border-slate-200">
@@ -1176,6 +1176,140 @@ const QuincenaTable = ({
             </tr>
           </tfoot>
         </table>
+      </div>
+
+      {/* Móvil: una card por colaborador */}
+      <div className="md:hidden border-t border-slate-200 p-3 space-y-3 max-h-[70vh] overflow-y-auto bg-slate-50/40">
+        {rows.map(({ emp, cp, raw }, idx) => {
+          const hasContract = emp.tieneContrato !== false;
+          const diasLab = raw?.diasLaborables ?? cp?.diasLaborables ?? 15;
+          const diasT = cp?.diasLaborados ?? raw?.diasLaborados ?? 0;
+          const totalB = resolveTotalBruto(emp, cp, raw);
+          const totalAb = resolveAbonado(cp, raw);
+          const hePendiente = pendingHEByEmp[emp.id] || 0;
+          const he = cp?.ingresos?.horasExtras ?? raw?.ingresos?.horasExtras ?? 0;
+          const te = raw?.ingresos?.trabajosEnEmpresa ?? 0;
+          const ant = raw?.egresos?.anticipos ?? 0;
+          const multas = raw?.egresos?.multas ?? 0;
+          const otrosE = raw?.egresos?.dctoGenerico ?? 0;
+          const ep = cp?.estadoPago ?? 'PENDIENTE';
+          const badge = ESTADO_BADGE[ep] ?? ESTADO_BADGE.PENDIENTE;
+          const subtotalNeto = cp?.netoRecibir ?? totalB;
+          const { netoMensualidad, netoHorasExtras } = splitNetoPago(subtotalNeto, he);
+          const pendientePago = computePendientePago(cp, raw, totalB);
+
+          return (
+            <div key={emp.id} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+              <div className="flex items-start justify-between gap-2 mb-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-slate-400">#{idx + 1}</p>
+                  <p className="text-sm font-bold text-slate-800 uppercase leading-snug truncate" title={emp.nombre}>
+                    {emp.nombre}
+                  </p>
+                  <span className={`inline-flex mt-1 items-center px-2 py-0.5 rounded-full font-bold text-[9px] uppercase border ${
+                    hasContract
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                      : 'bg-amber-50 text-amber-700 border-amber-100'
+                  }`}>
+                    {hasContract ? 'Contrato' : 'Por Asis.'}
+                  </span>
+                </div>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-lg font-bold text-[9px] uppercase border shrink-0 ${badge.cls}`}>
+                  {badge.label}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
+                <div>
+                  <span className="text-slate-400 font-semibold block">Sueldo Bruto</span>
+                  <span className="font-bold text-slate-800">{formatUSD(totalB)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Días Trab.</span>
+                  <CellInput value={diasT} onChange={val => onCellChange(emp.id, 'diasLaborados', val)} />
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">H. Extras</span>
+                  <span className="font-bold text-emerald-700">{he > 0 ? formatUSD(he) : '—'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">H.E. Pend.</span>
+                  <span className="font-bold text-amber-700">{hePendiente > 0 ? formatUSD(hePendiente) : '—'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Neto Mens.</span>
+                  <span className="font-bold text-blue-900">{formatUSD(netoMensualidad)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Neto H.E.</span>
+                  <span className="font-bold text-emerald-800">{netoHorasExtras > 0 ? formatUSD(netoHorasExtras) : '—'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Total Neto</span>
+                  <span className="font-black text-blue-900">{formatUSD(subtotalNeto)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Pendiente</span>
+                  <span className="font-bold text-orange-700">{pendientePago > 0 ? formatUSD(pendientePago) : '—'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Pagado</span>
+                  <span className="font-bold text-green-700">{totalAb > 0 ? formatUSD(totalAb) : '—'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Egresos Var.</span>
+                  <span className="font-bold text-red-700">{formatUSD(ant + multas + otrosE)}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => onOpenIngresos(emp.id, emp.nombre)}
+                  className="flex-1 min-w-[80px] py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px] font-bold"
+                >
+                  Ingresos {te > 0 ? formatUSD(te) : ''}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenEgresos(emp.id, emp.nombre)}
+                  className="flex-1 min-w-[80px] py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-[10px] font-bold"
+                >
+                  Egresos
+                </button>
+                {ep !== 'PAGADO' && (
+                  <button
+                    type="button"
+                    onClick={() => onPagar(emp, cp, subtotalNeto, pendientePago)}
+                    className="flex-1 min-w-[80px] py-2 rounded-lg bg-slate-800 text-white text-[10px] font-bold uppercase"
+                  >
+                    {ep === 'ABONO_PARCIAL' ? 'Abonar' : 'Pagar'}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {rows.length > 0 && (
+          <div className="bg-slate-100 border border-slate-300 rounded-xl p-3 text-[10px]">
+            <p className="font-bold text-slate-600 uppercase tracking-wider mb-2">Totales quincena</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <span className="text-slate-400 block text-[9px]">Neto</span>
+                <span className="font-black text-slate-800">{formatUSD(totalNeto)}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[9px]">Pagado</span>
+                <span className="font-bold text-green-700">{formatUSD(totalAbonado)}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[9px]">Pendiente</span>
+                <span className="font-bold text-orange-700">{formatUSD(totalPendiente)}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1553,21 +1687,33 @@ export const NominaMesTab = () => {
         </div>
       </div>
 
-      {/* KPI Cards (Total Mes, Pagado, Pendiente) en la parte superior */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* KPI Cards — horizontal en móvil, layout amplio en escritorio */}
+      <div className="grid grid-cols-3 gap-2 md:gap-5">
         {/* Total Mes */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Nómina Mes</p>
-            <p className="text-2xl font-black text-slate-800 mt-1">{formatUSD(totalQ1 + totalQ2)}</p>
-            <div className="text-[10px] text-slate-500 mt-1 font-semibold">
-              Mensualidad {formatUSD(mesNetoSplit.netoMensualidad)} · H. Extras {formatUSD(mesNetoSplit.netoHorasExtras)}
-              {mesHEPendiente > 0 && (
-                <span className="text-amber-700"> · H.E. pend. {formatUSD(mesHEPendiente)}</span>
-              )}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-3 py-3 md:px-5 md:py-4 flex flex-col md:flex-row md:items-center md:justify-between min-w-0">
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider md:tracking-widest text-slate-400 leading-tight">
+              Total Nómina Mes
+            </p>
+            <p className="text-sm md:text-2xl font-black text-slate-800 mt-1 md:mt-1 leading-none">
+              {formatUSD(totalQ1 + totalQ2)}
+            </p>
+            <div className="text-[8px] md:text-[10px] text-slate-500 mt-1.5 md:mt-1 font-semibold leading-snug line-clamp-3 md:line-clamp-none">
+              <span className="md:hidden">Mens. {formatUSD(mesNetoSplit.netoMensualidad)} · H.E. {formatUSD(mesNetoSplit.netoHorasExtras)}</span>
+              <span className="hidden md:inline">
+                Mensualidad {formatUSD(mesNetoSplit.netoMensualidad)} · H. Extras {formatUSD(mesNetoSplit.netoHorasExtras)}
+                {mesHEPendiente > 0 && (
+                  <span className="text-amber-700"> · H.E. pend. {formatUSD(mesHEPendiente)}</span>
+                )}
+              </span>
             </div>
+            {mesHEPendiente > 0 && (
+              <p className="text-[8px] text-amber-700 font-semibold mt-0.5 md:hidden line-clamp-1">
+                H.E. pend. {formatUSD(mesHEPendiente)}
+              </p>
+            )}
           </div>
-          <div className="p-3 bg-slate-50 rounded-lg text-slate-500">
+          <div className="hidden md:block p-3 bg-slate-50 rounded-lg text-slate-500 shrink-0">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
@@ -1575,12 +1721,16 @@ export const NominaMesTab = () => {
         </div>
 
         {/* Pagado */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pagado</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">{formatUSD(totalPagado)}</p>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-3 py-3 md:px-5 md:py-4 flex flex-col md:flex-row md:items-center md:justify-between min-w-0">
+          <div className="min-w-0">
+            <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider md:tracking-widest text-slate-400 leading-tight">
+              Pagado
+            </p>
+            <p className="text-sm md:text-2xl font-black text-emerald-600 mt-1 leading-none">
+              {formatUSD(totalPagado)}
+            </p>
           </div>
-          <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+          <div className="hidden md:block p-3 bg-emerald-50 rounded-lg text-emerald-600 shrink-0">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
@@ -1588,12 +1738,16 @@ export const NominaMesTab = () => {
         </div>
 
         {/* Pendiente */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Pendiente</p>
-            <p className="text-2xl font-black text-red-600 mt-1">{formatUSD(totalPendiente)}</p>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-3 py-3 md:px-5 md:py-4 flex flex-col md:flex-row md:items-center md:justify-between min-w-0">
+          <div className="min-w-0">
+            <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider md:tracking-widest text-slate-400 leading-tight">
+              Total Pendiente
+            </p>
+            <p className="text-sm md:text-2xl font-black text-red-600 mt-1 leading-none">
+              {formatUSD(totalPendiente)}
+            </p>
           </div>
-          <div className="p-3 bg-red-50 rounded-lg text-red-600">
+          <div className="hidden md:block p-3 bg-red-50 rounded-lg text-red-600 shrink-0">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" />
             </svg>

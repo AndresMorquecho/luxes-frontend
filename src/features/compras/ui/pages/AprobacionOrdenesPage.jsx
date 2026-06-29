@@ -110,37 +110,50 @@ export const AprobacionOrdenesPage = () => {
   return (
     <div className="co-page animate-slide-up">
       {/* Header */}
-      <div className="co-card co-header" style={{ border: '1.5px solid #e2e8f0' }}>
-        <div>
-          <h1 className="co-title">Panel de Aprobaciones</h1>
-          <p className="co-subtitle">Revisa, aprueba o rechaza solicitudes de órdenes de compra entrantes</p>
-        </div>
-        <button onClick={() => navigate('/compras')} className="co-btn-ghost" style={{ color: '#2563eb', fontWeight: 700 }}>
+      <div className="co-card co-header-aprobacion" style={{ border: '1.5px solid #e2e8f0', marginBottom: '1rem' }}>
+        <button
+          type="button"
+          onClick={() => navigate('/compras')}
+          className="co-back-top md:hidden"
+        >
           ← Volver a Compras
         </button>
+
+        <div className="co-header-aprobacion-body">
+          <div className="min-w-0">
+            <h1 className="co-title">Panel de Aprobaciones</h1>
+            <p className="co-subtitle">Revisa, aprueba o rechaza solicitudes de órdenes de compra entrantes</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/compras')}
+            className="co-btn-ghost hidden md:inline-flex"
+            style={{ color: '#2563eb', fontWeight: 700, shrink: 0 }}
+          >
+            ← Volver a Compras
+          </button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-4">
+      <div className="co-aprobacion-tabs mb-4">
         <button
           onClick={() => { setEstadoFilter('pendiente_aprobacion'); setOrdenPage(1); }}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            estadoFilter === 'pendiente_aprobacion'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          className={`co-aprobacion-tab ${
+            estadoFilter === 'pendiente_aprobacion' ? 'co-aprobacion-tab--active' : ''
           }`}
         >
-          Pendientes de Aprobación
+          <span className="md:hidden">Pendientes</span>
+          <span className="hidden md:inline">Pendientes de Aprobación</span>
         </button>
         <button
           onClick={() => { setEstadoFilter('todas'); setOrdenPage(1); }}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            estadoFilter === 'todas'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          className={`co-aprobacion-tab ${
+            estadoFilter === 'todas' ? 'co-aprobacion-tab--active' : ''
           }`}
         >
-          Todas las Órdenes (Historial)
+          <span className="md:hidden">Historial</span>
+          <span className="hidden md:inline">Todas las Órdenes (Historial)</span>
         </button>
       </div>
 
@@ -156,8 +169,9 @@ export const AprobacionOrdenesPage = () => {
         {ordenLoading ? (
           <div className="co-loader-box"><div className="co-spinner" /></div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="co-table">
+          <>
+            <div className="overflow-x-auto devoluciones-desktop-only">
+              <table className="co-table">
               <thead>
                 <tr>
                   <th>Orden</th>
@@ -226,7 +240,78 @@ export const AprobacionOrdenesPage = () => {
                 )}
               </tbody>
             </table>
-          </div>
+            </div>
+
+            <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
+              <div className="prest-mobile-cards">
+                {ordenes.map((o) => (
+                  <div key={o.id} className="prest-card">
+                    <div className="prest-card-header">
+                      <div>
+                        <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>{o.numero}</span>
+                        <span className="prest-card-tool-name">{o.proveedor?.nombre || '—'}</span>
+                      </div>
+                      <span className="co-badge" style={{ background: ESTADO_BADGES[o.estado]?.bg, color: ESTADO_BADGES[o.estado]?.color, fontSize: '0.7rem' }}>
+                        {ESTADO_BADGES[o.estado]?.label || o.estado}
+                      </span>
+                    </div>
+                    <div className="prest-card-body">
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Emisor</span>
+                        <span className="prest-card-field-value">{o.usuario?.nombre || '—'}</span>
+                      </div>
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Fecha</span>
+                        <span className="prest-card-field-value">{fmtDate(o.fecha)}</span>
+                      </div>
+                      <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                        <span className="prest-card-field-label">Concepto</span>
+                        <span className="prest-card-field-value">{o.concepto || '—'}</span>
+                      </div>
+                      {o.notas && (
+                        <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                          <span className="prest-card-field-label">Notas</span>
+                          <span className="prest-card-field-value text-slate-500" style={{ fontSize: '0.75rem' }}>{o.notas}</span>
+                        </div>
+                      )}
+                      <div className="prest-card-field">
+                        <span className="prest-card-field-label">Total</span>
+                        <span className="prest-card-field-value" style={{ fontWeight: 700 }}>{fmt(o.total)}</span>
+                      </div>
+                    </div>
+                    <div className="prest-card-footer">
+                      <div className="prest-card-actions" style={{ gap: '0.5rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/compras/aprobacion/${o.id}`)}
+                          className="co-action-btn co-action-blue"
+                          style={{ flex: 2, height: '36px', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}
+                        >
+                          Ver y Aprobar
+                        </button>
+                        {o.estado !== 'pendiente_aprobacion' && (
+                          <button
+                            type="button"
+                            onClick={() => openPDFPreview(o)}
+                            className="co-action-btn co-action-blue"
+                            style={{ flex: 1, height: '36px', justifyContent: 'center' }}
+                            title="Ver PDF"
+                          >
+                            PDF
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {ordenes.length === 0 && (
+                  <div className="prest-empty text-center py-8 text-slate-400 text-sm">
+                    No hay órdenes de compra {estadoFilter === 'pendiente_aprobacion' ? 'pendientes de aprobación' : 'registradas'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
         )}
 
         {ordenTotalPages > 1 && (

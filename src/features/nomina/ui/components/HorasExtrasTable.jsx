@@ -393,7 +393,7 @@ export const HorasExtrasTable = ({
               {pendingRows.length}
             </span>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-amber-100/60 text-[10px] font-bold text-amber-900 uppercase">
                 <tr>
@@ -486,11 +486,96 @@ export const HorasExtrasTable = ({
               </tbody>
             </table>
           </div>
+
+          <div className="md:hidden p-3 space-y-3">
+            {pendingRows.map((row) => {
+              const draft = pendingDrafts[row.id] || {};
+              const horas = draft.horas ?? row.horas;
+              const vph = draft.valorPorHora ?? row.valorPorHora;
+              const descripcion = draft.descripcion ?? row.descripcion ?? '';
+              const detalleHorario = draft.detalleHorario ?? row.detalleHorario ?? '';
+              const totalCalc = horas * Number(vph);
+              const empName = row.colaboradorNombre
+                || employees.find((e) => e.id === row.colaboradorId)?.nombre
+                || row.colaboradorId;
+
+              return (
+                <div key={row.id} className="bg-white border border-amber-200 rounded-xl p-3.5 shadow-sm">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <div>
+                      <p className="text-xs text-amber-800 font-medium">{formatFecha(row.fecha)}</p>
+                      <p className="text-sm font-bold text-slate-800 uppercase">{empName}</p>
+                      <SavingDot id={row.id} />
+                    </div>
+                    <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2 py-1 rounded-lg">
+                      {formatUSD(totalCalc)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div>
+                      <span className="text-slate-500 font-semibold block mb-1">Horas</span>
+                      <CellNumber
+                        value={horas}
+                        step="0.5"
+                        min="0.5"
+                        onChange={(v) => updatePendingField(row.id, 'horas', v)}
+                        onBlur={() => handlePendingBlur(row)}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-semibold block mb-1">V/Hora</span>
+                      <CellMoney
+                        value={vph}
+                        onChange={(v) => updatePendingField(row.id, 'valorPorHora', v)}
+                        onBlur={() => handlePendingBlur(row)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-slate-500 font-semibold block mb-1">Horario</span>
+                      <CellText
+                        value={detalleHorario}
+                        placeholder="17:30 - 18:30"
+                        onChange={(v) => updatePendingField(row.id, 'detalleHorario', v)}
+                        onBlur={() => handlePendingBlur(row)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-slate-500 font-semibold block mb-1">Descripción</span>
+                      <CellText
+                        value={descripcion}
+                        placeholder="Descripción del trabajo"
+                        onChange={(v) => updatePendingField(row.id, 'descripcion', v)}
+                        onBlur={() => handlePendingBlur(row)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      type="button"
+                      disabled={actingId === row.id}
+                      onClick={() => handleApprove(row.id)}
+                      className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-[10px] font-bold uppercase disabled:opacity-50"
+                    >
+                      Aprobar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actingId === row.id}
+                      onClick={() => handleReject(row.id)}
+                      className="flex-1 py-2 rounded-lg bg-white border border-red-200 text-red-700 text-[10px] font-bold uppercase disabled:opacity-50"
+                    >
+                      Rechazar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      <div className="lg:col-span-9 bg-white rounded-xl shadow-xs border border-gray-100 overflow-hidden flex flex-col p-6 space-y-4 premium-card">
-        <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+      <div className="lg:col-span-9 bg-white rounded-xl shadow-xs border border-gray-100 overflow-hidden flex flex-col p-4 md:p-6 space-y-4 premium-card">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pb-3 border-b border-gray-200">
           <div>
             <h2 className="text-base font-extrabold text-blue-900 uppercase tracking-wide">Planilla de Horas Extras</h2>
             <p className="text-gray-500 text-xs mt-0.5">
@@ -510,7 +595,8 @@ export const HorasExtrasTable = ({
             No hay registros de horas extras en esta planilla. Haz clic en &quot;Registrar Horas Extras&quot; para ingresar una nueva jornada.
           </div>
         ) : (
-          <div className="overflow-x-auto max-h-[480px] sticky-scrollbar">
+          <>
+          <div className="hidden md:block overflow-x-auto max-h-[480px] sticky-scrollbar">
             <table className="min-w-full divide-y divide-gray-250 text-left text-sm">
               <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest sticky top-0 z-10 sticky-table-header">
                 <tr>
@@ -606,6 +692,88 @@ export const HorasExtrasTable = ({
               </tbody>
             </table>
           </div>
+
+          <div className="md:hidden p-3 space-y-3 max-h-[60vh] overflow-y-auto">
+            {records.map((row) => {
+              const emp = employees.find((e) => e.id === row.colaboradorId);
+              const empName = emp ? emp.nombre : 'Empleado no encontrado';
+              const calculatedTotal = row.horas * row.valorPorHora;
+
+              return (
+                <div key={row.id} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-500">{formatFecha(row.fecha)}</p>
+                      <p className="text-sm font-bold text-slate-800 uppercase truncate">{empName}</p>
+                      <SavingDot id={row.id} />
+                    </div>
+                    <span className="text-xs font-bold text-blue-900 bg-blue-50 px-2 py-1 rounded-lg shrink-0">
+                      {formatUSD(calculatedTotal)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div>
+                      <span className="text-slate-500 font-semibold block mb-1">Horas</span>
+                      <CellNumber
+                        value={row.horas}
+                        step="0.5"
+                        min="0.5"
+                        onChange={(v) => updateApprovedField(row.id, 'horas', v)}
+                        onBlur={() => handleApprovedBlur(row.id)}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-semibold block mb-1">V/Hora</span>
+                      <CellMoney
+                        value={row.valorPorHora}
+                        onChange={(v) => updateApprovedField(row.id, 'valorPorHora', v)}
+                        onBlur={() => handleApprovedBlur(row.id)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-slate-500 font-semibold block mb-1">Horario</span>
+                      <CellText
+                        value={row.detalleHorario}
+                        placeholder="17:30 - 18:30"
+                        onChange={(v) => updateApprovedField(row.id, 'detalleHorario', v)}
+                        onBlur={() => handleApprovedBlur(row.id)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-slate-500 font-semibold block mb-1">Descripción</span>
+                      <CellText
+                        value={row.descripcion}
+                        placeholder="Descripción"
+                        onChange={(v) => updateApprovedField(row.id, 'descripcion', v)}
+                        onBlur={() => handleApprovedBlur(row.id)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleEstado(row.id)}
+                      className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase border ${
+                        row.estado === 'PAGADO'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
+                      }`}
+                    >
+                      {row.estado === 'PAGADO' ? 'Pagado' : 'Por Pagar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(row.id)}
+                      className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-[10px] font-bold"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          </>
         )}
       </div>
 
