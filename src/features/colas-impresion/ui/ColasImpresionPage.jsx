@@ -127,6 +127,7 @@ export const ColasImpresionPage = () => {
   // Selected Job Details Modal
   const [selectedJobDetails, setSelectedJobDetails] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [downloadJob, setDownloadJob] = useState(null);
 
   // Preparar Impresión Modal States
   const [showPrepModal, setShowPrepModal] = useState(false);
@@ -669,7 +670,7 @@ export const ColasImpresionPage = () => {
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                   </svg>
-                                  Descargar
+                                  <span className="active-job-download-text">Descargar</span>
                                 </a>
                               </div>
                             ))}
@@ -948,17 +949,16 @@ export const ColasImpresionPage = () => {
                                   </svg>
                                 </button>
 
-                                <a 
-                                  href={getDownloadUrl(job)}
-                                  download={job.name}
+                                <button 
+                                  type="button"
+                                  onClick={() => setDownloadJob(job)}
                                   className="btn-action btn-action-download" 
                                   title="Descargar archivo"
-                                  style={{ textDecoration: 'none' }}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                   </svg>
-                                </a>
+                                </button>
 
                                 <button 
                                   type="button" 
@@ -1066,9 +1066,9 @@ export const ColasImpresionPage = () => {
                                 <span>Priorizar</span>
                               </button>
 
-                              <a 
-                                href={getDownloadUrl(job)}
-                                download={job.name}
+                              <button 
+                                type="button"
+                                onClick={() => setDownloadJob(job)}
                                 className="btn-action-mobile btn-download" 
                                 title="Descargar archivo"
                               >
@@ -1076,7 +1076,7 @@ export const ColasImpresionPage = () => {
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                 </svg>
                                 <span>Bajar</span>
-                              </a>
+                              </button>
 
                               <button 
                                 type="button" 
@@ -1219,18 +1219,17 @@ export const ColasImpresionPage = () => {
                           <td style={{ fontWeight: 600, color: '#1e293b' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                               <span>{job.name}</span>
-                              <a 
-                                href={getDownloadUrl(job)}
-                                download={job.name}
-                                onClick={e => e.stopPropagation()} // Stop row click event from bubbling to tr
-                                style={{ color: 'var(--color-primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '0.2,rem', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600 }}
+                              <button 
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setDownloadJob(job); }} // Stop row click event from bubbling to tr
+                                style={{ color: 'var(--color-primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
                                 title="Descargar archivo"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                 </svg>
                                 Descargar
-                              </a>
+                              </button>
                             </div>
                           </td>
                           <td style={{ fontWeight: 500, color: '#475569' }}>
@@ -1338,10 +1337,9 @@ export const ColasImpresionPage = () => {
                           </div>
                         </div>
                         <div className="colas-card-actions">
-                          <a 
-                            href={getDownloadUrl(job)}
-                            download={job.name}
-                            onClick={e => e.stopPropagation()}
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setDownloadJob(job); }}
                             className="btn-action-mobile btn-download" 
                             title="Descargar archivo"
                           >
@@ -1349,7 +1347,7 @@ export const ColasImpresionPage = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                             </svg>
                             <span>Descargar</span>
-                          </a>
+                          </button>
                           <button 
                             type="button" 
                             className="btn-action-mobile btn-details" 
@@ -1905,6 +1903,82 @@ export const ColasImpresionPage = () => {
               })()}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Descarga de Archivos */}
+      {downloadJob && (
+        <div className="colas-modal-overlay" onClick={() => setDownloadJob(null)}>
+          <div className="colas-modal-card" style={{ maxWidth: '480px', width: '92%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+              <span className="colas-modal-title" style={{ fontSize: '1.2rem', color: 'var(--color-primary-blue)' }}>Archivos a Descargar</span>
+              <button 
+                type="button" 
+                onClick={() => setDownloadJob(null)} 
+                style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#94a3b8', border: 'none', background: 'none', cursor: 'pointer' }}
+                title="Cerrar"
+              >
+                &times;
+              </button>
+            </div>
+            
+            <p className="colas-modal-desc" style={{ marginBottom: '1.25rem', fontSize: '0.85rem', color: '#64748b' }}>
+              Este trabajo de impresión contiene <strong>{parseJobFiles(downloadJob).length}</strong> archivo(s) de diseño. Haz clic en "Descargar" en el archivo que requieras.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+              {parseJobFiles(downloadJob).map((f, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {isImageFile(f.name, f.url) ? (
+                        <img src={f.url} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '16px', height: '16px', color: '#7c3aed' }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                      )}
+                    </div>
+                    <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                  </div>
+                  <a 
+                    href={f.url || '#'} 
+                    download={f.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="file-download-link"
+                    style={{ 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      padding: '0.3rem 0.6rem', 
+                      fontSize: '0.75rem', 
+                      margin: 0, 
+                      textDecoration: 'none', 
+                      flexShrink: 0, 
+                      backgroundColor: 'var(--color-primary-blue)', 
+                      color: 'white', 
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    Descargar
+                  </a>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+              <button 
+                type="button" 
+                onClick={() => setDownloadJob(null)} 
+                className="btn-modal-back"
+                style={{ margin: 0 }}
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

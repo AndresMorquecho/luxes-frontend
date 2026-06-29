@@ -21,6 +21,16 @@ const getNotificationRoute = (notification) => {
   const title = (notification.title || '').toLowerCase();
   const message = (notification.message || '').toLowerCase();
   
+  // Proformas (aprobación, rechazo, nueva pendiente)
+  if (title.includes('proforma') || message.includes('proforma')) {
+    const match = (notification.message || '').match(/PRO-\d+/i)
+      || (notification.title || '').match(/PRO-\d+/i)
+      || (notification.message || '').match(/PROF-\d+/i)
+      || (notification.title || '').match(/PROF-\d+/i);
+    if (match) return `/proformas/detalle/${match[0].toUpperCase()}`;
+    return '/proformas';
+  }
+  
   // Orden aprobada → lista de compras del solicitante
   if (title.includes('aprobada') || message.includes('ha sido aprobada')) {
     return '/compras/recepcion';
@@ -41,20 +51,16 @@ const getNotificationRoute = (notification) => {
   
   // Impresión / Colas de Impresión
   if (title.includes('impresi') || message.includes('impresi')) {
+    const matchProjId = (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/);
+    if (matchProjId) {
+      return `/proyectos/${matchProjId[1]}?tab=produccion`;
+    }
     return '/colas-impresion';
   }
 
   // Horas extras pendientes de aprobación
   if (title.includes('horas extras') || message.includes('horas extras')) {
     return '/nomina/horas-extras';
-  }
-
-  // Proformas (aprobación, rechazo, nueva pendiente)
-  if (title.includes('proforma') || message.includes('proforma')) {
-    const match = (notification.message || '').match(/PROF-\d+/i)
-      || (notification.title || '').match(/PROF-\d+/i);
-    if (match) return `/proformas/detalle/${match[0]}`;
-    return '/proformas';
   }
 
   // Instalación iniciada o completada / Montaje

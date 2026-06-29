@@ -5,6 +5,7 @@ import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { HoraExtra } from '../../domain/entities/HoraExtra';
 import { calcularHorasExtras } from '../../domain/use-cases/calcularHorasExtras';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 
 const formatUSD = (val) => {
   return new Intl.NumberFormat('en-US', {
@@ -311,10 +312,14 @@ export const HorasExtrasTable = ({
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Está seguro de eliminar este registro de horas extras?')) return;
-    const updated = records.filter((row) => row.id !== id);
-    setRecords(updated);
-    await syncWithBackend(updated, 'Registro eliminado.');
+    confirmDialog(
+      '¿Está seguro de eliminar este registro de horas extras?',
+      async () => {
+        const updated = records.filter((row) => row.id !== id);
+        setRecords(updated);
+        await syncWithBackend(updated, 'Registro eliminado.');
+      }
+    );
   };
 
   const handleAddSubmit = async (e) => {

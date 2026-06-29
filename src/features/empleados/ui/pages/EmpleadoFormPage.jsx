@@ -22,8 +22,6 @@ import {
 const EMPTY_FORM = {
   nombre: '',
   cedula: '',
-  cargo: '',
-  departamento: '',
   telefono: '',
   correo: '',
   username: '',
@@ -40,7 +38,6 @@ const EMPTY_FORM = {
 };
 
 const BANCOS = ['Pichincha', 'Guayaquil', 'Bolivariano', 'Pacifico', 'Internacional', 'Produbanco', 'Austro', 'Machala'];
-const DEPARTAMENTOS = ['Tecnología', 'Diseño', 'Operaciones', 'Finanzas', 'RRHH', 'Marketing', 'Ventas'];
 const CONTRATOS = ['Fijo', 'Indefinido', 'Temporal', 'Por obra'];
 
 const BANCO_THEMES = {
@@ -804,8 +801,10 @@ export const EmpleadoFormPage = () => {
       }
 
       if (isEdit) {
+        toast.success('Colaborador actualizado correctamente');
         navigate('/nomina/empleados');
       } else {
+        toast.success('Colaborador guardado correctamente');
         // En creación exitosa, mostramos los datos del usuario autogenerado
         setSuccessInfo({
           nombre: form.nombre,
@@ -1053,17 +1052,7 @@ export const EmpleadoFormPage = () => {
                           )}
                         </div>
 
-                        <div>
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Cargo</label>
-                          <input name="cargo" value={form.cargo} onChange={handleChange} placeholder="Ej. Desarrollador" className="input-field" />
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Departamento</label>
-                          <select name="departamento" value={form.departamento} onChange={handleChange} className="input-field">
-                            <option value="">Seleccionar...</option>
-                            {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                        </div>
+
                         {form.tieneContrato && (
                           <div>
                             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Tipo de contrato</label>

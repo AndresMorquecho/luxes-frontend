@@ -1,7 +1,7 @@
 // src/features/proyectos/ui/pages/ProyectoDetallePage.jsx
 
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
   DollarSign, Calendar, Tag, User, Eye, X,
@@ -28,9 +28,16 @@ import { getFaseConfig, FASES } from '../../domain/value-objects/FaseConfig.js';
 export default function ProyectoDetallePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { reloadProyectos } = useProyectosContext();
   const { proyecto, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual } = useProyecto(id);
-  const [faseVista, setFaseVista] = useState(null);
+  const [faseVista, setFaseVista] = useState(() => {
+    const tab = searchParams.get('tab');
+    if (tab && tab.toUpperCase() === 'PRODUCCION') {
+      return 'PRODUCCION';
+    }
+    return null;
+  });
   const [subTab, setSubTab] = useState('fases'); // 'fases' | 'gastos'
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
   const [confirmRetroceder, setConfirmRetroceder] = useState(false);

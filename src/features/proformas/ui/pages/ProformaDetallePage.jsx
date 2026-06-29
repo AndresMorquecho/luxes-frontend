@@ -171,15 +171,15 @@ export const ProformaDetallePage = () => {
 
   const badgeStyle = (estado) => {
     switch (estado) {
-      case 'Aprobada': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'Rechazada': return 'bg-red-50 text-red-700 border-red-200';
-      case 'Pagada': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      default: return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'Aprobada': return 'bg-emerald-50/70 text-emerald-700 border-emerald-200/60';
+      case 'Rechazada': return 'bg-rose-50/70 text-rose-700 border-rose-200/60';
+      case 'Pagada': return 'bg-blue-50/70 text-blue-700 border-blue-200/60';
+      default: return 'bg-amber-50/70 text-amber-700 border-amber-200/60';
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto pb-12" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="w-full pb-12" style={{ fontFamily: "'Inter', sans-serif" }}>
       
       {/* Back link */}
       <div className="mb-4">
@@ -193,7 +193,11 @@ export const ProformaDetallePage = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-extrabold text-slate-800">Proforma: {proforma.id}</h1>
-            <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${badgeStyle(proforma.estado === 'Pagada' ? 'Aprobada' : proforma.estado)}`}>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${badgeStyle(proforma.estado === 'Pagada' ? 'Aprobada' : proforma.estado)}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                (proforma.estado === 'Aprobada' || proforma.estado === 'Pagada') ? 'bg-emerald-500' : 
+                proforma.estado === 'Rechazada' ? 'bg-rose-500' : 'bg-amber-500'
+              }`} />
               {proforma.estado === 'Pagada' ? 'Aprobada' : proforma.estado}
             </span>
           </div>

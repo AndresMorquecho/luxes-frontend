@@ -293,9 +293,8 @@ export const EmpleadosPage = () => {
                 <tr className="border-b border-slate-100">
                   <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Colaborador</th>
                   <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cédula</th>
-                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cargo</th>
-                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Depto.</th>
-                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cuenta Bancaria</th>
+
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Rol en el Sistema</th>
                   <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
@@ -315,21 +314,15 @@ export const EmpleadosPage = () => {
                         </div>
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-700">{emp.cedula}</td>
-                      <td className="px-5 py-4 text-sm text-slate-700">{emp.cargo || '—'}</td>
-                      <td className="px-5 py-4">
-                        {emp.departamento ? (
-                          <span
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-                            style={{ backgroundColor: depto.bg, color: depto.text }}
-                          >
-                            {emp.departamento}
+
+                      <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                        {emp.rol ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 capitalize">
+                            {emp.rol}
                           </span>
                         ) : (
                           <span className="text-sm text-slate-400">—</span>
                         )}
-                      </td>
-                      <td className="px-5 py-4">
-                        <EmpleadoBankCell banco={emp.banco} cuentaBanco={emp.cuentaBanco} />
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -397,14 +390,7 @@ export const EmpleadosPage = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-900 leading-snug normal-case">{emp.nombre}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">{emp.id}</p>
-                    {emp.departamento ? (
-                      <span
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium mt-1.5"
-                        style={{ backgroundColor: depto.bg, color: depto.text }}
-                      >
-                        {emp.departamento}
-                      </span>
-                    ) : null}
+
                   </div>
                 </div>
 
@@ -413,13 +399,16 @@ export const EmpleadosPage = () => {
                     <span className="text-slate-400 font-medium block">Cédula</span>
                     <span className="text-slate-700 font-semibold">{emp.cedula || '—'}</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 font-medium block">Cargo</span>
-                    <span className="text-slate-700 font-semibold truncate block">{emp.cargo || '—'}</span>
-                  </div>
+
                   <div className="col-span-2">
-                    <span className="text-slate-400 font-medium block mb-1">Cuenta bancaria</span>
-                    <EmpleadoBankCell banco={emp.banco} cuentaBanco={emp.cuentaBanco} />
+                    <span className="text-slate-400 font-medium block mb-1">Rol en el sistema</span>
+                    {emp.rol ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 capitalize">
+                        {emp.rol}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-semibold text-slate-400">—</span>
+                    )}
                   </div>
                 </div>
 

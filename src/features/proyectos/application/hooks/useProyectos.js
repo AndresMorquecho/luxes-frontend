@@ -1,6 +1,6 @@
 // src/features/proyectos/application/hooks/useProyectos.js
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
 import { crearProyecto } from '../../domain/use-cases/crearProyecto.js';
@@ -9,8 +9,12 @@ import { crearProyecto } from '../../domain/use-cases/crearProyecto.js';
  * Hook principal para la lista de proyectos con filtros y acciones CRUD.
  */
 export function useProyectos() {
-  const { state, dispatch, adapter } = useProyectosContext();
+  const { state, dispatch, adapter, reloadProyectos } = useProyectosContext();
   const { proyectos, loading, error } = state;
+
+  useEffect(() => {
+    reloadProyectos();
+  }, [reloadProyectos]);
 
   const [filtros, setFiltros] = useState({
     busqueda: '',
@@ -126,5 +130,6 @@ export function useProyectos() {
     deleteProyecto,
     avanzarFaseProyecto,
     retrocederFaseProyecto,
+    reloadProyectos,
   };
 }

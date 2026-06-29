@@ -23,8 +23,8 @@ export function PersonalSelector({ empleados = [], personalAsignado = [], onChan
 
   const unassignedEmployees = empleados.filter(
     (emp) => !personalAsignado.some((p) => p.empleadoId === emp.id) &&
-             (emp.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-              emp.cargo.toLowerCase().includes(searchTerm.toLowerCase()))
+             ((emp.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+              (emp.cargo || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleSelect = (empleado) => {

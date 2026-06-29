@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { getConfiguracion, updateConfiguracion } from '../../application/configuracionService';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { getHorarioConfig, saveHorarioConfig } from '../../../asistencia/application/asistenciaService';
+import { HorarioDelDiaBanner, HorarioEditModal } from '../../../asistencia/ui/components/HorarioDelDiaBanner';
+import { normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../../asistencia/helpers/horarioLaboral';
 
 const AVAILABLE_MODULES = [
   { key: 'nomina', label: 'Nómina' },
@@ -37,6 +40,9 @@ export const ConfiguracionPage = () => {
   const [saving, setSaving] = useState(false);
   const [savingSidebar, setSavingSidebar] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+  const [horariosConfig, setHorariosConfig] = useState(DEFAULT_HORARIOS_CONFIG);
+  const [horarioModalOpen, setHorarioModalOpen] = useState(false);
+  const [savingHorario, setSavingHorario] = useState(false);
 
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (loggedInUser?.rol || '').toUpperCase();
@@ -86,7 +92,18 @@ export const ConfiguracionPage = () => {
         setLoading(false);
       }
     };
+
+    const loadHorarios = async () => {
+      try {
+        const cfg = await getHorarioConfig();
+        setHorariosConfig(normalizeHorariosConfig(cfg));
+      } catch (err) {
+        console.error('Error cargando horarios', err);
+      }
+    };
+
     loadConfig();
+    loadHorarios();
   }, []);
 
   const handleChange = (e) => {
@@ -146,6 +163,20 @@ export const ConfiguracionPage = () => {
     }
   };
 
+  const handleSaveHorario = async (config) => {
+    setSavingHorario(true);
+    try {
+      const saved = await saveHorarioConfig(config);
+      setHorariosConfig(normalizeHorariosConfig(saved));
+      toast.success('Horarios laborales actualizados correctamente');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al guardar los horarios');
+    } finally {
+      setSavingHorario(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -155,17 +186,19 @@ export const ConfiguracionPage = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-12">
-      {/* Header */}
-      <div className="bg-white border border-slate-200 rounded-xl px-6 py-5 flex items-center justify-between mb-6 shadow-sm">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">
-            {activeTab === 'general' ? 'Configuración General' : 'Personalizar Sidebar'}
-          </h1>
+    <div className="p-4 sm:p-6 xl:p-8 w-full animate-slide-up pb-12" style={{ fontFamily: "'Inter', sans-serif" }}>
+        {/* Header */}
+        <div className="bg-white border border-slate-200 rounded-xl px-6 py-5 flex items-center justify-between mb-6 shadow-sm">
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">
+              {activeTab === 'general' ? 'Configuración General' : activeTab === 'sidebar' ? 'Personalizar Sidebar' : 'Horarios Laborales'}
+            </h1>
           <p className="text-sm text-slate-500">
             {activeTab === 'general'
               ? 'Datos de la empresa y políticas de cotizaciones'
-              : 'Configura la visibilidad de los módulos de la barra lateral'}
+              : activeTab === 'sidebar'
+              ? 'Configura la visibilidad de los módulos de la barra lateral'
+              : 'Configura los horarios laborales estándar para el control de asistencia'}
           </p>
         </div>
       </div>
@@ -195,11 +228,40 @@ export const ConfiguracionPage = () => {
           >
             Personalizar Sidebar
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('horarios')}
+            className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${
+              activeTab === 'horarios'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Horarios Laborales
+          </button>
         </div>
       )}
 
       {/* Content based on active tab */}
-      {(activeTab === 'general' || !isAdmin) ? (
+      {activeTab === 'horarios' && isAdmin ? (
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+          <HorarioDelDiaBanner
+            horariosConfig={horariosConfig}
+            fechaActiva={new Date().toISOString().split('T')[0]}
+            showAllHorarios
+            editable
+            onEdit={() => setHorarioModalOpen(true)}
+          />
+
+          <HorarioEditModal
+            open={horarioModalOpen}
+            initialConfig={horariosConfig}
+            onClose={() => setHorarioModalOpen(false)}
+            onSave={handleSaveHorario}
+            saving={savingHorario}
+          />
+        </div>
+      ) : (activeTab === 'general' || !isAdmin) ? (
         <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-6 space-y-6">
             

@@ -10,20 +10,16 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
     proxy: {
-      // Backend local (luxes-backend): PORT=4000 por defecto en .env
+      // Backend local (luxes-backend): PORT=3000 en .env
       '/api': {
-        target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:4000',
+        target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:3000',
         changeOrigin: true,
         timeout: 30000,
       },
       '/uploads': {
-        target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:4000',
+        target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:3000',
         changeOrigin: true,
         timeout: 30000,
-      },
-      '/uploads': {
-        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:3000',
-        changeOrigin: true,
       },
     },
   },

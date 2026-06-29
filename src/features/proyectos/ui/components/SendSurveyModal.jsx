@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Send, X, Smartphone, MessageCircle, Copy, Star } from 'lucide-react';
+import { Send, X, Smartphone, MessageCircle, Copy, Star, AlertTriangle } from 'lucide-react';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 
@@ -43,6 +43,18 @@ export function SendSurveyModal({
   const [mensaje, setMensaje] = useState(mensajeDefault);
   const numeroWA = formatWhatsAppNumber(telefonoCliente);
 
+  // Determinar si la encuesta ya fue enviada pero no calificada por el cliente
+  const datosInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
+  const yaEnviada = datosInstalacion.encuestaEnviada === true;
+  const yaRespondida = datosInstalacion.encuestaSatisfaccion?.completada === true;
+
+  // Obtener rol del usuario autenticado
+  const loggedInUser = JSON.parse(localStorage.getItem('user') || 'null');
+  const userRole = (loggedInUser?.rol || '').toLowerCase();
+  const esAdminODisenador = userRole.includes('admin') || userRole.includes('administrador') || userRole.includes('ventas') || userRole.includes('diseñador') || userRole.includes('disenador');
+
+  const mostrandoAdvertencia = yaEnviada && !yaRespondida && esAdminODisenador;
+
   useEffect(() => {
     if (isOpen && proyecto) {
       setVisible(true);
@@ -69,7 +81,21 @@ export function SendSurveyModal({
 
   const handleClose = () => deferClose(() => onClose?.());
 
+  const handleSkip = () => {
+    if (yaEnviada) {
+      deferClose(() => onConfirm?.());
+    } else {
+      deferClose(() => onClose?.());
+    }
+  };
+
   const handleSendAndComplete = async () => {
+    if (mostrandoAdvertencia) {
+      const confirmar = window.confirm(
+        "La encuesta de satisfacción ya fue enviada y está esperando el puntaje del cliente.\n\n¿Está seguro de que desea volver a enviarla?"
+      );
+      if (!confirmar) return;
+    }
     setEnviando(true);
     try {
       if (onSend) await onSend();
@@ -124,6 +150,18 @@ export function SendSurveyModal({
               y evaluar al personal que participó en la obra.
             </p>
           </div>
+
+          {mostrandoAdvertencia && (
+            <div className="flex items-start gap-2 bg-rose-50 border border-rose-100 rounded-xl p-3 text-[11px] text-rose-800">
+              <AlertTriangle size={18} className="shrink-0 mt-0.5 text-rose-500" />
+              <div>
+                <p className="font-bold">⚠️ Encuesta ya enviada</p>
+                <p className="mt-0.5 text-[10.5px] text-rose-700 leading-relaxed">
+                  La encuesta ya fue enviada anteriormente y se encuentra esperando la calificación del cliente. ¿Está seguro de volver a enviarla?
+                </p>
+              </div>
+            </div>
+          )}
 
           <p className="text-sm text-slate-600">
             Envía el mensaje por WhatsApp con el link de la encuesta. Puedes editar el texto antes de enviarlo.
@@ -181,10 +219,10 @@ export function SendSurveyModal({
         <div className="bg-slate-50 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100">
           <button
             type="button"
-            onClick={handleClose}
+            onClick={handleSkip}
             className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-xl transition-colors"
           >
-            Omitir por ahora
+            {yaEnviada ? 'Omitir y avanzar' : 'Omitir por ahora'}
           </button>
           <button
             type="button"

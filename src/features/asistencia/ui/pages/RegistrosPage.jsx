@@ -726,8 +726,6 @@ const AdminView = () => {
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('TODOS'); // TODOS | ASISTIO | FALTO | PERMISO | SIN_ALMUERZO
   const [horariosConfig, setHorariosConfig] = useState(DEFAULT_HORARIOS_CONFIG);
-  const [horarioModalOpen, setHorarioModalOpen] = useState(false);
-  const [savingHorario, setSavingHorario] = useState(false);
 
   const horarioDia = useMemo(() => getHorarioEsperado(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
   const horarioLabel = useMemo(() => getHorarioLabel(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
@@ -890,15 +888,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
   };
 
-  const handleSaveHorario = async (config) => {
-    setSavingHorario(true);
-    try {
-      const saved = await saveHorarioConfig(config);
-      setHorariosConfig(normalizeHorariosConfig(saved));
-    } finally {
-      setSavingHorario(false);
-    }
-  };
+
 
   return (
     <div className="p-4 sm:p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -931,25 +921,10 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </div>
       </div>
 
-      {/* Horarios de referencia (ambos, editables) */}
-      <HorarioDelDiaBanner
-        horariosConfig={horariosConfig}
-        fechaActiva={fechaFiltro}
-        showAllHorarios
-        editable
-        onEdit={() => setHorarioModalOpen(true)}
-      />
 
-      <HorarioEditModal
-        open={horarioModalOpen}
-        initialConfig={horariosConfig}
-        onClose={() => setHorarioModalOpen(false)}
-        onSave={handleSaveHorario}
-        saving={savingHorario}
-      />
 
       {/* KPIs Grid - placed above calendar selector, in a single row */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-6">
+      <div className="flex flex-wrap lg:flex-nowrap gap-3 mb-6">
         {[
           { label: 'Colaboradores', value: kpis.total, cssClass: 'total', color: 'text-blue-600' },
           { label: 'Asistencias', value: kpis.asistieron, cssClass: 'asistencias', color: 'text-emerald-600' },
@@ -957,9 +932,9 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           { label: 'Permisos', value: kpis.permisos, cssClass: 'permisos', color: 'text-indigo-600' },
           { label: 'Sin almuerzo', value: kpis.sinAlmuerzo, cssClass: 'faltas', color: 'text-amber-600' },
         ].map(s => (
-          <div key={s.label} className={`bg-white shadow-card kpi-card ${s.cssClass} rounded-xl p-2.5 sm:px-4 sm:py-3.5 border border-gray-100`}>
-            <p className="text-[8px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider truncate">{s.label}</p>
-            <p className={`text-base sm:text-2xl font-black mt-0.5 sm:mt-1 ${s.color}`}>{s.value}</p>
+          <div key={s.label} className={`flex-1 min-w-[120px] bg-white shadow-card kpi-card ${s.cssClass} rounded-xl p-3 border border-gray-100`}>
+            <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider truncate">{s.label}</p>
+            <p className={`text-lg sm:text-2xl font-black mt-1 ${s.color}`}>{s.value}</p>
           </div>
         ))}
       </div>

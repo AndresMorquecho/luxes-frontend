@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { OverlayPortal, deferClose } from './ModalPortal';
 import './ConfirmModal.css';
 
-let confirmListener = null;
-
 export const confirmDialog = (title, message, options = {}) => {
   return new Promise((resolve) => {
-    if (confirmListener) {
-      confirmListener({
+    if (window.__confirmListener) {
+      window.__confirmListener({
         isOpen: true,
         title,
         message,
@@ -36,7 +34,7 @@ export const ConfirmDialogContainer = () => {
   const resolveRef = useRef(null);
 
   useEffect(() => {
-    confirmListener = (next) => {
+    window.__confirmListener = (next) => {
       resolveRef.current = next.resolve;
       setState({
         isOpen: true,
@@ -48,8 +46,9 @@ export const ConfirmDialogContainer = () => {
         type: next.type,
       });
     };
+
     return () => {
-      confirmListener = null;
+      window.__confirmListener = null;
     };
   }, []);
 
