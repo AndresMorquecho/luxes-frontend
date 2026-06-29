@@ -158,103 +158,6 @@ export const Layout = ({ children, user, onLogout }) => {
 
   return (
     <div className={`layout-container ${isMobile ? 'mobile' : ''} ${isMobileOpen ? 'mobile-open' : ''} ${(!isMobile && isCollapsed) ? 'collapsed' : ''} ${isAsistenciaMode ? 'kiosk-layout' : ''} ${isBottomNavMobile ? 'mobile-taller-layout' : ''}`}>
-      {isAsistenciaMode ? (
-        <header className="w-full flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white" style={{ height: '70px', fontFamily: "'Inter', sans-serif" }}>
-          <div className="flex items-center gap-3">
-            <img src="/LogoGlobo.png" alt="Luxes Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
-            <div>
-              <h1 className="text-sm font-bold text-slate-800 m-0">Terminal de Registro de Asistencia</h1>
-              <p className="text-[10px] text-slate-400 font-medium m-0">Kiosco de Marcaciones Luxes · 2026</p>
-            </div>
-          </div>
-          <button
-            onClick={onLogout}
-            className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-200 cursor-pointer"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ width: '14px', height: '14px' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-            </svg>
-            Cerrar Sesión
-          </button>
-        </header>
-      ) : isBottomNavMobile ? (
-        <header className="mobile-taller-header">
-          <div className="mobile-taller-logo-box">
-            <img src="/LogoGlobo.png" alt="Luxes Logo" className="mobile-taller-logo" />
-            <div className="mobile-taller-user-info">
-              <span className="mobile-taller-brand">Luxes {mobileBrandLabel}</span>
-              <span className="mobile-taller-username">{mobileUserLabel}</span>
-            </div>
-          </div>
-          <div className="mobile-taller-header-actions">
-            <Link to="/notificaciones" className={`mobile-taller-notif-btn ${isTabActive('/notificaciones') ? 'active' : ''}`} aria-label="Notificaciones">
-              <div className="mobile-nav-icon-wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-taller-notif-icon">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-                </svg>
-                {unreadCount > 0 && (
-                  <span className="mobile-nav-badge" style={{ top: '-8px', right: '-10px' }}>{unreadCount}</span>
-                )}
-              </div>
-            </Link>
-            <button onClick={onLogout} className="mobile-taller-logout-btn" aria-label="Cerrar sesión">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="logout-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-              </svg>
-            </button>
-          </div>
-        </header>
-      ) : isMobile ? (
-        /* Top mobile header */
-        <header className="mobile-header">
-          <button 
-            className="mobile-menu-toggle"
-            onClick={() => setIsMobileOpen(prev => !prev)}
-            aria-label="Toggle menu"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-toggle-icon">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
-          {/* Quick search bar */}
-          <div className="mobile-search-container">
-            <div className="mobile-search-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-search-icon">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input 
-                type="text" 
-                placeholder="Ir a módulo..." 
-                className="mobile-search-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-              />
-              {searchQuery && (
-                <button className="mobile-search-clear" onClick={() => setSearchQuery('')}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                  </svg>
-                </button>
-              )}
-            </div>
-
-            {/* Search Dropdown */}
-            {isSearchFocused && filteredModules.length > 0 && (
-              <ul className="mobile-search-results">
-                {filteredModules.map((m) => (
-                  <li key={m.path} onMouseDown={() => handleModuleClick(m.path)}>
-                    {m.name}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </header>
-      ) : null}
-
       {/* Backdrop overlay for mobile drawer */}
       {isMobile && isMobileOpen && (
         <div 
@@ -277,9 +180,105 @@ export const Layout = ({ children, user, onLogout }) => {
         />
       )}
       
-      <main className="layout-main" style={isAsistenciaMode ? { margin: 0, padding: 0, width: '100%', maxWidth: '100%', height: 'calc(100vh - 70px)', overflowY: 'auto' } : undefined}>
-        {children}
-      </main>
+      <div className={`layout-body ${isMobile && searchQuery ? 'has-mobile-search' : ''}`} style={isAsistenciaMode ? { marginLeft: 0 } : undefined}>
+        {isAsistenciaMode ? (
+          <header className="w-full flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white" style={{ height: '70px', fontFamily: "'Inter', sans-serif" }}>
+            <div className="flex items-center gap-3">
+              <img src="/LogoGlobo.png" alt="Luxes Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+              <div>
+                <h1 className="text-sm font-bold text-slate-800 m-0">Terminal de Registro de Asistencia</h1>
+                <p className="text-[10px] text-slate-400 font-medium m-0">Kiosco de Marcaciones Luxes · 2026</p>
+              </div>
+            </div>
+            <button
+              onClick={onLogout}
+              className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-200 cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ width: '14px', height: '14px' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+              </svg>
+              Cerrar Sesión
+            </button>
+          </header>
+        ) : isBottomNavMobile ? (
+          <header className="mobile-taller-header">
+            <div className="mobile-taller-logo-box">
+              <img src="/LogoGlobo.png" alt="Luxes Logo" className="mobile-taller-logo" />
+              <div className="mobile-taller-user-info">
+                <span className="mobile-taller-brand">Luxes {mobileBrandLabel}</span>
+                <span className="mobile-taller-username">{mobileUserLabel}</span>
+              </div>
+            </div>
+            <div className="mobile-taller-header-actions">
+              <Link to="/notificaciones" className={`mobile-taller-notif-btn ${isTabActive('/notificaciones') ? 'active' : ''}`} aria-label="Notificaciones">
+                <div className="mobile-nav-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-taller-notif-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="mobile-nav-badge" style={{ top: '-8px', right: '-10px' }}>{unreadCount}</span>
+                  )}
+                </div>
+              </Link>
+              <button onClick={onLogout} className="mobile-taller-logout-btn" aria-label="Cerrar sesión">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="logout-icon">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                </svg>
+              </button>
+            </div>
+          </header>
+        ) : isMobile ? (
+          <header className="mobile-header">
+            <button 
+              className="mobile-menu-toggle"
+              onClick={() => setIsMobileOpen(prev => !prev)}
+              aria-label="Toggle menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-toggle-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            <div className="mobile-search-container">
+              <div className="mobile-search-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-search-icon">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input 
+                  type="text" 
+                  placeholder="Ir a módulo..." 
+                  className="mobile-search-input"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                />
+                {searchQuery && (
+                  <button className="mobile-search-clear" onClick={() => setSearchQuery('')}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {isSearchFocused && filteredModules.length > 0 && (
+                <ul className="mobile-search-results">
+                  {filteredModules.map((m) => (
+                    <li key={m.path} onMouseDown={() => handleModuleClick(m.path)}>
+                      {m.name}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </header>
+        ) : null}
+
+        <main className="layout-main" style={isAsistenciaMode ? { margin: 0, padding: 0, width: '100%', maxWidth: '100%', height: 'calc(100vh - 70px)', overflowY: 'auto' } : undefined}>
+          {children}
+        </main>
+      </div>
 
       {isBottomNavMobile && !hideBottomNav && (
         <nav className="mobile-bottom-nav">
