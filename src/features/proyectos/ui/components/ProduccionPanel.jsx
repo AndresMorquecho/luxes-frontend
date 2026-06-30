@@ -36,7 +36,14 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const [client, setClient] = useState(''); // Client Name
   const [urgency, setUrgency] = useState('Media'); // Urgency: Alta, Media, Baja
   const [copies, setCopies] = useState(1);
-  const [sentBy] = useState(localStorage.getItem('userName') || 'ISAM'); // Default active user
+  const [sentBy] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user'));
+      return u?.username || u?.nombre || 'Sistema';
+    } catch {
+      return 'Sistema';
+    }
+  });
   const [width, setWidth] = useState('1.0'); // Width in meters
   const [height, setHeight] = useState('1.0'); // Height in meters
   const [notes, setNotes] = useState(''); // Special instructions/notes

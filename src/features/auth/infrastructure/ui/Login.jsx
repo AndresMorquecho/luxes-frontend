@@ -109,7 +109,7 @@ export const Login = ({ onLogin }) => {
                   </span>
                   <input
                     type="text"
-                    placeholder="ej. isam.luxes"
+                    placeholder="ej. MorquechoI"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="login-input-field"

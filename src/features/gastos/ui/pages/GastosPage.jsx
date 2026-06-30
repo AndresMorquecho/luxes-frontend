@@ -801,6 +801,25 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           to   { transform: scale(1) translateY(0); opacity: 1; }
         }
         .animate-ga-modal-in { animation: ga-modal-in 0.22s cubic-bezier(0.16,1,0.3,1) forwards; }
+        @media (min-width: 768px) {
+          .cc-desktop-table { display: block; }
+          .cc-mobile-cards { display: none; }
+        }
+        @media (max-width: 767px) {
+          .cc-desktop-table { display: none; }
+          .cc-mobile-cards { display: flex; flex-direction: column; gap: 12px; padding: 12px 0; }
+          .cc-mobile-card {
+            background: #ffffff;
+            border: 1px solid #f1f5f9;
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: left;
+          }
+        }
       `}</style>
 
       {/* Título Principal */}
@@ -1451,54 +1470,103 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-blue-600" />
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-slate-400 bg-slate-50/10 text-left font-bold uppercase tracking-wider">
-                      <th className="px-5 py-3">Rango de Cierre</th>
-                      <th className="px-5 py-3">Fecha Cierre</th>
-                      <th className="px-5 py-3">Registrado Por</th>
-                      <th className="px-5 py-3 text-right">Ingresos</th>
-                      <th className="px-5 py-3 text-right">Egresos</th>
-                      <th className="px-5 py-3 text-right">Balance Neto</th>
-                      <th className="px-5 py-3">Observaciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100/40">
-                    {cierreHistory.map((c) => {
-                      const metodos = typeof c.metodosDetalle === 'string' ? JSON.parse(c.metodosDetalle) : (c.metodosDetalle || []);
-                      return (
-                        <tr key={c.id} className="ga-tr">
-                          <td className="px-5 py-3.5 font-semibold text-slate-700">
-                            {c.fechaInicio.split('T')[0]} al {c.fechaFin.split('T')[0]}
-                          </td>
-                          <td className="px-5 py-3.5 text-slate-500">
-                            {new Date(c.fecha).toLocaleString()}
-                          </td>
-                          <td className="px-5 py-3.5 font-medium text-slate-600">
-                            {c.usuario?.nombre || 'Administrador'}
-                          </td>
-                          <td className="px-5 py-3.5 text-right font-bold text-emerald-600">{fmt(c.totalIngresos)}</td>
-                          <td className="px-5 py-3.5 text-right font-bold text-red-500">{fmt(c.totalEgresos)}</td>
-                          <td className={`px-5 py-3.5 text-right font-extrabold ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                            {fmt(c.balance)}
-                          </td>
-                          <td className="px-5 py-3.5 text-slate-500 italic max-w-xs truncate" title={c.observaciones}>
-                            {c.observaciones || <span className="text-slate-300">Sin notas</span>}
+              <>
+                <div className="overflow-x-auto cc-desktop-table">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 bg-slate-50/10 text-left font-bold uppercase tracking-wider">
+                        <th className="px-5 py-3">Rango de Cierre</th>
+                        <th className="px-5 py-3">Fecha Cierre</th>
+                        <th className="px-5 py-3">Registrado Por</th>
+                        <th className="px-5 py-3 text-right">Ingresos</th>
+                        <th className="px-5 py-3 text-right">Egresos</th>
+                        <th className="px-5 py-3 text-right">Balance Neto</th>
+                        <th className="px-5 py-3">Observaciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/40">
+                      {cierreHistory.map((c) => {
+                        return (
+                          <tr key={c.id} className="ga-tr">
+                            <td className="px-5 py-3.5 font-semibold text-slate-700">
+                              {c.fechaInicio.split('T')[0]} al {c.fechaFin.split('T')[0]}
+                            </td>
+                            <td className="px-5 py-3.5 text-slate-500">
+                              {new Date(c.fecha).toLocaleString()}
+                            </td>
+                            <td className="px-5 py-3.5 font-medium text-slate-600">
+                              {c.usuario?.nombre || 'Administrador'}
+                            </td>
+                            <td className="px-5 py-3.5 text-right font-bold text-emerald-600">{fmt(c.totalIngresos)}</td>
+                            <td className="px-5 py-3.5 text-right font-bold text-red-500">{fmt(c.totalEgresos)}</td>
+                            <td className={`px-5 py-3.5 text-right font-extrabold ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                              {fmt(c.balance)}
+                            </td>
+                            <td className="px-5 py-3.5 text-slate-500 italic max-w-xs truncate" title={c.observaciones}>
+                              {c.observaciones || <span className="text-slate-300">Sin notas</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {cierreHistory.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
+                            No se han registrado cierres de caja todavía.
                           </td>
                         </tr>
-                      );
-                    })}
-                    {cierreHistory.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
-                          No se han registrado cierres de caja todavía.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="cc-mobile-cards">
+                  {cierreHistory.map((c) => {
+                    return (
+                      <div key={c.id} className="cc-mobile-card">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-slate-800">
+                            {c.fechaInicio.split('T')[0]} al {c.fechaFin.split('T')[0]}
+                          </span>
+                          <span className="text-[10px] text-slate-450 font-medium">
+                            {new Date(c.fecha).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-y-2 text-xs pt-1">
+                          <div>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Registrado Por</span>
+                            <span className="font-semibold text-slate-700">{c.usuario?.nombre || 'Administrador'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Balance Neto</span>
+                            <span className={`font-extrabold ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                              {fmt(c.balance)}
+                            </span>
+                          </div>
+                          <div className="text-emerald-600">
+                            <span className="text-[9px] text-emerald-400 font-bold uppercase block">Ingresos</span>
+                            <span className="font-bold">{fmt(c.totalIngresos)}</span>
+                          </div>
+                          <div className="text-red-500">
+                            <span className="text-[9px] text-red-400 font-bold uppercase block">Egresos</span>
+                            <span className="font-bold">{fmt(c.totalEgresos)}</span>
+                          </div>
+                        </div>
+                        {c.observaciones && (
+                          <div className="mt-1 pt-1.5 border-t border-slate-50 text-[11px] text-slate-500 italic">
+                            <span className="text-[9px] text-slate-400 font-bold uppercase not-italic block mb-0.5">Observaciones</span>
+                            {c.observaciones}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {cierreHistory.length === 0 && (
+                    <div className="text-center py-10 text-slate-400 font-medium text-xs">
+                      No se han registrado cierres de caja todavía.
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>

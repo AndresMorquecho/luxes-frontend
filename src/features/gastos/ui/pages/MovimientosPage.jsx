@@ -285,6 +285,24 @@ export const MovimientosPage = () => {
           to { opacity: 1; transform: translateY(0); }
         }
         .animate-mv-in { animation: mv-slide-up 0.35s cubic-bezier(0.16,1,0.3,1) forwards; }
+        @media (min-width: 768px) {
+          .mv-desktop-table { display: block; }
+          .mv-mobile-cards { display: none; }
+        }
+        @media (max-width: 767px) {
+          .mv-desktop-table { display: none; }
+          .mv-mobile-cards { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+          .mv-mobile-card {
+            background: #ffffff;
+            border: 1px solid #f1f5f9;
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+        }
       `}</style>
 
       {/* Header */}
@@ -461,8 +479,7 @@ export const MovimientosPage = () => {
             <p style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '4px' }}>Ajusta los filtros o el rango de fechas</p>
           </div>
         ) : (
-          <>
-            <div style={{ overflowX: 'auto' }}>
+                      <div className="mv-desktop-table" style={{ overflowX: 'auto' }}>
               <table className="mv-table">
                 <thead>
                   <tr>
@@ -548,6 +565,65 @@ export const MovimientosPage = () => {
                 </tbody>
               </table>
             </div>
+
+            <div className="mv-mobile-cards">
+              {paginated.map((m) => {
+                const origenStyle = ORIGEN_COLORS[m.origen] || {};
+                return (
+                  <div key={m.id + m.origen} className="mv-mobile-card">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11.5px] text-slate-500 font-semibold">
+                        {new Date(m.fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                      <span className={`mv-badge ${m.tipo === 'ingreso' ? 'mv-badge-ingreso' : 'mv-badge-egreso'}`}>
+                        {m.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
+                      </span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-800" style={{ lineHeight: '1.4' }}>
+                      {m.descripcion}
+                    </div>
+                    <div className="flex justify-between items-end mt-1">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '9.5px',
+                            fontWeight: 700,
+                            background: origenStyle.bg,
+                            color: origenStyle.color,
+                            border: `1px solid ${origenStyle.border}`,
+                          }}>
+                            {ORIGEN_LABELS[m.origen] || m.origen}
+                          </span>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '9.5px',
+                            fontWeight: 600,
+                            background: 'rgba(241,245,249,0.8)',
+                            color: '#475569',
+                            border: '1px solid #e2e8f0',
+                          }}>
+                            {m.metodoPago}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                          {m.entidad && <span><strong className="text-slate-400">Entidad:</strong> {m.entidad}</span>}
+                          {m.usuario && <span><strong className="text-slate-400">Por:</strong> {m.usuario}</span>}
+                          {m.referencia && <span><strong className="text-slate-400">Ref:</strong> {m.referencia}</span>}
+                        </div>
+                      </div>
+                      <span className={m.tipo === 'ingreso' ? 'mv-monto-ingreso text-sm' : 'mv-monto-egreso text-sm'} style={{ fontSize: '14px' }}>
+                        {m.tipo === 'ingreso' ? '+' : '-'}{fmt(m.monto)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>      </div>
 
             {/* Pagination */}
             {totalPages > 1 && (

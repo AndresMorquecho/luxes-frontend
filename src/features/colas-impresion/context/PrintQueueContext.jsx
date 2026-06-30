@@ -10,13 +10,13 @@ const INITIAL_ACTIVE_JOB = {
   name: "Banner_Luxes_2026_Final.pdf",
   pages: 1,
   copies: 1,
-  responsible: "ISAM", // Operator/Responsible (the active user)
+  responsible: "CristoferS", // Operator/Responsible (the active user)
   status: "Listo", // Starts as Ready to be manually started
   size: "1.2m x 2.4m",
   format: "Vinilo Lona",
   elapsedSeconds: 0,
   startTime: null,
-  sentBy: "ISAM",
+  sentBy: "PaolaC",
   sentAt: "04/06/2026 09:30",
   sentToQueueAt: "04/06/2026 09:30",
   startedPrintingAt: null,
@@ -34,24 +34,35 @@ const INITIAL_ACTIVE_JOB = {
 const INITIAL_QUEUE = [
   { id: 2, name: "Proforma_CLIENTE_Corporativo.pdf", pages: 3, copies: 2, status: "En espera", size: "Carta", format: "Papel Bond", sentBy: "Juan PÃ©rez", sentAt: "04/06/2026 11:20", sentToQueueAt: "04/06/2026 11:20", startedPrintingAt: null, fileUrl: null, client: "Distribuidora El Taller", urgency: "Alta", finish: "Normal", width: 0.216, height: 0.279, notes: "Sin acabado especial", proyectoId: null, proyectoNombre: null },
   { id: 3, name: "Flyers_DisenoPublicidad_Campana.png", pages: 1, copies: 500, status: "En espera", size: "A5", format: "Papel Couche", sentBy: "MarÃ­a LÃ³pez", sentAt: "04/06/2026 11:45", sentToQueueAt: "04/06/2026 11:45", startedPrintingAt: null, fileUrl: null, client: "Comercial Monchito", urgency: "Alta", finish: "Brillante", width: 0.148, height: 0.21, notes: "Corte al ras", proyectoId: null, proyectoNombre: null },
-  { id: 4, name: "Rol_De_Pago_Mayo_2026.pdf", pages: 15, copies: 1, status: "En espera", size: "A4", format: "Papel Bond", sentBy: "ISAM", sentAt: "04/06/2026 12:05", sentToQueueAt: "04/06/2026 12:05", startedPrintingAt: null, fileUrl: null, client: "Interno (NÃ³mina)", urgency: "Baja", finish: "Normal", width: 0.21, height: 0.297, notes: "Engrapado simple", proyectoId: null, proyectoNombre: null },
+  { id: 4, name: "Rol_De_Pago_Mayo_2026.pdf", pages: 15, copies: 1, status: "En espera", size: "A4", format: "Papel Bond", sentBy: "jeffersond", sentAt: "04/06/2026 12:05", sentToQueueAt: "04/06/2026 12:05", startedPrintingAt: null, fileUrl: null, client: "Interno (NÃ³mina)", urgency: "Baja", finish: "Normal", width: 0.21, height: 0.297, notes: "Engrapado simple", proyectoId: null, proyectoNombre: null },
   { id: 5, name: "Adhesivos_GloboLuxes_Troquel.ai", pages: 1, copies: 100, status: "En espera", size: "Metros", format: "Vinilo Adhesivo", sentBy: "Carlos Ruiz", sentAt: "04/06/2026 12:30", sentToQueueAt: "04/06/2026 12:30", startedPrintingAt: null, fileUrl: null, client: "Globo Impresiones", urgency: "Media", finish: "Brillante", width: 1.0, height: 3.5, notes: "Troquelar contorno", proyectoId: null, proyectoNombre: null }
 ];
 
 const INITIAL_COMPLETED_JOBS = [
-  { id: 101, name: "Planos_Edificio_A_Arquitectura.pdf", pages: 8, copies: 3, status: "Completado", size: "A3", format: "Papel Bond", sentBy: "Juan PÃ©rez", sentAt: "03/06/2026 14:10", sentToQueueAt: "03/06/2026 14:10", startedPrintingAt: "03/06/2026 14:15", completedAt: "03/06/2026 14:25", responsible: "ISAM", elapsedSeconds: 450, client: "Constructora Alfa", urgency: "Media", finish: "Normal", width: 0.297, height: 0.42, notes: "Imprimir en escala exacta", proyectoId: null, proyectoNombre: null },
-  { id: 102, name: "Gigantografia_Promo_Junio.ai", pages: 1, copies: 1, status: "Cancelado", size: "Metros", format: "Vinilo Lona", sentBy: "MarÃ­a LÃ³pez", sentAt: "03/06/2026 15:30", sentToQueueAt: "03/06/2026 15:30", startedPrintingAt: "03/06/2026 15:35", completedAt: "03/06/2026 15:45", responsible: "ISAM", elapsedSeconds: 120, client: "Supermercados Baratodo", urgency: "Alta", finish: "Brillante", width: 2.5, height: 4.0, notes: "Ojalillos en los bordes", cancelReason: "El cliente solicitÃ³ cambio de diseÃ±o de Ãºltimo minuto por error en los precios", proyectoId: null, proyectoNombre: null },
-  { id: 103, name: "Etiquetas_Frascos_Mermelada.png", pages: 2, copies: 150, status: "Completado", size: "Carta", format: "Vinilo Adhesivo", sentBy: "Carlos Ruiz", sentAt: "04/06/2026 08:15", sentToQueueAt: "04/06/2026 08:15", startedPrintingAt: "04/06/2026 08:20", completedAt: "04/06/2026 08:40", responsible: "ISAM", elapsedSeconds: 980, client: "Dulces Artesanales", urgency: "Baja", finish: "Brillante", width: 0.216, height: 0.279, notes: "Corte medio con troquel circular", proyectoId: null, proyectoNombre: null },
+  { id: 101, name: "Planos_Edificio_A_Arquitectura.pdf", pages: 8, copies: 3, status: "Completado", size: "A3", format: "Papel Bond", sentBy: "Juan PÃ©rez", sentAt: "03/06/2026 14:10", sentToQueueAt: "03/06/2026 14:10", startedPrintingAt: "03/06/2026 14:15", completedAt: "03/06/2026 14:25", responsible: "CristoferS", elapsedSeconds: 450, client: "Constructora Alfa", urgency: "Media", finish: "Normal", width: 0.297, height: 0.42, notes: "Imprimir en escala exacta", proyectoId: null, proyectoNombre: null },
+  { id: 102, name: "Gigantografia_Promo_Junio.ai", pages: 1, copies: 1, status: "Cancelado", size: "Metros", format: "Vinilo Lona", sentBy: "MarÃ­a LÃ³pez", sentAt: "03/06/2026 15:30", sentToQueueAt: "03/06/2026 15:30", startedPrintingAt: "03/06/2026 15:35", completedAt: "03/06/2026 15:45", responsible: "CristoferS", elapsedSeconds: 120, client: "Supermercados Baratodo", urgency: "Alta", finish: "Brillante", width: 2.5, height: 4.0, notes: "Ojalillos en los bordes", cancelReason: "El cliente solicitÃ³ cambio de diseÃ±o de Ãºltimo minuto por error en los precios", proyectoId: null, proyectoNombre: null },
+  { id: 103, name: "Etiquetas_Frascos_Mermelada.png", pages: 2, copies: 150, status: "Completado", size: "Carta", format: "Vinilo Adhesivo", sentBy: "Carlos Ruiz", sentAt: "04/06/2026 08:15", sentToQueueAt: "04/06/2026 08:15", startedPrintingAt: "04/06/2026 08:20", completedAt: "04/06/2026 08:40", responsible: "CristoferS", elapsedSeconds: 980, client: "Dulces Artesanales", urgency: "Baja", finish: "Brillante", width: 0.216, height: 0.279, notes: "Corte medio con troquel circular", proyectoId: null, proyectoNombre: null },
   // Pre-seed: vincular un job completado al proyecto p3 (Banderas Guayarte Plaza)
-  { id: 104, name: "Banderas_Guayarte_ArteFinal.pdf", pages: 1, copies: 4, status: "Completado", size: "Metros", format: "Lona Banner", sentBy: "MORQUECHO IVETTE", sentAt: "02/06/2026 10:00", sentToQueueAt: "02/06/2026 10:00", startedPrintingAt: "02/06/2026 10:30", completedAt: "02/06/2026 11:15", responsible: "ISAM", elapsedSeconds: 2700, client: "M. I. Municipalidad de Guayaquil", urgency: "Alta", finish: "Normal", width: 2.0, height: 5.0, notes: "Ojalillos reforzados cada 40cm", proyectoId: 'p3', proyectoNombre: 'Banderas Guayarte Plaza' },
-  { id: 105, name: "Tarjetas_Presentacion_Luxes.ai", pages: 2, copies: 200, status: "Completado", size: "A4", format: "Papel Couche", sentBy: "MarÃ­a LÃ³pez", sentAt: "04/06/2026 10:10", sentToQueueAt: "04/06/2026 10:10", startedPrintingAt: "04/06/2026 10:18", completedAt: "04/06/2026 10:35", responsible: "ISAM", elapsedSeconds: 540, client: "CorporaciÃ³n Luxes", urgency: "Baja", finish: "Mate", width: 0.21, height: 0.297, notes: "Corte individual con bordes redondeados", proyectoId: null, proyectoNombre: null },
-  { id: 106, name: "Banner_Ofertas_Televisores.png", pages: 1, copies: 2, status: "Cancelado", size: "Metros", format: "Lona Banner", sentBy: "Carlos Ruiz", sentAt: "04/06/2026 11:00", sentToQueueAt: "04/06/2026 11:00", startedPrintingAt: "04/06/2026 11:05", completedAt: "04/06/2026 11:15", responsible: "ISAM", elapsedSeconds: 80, client: "Tienda Electro", urgency: "Alta", finish: "Normal", width: 1.0, height: 2.0, notes: "Ojalillos reforzados", cancelReason: "Material atascado en cabezal de impresiÃ³n, daÃ±o en el sustrato", proyectoId: null, proyectoNombre: null }
+  { id: 104, name: "Banderas_Guayarte_ArteFinal.pdf", pages: 1, copies: 4, status: "Completado", size: "Metros", format: "Lona Banner", sentBy: "MORQUECHO IVETTE", sentAt: "02/06/2026 10:00", sentToQueueAt: "02/06/2026 10:00", startedPrintingAt: "02/06/2026 10:30", completedAt: "02/06/2026 11:15", responsible: "CristoferS", elapsedSeconds: 2700, client: "M. I. Municipalidad de Guayaquil", urgency: "Alta", finish: "Normal", width: 2.0, height: 5.0, notes: "Ojalillos reforzados cada 40cm", proyectoId: 'p3', proyectoNombre: 'Banderas Guayarte Plaza' },
+  { id: 105, name: "Tarjetas_Presentacion_Luxes.ai", pages: 2, copies: 200, status: "Completado", size: "A4", format: "Papel Couche", sentBy: "MarÃ­a LÃ³pez", sentAt: "04/06/2026 10:10", sentToQueueAt: "04/06/2026 10:10", startedPrintingAt: "04/06/2026 10:18", completedAt: "04/06/2026 10:35", responsible: "CristoferS", elapsedSeconds: 540, client: "CorporaciÃ³n Luxes", urgency: "Baja", finish: "Mate", width: 0.21, height: 0.297, notes: "Corte individual con bordes redondeados", proyectoId: null, proyectoNombre: null },
+  { id: 106, name: "Banner_Ofertas_Televisores.png", pages: 1, copies: 2, status: "Cancelado", size: "Metros", format: "Lona Banner", sentBy: "Carlos Ruiz", sentAt: "04/06/2026 11:00", sentToQueueAt: "04/06/2026 11:00", startedPrintingAt: "04/06/2026 11:05", completedAt: "04/06/2026 11:15", responsible: "CristoferS", elapsedSeconds: 80, client: "Tienda Electro", urgency: "Alta", finish: "Normal", width: 1.0, height: 2.0, notes: "Ojalillos reforzados", cancelReason: "Material atascado en cabezal de impresiÃ³n, daÃ±o en el sustrato", proyectoId: null, proyectoNombre: null }
 ];
 
 export const PrintQueueProvider = ({ children }) => {
   const [activeJob, setActiveJob] = useState(null);
   const [queue, setQueue] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
+
+  const getActiveUser = () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        return u.username || u.nombre || 'Sistema';
+      }
+    } catch (e) {}
+    return 'Sistema';
+  };
 
   // Modal states
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -140,7 +151,7 @@ export const PrintQueueProvider = ({ children }) => {
         headers: getHeaders(),
         body: JSON.stringify({
           status: 'Imprimiendo',
-          responsible: localStorage.getItem('userName') || 'ISAM',
+          responsible: getActiveUser(),
         }),
       });
       if (res.ok) {
@@ -178,7 +189,7 @@ export const PrintQueueProvider = ({ children }) => {
         headers: getHeaders(),
         body: JSON.stringify({
           status: 'Completado',
-          responsible: localStorage.getItem('userName') || 'ISAM',
+          responsible: getActiveUser(),
         }),
       });
       if (res.ok) {
@@ -212,7 +223,7 @@ export const PrintQueueProvider = ({ children }) => {
         body: JSON.stringify({
           status: 'Cancelado',
           cancelReason: cancelReasonText,
-          responsible: localStorage.getItem('userName') || 'ISAM',
+          responsible: getActiveUser(),
         }),
       });
       if (res.ok) {
@@ -265,7 +276,7 @@ export const PrintQueueProvider = ({ children }) => {
         headers: getHeaders(),
         body: JSON.stringify({ 
           status, 
-          responsible: localStorage.getItem('userName') || 'ISAM',
+          responsible: getActiveUser(),
           ...extraData 
         }),
       });

@@ -711,11 +711,11 @@ export const ColasImpresionPage = () => {
                       {/* Operator info with avatar */}
                       <div className="operator-info-container">
                         <div className="operator-avatar" title="Operador responsable">
-                          {(activeJob.responsible || 'ISAM').substring(0, 2).toUpperCase()}
+                          {(activeJob.responsible || 'Sin asignar').substring(0, 2).toUpperCase()}
                         </div>
                         <div className="operator-details">
                           <span className="operator-label">Operador</span>
-                          <span className="operator-name">{activeJob.responsible || 'ISAM'}</span>
+                          <span className="operator-name">{activeJob.responsible || 'Sin asignar'}</span>
                         </div>
                         
                         <div className="start-time-container">
@@ -1254,7 +1254,7 @@ export const ColasImpresionPage = () => {
                             </div>
                           </td>
                           <td>{job.sentBy || 'Usuario'}</td>
-                          <td>{job.responsible || 'ISAM'}</td>
+                          <td>{job.responsible || 'Sin asignar'}</td>
                           <td>{formatTime(job.elapsedSeconds)}</td>
                           <td>
                             <span className={`queue-status-badge ${job.status === 'Completado' ? 'status-completed' : 'status-canceled'}`}>
@@ -1329,7 +1329,7 @@ export const ColasImpresionPage = () => {
                           </div>
                           <div className="colas-card-row">
                             <span className="colas-card-label">Responsable:</span>
-                            <span className="colas-card-value">{job.responsible || 'ISAM'}</span>
+                            <span className="colas-card-value">{job.responsible || 'Sin asignar'}</span>
                           </div>
                           <div className="colas-card-row">
                             <span className="colas-card-label">Duración:</span>
@@ -1523,7 +1523,7 @@ export const ColasImpresionPage = () => {
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Responsable (Operador)</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.responsible || 'ISAM'}</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.responsible || 'Sin asignar'}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Duración de Impresión</span>
