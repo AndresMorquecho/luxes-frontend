@@ -479,7 +479,8 @@ export const MovimientosPage = () => {
             <p style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '4px' }}>Ajusta los filtros o el rango de fechas</p>
           </div>
         ) : (
-                      <div className="mv-desktop-table" style={{ overflowX: 'auto' }}>
+          <>
+            <div className="mv-desktop-table" style={{ overflowX: 'auto' }}>
               <table className="mv-table">
                 <thead>
                   <tr>
@@ -623,7 +624,7 @@ export const MovimientosPage = () => {
                   </div>
                 );
               })}
-            </div>      </div>
+            </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
