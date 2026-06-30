@@ -1,12 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, FileText, Eye, X, CheckCircle, Clock, FileEdit, Calendar } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { getProformas } from '../../../proformas/application/proformasService.js';
 import { ProformaPDF } from '../../../proformas/ui/components/ProformaPDF.jsx';
 import { getProyectos } from '../../application/proyectosService.js';
 
+const normalizeClientName = (value) =>
+  (value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
 export function CotizacionPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
+  const isAdmin = useMemo(() => {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const rol = (user?.rol || '').toLowerCase();
+    return rol === 'admin' || rol === 'administrador';
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedCotizaciones, setSelectedCotizaciones] = useState(proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas || []);
@@ -33,19 +45,24 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   }, []);
 
   useEffect(() => {
+    if (!proyecto) return;
+
     const filters = { limit: 1000, estado: 'Aprobada' };
-    if (proyecto?.clienteId) {
+    if (!isAdmin && proyecto.clienteId) {
       filters.clienteId = proyecto.clienteId;
+    } else if (!isAdmin) {
+      const clientName = proyecto.cliente?.nombre || proyecto.clienteNombre;
+      if (clientName) filters.search = clientName;
     }
+
     getProformas(filters).then(response => {
-      // Handle both response formats: {data: []} or direct array
       const proformasData = response?.data || response || [];
       setProformas(Array.isArray(proformasData) ? proformasData : []);
     }).catch(err => {
       console.error('Error loading proformas:', err);
       setProformas([]);
     });
-  }, [proyecto?.clienteId]);
+  }, [proyecto, isAdmin]);
 
   useEffect(() => {
     getProyectos({ limit: 1000 }).then(response => {
@@ -60,26 +77,34 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   const normProformas = proformas.map(p => ({
     id: p.id,
     clienteId: p.clienteId,
-    cliente: p.cliente,
+    cliente: p.cliente || p.clienteNombre || '',
     creadoPor: p.atiende || '—',
     atiende: p.atiende || '—',
     fecha: p.fecha,
-    total: p.items.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0),
+    total: (p.items || []).reduce((s, i) => s + i.cantidad * i.precioUnitario, 0),
     estado: p.estado,
-    items: p.items,
+    items: p.items || [],
     iva: p.iva,
   }));
 
+  const projectClientNames = useMemo(() => {
+    if (!proyecto) return [];
+    return [
+      proyecto.cliente?.nombre,
+      proyecto.cliente?.empresa,
+      proyecto.clienteNombre,
+      proyecto.clienteEmpresa,
+    ]
+      .map(normalizeClientName)
+      .filter(Boolean);
+  }, [proyecto]);
+
   const isRelatedToClient = (c) => {
     if (!proyecto) return false;
-    // Comparar por clienteId si ambos existen
-    if (c.clienteId && proyecto.clienteId) {
-      return c.clienteId === proyecto.clienteId;
-    }
-    // Si no, comparar nombres como respaldo
-    const profClient = (c.cliente || '').trim().toLowerCase();
-    const projClient = (proyecto.cliente?.nombre || proyecto.clienteNombre || '').trim().toLowerCase();
-    return profClient === projClient;
+    if (c.clienteId && proyecto.clienteId && c.clienteId === proyecto.clienteId) return true;
+    const profName = normalizeClientName(c.cliente);
+    if (!profName) return false;
+    return projectClientNames.some((name) => name === profName || name.includes(profName) || profName.includes(name));
   };
 
   const isLinkedToOtherProject = (proformaId) => {
@@ -90,15 +115,50 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
     );
   };
 
-  // Filtrar proformas: solo Aprobadas/Pagadas, del mismo cliente, que no estén ya seleccionadas ni vinculadas a otros proyectos activos, y que coincidan con la búsqueda
-  const filteredProformas = normProformas.filter(c => 
-    (c.estado === 'Aprobada' || c.estado === 'Pagada') &&
-    isRelatedToClient(c) &&
-    !selectedCotizaciones.find(sc => sc.id === c.id) &&
-    !isLinkedToOtherProject(c.id) &&
-    (c.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     c.cliente.toLowerCase().includes(searchTerm.toLowerCase()))
+  const approvedProformas = normProformas.filter(
+    (c) => c.estado === 'Aprobada' || c.estado === 'Pagada'
   );
+
+  const matchesSearch = (c) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      c.id.toLowerCase().includes(term) ||
+      (c.cliente || '').toLowerCase().includes(term)
+    );
+  };
+
+  // Admin: ve todas las aprobadas; otros roles: solo las del cliente del proyecto
+  const filteredProformas = approvedProformas.filter((c) =>
+    (isAdmin || isRelatedToClient(c)) &&
+    !selectedCotizaciones.find((sc) => sc.id === c.id) &&
+    !isLinkedToOtherProject(c.id) &&
+    matchesSearch(c)
+  );
+
+  const getEmptyMessage = () => {
+    if (proformas.length === 0) return 'No hay proformas disponibles.';
+    if (approvedProformas.length === 0) return 'No hay proformas aprobadas disponibles.';
+
+    const availableByClient = approvedProformas.filter((c) => isAdmin || isRelatedToClient(c));
+    if (!isAdmin && availableByClient.length === 0) {
+      return 'Hay proformas aprobadas, pero ninguna corresponde al cliente de este proyecto.';
+    }
+
+    const notLinked = availableByClient.filter(
+      (c) =>
+        !selectedCotizaciones.find((sc) => sc.id === c.id) &&
+        !isLinkedToOtherProject(c.id)
+    );
+    if (notLinked.length === 0 && availableByClient.length > 0) {
+      return 'Las proformas aprobadas ya están vinculadas a este u otro proyecto.';
+    }
+
+    if (searchTerm.trim()) {
+      return `No se encontraron proformas aprobadas para "${searchTerm}"`;
+    }
+    return 'No hay proformas aprobadas disponibles para vincular.';
+  };
 
   const handleSelect = (cotizacion) => {
     const nuevasCotizaciones = [...selectedCotizaciones, cotizacion];
@@ -157,11 +217,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
             <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-72 overflow-y-auto overflow-x-hidden">
               {filteredProformas.length === 0 ? (
                 <div className="p-6 text-center text-slate-500">
-                  {proformas.length === 0 
-                    ? 'No hay proformas disponibles.' 
-                    : normProformas.filter(p => p.estado === 'Aprobada' || p.estado === 'Pagada').length === 0
-                    ? 'No hay proformas aprobadas disponibles.'
-                    : `No se encontraron proformas aprobadas para "${searchTerm}"`}
+                  {getEmptyMessage()}
                 </div>
               ) : (
                 filteredProformas.map(c => (
