@@ -26,14 +26,15 @@ export function FaseTimeline({ faseActual, fases = {}, onFaseClick, faseVista, r
       <div className="timeline-desktop-only w-full overflow-x-auto">
         <div className="flex items-start min-w-max px-2 py-2">
           {filteredFases.map((fase, idx) => {
+            const idxActual = filteredFases.findIndex(f => f.id === faseActual);
             const esActual = fase.id === faseActual;
-            const esCompletada = fases[fase.id]?.completada === true;
+            const esCompletada = fases[fase.id]?.completada === true || idx < idxActual;
             const esFutura = !esActual && !esCompletada;
             const Icon = ICON_MAP[fase.icon] || FileText;
             const esUltima = idx === filteredFases.length - 1;
 
             const esVista = fase.id === (faseVista || faseActual);
-            const clickable = esCompletada || esActual;
+            const clickable = true; // Permite navegar sin restricciones por las fases del proyecto
 
             return (
               <div key={fase.id} className="flex items-start">
@@ -95,11 +96,12 @@ export function FaseTimeline({ faseActual, fases = {}, onFaseClick, faseVista, r
       {/* Mobile Grid Chip Tabs */}
       <div className="timeline-mobile-only p-1 bg-slate-50 border border-slate-200/80 rounded-2xl">
         <div className="grid grid-cols-2 gap-2">
-          {filteredFases.map((fase) => {
+          {filteredFases.map((fase, idx) => {
+            const idxActual = filteredFases.findIndex(f => f.id === faseActual);
             const esActual = fase.id === faseActual;
-            const esCompletada = fases[fase.id]?.completada === true;
+            const esCompletada = fases[fase.id]?.completada === true || idx < idxActual;
             const esVista = fase.id === (faseVista || faseActual);
-            const clickable = esCompletada || esActual;
+            const clickable = true; // Permite navegar sin restricciones por las fases del proyecto
 
             return (
               <button
