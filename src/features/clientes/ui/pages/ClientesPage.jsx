@@ -3,6 +3,7 @@ import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalP
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { getClientes, saveCliente, deleteCliente } from '../../application/clientesService';
+import { useProyectosContext } from '../../../proyectos/application/context/ProyectosContext.jsx';
 
 const EMPTY_FORM = { nombre: '', cedulaRuc: '', telefono: '', email: '', direccion: '', tipo: 'Persona', notas: '' };
 const TIPOS = ['Persona', 'Empresa'];
@@ -10,6 +11,7 @@ const TIPOS = ['Persona', 'Empresa'];
 const initial = (name) => name?.charAt(0)?.toUpperCase() ?? '?';
 
 export const ClientesPage = () => {
+  const { reloadProyectos } = useProyectosContext();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -53,6 +55,9 @@ export const ClientesPage = () => {
     setSaving(true);
     try {
       const saved = await saveCliente(form);
+      if (editing && reloadProyectos) {
+        reloadProyectos();
+      }
       setClientes(prev => {
         const idx = prev.findIndex(c => c.id === saved.id);
         if (idx >= 0) {

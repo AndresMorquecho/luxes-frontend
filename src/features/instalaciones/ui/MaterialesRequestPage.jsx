@@ -7,7 +7,7 @@ import { ACTIONS } from '../../proyectos/application/store/proyectosStore.js';
 import { 
   ArrowLeft, Search, Plus, Trash2, MapPin, 
   Package, ShoppingCart, Clock, CheckCircle, AlertTriangle,
-  Wrench, User, Calendar, HelpCircle, Eye, Play, Save, Camera, UploadCloud, X
+  Wrench, User, Calendar, HelpCircle, Eye, Play, Save, Camera, UploadCloud, X, Star
 } from 'lucide-react';
 import { PDFPreviewModal } from '../../../shared/ui/components/PDFPreviewModal.jsx';
 import { useProyecto } from '../../proyectos/application/hooks/useProyecto.js';
@@ -23,6 +23,7 @@ import {
 } from '../../proyectos/domain/instalacionRules.js';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../proyectos/domain/encuestaUtils.js';
 import { EncuestaResultadosView } from '../../proyectos/ui/components/EncuestaResultadosView.jsx';
+import { isTallerUser } from '../../../shared/utils/userRoleHelpers.js';
 import './MaterialesRequestPage.css';
 
 
@@ -31,6 +32,8 @@ export function MaterialesRequestPage() {
   const navigate = useNavigate();
   const { reloadProyectos, adapter } = useProyectosContext();
   const { proyecto, updateFaseDatos } = useProyecto(id);
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const puedeEnviarEncuesta = isTallerUser(user);
 
   const datosInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
   const materialesExistentes = datosInstalacion.materiales || [];
@@ -481,9 +484,13 @@ export function MaterialesRequestPage() {
             notasCierre: observacionesCierre,
             fechaFin: new Date().toISOString().split('T')[0]
           });
-          setProyectoParaEncuesta(snapshot);
-          toast.success('¡Instalación completada! Envía la encuesta al cliente.');
-          window.setTimeout(() => setIsSurveyModalOpen(true), 200);
+          if (puedeEnviarEncuesta) {
+            setProyectoParaEncuesta(snapshot);
+            toast.success('¡Instalación completada! Envía la encuesta al cliente.');
+            window.setTimeout(() => setIsSurveyModalOpen(true), 200);
+          } else {
+            toast.success('¡Instalación completada en sitio!');
+          }
         } catch (err) {
           toast.error('No se pudo completar la instalación: ' + err.message);
         }
@@ -511,7 +518,7 @@ export function MaterialesRequestPage() {
 
   const proyectoEncuesta = proyectoParaEncuesta || proyecto;
 
-  const surveyModalEl = (
+  const surveyModalEl = puedeEnviarEncuesta ? (
     <SendSurveyModal
       isOpen={isSurveyModalOpen && !!proyectoEncuesta}
       onClose={handleCerrarEncuesta}
@@ -520,7 +527,7 @@ export function MaterialesRequestPage() {
       onSend={marcarEncuestaEnviada}
       onConfirm={handleCerrarEncuesta}
     />
-  );
+  ) : null;
 
   if (!proyecto) {
     return (
@@ -1255,9 +1262,23 @@ export function MaterialesRequestPage() {
                         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-500">
                           Encuesta enviada — esperando respuesta del cliente.
                         </div>
+                      ) : puedeEnviarEncuesta ? (
+                        <div className="space-y-3">
+                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
+                            Encuesta pendiente de envío al cliente.
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsSurveyModalOpen(true)}
+                            className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                          >
+                            <Star size={16} className="fill-current" />
+                            Enviar encuesta de calificación
+                          </button>
+                        </div>
                       ) : (
-                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
-                          Encuesta pendiente de envío al cliente.
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-500">
+                          Encuesta pendiente — la enviará el equipo de Taller.
                         </div>
                       )}
                     </div>

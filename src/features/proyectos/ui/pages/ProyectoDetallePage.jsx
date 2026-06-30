@@ -20,10 +20,10 @@ import { DisenoPanel } from '../components/DisenoPanel.jsx';
 import { ProduccionPanel } from '../components/ProduccionPanel.jsx';
 import { EntregaPanel } from '../components/EntregaPanel.jsx';
 import { CompletadoPanel } from '../components/CompletadoPanel.jsx';
-import { SendSurveyModal } from '../components/SendSurveyModal.jsx';
-import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { PRIORIDADES_CONFIG, ESTADOS_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { getFaseConfig, FASES } from '../../domain/value-objects/FaseConfig.js';
+import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
 
 export default function ProyectoDetallePage() {
   const { id } = useParams();
@@ -42,7 +42,6 @@ export default function ProyectoDetallePage() {
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
   const [confirmRetroceder, setConfirmRetroceder] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const userRole = (user?.rol || '').toLowerCase();
@@ -61,6 +60,15 @@ export default function ProyectoDetallePage() {
       reloadProyectos();
     }
   }, [id, reloadProyectos]);
+
+  React.useEffect(() => {
+    if (!isDetailsModalOpen) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isDetailsModalOpen]);
 
   if (!proyecto) {
     return (
@@ -83,21 +91,17 @@ export default function ProyectoDetallePage() {
   const esUltimaFase = proyecto.faseActual === 'COMPLETADO';
   const esPrimeraFase = proyecto.faseActual === 'COTIZACION';
 
-  const estaVencido =
-    proyecto.fechaEntregaEstimada &&
-    proyecto.estado !== 'COMPLETADO' &&
-    new Date(proyecto.fechaEntregaEstimada) < new Date();
+  const estaVencido = proyectoEstaVencido(proyecto);
 
   const fasesCompletadas = FASES.filter(
     (f) => proyecto.fases?.[f.id]?.completada
   );
 
+  const mostrarEstadoProyecto =
+    proyecto.estado === 'PAUSADO' || proyecto.estado === 'CANCELADO';
+
   const handleAvanzar = () => {
-    if (proyecto.faseActual === 'ENTREGA' || (proyecto.faseActual === 'INSTALACION' && proyecto.requiereInstalacion)) {
-      setIsSurveyModalOpen(true);
-    } else {
-      avanzar();
-    }
+    avanzar();
     setConfirmAvanzar(false);
   };
 
@@ -105,71 +109,73 @@ export default function ProyectoDetallePage() {
     <div className="min-h-screen bg-slate-50 pb-12">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20 shadow-sm">
-        <div className="w-full mx-auto flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
-          {/* Título + metadatos */}
-          <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+        <div className="w-full mx-auto space-y-3">
+          {/* Fila 1: navegación + título */}
+          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => navigate('/proyectos')}
-              className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors shrink-0 mt-0.5"
+              className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors shrink-0 -ml-1 sm:ml-0"
               aria-label="Volver a proyectos"
             >
               <ArrowLeft size={18} />
             </button>
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start gap-2">
-                <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-snug flex-1 min-w-0">
-                  {proyecto.nombre}
-                </h1>
-                <button
-                  onClick={() => setIsDetailsModalOpen(true)}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
-                  title="Ver más detalles"
-                >
-                  <Eye size={16} />
-                </button>
-              </div>
-
-              <div className="mt-2.5 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
-                <span className="flex items-start gap-1.5 min-w-0" title="Cliente">
-                  <User size={12} className="shrink-0 mt-0.5" />
-                  <span className="leading-relaxed min-w-0">
-                    <span className="block sm:inline font-medium text-slate-600">{proyecto.cliente.empresa}</span>
-                    <span className="hidden sm:inline mx-1 text-slate-300">•</span>
-                    <span className="block sm:inline text-slate-500">{proyecto.cliente.nombre}</span>
-                  </span>
-                </span>
-
-                <span
-                  className={`flex items-center gap-1.5 shrink-0 ${
-                    estaVencido ? 'text-red-500' : 'text-slate-600'
-                  }`}
-                  title="Entrega estimada"
-                >
-                  <Calendar size={12} className={`shrink-0 ${estaVencido ? 'text-red-500' : 'text-slate-400'}`} />
-                  <span className={`whitespace-nowrap ${estaVencido ? 'font-semibold' : 'font-medium'}`}>
-                    {proyecto.fechaEntregaEstimada ? `Entrega: ${proyecto.fechaEntregaEstimada}` : 'Sin fecha de entrega'}
-                  </span>
-                </span>
-              </div>
+            <div className="min-w-0 flex-1 flex items-start justify-between gap-2">
+              <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-snug min-w-0">
+                {proyecto.nombre}
+              </h1>
+              <button
+                onClick={() => setIsDetailsModalOpen(true)}
+                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
+                title="Ver más detalles"
+              >
+                <Eye size={16} />
+              </button>
             </div>
           </div>
 
-          {/* Badges */}
-          <div className="flex items-center gap-2 flex-wrap pl-11 sm:pl-0 md:justify-end md:shrink-0">
-            <span
-              className="text-xs font-bold px-2.5 py-1 rounded-full"
-              style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
-            >
-              {prioridadConfig.label}
-            </span>
-            <span
-              className="text-xs font-bold px-2.5 py-1 rounded-full"
-              style={{ backgroundColor: estadoConfig.bgColor, color: estadoConfig.textColor }}
-            >
-              {estadoConfig.label}
-            </span>
-            <FaseBadge faseId={proyecto.faseActual} size="md" />
+          {/* Fila 2: metadatos + badges */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="flex flex-col gap-1.5 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1 min-w-0">
+              <span className="flex items-center gap-1.5 min-w-0" title="Cliente">
+                <User size={12} className="shrink-0 text-slate-400" />
+                <span className="min-w-0 truncate">
+                  <span className="font-medium text-slate-600">{proyecto.cliente.empresa}</span>
+                  <span className="mx-1.5 text-slate-300 hidden sm:inline">•</span>
+                  <span className="text-slate-500 sm:inline block sm:mt-0 mt-0.5">{proyecto.cliente.nombre}</span>
+                </span>
+              </span>
+
+              <span
+                className={`flex items-center gap-1.5 shrink-0 ${
+                  estaVencido ? 'text-red-500' : 'text-slate-600'
+                }`}
+                title="Entrega estimada"
+              >
+                <Calendar size={12} className={`shrink-0 ${estaVencido ? 'text-red-500' : 'text-slate-400'}`} />
+                <span className={`whitespace-nowrap ${estaVencido ? 'font-semibold' : 'font-medium'}`}>
+                  {proyecto.fechaEntregaEstimada ? `Entrega: ${proyecto.fechaEntregaEstimada}` : 'Sin fecha de entrega'}
+                </span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap sm:justify-end sm:shrink-0">
+              <span
+                className="text-[11px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full"
+                style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
+              >
+                {prioridadConfig.label}
+              </span>
+              {mostrarEstadoProyecto && (
+                <span
+                  className="text-[11px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full"
+                  style={{ backgroundColor: estadoConfig.bgColor, color: estadoConfig.textColor }}
+                >
+                  {estadoConfig.label}
+                </span>
+              )}
+              <FaseBadge faseId={proyecto.faseActual} size="sm" />
+            </div>
           </div>
         </div>
       </div>
@@ -374,22 +380,40 @@ export default function ProyectoDetallePage() {
 
       {/* Modal de Detalles del Proyecto */}
       {isDetailsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Eye size={18} className="text-blue-600" />
-                Detalles del Proyecto
-              </h2>
-              <button 
-                onClick={() => setIsDetailsModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-[200] flex flex-col sm:items-center sm:justify-center sm:p-4 bg-slate-900/55 backdrop-blur-sm"
+            onClick={() => setIsDetailsModalOpen(false)}
+            role="presentation"
+          >
+            <div
+              className="bg-white w-full flex flex-col overflow-hidden shadow-xl
+                h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[min(90vh,900px)] sm:max-w-4xl sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="proyecto-detalles-titulo"
+            >
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50 shrink-0">
+                <h2
+                  id="proyecto-detalles-titulo"
+                  className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2 min-w-0"
+                >
+                  <Eye size={18} className="text-blue-600 shrink-0" />
+                  <span className="truncate">Detalles del Proyecto</span>
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors shrink-0"
+                  aria-label="Cerrar detalles"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
               {/* Datos generales */}
               <div>
                 <h3 className="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Información General</h3>
@@ -459,7 +483,8 @@ export default function ProyectoDetallePage() {
                     </div>
                   )}
 
-                  {/* Gastos del Proyecto */}
+                  {/* Gastos del Proyecto — solo roles con acceso financiero */}
+                  {canViewGastos && (
                   <div className="pt-3 border-t border-slate-100 text-sm">
                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-2">Gastos Registrados</p>
                     {proyecto.gastos && proyecto.gastos.length > 0 ? (
@@ -484,6 +509,7 @@ export default function ProyectoDetallePage() {
                       <p className="text-xs text-slate-400 italic">No hay gastos registrados aún en este proyecto.</p>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
 
@@ -493,22 +519,19 @@ export default function ProyectoDetallePage() {
                 {fasesCompletadas.length === 0 ? (
                   <p className="text-sm text-slate-400 bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">Sin fases completadas aún.</p>
                 ) : (
-                  <div className="space-y-4 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+                  <div className="space-y-3">
                     {fasesCompletadas.map((fase) => {
                       const config = getFaseConfig(fase.id);
                       const datos = proyecto.fases[fase.id];
                       return (
-                        <div key={fase.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                        <div key={fase.id} className="flex items-start gap-3">
                           <div
-                            className="w-4 h-4 rounded-full shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow flex items-center justify-center z-10"
+                            className="w-3 h-3 rounded-full shrink-0 mt-1.5 shadow-sm ring-2 ring-white"
                             style={{ backgroundColor: config?.color }}
-                          >
-                            <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                          </div>
-                          
-                          <div className="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                          />
+                          <div className="flex-1 min-w-0 bg-slate-50 p-3 rounded-xl border border-slate-100">
                             <p className="text-sm font-bold text-slate-700">{config?.label}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">{datos.fechaCompletada}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{datos.fechaCompletada || 'Sin fecha registrada'}</p>
                           </div>
                         </div>
                       );
@@ -516,28 +539,13 @@ export default function ProyectoDetallePage() {
                   </div>
                 )}
               </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
-      {/* Modal de Encuesta */}
-      <SendSurveyModal
-        isOpen={isSurveyModalOpen}
-        onClose={() => setIsSurveyModalOpen(false)}
-        proyecto={proyecto}
-        variant="proyecto"
-        onSend={async () => {
-          await updateFaseDatos('INSTALACION', {
-            encuestaEnviada: true,
-            fechaEncuestaEnviada: new Date().toISOString().split('T')[0],
-          });
-        }}
-        onConfirm={() => {
-          setIsSurveyModalOpen(false);
-          deferClose(() => avanzar());
-        }}
-      />
     </div>
   );
 }

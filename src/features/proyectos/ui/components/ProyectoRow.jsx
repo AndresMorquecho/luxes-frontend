@@ -6,6 +6,7 @@ import { AlertTriangle, Eye, PenLine, Trash2 } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { calcularDiasDesde } from '../../domain/utils/proyectoDates.js';
+import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { FaseBadge } from './FaseBadge.jsx';
 import { ProgressBar } from './ProgressBar.jsx';
@@ -20,10 +21,7 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
   const faseConfig = getFaseConfig(proyecto.faseActual);
   const prioridadConfig = PRIORIDADES_CONFIG[proyecto.prioridad] || PRIORIDADES_CONFIG.MEDIA;
 
-  const estaVencido =
-    proyecto.fechaEntregaEstimada &&
-    proyecto.estado !== 'COMPLETADO' &&
-    new Date(proyecto.fechaEntregaEstimada) < new Date();
+  const estaVencido = proyectoEstaVencido(proyecto);
 
   const diasTranscurridos = calcularDiasDesde(proyecto.fechaInicio || proyecto.fechaCreacion);
 

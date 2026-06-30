@@ -209,11 +209,90 @@ export function HorarioDelDiaBanner({
   horariosConfig,
   fechaActiva,
   showAllHorarios = false,
+  compact = false,
+  kiosk = false,
+  kioskColumn = false,
+  embedded = false,
 }) {
   const isDark = theme === 'dark';
   const slots = HORARIO_SLOTS.filter(({ key }) => esperado?.[key]);
   const horarios = showAllHorarios && horariosConfig ? getHorariosResumen(horariosConfig) : null;
   const activoKey = fechaActiva && isSabado(fechaActiva) ? 'sabado' : 'semana';
+
+  if (kioskColumn) {
+    const panelShell = embedded
+      ? 'h-full flex flex-col min-h-0'
+      : 'h-full w-full flex flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-slate-800/90 via-slate-900/95 to-slate-950 shadow-xl shadow-black/30 backdrop-blur-md p-5 overflow-hidden';
+
+    return (
+      <div className={panelShell}>
+        <div className={`shrink-0 ${embedded ? '' : 'mb-4'}`}>
+          <div className={`flex items-center gap-2 ${embedded ? 'justify-center' : ''}`}>
+            <div className={`w-1 rounded-full bg-sky-400 ${embedded ? 'h-3' : 'h-5'}`} />
+            <p className={`font-bold uppercase text-sky-200 tracking-widest ${embedded ? 'text-[10px]' : 'text-sm'}`}>
+              Horario
+            </p>
+          </div>
+          {!embedded && (
+            <p className="hidden lg:block text-[11px] text-slate-400 leading-relaxed mt-2.5 px-3 py-2 rounded-lg bg-slate-950/50 border border-white/5">
+              {label}
+            </p>
+          )}
+        </div>
+        <div className={`grid grid-rows-5 gap-1 flex-1 min-h-0 ${embedded ? 'mt-1.5' : 'lg:flex lg:flex-col lg:gap-2.5 lg:justify-center'}`}>
+          {slots.map(({ key, short }) => (
+            <div
+              key={key}
+              className={`flex items-center justify-between gap-2 rounded-xl border border-white/5 bg-slate-950/35 min-h-0 transition-colors ${
+                embedded ? 'px-2 py-1.5' : 'px-4 py-3 hover:border-sky-500/20'
+              }`}
+            >
+              <span className={`font-semibold uppercase text-sky-300/90 truncate leading-tight ${embedded ? 'text-[9px]' : 'text-xs lg:text-sm'}`}>
+                {short}
+              </span>
+              <span className={`font-mono font-bold text-white shrink-0 tabular-nums ${embedded ? 'text-xs' : 'text-lg lg:text-xl'}`}>
+                {esperado[key].label}
+              </span>
+            </div>
+          ))}
+          {embedded && slots.length < 5 && (
+            <div
+              className="flex items-center justify-center rounded-lg border border-dashed border-slate-700/40 bg-slate-900/15 min-h-0"
+              aria-hidden
+            >
+              <span className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">Extras</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (kiosk) {
+    return (
+      <div className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-700/70 bg-slate-800/60 min-w-0 overflow-hidden">
+        <span className="text-[9px] font-bold uppercase text-blue-300 whitespace-nowrap shrink-0">
+          Horario
+        </span>
+        <span className="text-[10px] font-medium text-slate-400 truncate min-w-0 hidden sm:inline">
+          {label}
+        </span>
+        {slots.length > 0 && (
+          <div className="flex items-center gap-1 ml-auto shrink-0">
+            {slots.map(({ key, short }) => (
+              <span
+                key={key}
+                className="text-[8px] font-bold text-blue-200/90 bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-600/80 whitespace-nowrap"
+                title={short}
+              >
+                {esperado[key].label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (horarios) {
     return (
@@ -262,17 +341,17 @@ export function HorarioDelDiaBanner({
   }
 
   return (
-    <div className={`mb-4 px-4 py-3 rounded-xl flex flex-wrap items-center gap-x-3 gap-y-2 ${
+    <div className={`${compact ? 'mb-0 px-3 py-2 rounded-lg gap-x-2 gap-y-1' : 'mb-4 px-4 py-3 rounded-xl gap-x-3 gap-y-2'} flex flex-wrap items-center ${
       isDark
         ? 'bg-slate-800/80 border border-slate-700/80'
         : 'bg-blue-50 border border-blue-100'
     }`}>
-      <span className={`text-xs font-bold uppercase tracking-wide shrink-0 ${
+      <span className={`${compact ? 'text-[10px]' : 'text-xs'} font-bold uppercase tracking-wide shrink-0 ${
         isDark ? 'text-blue-300' : 'text-blue-800'
       }`}>
         Horario del día
       </span>
-      <span className={`text-sm font-medium shrink-0 ${
+      <span className={`${compact ? 'text-xs' : 'text-sm'} font-medium shrink-0 ${
         isDark ? 'text-slate-100' : 'text-blue-900'
       }`}>
         {label}

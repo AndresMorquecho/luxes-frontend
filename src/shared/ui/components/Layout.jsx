@@ -182,22 +182,23 @@ export const Layout = ({ children, user, onLogout }) => {
       
       <div className={`layout-body ${isMobile && searchQuery ? 'has-mobile-search' : ''}`} style={isAsistenciaMode ? { marginLeft: 0 } : undefined}>
         {isAsistenciaMode ? (
-          <header className="w-full flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white" style={{ height: '70px', fontFamily: "'Inter', sans-serif" }}>
-            <div className="flex items-center gap-3">
-              <img src="/LogoGlobo.png" alt="Luxes Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
-              <div>
-                <h1 className="text-sm font-bold text-slate-800 m-0">Terminal de Registro de Asistencia</h1>
-                <p className="text-[10px] text-slate-400 font-medium m-0">Kiosco de Marcaciones Luxes · 2026</p>
+          <header className="kiosk-header w-full flex items-center justify-between px-3 sm:px-5 py-2 border-b border-slate-200 bg-white shrink-0" style={{ fontFamily: "'Inter', sans-serif" }}>
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <img src="/LogoGlobo.png" alt="Luxes Logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain shrink-0" />
+              <div className="min-w-0">
+                <h1 className="text-xs sm:text-sm font-bold text-slate-800 m-0 leading-tight truncate">Terminal de Registro de Asistencia</h1>
+                <p className="text-[10px] text-slate-400 font-medium m-0 hidden sm:block">Kiosco de Marcaciones Luxes · 2026</p>
               </div>
             </div>
             <button
               onClick={onLogout}
-              className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-200 cursor-pointer"
+              className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-all border border-slate-200 cursor-pointer shrink-0"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ width: '14px', height: '14px' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
               </svg>
-              Cerrar Sesión
+              <span className="sm:hidden">Salir</span>
+              <span className="hidden sm:inline">Cerrar Sesión</span>
             </button>
           </header>
         ) : isBottomNavMobile ? (
@@ -275,7 +276,7 @@ export const Layout = ({ children, user, onLogout }) => {
           </header>
         ) : null}
 
-        <main className="layout-main" style={isAsistenciaMode ? { margin: 0, padding: 0, width: '100%', maxWidth: '100%', height: 'calc(100vh - 70px)', overflowY: 'auto' } : undefined}>
+        <main className="layout-main">
           {children}
         </main>
       </div>

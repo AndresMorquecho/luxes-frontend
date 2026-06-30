@@ -43,7 +43,7 @@ export class Proyecto {
   /** Devuelve true si la fecha de entrega ya pasó y el proyecto no está completado */
   estaVencido() {
     if (!this.fechaEntregaEstimada) return false;
-    if (this.estado === 'COMPLETADO') return false;
+    if (this.estado === 'COMPLETADO' || this.faseActual === 'COMPLETADO') return false;
     return new Date(this.fechaEntregaEstimada) < new Date();
   }
 

@@ -205,8 +205,18 @@ const KioskView = () => {
   const { error: ubicacionError, status: gpsStatus, secure: gpsSecure, resolveUbicacion, retryGeolocation } = useGeolocation();
   const gpsBadge = getGpsBadgeProps({ status: gpsStatus, error: ubicacionError, secure: gpsSecure });
   const [horarioHoy, setHorarioHoy] = useState(null);
+  const [isKioskDesktop, setIsKioskDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
+  );
 
   const hoyStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = (event) => setIsKioskDesktop(event.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   useEffect(() => {
     getHorarioDelDia(hoyStr)
@@ -310,9 +320,26 @@ const KioskView = () => {
 
   const toastDetails = lastScan ? getMarcacionToastDetails(lastScan.tipo) : null;
 
+  useEffect(() => {
+    document.documentElement.classList.add('kiosk-no-scroll');
+    document.body.classList.add('kiosk-no-scroll');
+    return () => {
+      document.documentElement.classList.remove('kiosk-no-scroll');
+      document.body.classList.remove('kiosk-no-scroll');
+    };
+  }, []);
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-70px)] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-6 w-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div
+      className="kiosk-view h-full w-full flex flex-col overflow-hidden bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-2 sm:p-4 lg:p-6"
+      style={{ fontFamily: "'Inter', sans-serif" }}
+    >
       <style>{`
+        html.kiosk-no-scroll,
+        body.kiosk-no-scroll {
+          overflow: hidden !important;
+          height: 100%;
+        }
         @keyframes borderPulse {
           0%, 100% { border-color: rgba(59, 130, 246, 0.4); box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
           50% { border-color: rgba(59, 130, 246, 0.9); box-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
@@ -341,122 +368,273 @@ const KioskView = () => {
         }
       `}</style>
 
-      {horarioHoy && (
-        <div className="w-full max-w-md mb-2">
-          <HorarioDelDiaBanner
-            label={horarioHoy.label}
-            esperado={horarioHoy.esperado}
-            theme="dark"
-          />
+      {isKioskDesktop ? (
+        <div className="flex-1 min-h-0 w-full max-w-[1400px] mx-auto grid grid-cols-12 gap-5 items-stretch overflow-hidden">
+          {/* Izquierda: Horario */}
+          <div className="col-span-3 flex flex-col min-h-0">
+            {horarioHoy ? (
+              <HorarioDelDiaBanner
+                label={horarioHoy.label}
+                esperado={horarioHoy.esperado}
+                theme="dark"
+                kioskColumn
+              />
+            ) : (
+              <div className="h-full rounded-2xl border border-white/10 bg-gradient-to-b from-slate-800/90 to-slate-950 p-5 flex items-center justify-center">
+                <p className="text-sm text-slate-500 text-center">Sin horario configurado</p>
+              </div>
+            )}
+          </div>
+
+          {/* Centro: Reloj + escáner */}
+          <div className="col-span-6 relative flex flex-col min-h-0 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/70 via-slate-900/90 to-indigo-950/50 p-6 shadow-xl shadow-black/30 overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(56,189,248,0.14),transparent_50%)]" />
+            <div className="pointer-events-none absolute -bottom-24 left-1/2 -translate-x-1/2 w-80 h-40 bg-indigo-500/10 blur-3xl rounded-full" />
+
+            <div className="relative text-center shrink-0">
+              <p className="text-[clamp(2.5rem,4.5vw,3.75rem)] font-black text-white tracking-tight leading-none tabular-nums drop-shadow-[0_0_30px_rgba(56,189,248,0.25)]">
+                {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </p>
+              <p className="text-xs font-medium text-slate-400 mt-3 capitalize">
+                {currentTime.toLocaleDateString('es-ES', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </p>
+              <div className="mt-2.5 flex justify-center">
+                {gpsBadge.tone === 'amber' ? (
+                  <button
+                    type="button"
+                    onClick={retryGeolocation}
+                    className="px-3 py-1 text-[11px] font-semibold text-amber-400 bg-amber-950/50 border border-amber-500/30 rounded-full inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    ⚠️ {gpsBadge.text}
+                  </button>
+                ) : gpsBadge.tone === 'emerald' ? (
+                  <span className="px-3 py-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 rounded-full inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {gpsBadge.text}
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 text-[11px] font-semibold text-slate-400 bg-slate-950/60 border border-slate-700/60 rounded-full inline-flex items-center gap-1.5">
+                    ⌛ {gpsBadge.text}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="relative flex-1 min-h-0 flex flex-col mt-5 justify-center">
+              {!isCameraActive ? (
+                <div className="animate-fade-in flex flex-col items-center justify-center gap-5 w-full">
+                  <div className="w-20 h-20 rounded-2xl border border-dashed border-sky-500/30 bg-sky-500/5 flex items-center justify-center">
+                    <svg className="w-9 h-9 text-sky-400/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 15.75h4.5M16.5 14.25v4.5" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-slate-400 text-center max-w-xs leading-relaxed">
+                    {kioskSession
+                      ? 'Escanea de nuevo para la siguiente marcación'
+                      : 'Acerca tu credencial QR a la cámara'}
+                  </p>
+                  <button
+                    onClick={() => setIsCameraActive(true)}
+                    className="w-full max-w-sm py-4 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-base rounded-2xl shadow-lg shadow-sky-900/40 ring-1 ring-white/10 hover:ring-sky-400/30 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+                    </svg>
+                    Abrir Cámara
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 animate-fade-in flex-1 min-h-0 w-full">
+                  <div className="w-full max-w-[min(100%,22rem)] aspect-square rounded-2xl overflow-hidden relative border border-sky-500/40 bg-slate-950 shadow-inner shadow-sky-950/50 pulse-border-active shrink-0">
+                    {isProcessingScan && (
+                      <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center">
+                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-white/20 border-t-white" />
+                        <p className="text-sm font-semibold text-white mt-3">Procesando marcación...</p>
+                      </div>
+                    )}
+
+                    <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent z-40 scan-overlay-line opacity-95" />
+
+                    <div className="absolute inset-0 z-30 pointer-events-none p-4">
+                      <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-md" />
+                      <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-md" />
+                      <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-md" />
+                      <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-md" />
+                    </div>
+
+                    <Scanner
+                      onScan={handleKioskScan}
+                      onError={(err) => console.error('Error en Scanner Kiosco', err)}
+                      constraints={{ facingMode: 'environment' }}
+                      styles={{
+                        container: { width: '100%', height: '100%', paddingTop: 0, margin: 0 },
+                        video: { width: '100%', height: '100%', objectFit: 'cover' },
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => setIsCameraActive(false)}
+                    className="w-full max-w-[min(100%,22rem)] py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-600 shrink-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                    Cerrar Cámara
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Derecha: Marcaciones */}
+          <div className="col-span-3 flex flex-col min-h-0">
+            <KioskMarcadoresPanel
+              marcaciones={kioskSession?.marcaciones ?? []}
+              empleadoNombre={kioskSession?.nombreEmpleado}
+              empleadoId={kioskSession?.empleadoId}
+              highlightTipo={lastScan?.tipo}
+              kioskColumn
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 w-full max-w-[1400px] mx-auto flex flex-col gap-2 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-slate-600/50 bg-slate-900/50 p-3 shadow-lg overflow-hidden">
+          <div className="text-center shrink-0">
+            <p className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none drop-shadow-lg">
+              {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 mt-1">
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wide leading-snug">
+                {currentTime.toLocaleDateString('es-ES', {
+                  weekday: 'long',
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </p>
+              {gpsBadge.tone === 'amber' ? (
+                <button
+                  type="button"
+                  onClick={retryGeolocation}
+                  className="px-2 py-0.5 text-[9px] font-bold text-amber-500 bg-amber-950/40 border border-amber-500/25 rounded-full inline-flex items-center gap-1 cursor-pointer"
+                >
+                  ⚠️ {gpsBadge.text}
+                </button>
+              ) : gpsBadge.tone === 'emerald' ? (
+                <span className="px-2 py-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 rounded-full inline-flex items-center gap-1">
+                  📍 {gpsBadge.text}
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 text-[9px] font-bold text-slate-400 bg-slate-900 border border-slate-700 rounded-full inline-flex items-center gap-1">
+                  ⌛ {gpsBadge.text}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 flex flex-col mt-2">
+            {!isCameraActive ? (
+              <div className="animate-fade-in flex flex-col flex-1 min-h-0 w-full">
+                <div className="flex-1 min-h-2" />
+                <button
+                  onClick={() => setIsCameraActive(true)}
+                  className="w-full shrink-0 py-4 sm:py-5 min-h-[3.75rem] sm:min-h-[4.25rem] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  <svg className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+                  </svg>
+                  Abrir Cámara para Escanear
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 animate-fade-in flex-1 min-h-0 w-full">
+                <div className="w-full max-w-[min(92vw,20rem)] aspect-square rounded-xl overflow-hidden relative border-2 bg-slate-950 shadow-inner border-blue-500 pulse-border-active shrink-0">
+                  {isProcessingScan && (
+                    <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center">
+                      <div className="animate-spin rounded-full h-10 w-10 border-2 border-white/20 border-t-white" />
+                      <p className="text-sm font-semibold text-white mt-3">Procesando marcación...</p>
+                    </div>
+                  )}
+
+                  <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent z-40 scan-overlay-line opacity-95" />
+
+                  <div className="absolute inset-0 z-30 pointer-events-none p-4">
+                    <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-md" />
+                    <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-md" />
+                    <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-md" />
+                    <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-md" />
+                  </div>
+
+                  <Scanner
+                    onScan={handleKioskScan}
+                    onError={(err) => console.error('Error en Scanner Kiosco', err)}
+                    constraints={{ facingMode: 'environment' }}
+                    styles={{
+                      container: { width: '100%', height: '100%', paddingTop: 0, margin: 0 },
+                      video: { width: '100%', height: '100%', objectFit: 'cover' },
+                    }}
+                  />
+                </div>
+
+                <button
+                  onClick={() => setIsCameraActive(false)}
+                  className="w-full max-w-[min(92vw,20rem)] py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-600 shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                  Cerrar Cámara
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="shrink-0 rounded-xl border border-slate-600/50 bg-slate-900/55 p-2 sm:p-2.5 shadow-lg">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 items-stretch min-h-[10.5rem] sm:min-h-[11.5rem]">
+            <div className="min-h-0 h-full flex flex-col border-r border-slate-700/40 pr-2 sm:pr-2.5 text-center sm:text-left">
+              {horarioHoy ? (
+                <HorarioDelDiaBanner
+                  label={horarioHoy.label}
+                  esperado={horarioHoy.esperado}
+                  theme="dark"
+                  kioskColumn
+                  embedded
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-[10px] text-slate-500 text-center">Sin horario</p>
+                </div>
+              )}
+            </div>
+
+            <div className="min-h-0 h-full flex flex-col text-center sm:text-left">
+              <KioskMarcadoresPanel
+                marcaciones={kioskSession?.marcaciones ?? []}
+                empleadoNombre={kioskSession?.nombreEmpleado}
+                empleadoId={kioskSession?.empleadoId}
+                highlightTipo={lastScan?.tipo}
+                kioskColumn
+                embedded
+              />
+            </div>
+          </div>
+        </div>
         </div>
       )}
 
-      <div className="w-full max-w-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col items-center space-y-5 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-        
-        {/* Reloj y Fecha */}
-        <div className="text-center flex flex-col items-center">
-          <p className="text-6xl font-black text-white tracking-tight leading-none drop-shadow-md">
-            {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </p>
-          <p className="text-xs font-bold text-slate-400 mt-3.5 uppercase tracking-widest leading-relaxed">
-            {currentTime.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-          </p>
-          {gpsBadge.tone === 'amber' ? (
-            <button
-              type="button"
-              onClick={retryGeolocation}
-              className="mt-3 px-2.5 py-1 text-[9px] font-bold text-amber-500 bg-amber-950/40 border border-amber-500/25 rounded-full inline-flex items-center gap-1 cursor-pointer"
-            >
-              ⚠️ {gpsBadge.text}
-            </button>
-          ) : gpsBadge.tone === 'emerald' ? (
-            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 rounded-full inline-flex items-center gap-1">
-              📍 {gpsBadge.text}
-            </span>
-          ) : (
-            <span className="mt-3 px-2.5 py-1 text-[9px] font-bold text-slate-400 bg-slate-900 border border-slate-800 rounded-full inline-flex items-center gap-1">
-              ⌛ {gpsBadge.text}
-            </span>
-          )}
-        </div>
-
-        {/* Marcadores siempre visibles */}
-        <div className="w-full pt-1 border-t border-slate-800/80">
-          <KioskMarcadoresPanel
-            marcaciones={kioskSession?.marcaciones ?? []}
-            empleadoNombre={kioskSession?.nombreEmpleado}
-            empleadoId={kioskSession?.empleadoId}
-            highlightTipo={lastScan?.tipo}
-          />
-        </div>
-
-        {/* Contenido Dinámico: Cámara o Pantalla de Espera */}
-        {!isCameraActive ? (
-          <div className="w-full flex flex-col items-center space-y-5 py-2 animate-fade-in">
-            <div className="text-center space-y-2">
-              <h2 className="text-lg font-bold text-white">Marcar Asistencia</h2>
-              <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed">
-                {kioskSession
-                  ? 'Escanea de nuevo para registrar la siguiente marcación.'
-                  : 'Presiona el botón para activar la cámara y escanear tu credencial QR.'}
-              </p>
-            </div>
-
-            <button
-              onClick={() => setIsCameraActive(true)}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
-              </svg>
-              Abrir Cámara para Escanear
-            </button>
-          </div>
-        ) : (
-          <div className="w-full flex flex-col items-center space-y-4 animate-fade-in">
-            <div className="w-full aspect-square rounded-2xl overflow-hidden relative border-2 bg-slate-950 flex flex-col items-center justify-center shadow-inner border-blue-500 pulse-border-active">
-              {isProcessingScan && (
-                <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-2 border-white/20 border-t-white" />
-                  <p className="text-xs font-semibold text-white mt-3">Procesando marcación...</p>
-                </div>
-              )}
-              
-              <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent z-40 scan-overlay-line opacity-95" />
-              
-              <div className="absolute inset-0 z-30 pointer-events-none p-4">
-                <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-md" />
-                <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-md" />
-                <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-md" />
-                <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-md" />
-              </div>
-
-              <Scanner
-                onScan={handleKioskScan}
-                onError={(err) => console.error('Error en Scanner Kiosco', err)}
-                constraints={{ facingMode: 'environment' }}
-                styles={{
-                  container: { width: '100%', height: '100%', paddingTop: 0, margin: 0 },
-                  video: { width: '100%', height: '100%', objectFit: 'cover' },
-                }}
-              />
-            </div>
-
-            <button
-              onClick={() => setIsCameraActive(false)}
-              className="w-full py-3.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-extrabold text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-700"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-              Cerrar Cámara
-            </button>
-          </div>
-        )}
-
-        {(lastScan || scanError || pendingScan) && (
-          <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-[100] animate-fade-in overflow-y-auto">
+      {(lastScan || scanError || pendingScan) && (
+        <div className="fixed inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-[100] animate-fade-in overflow-y-auto">
             {scanError ? (
               <div className="space-y-4">
                 <div className="w-20 h-20 rounded-full bg-red-950/50 border border-red-500/50 flex items-center justify-center mx-auto shadow-lg shadow-red-500/10">
@@ -531,8 +709,6 @@ const KioskView = () => {
             )}
           </div>
         )}
-
-      </div>
     </div>
   );
 };

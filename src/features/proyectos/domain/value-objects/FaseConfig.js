@@ -61,7 +61,7 @@ export const FASES = [
     label: 'Completado',
     color: '#059669',
     bgColor: '#d1fae5',
-    icon: 'Star',
+    icon: 'CheckCircle',
     descripcion: 'Proyecto cerrado',
     camposRequeridos: [],
   },

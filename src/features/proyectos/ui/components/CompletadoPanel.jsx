@@ -9,10 +9,13 @@ import {
 import { EncuestaResultadosView } from './EncuestaResultadosView.jsx';
 import { SendSurveyModal } from './SendSurveyModal.jsx';
 import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 export function CompletadoPanel({ proyectoId, soloLectura = false }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const puedeEnviarEncuesta = isTallerUser(user);
   const encuesta = getEncuestaSatisfaccion(proyecto);
   const instalacionCompletada = instalacionListaParaEncuesta(proyecto);
   const enviada = encuestaFueEnviada(proyecto);
@@ -61,10 +64,12 @@ export function CompletadoPanel({ proyectoId, soloLectura = false }) {
           {instalacionCompletada && enviada
             ? 'La instalación fue completada y la encuesta ya fue enviada. Los resultados aparecerán aquí cuando el cliente responda.'
             : instalacionCompletada
-              ? 'La obra está completada. Envía el enlace de calificación con estrellas al cliente por WhatsApp.'
-              : 'La encuesta de satisfacción se enviará al cliente cuando la instalación sea completada en obra.'}
+              ? (puedeEnviarEncuesta
+                ? 'La obra está completada. Envía el enlace de calificación con estrellas al cliente por WhatsApp.'
+                : 'La obra está completada. El equipo de Taller enviará la encuesta de calificación al cliente.')
+              : 'La encuesta de satisfacción la enviará Taller cuando la instalación sea completada en obra.'}
         </p>
-        {instalacionCompletada && !soloLectura && (
+        {instalacionCompletada && !soloLectura && puedeEnviarEncuesta && (
           <button
             type="button"
             onClick={() => setShowSurveyModal(true)}
@@ -76,14 +81,16 @@ export function CompletadoPanel({ proyectoId, soloLectura = false }) {
         )}
       </div>
 
-      <SendSurveyModal
-        isOpen={showSurveyModal}
-        onClose={() => setShowSurveyModal(false)}
-        proyecto={proyecto}
-        variant="instalacion"
-        onSend={marcarEncuestaEnviada}
-        onConfirm={() => deferClose(() => setShowSurveyModal(false))}
-      />
+      {puedeEnviarEncuesta && (
+        <SendSurveyModal
+          isOpen={showSurveyModal}
+          onClose={() => setShowSurveyModal(false)}
+          proyecto={proyecto}
+          variant="instalacion"
+          onSend={marcarEncuestaEnviada}
+          onConfirm={() => deferClose(() => setShowSurveyModal(false))}
+        />
+      )}
     </>
   );
 }
