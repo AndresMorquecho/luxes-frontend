@@ -107,7 +107,14 @@ export const ImpresionesPage = () => {
   const [finish, setFinish] = useState('Normal'); // Finish: Normal, Brillante, Mate, Traslucido
   const [copies, setCopies] = useState(1);
   const [pages, setPages] = useState(1);
-  const [sentBy, setSentBy] = useState('ISAM'); // Default active user
+  const [sentBy, setSentBy] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user'));
+      return u?.username || u?.nombre || 'Sistema';
+    } catch {
+      return 'Sistema';
+    }
+  });
   const [width, setWidth] = useState('1.0'); // Width in meters
   const [height, setHeight] = useState('1.0'); // Height in meters
   const [notes, setNotes] = useState(''); // Special instructions/notes
@@ -320,7 +327,7 @@ export const ImpresionesPage = () => {
         status: "En espera",
         size: size,
         format: format, // Sustrato
-        sentBy: sentBy || 'ISAM',
+        sentBy: sentBy || 'Sistema',
         sentAt: sentAtFormatted,
         sentToQueueAt: sentAtFormatted,
         startedPrintingAt: null,
@@ -1210,7 +1217,7 @@ export const ImpresionesPage = () => {
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Operador (Responsable)</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.responsible || 'ISAM'}</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.responsible || 'Sin asignar'}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Duración de Impresión</span>

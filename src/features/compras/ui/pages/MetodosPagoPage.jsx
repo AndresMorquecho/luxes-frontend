@@ -222,40 +222,128 @@ export const MetodosPagoPage = () => {
         {metodosLoading ? (
           <div className="co-loader-box"><div className="co-spinner" /></div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="co-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Tipo</th>
-                  <th>Saldo Actual</th>
-                  <th className="text-emerald-600">Ingresos (P)</th>
-                  <th className="text-red-500">Egresos (P)</th>
-                  <th>Neto (P)</th>
-                  <th className="text-center">Estado</th>
-                  <th className="text-center w-28">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metodos.map(m => {
-                  const isEfectivo = m.tipo === 'EFECTIVO';
-                  return (
-                    <tr key={m.id} className="co-tr">
-                      <td className="font-semibold text-slate-800">{m.nombre}</td>
-                      <td>
-                        <span className={`co-badge-pill ${isEfectivo ? 'co-badge-pill-emerald' : 'co-badge-pill-blue'}`}>
-                          {m.tipo || 'EFECTIVO'}
-                        </span>
-                      </td>
-                      <td className="font-medium text-slate-800">{formatUSD(m.saldoActual)}</td>
-                      <td className="text-emerald-600 font-semibold">
-                        {m.ingresosPeriod > 0 ? `+${formatUSD(m.ingresosPeriod)}` : '—'}
-                      </td>
-                      <td className="text-red-500 font-semibold">
-                        {m.egresosPeriod > 0 ? `-${formatUSD(m.egresosPeriod)}` : '—'}
-                      </td>
-                      <td className="font-bold text-slate-700">{formatUSD(m.netoPeriod)}</td>
-                      <td className="text-center">
+          <>
+            <style>{`
+              @media (min-width: 768px) {
+                .mp-desktop-table { display: block; }
+                .mp-mobile-cards { display: none; }
+              }
+              @media (max-width: 767px) {
+                .mp-desktop-table { display: none; }
+                .mp-mobile-cards { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+                .mp-mobile-card {
+                  background: #ffffff;
+                  border: 1px solid #f1f5f9;
+                  border-radius: 14px;
+                  padding: 16px;
+                  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                  display: flex;
+                  flex-direction: column;
+                  gap: 12px;
+                }
+              }
+            `}</style>
+
+            <div className="overflow-x-auto mp-desktop-table">
+              <table className="co-table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Saldo Actual</th>
+                    <th className="text-emerald-600">Ingresos (P)</th>
+                    <th className="text-red-500">Egresos (P)</th>
+                    <th>Neto (P)</th>
+                    <th className="text-center">Estado</th>
+                    <th className="text-center w-28">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metodos.map(m => {
+                    const isEfectivo = m.tipo === 'EFECTIVO';
+                    return (
+                      <tr key={m.id} className="co-tr">
+                        <td className="font-semibold text-slate-800">{m.nombre}</td>
+                        <td>
+                          <span className={`co-badge-pill ${isEfectivo ? 'co-badge-pill-emerald' : 'co-badge-pill-blue'}`}>
+                            {m.tipo || 'EFECTIVO'}
+                          </span>
+                        </td>
+                        <td className="font-medium text-slate-800">{formatUSD(m.saldoActual)}</td>
+                        <td className="text-emerald-600 font-semibold">
+                          {m.ingresosPeriod > 0 ? `+${formatUSD(m.ingresosPeriod)}` : '—'}
+                        </td>
+                        <td className="text-red-500 font-semibold">
+                          {m.egresosPeriod > 0 ? `-${formatUSD(m.egresosPeriod)}` : '—'}
+                        </td>
+                        <td className="font-bold text-slate-700">{formatUSD(m.netoPeriod)}</td>
+                        <td className="text-center">
+                          <button
+                            onClick={() => handleMetodoToggle(m)}
+                            className={`co-toggle ${m.activo ? 'co-toggle-active' : ''}`}
+                            title={m.activo ? 'Desactivar' : 'Activar'}
+                          >
+                            <span className="co-toggle-dot" />
+                          </button>
+                        </td>
+                        <td>
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => openEditMetodo(m)} className="co-action-btn co-action-blue" title="Editar">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                              </svg>
+                            </button>
+                            <button onClick={() => handleMetodoDelete(m.id)} className="co-action-btn co-action-red" title="Eliminar">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {metodos.length === 0 && (
+                    <tr><td colSpan={8} className="text-center py-16 text-slate-400 text-sm font-medium">No hay métodos de pago registrados</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mp-mobile-cards">
+              {metodos.map(m => {
+                const isEfectivo = m.tipo === 'EFECTIVO';
+                return (
+                  <div key={m.id} className="mp-mobile-card">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-800 text-sm">{m.nombre}</span>
+                      <span className={`co-badge-pill ${isEfectivo ? 'co-badge-pill-emerald' : 'co-badge-pill-blue'}`}>
+                        {m.tipo || 'EFECTIVO'}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-y-2 text-xs pt-1">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Saldo Actual</span>
+                        <span className="font-semibold text-slate-800">{formatUSD(m.saldoActual)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Neto Periodo</span>
+                        <span className="font-bold text-slate-700">{formatUSD(m.netoPeriod)}</span>
+                      </div>
+                      <div className="text-emerald-600">
+                        <span className="text-[10px] text-emerald-400 font-bold uppercase block">Ingresos (P)</span>
+                        <span className="font-semibold">{m.ingresosPeriod > 0 ? `+${formatUSD(m.ingresosPeriod)}` : '—'}</span>
+                      </div>
+                      <div className="text-red-500">
+                        <span className="text-[10px] text-red-400 font-bold uppercase block">Egresos (P)</span>
+                        <span className="font-semibold">{m.egresosPeriod > 0 ? `-${formatUSD(m.egresosPeriod)}` : '—'}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-50">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-400 font-semibold uppercase">Estado:</span>
                         <button
                           onClick={() => handleMetodoToggle(m)}
                           className={`co-toggle ${m.activo ? 'co-toggle-active' : ''}`}
@@ -263,30 +351,28 @@ export const MetodosPagoPage = () => {
                         >
                           <span className="co-toggle-dot" />
                         </button>
-                      </td>
-                      <td>
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => openEditMetodo(m)} className="co-action-btn co-action-blue" title="Editar">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                            </svg>
-                          </button>
-                          <button onClick={() => handleMetodoDelete(m.id)} className="co-action-btn co-action-red" title="Eliminar">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {metodos.length === 0 && (
-                  <tr><td colSpan={8} className="text-center py-16 text-slate-400 text-sm font-medium">No hay métodos de pago registrados</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openEditMetodo(m)} className="co-action-btn co-action-blue p-1.5" title="Editar">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                          </svg>
+                        </button>
+                        <button onClick={() => handleMetodoDelete(m.id)} className="co-action-btn co-action-red p-1.5" title="Eliminar">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {metodos.length === 0 && (
+                <div className="text-center py-10 text-slate-400 text-sm font-medium">No hay métodos de pago registrados</div>
+              )}
+            </div>
+          </>
         )}
       </div>
 

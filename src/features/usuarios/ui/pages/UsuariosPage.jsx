@@ -1090,7 +1090,7 @@ export const UsuariosPage = () => {
                         value={userForm.nombre}
                         onChange={e => setUserForm(prev => ({ ...prev, nombre: e.target.value }))}
                         required
-                        placeholder="Ej. Isam Ruiz"
+                        placeholder="Ej. Ivette Morquecho"
                         className="us-input us-input-with-icon"
                       />
                     </div>
@@ -1110,7 +1110,7 @@ export const UsuariosPage = () => {
                         onChange={e => setUserForm(prev => ({ ...prev, username: e.target.value }))}
                         required
                         disabled={!!editingUser}
-                        placeholder="ej. isam.luxes"
+                        placeholder="ej. MorquechoI"
                         className="us-input us-input-with-icon"
                       />
                     </div>
