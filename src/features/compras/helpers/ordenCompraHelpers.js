@@ -21,13 +21,24 @@ export const fmtDateTime = (d) => d
   ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '—';
 
+/** Etiqueta legible del proyecto vinculado a una orden de compra. */
+export const getOrdenProyectoLabel = (orden) => {
+  if (orden?.proyecto?.nombre) {
+    return orden.proyecto.id
+      ? `${orden.proyecto.id} - ${orden.proyecto.nombre}`
+      : orden.proyecto.nombre;
+  }
+  if (orden?.proyectoId) return orden.proyectoId;
+  return null;
+};
+
 export const mapOrdenToPDFFormat = (orden) => {
   if (!orden) return null;
   return {
     id: orden.numero,
     fechaCreacion: orden.fecha ? new Date(orden.fecha).toISOString().split('T')[0] : '',
     estado: (orden.estado || 'PENDIENTE').toUpperCase(),
-    proyectoNombre: orden.concepto || 'Compra de Materiales',
+    proyectoNombre: getOrdenProyectoLabel(orden) || orden.concepto || 'Compra de Materiales',
     comentarios: orden.notas || 'Sin observaciones.',
     items: (orden.detalles || []).map((d) => ({
       sku: d.materialId ? d.materialId.slice(-8).toUpperCase() : 'ESP-LIBRE',

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getOrdenes } from '../../application/comprasService';
+import { getOrdenProyectoLabel, mapOrdenToPDFFormat } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import './ComprasPage.css';
@@ -15,25 +16,6 @@ const ESTADO_BADGES = {
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-
-// Helper function to map our database OrdenCompra object to the expected format for PDFPreviewModal
-const mapOrdenToPDFFormat = (orden) => {
-  if (!orden) return null;
-  return {
-    id: orden.numero,
-    fechaCreacion: orden.fecha ? new Date(orden.fecha).toISOString().split('T')[0] : '',
-    estado: (orden.estado || 'PENDIENTE').toUpperCase(),
-    proyectoNombre: orden.concepto || 'Compra de Materiales',
-    comentarios: orden.notas || 'Sin observaciones.',
-    items: (orden.detalles || []).map(d => ({
-      sku: d.materialId ? d.materialId.slice(-8).toUpperCase() : 'ESP-LIBRE',
-      nombre: d.descripcion,
-      cantidad: d.cantidad,
-      precioUnitario: d.precioUnitario,
-      unidad: 'unidad'
-    }))
-  };
-};
 
 export const AprobacionOrdenesPage = () => {
   const navigate = useNavigate();
@@ -177,6 +159,7 @@ export const AprobacionOrdenesPage = () => {
                   <th>Orden</th>
                   <th>Proveedor</th>
                   <th>Emisor</th>
+                  <th>Proyecto</th>
                   <th>Fecha</th>
                   <th>Concepto</th>
                   <th>Observación / Notas</th>
@@ -191,6 +174,9 @@ export const AprobacionOrdenesPage = () => {
                     <td className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
                     <td className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
                     <td className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
+                    <td className="text-slate-700 text-xs font-semibold max-w-[180px] truncate" title={getOrdenProyectoLabel(o) || ''}>
+                      {getOrdenProyectoLabel(o) || '—'}
+                    </td>
                     <td className="text-slate-500 text-xs">{fmtDate(o.fecha)}</td>
                     <td className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
                     <td className="text-slate-400 text-xs max-w-[150px] truncate" title={o.notas}>{o.notas || '—'}</td>
@@ -233,7 +219,7 @@ export const AprobacionOrdenesPage = () => {
                 ))}
                 {ordenes.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="text-center py-16 text-slate-400 text-sm font-medium">
+                    <td colSpan={10} className="text-center py-16 text-slate-400 text-sm font-medium">
                       No hay órdenes de compra {estadoFilter === 'pendiente_aprobacion' ? 'pendientes de aprobación' : 'registradas'}
                     </td>
                   </tr>
@@ -263,6 +249,10 @@ export const AprobacionOrdenesPage = () => {
                       <div className="prest-card-field">
                         <span className="prest-card-field-label">Fecha</span>
                         <span className="prest-card-field-value">{fmtDate(o.fecha)}</span>
+                      </div>
+                      <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
+                        <span className="prest-card-field-label">Proyecto</span>
+                        <span className="prest-card-field-value">{getOrdenProyectoLabel(o) || 'Gasto general'}</span>
                       </div>
                       <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
                         <span className="prest-card-field-label">Concepto</span>

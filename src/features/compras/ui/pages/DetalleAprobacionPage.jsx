@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
+import { getOrdenProyectoLabel } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import './ComprasPage.css';
 
@@ -195,6 +196,8 @@ export const DetalleAprobacionPage = () => {
 
   if (!orden) return null;
 
+  const proyectoLabel = getOrdenProyectoLabel(orden);
+
   return (
     <div className="co-page animate-slide-up">
       {/* Header */}
@@ -236,6 +239,23 @@ export const DetalleAprobacionPage = () => {
             }}>
               {orden.estado === 'pendiente_aprobacion' ? 'Pendiente' : orden.estado}
             </span>
+          </div>
+          <div>
+            <p className="co-label">Proyecto</p>
+            {proyectoLabel ? (
+              orden.proyecto?.id ? (
+                <Link
+                  to={`/proyectos/${orden.proyecto.id}`}
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  {proyectoLabel}
+                </Link>
+              ) : (
+                <p className="text-sm font-semibold text-slate-700">{proyectoLabel}</p>
+              )
+            ) : (
+              <p className="text-sm text-slate-500">Gasto general (sin proyecto)</p>
+            )}
           </div>
         </div>
         {(orden.concepto || orden.notas) && (
@@ -477,6 +497,12 @@ export const DetalleAprobacionPage = () => {
                       <div className="flex justify-between text-xs" style={{ marginBottom: '0.85rem' }}>
                         <span className="text-slate-500 font-medium">Proveedor:</span>
                         <span className="font-semibold text-slate-700">{providerSearch || 'Sin proveedor específico'}</span>
+                      </div>
+                      <div className="flex justify-between text-xs" style={{ marginBottom: '0.85rem' }}>
+                        <span className="text-slate-500 font-medium">Proyecto:</span>
+                        <span className="font-semibold text-slate-700 text-right max-w-[60%]">
+                          {proyectoLabel || 'Gasto general'}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs" style={{ paddingTop: '0.85rem', borderTop: '1px solid #f1f5f9' }}>
                         <span className="text-slate-500 font-bold">Total de Orden:</span>

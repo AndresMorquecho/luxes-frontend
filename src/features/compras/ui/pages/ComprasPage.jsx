@@ -9,6 +9,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
+import { mapOrdenToPDFFormat } from '../../helpers/ordenCompraHelpers';
 import './ComprasPage.css';
 
 const ESTADOS = ['pendiente_aprobacion', 'aprobada', 'recibida', 'cancelada'];
@@ -27,24 +28,6 @@ const PAGO_BADGES = {
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-
-const mapOrdenToPDFFormat = (orden) => {
-  if (!orden) return null;
-  return {
-    id: orden.numero,
-    fechaCreacion: orden.fecha ? new Date(orden.fecha).toISOString().split('T')[0] : '',
-    estado: (orden.estado || 'PENDIENTE').toUpperCase(),
-    proyectoNombre: orden.concepto || 'Compra de Materiales',
-    comentarios: orden.notas || 'Sin observaciones.',
-    items: (orden.detalles || []).map(d => ({
-      sku: d.materialId ? d.materialId.slice(-8).toUpperCase() : 'ESP-LIBRE',
-      nombre: d.descripcion,
-      cantidad: d.cantidad,
-      precioUnitario: d.precioUnitario,
-      unidad: 'unidad'
-    }))
-  };
-};
 
 export const ComprasPage = () => {
   const navigate = useNavigate();
