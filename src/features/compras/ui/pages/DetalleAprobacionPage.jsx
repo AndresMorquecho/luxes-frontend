@@ -1,11 +1,21 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
-import { fetchOrdenCompleta, getOrdenDetalles, restaurarDetallesOrden, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
+import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
 import { getOrdenProyectoLabel, normalizeOrdenDetalles } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import './ComprasPage.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+const mergeOrdenConDetalles = (ordenApi, ordenFallback) => {
+  if (!ordenApi) return null;
+  const detallesApi = normalizeOrdenDetalles(ordenApi);
+  if (detallesApi.length > 0) return ordenApi;
+  if (!ordenFallback || ordenFallback.id !== ordenApi.id) return ordenApi;
+  const detallesFallback = normalizeOrdenDetalles(ordenFallback);
+  if (detallesFallback.length === 0) return ordenApi;
+  return { ...ordenApi, detalles: ordenFallback.detalles };
+};
 
 export const DetalleAprobacionPage = () => {
   const navigate = useNavigate();
@@ -37,27 +47,16 @@ export const DetalleAprobacionPage = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      let ordenMerged = await fetchOrdenCompleta(
-        id,
-        ordenFromList?.id === id ? ordenFromList : null,
-      );
-
-      const lineasDetectadas = normalizeOrdenDetalles(ordenMerged);
-      if (lineasDetectadas.length > 0) {
-        try {
-          const detallesDb = await getOrdenDetalles(id);
-          if (!detallesDb.length) {
-            ordenMerged = await restaurarDetallesOrden(id, lineasDetectadas);
-          }
-        } catch (restoreErr) {
-          console.warn('No se pudieron restaurar los detalles en la base de datos:', restoreErr);
-        }
-      }
-
-      const [provList, mpsList] = await Promise.all([
+      const [ordenData, provList, mpsList] = await Promise.all([
+        getOrdenById(id),
         getProveedores(),
         getMetodosPago().catch(() => []),
       ]);
+
+      const ordenMerged = mergeOrdenConDetalles(
+        ordenData,
+        ordenFromList?.id === id ? ordenFromList : null,
+      );
 
       setOrden(ordenMerged);
       setProveedores(provList);
