@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
 import { getOrdenProyectoLabel, normalizeOrdenDetalles } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -7,9 +7,21 @@ import './ComprasPage.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
+const mergeOrdenConDetalles = (ordenApi, ordenFallback) => {
+  if (!ordenApi) return null;
+  const detallesApi = normalizeOrdenDetalles(ordenApi);
+  if (detallesApi.length > 0) return ordenApi;
+  if (!ordenFallback || ordenFallback.id !== ordenApi.id) return ordenApi;
+  const detallesFallback = normalizeOrdenDetalles(ordenFallback);
+  if (detallesFallback.length === 0) return ordenApi;
+  return { ...ordenApi, detalles: ordenFallback.detalles };
+};
+
 export const DetalleAprobacionPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+  const [ordenFromList] = useState(() => location.state?.ordenFromList ?? null);
   const [currentUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
   
   const [orden, setOrden] = useState(null);
@@ -41,21 +53,23 @@ export const DetalleAprobacionPage = () => {
         getMetodosPago().catch(() => [])
       ]);
 
-      setOrden(ordenData);
+      const ordenMerged = mergeOrdenConDetalles(ordenData, ordenFromList?.id === id ? ordenFromList : null);
+
+      setOrden(ordenMerged);
       setProveedores(provList);
       setMetodosPago(mpsList);
-      setProveedorId(ordenData.proveedorId || '');
+      setProveedorId(ordenMerged.proveedorId || '');
 
-      if (ordenData.proveedorId) {
-        const provObj = provList.find(p => p.id === ordenData.proveedorId);
+      if (ordenMerged.proveedorId) {
+        const provObj = provList.find(p => p.id === ordenMerged.proveedorId);
         if (provObj) setProviderSearch(provObj.nombre);
       } else {
         setProviderSearch('Sin proveedor específico');
       }
 
-      setImpuesto(String(ordenData.impuesto || 0));
+      setImpuesto(String(ordenMerged.impuesto || 0));
 
-      const lineas = normalizeOrdenDetalles(ordenData);
+      const lineas = normalizeOrdenDetalles(ordenMerged);
       const preciosIniciales = {};
       lineas.forEach((linea) => {
         preciosIniciales[linea.id] = linea.precioUnitario;
@@ -67,7 +81,7 @@ export const DetalleAprobacionPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, ordenFromList]);
 
   useEffect(() => {
     loadData();
@@ -142,15 +156,18 @@ export const DetalleAprobacionPage = () => {
       const payload = {
         proveedorId: proveedorId || null,
         impuesto: impuestoVal,
-        detalles: lineas.map(d => ({
+        estado: 'aprobada',
+        aprobadoPorId: currentUser?.id,
+      };
+
+      if (lineas.length > 0) {
+        payload.detalles = lineas.map(d => ({
           descripcion: d.descripcion,
           cantidad: d.cantidad,
           precioUnitario: parseFloat(d.precioUnitario) || 0,
           materialId: d.materialId,
-        })),
-        estado: 'aprobada',
-        aprobadoPorId: currentUser?.id,
-      };
+        }));
+      }
 
       const nAbono = parseFloat(abonoMonto) || 0;
       if (nAbono > 0) {

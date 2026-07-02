@@ -371,6 +371,18 @@ export const ComprasPage = () => {
                             </svg>
                           </button>
                         )}
+                        {isAdmin && o.estado === 'pendiente_aprobacion' && (
+                          <button
+                            onClick={() => navigate(`/compras/aprobacion/${o.id}`, { state: { ordenFromList: o } })}
+                            className="co-action-btn co-action-blue"
+                            title="Revisar y aprobar"
+                            style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                          </button>
+                        )}
                         {isAdmin && (
                           <>
                             <button onClick={() => navigate(`/compras/editar/${o.id}`)} className="co-action-btn co-action-blue" title="Editar">

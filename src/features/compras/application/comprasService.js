@@ -39,14 +39,33 @@ export async function getOrdenes(options = {}) {
   return data.data;
 }
 
+export async function getOrdenDetalles(ordenId) {
+  const res = await fetch(`/api/compras/${ordenId}/detalles`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener detalles');
+  return Array.isArray(data.data) ? data.data : [];
+}
+
 export async function getOrdenById(id) {
   const res = await fetch(`/api/compras/${id}`, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener orden');
   const orden = data.data;
-  if (orden && !Array.isArray(orden.detalles)) {
-    orden.detalles = [];
+  if (!orden) return orden;
+
+  if (!Array.isArray(orden.detalles) || orden.detalles.length === 0) {
+    try {
+      const detalles = await getOrdenDetalles(id);
+      if (detalles.length > 0) {
+        orden.detalles = detalles;
+      } else {
+        orden.detalles = [];
+      }
+    } catch {
+      orden.detalles = Array.isArray(orden.detalles) ? orden.detalles : [];
+    }
   }
+
   return orden;
 }
 
