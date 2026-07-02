@@ -223,6 +223,7 @@ export function MaterialesRequestPage() {
         reloadProyectos();
       }
       toast.success('Equipo de trabajo guardado con éxito');
+      setActiveTab('bodega');
     } catch (err) {
       toast.error('No se pudo guardar el equipo de trabajo: ' + err.message);
     }
