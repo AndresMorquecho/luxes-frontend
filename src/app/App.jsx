@@ -14,7 +14,6 @@ import { ProyectosProvider } from '../features/proyectos/application/context/Pro
 import ProformasFeature from '../features/proformas/ui';
 import ClientesFeature from '../features/clientes/ui';
 import ProveedoresFeature from '../features/proveedores/ui';
-import ContactosFeature from '../features/contactos/ui';
 import UsuariosFeature from '../features/usuarios/ui';
 import ComprasFeature from '../features/compras/ui';
 import VentasFeature from '../features/ventas/ui';
@@ -259,7 +258,6 @@ function App() {
               {!isImpresion && <Route path="/proformas/*" element={<ProformasFeature />} />}
               {!isImpresion && <Route path="/clientes/*" element={<ClientesFeature />} />}
               {!isImpresion && <Route path="/proveedores/*" element={<ProveedoresFeature />} />}
-              {!isImpresion && <Route path="/contactos/*" element={<ContactosFeature />} />}
               {!isImpresion && !isVentas && !isDisenador && <Route path="/usuarios/*" element={<UsuariosFeature />} />}
               {!isImpresion && !isVentas && !isDisenador && <Route path="/configuracion/*" element={<ConfiguracionFeature />} />}
               <Route path="/compras/*" element={<ComprasFeature />} />
