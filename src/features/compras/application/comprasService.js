@@ -43,7 +43,11 @@ export async function getOrdenById(id) {
   const res = await fetch(`/api/compras/${id}`, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener orden');
-  return data.data;
+  const orden = data.data;
+  if (orden && !Array.isArray(orden.detalles)) {
+    orden.detalles = [];
+  }
+  return orden;
 }
 
 export async function createOrden(body) {

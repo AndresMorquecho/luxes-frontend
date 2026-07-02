@@ -32,6 +32,23 @@ export const getOrdenProyectoLabel = (orden) => {
   return null;
 };
 
+/** Normaliza líneas de detalle desde la orden o un arreglo crudo. */
+export const normalizeOrdenDetalles = (ordenOrDetalles) => {
+  if (!ordenOrDetalles) return [];
+  const raw = Array.isArray(ordenOrDetalles)
+    ? ordenOrDetalles
+    : (ordenOrDetalles.detalles || ordenOrDetalles.items || []);
+  if (!Array.isArray(raw)) return [];
+
+  return raw.map((d, index) => ({
+    id: d.id || `det-${index}`,
+    descripcion: d.descripcion || d.nombre || '',
+    cantidad: Number(d.cantidad) || 0,
+    precioUnitario: String(d.precioUnitario ?? d.precio ?? 0),
+    materialId: d.materialId || null,
+  }));
+};
+
 export const mapOrdenToPDFFormat = (orden) => {
   if (!orden) return null;
   return {

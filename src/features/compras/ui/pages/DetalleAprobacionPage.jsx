@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
-import { getOrdenProyectoLabel } from '../../helpers/ordenCompraHelpers';
+import { getOrdenProyectoLabel, normalizeOrdenDetalles } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import './ComprasPage.css';
 
@@ -22,7 +22,7 @@ export const DetalleAprobacionPage = () => {
   const [providerSearch, setProviderSearch] = useState('');
   const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
   const [impuesto, setImpuesto] = useState('0');
-  const [detalles, setDetalles] = useState([]);
+  const [preciosEditados, setPreciosEditados] = useState({});
 
   // Payment integration states
   const [abonoMonto, setAbonoMonto] = useState('');
@@ -54,14 +54,13 @@ export const DetalleAprobacionPage = () => {
       }
 
       setImpuesto(String(ordenData.impuesto || 0));
-      
-      setDetalles((ordenData.detalles || []).map(d => ({
-        id: d.id,
-        descripcion: d.descripcion,
-        cantidad: d.cantidad,
-        precioUnitario: String(d.precioUnitario || 0),
-        materialId: d.materialId,
-      })));
+
+      const lineas = normalizeOrdenDetalles(ordenData);
+      const preciosIniciales = {};
+      lineas.forEach((linea) => {
+        preciosIniciales[linea.id] = linea.precioUnitario;
+      });
+      setPreciosEditados(preciosIniciales);
     } catch (err) {
       toast.error('Error al cargar la orden: ' + err.message);
       navigate('/compras/aprobaciones');
@@ -90,15 +89,18 @@ export const DetalleAprobacionPage = () => {
     setProviderDropdownOpen(false);
   };
 
-  const updateDetallePrecio = (index, value) => {
-    setDetalles(prev => {
-      const newDetalles = [...prev];
-      newDetalles[index] = { ...newDetalles[index], precioUnitario: value };
-      return newDetalles;
-    });
+  const lineas = useMemo(() => {
+    return normalizeOrdenDetalles(orden).map((linea) => ({
+      ...linea,
+      precioUnitario: preciosEditados[linea.id] ?? linea.precioUnitario,
+    }));
+  }, [orden, preciosEditados]);
+
+  const updateDetallePrecio = (lineId, value) => {
+    setPreciosEditados((prev) => ({ ...prev, [lineId]: value }));
   };
 
-  const subtotal = detalles.reduce((sum, d) => {
+  const subtotal = lineas.reduce((sum, d) => {
     return sum + (d.cantidad * (parseFloat(d.precioUnitario) || 0));
   }, 0);
   const impuestoVal = parseFloat(impuesto) || 0;
@@ -119,7 +121,12 @@ export const DetalleAprobacionPage = () => {
   };
 
   const triggerAprobarConfirm = () => {
-    const sinPrecio = detalles.some(d => !d.precioUnitario || parseFloat(d.precioUnitario) <= 0);
+    if (lineas.length === 0) {
+      toast.error('La orden no tiene items para aprobar');
+      return;
+    }
+
+    const sinPrecio = lineas.some(d => !d.precioUnitario || parseFloat(d.precioUnitario) <= 0);
     if (sinPrecio) {
       toast.error('Todos los items deben tener un precio unitario mayor a 0');
       return;
@@ -135,7 +142,7 @@ export const DetalleAprobacionPage = () => {
       const payload = {
         proveedorId: proveedorId || null,
         impuesto: impuestoVal,
-        detalles: detalles.map(d => ({
+        detalles: lineas.map(d => ({
           descripcion: d.descripcion,
           cantidad: d.cantidad,
           precioUnitario: parseFloat(d.precioUnitario) || 0,
@@ -392,10 +399,10 @@ export const DetalleAprobacionPage = () => {
               </tr>
             </thead>
             <tbody>
-              {detalles.map((d, idx) => {
+              {lineas.map((d) => {
                 const subtotalItem = d.cantidad * (parseFloat(d.precioUnitario) || 0);
                 return (
-                  <tr key={d.id || idx}>
+                  <tr key={d.id}>
                     <td className="font-semibold text-slate-800">{d.descripcion}</td>
                     <td className="text-center text-slate-500">{d.cantidad}</td>
                     <td style={{ textAlign: 'right' }}>
@@ -404,7 +411,7 @@ export const DetalleAprobacionPage = () => {
                         step="0.01"
                         min="0"
                         value={d.precioUnitario}
-                        onChange={(e) => updateDetallePrecio(idx, e.target.value)}
+                        onChange={(e) => updateDetallePrecio(d.id, e.target.value)}
                         className="co-table-input"
                         style={{ maxWidth: '140px', marginLeft: 'auto' }}
                         placeholder="0.00"
@@ -414,6 +421,13 @@ export const DetalleAprobacionPage = () => {
                   </tr>
                 );
               })}
+              {lineas.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-center py-12 text-slate-400 text-sm font-medium">
+                    No hay items registrados en esta orden.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
