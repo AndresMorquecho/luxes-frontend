@@ -208,7 +208,9 @@ export const GastosGeneralesTab = () => {
                 <div className="flex justify-end gap-3 px-8 py-5 border-t border-gray-100 bg-gray-50/50 shrink-0">
                   <button type="button" onClick={() => setFormOpen(false)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold text-gray-600">Cancelar</button>
                   <button type="submit" disabled={saving} className="btn-primary px-6 py-2 rounded-xl text-sm font-semibold text-white inline-flex items-center gap-2 disabled:opacity-60">
-                    {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
+                    {saving && (
+                      <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" aria-hidden="true" />
+                    )}
                     {editing ? 'Guardar cambios' : 'Registrar Gasto'}
                   </button>
                 </div>

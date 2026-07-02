@@ -30,7 +30,7 @@ export default function ProyectoDetallePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { reloadProyectos } = useProyectosContext();
-  const { proyecto, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual } = useProyecto(id);
+  const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual } = useProyecto(id);
   const [faseVista, setFaseVista] = useState(() => {
     const tab = searchParams.get('tab');
     if (tab && tab.toUpperCase() === 'PRODUCCION') {
@@ -56,12 +56,6 @@ export default function ProyectoDetallePage() {
   }, [subTab, canViewGastos]);
 
   React.useEffect(() => {
-    if (reloadProyectos && id) {
-      reloadProyectos();
-    }
-  }, [id, reloadProyectos]);
-
-  React.useEffect(() => {
     if (!isDetailsModalOpen) return undefined;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -69,6 +63,15 @@ export default function ProyectoDetallePage() {
       document.body.style.overflow = prevOverflow;
     };
   }, [isDetailsModalOpen]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-slate-500 text-sm">Cargando proyecto...</p>
+      </div>
+    );
+  }
 
   if (!proyecto) {
     return (

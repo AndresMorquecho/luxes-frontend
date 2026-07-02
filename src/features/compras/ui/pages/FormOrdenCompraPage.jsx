@@ -11,7 +11,7 @@ import {
 import { getProyectos } from '../../../proyectos/application/proyectosService';
 import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
-import { isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
+import { isAdminUser, isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
 import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
 
 const MATERIAL_SEARCH_LIMIT = 5;
@@ -22,7 +22,9 @@ export const FormOrdenCompraPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
-  const isTaller = isTallerUser(JSON.parse(localStorage.getItem('user') || 'null'));
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+  const isTaller = isTallerUser(currentUser);
+  const isAdmin = isAdminUser(currentUser);
 
   const [searchParams] = useSearchParams();
   const queryProyectoId = searchParams.get('proyectoId') || '';
@@ -345,8 +347,8 @@ export const FormOrdenCompraPage = () => {
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
             Información de la Orden
           </div>
-          <div className={`grid grid-cols-1 gap-4 ${isTaller || isEdit ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
-            {!isTaller && !isEdit && (
+          <div className={`grid grid-cols-1 gap-4 ${isTaller || isAdmin || isEdit ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+            {!isTaller && !isAdmin && !isEdit && (
               <div>
                 <label className="co-label">No. de Orden</label>
                 <div className="co-input bg-slate-50 font-mono text-xs font-semibold flex items-center h-[38px] text-slate-400 px-4 border border-slate-200/80" style={{ borderRadius: '10px' }}>

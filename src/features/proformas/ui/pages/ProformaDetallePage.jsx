@@ -4,8 +4,8 @@ import { getProformaById, aprobarProforma, rechazarProforma, registrarAbonoProfo
 import { getMetodosPago } from '../../../gastos/application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { ProformaPDF } from '../components/ProformaPDF';
-import { SendProformaModal } from '../components/SendProformaModal.jsx';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
+import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -21,19 +21,18 @@ export const ProformaDetallePage = () => {
   
   // Modal states
   const [showAbonoModal, setShowAbonoModal] = useState(false);
-  const [showSendModal, setShowSendModal] = useState(false);
   const [abonoForm, setAbonoForm] = useState({
     monto: '',
     metodoPagoId: '',
     referencia: '',
   });
   const [submittingAbono, setSubmittingAbono] = useState(false);
+  const isMobileSm = useIsMobileSm();
   
   // User auth state
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (loggedInUser?.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
-  const isVentas = ['VENTAS', 'DISEÑADOR', 'DISENADOR'].includes(userRole);
 
   useEffect(() => {
     const loadDetails = async () => {
@@ -83,16 +82,6 @@ export const ProformaDetallePage = () => {
   const total = subtotal * (1 + Number(proforma.iva));
   const totalCobrado = (proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
   const totalPendiente = Math.max(0, total - totalCobrado);
-  const canEnviarProforma = (isVentas || isAdmin) && proforma.estado !== 'Rechazada';
-
-  const reloadProforma = async () => {
-    try {
-      const data = await getProformaById(id);
-      setProforma(data);
-    } catch {
-      toast.error('No se pudo actualizar la proforma');
-    }
-  };
 
   const handleRechazar = async () => {
     if (!window.confirm('¿Está seguro de que desea rechazar esta proforma?')) return;
@@ -222,15 +211,6 @@ export const ProformaDetallePage = () => {
             Ver PDF
           </button>
 
-          {canEnviarProforma && (
-            <button
-              onClick={() => setShowSendModal(true)}
-              className="px-4 py-2 border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-bold rounded-xl transition-colors shrink-0 flex items-center gap-1.5"
-            >
-              {proforma.fechaEnvio ? 'Reenviar al cliente' : 'Enviar al cliente'}
-            </button>
-          )}
-
           {isAdmin && proforma.estado === 'Pendiente' && (
             <>
               <button
@@ -319,43 +299,43 @@ export const ProformaDetallePage = () => {
           <h2 className="text-sm font-bold text-slate-800">Ítems de la Proforma</h2>
         </div>
 
-        {/* Desktop table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
-                <th className="text-left px-6 py-3.5">Descripción</th>
-                <th className="text-center px-4 py-3.5 w-24">Cantidad</th>
-                <th className="text-right px-4 py-3.5 w-32">P. Unitario</th>
-                <th className="text-right px-4 py-3.5 w-32">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {(proforma.items || []).map((item, idx) => (
-                <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
-                  <td className="px-6 py-4 text-slate-800 font-medium">{item.descripcion}</td>
-                  <td className="px-4 py-4 text-center text-slate-600 font-mono">{item.cantidad.toFixed(2)}</td>
-                  <td className="px-4 py-4 text-right text-slate-600 font-mono">{formatUSD(item.precioUnitario)}</td>
-                  <td className="px-4 py-4 text-right text-slate-800 font-bold font-mono">{formatUSD(item.cantidad * item.precioUnitario)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile item cards */}
-        <div className="sm:hidden divide-y divide-slate-100">
-          {(proforma.items || []).map((item, idx) => (
-            <div key={idx} className="px-4 py-3 flex flex-col gap-1">
-              <p className="text-sm font-semibold text-slate-800">{item.descripcion}</p>
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Cant: <span className="font-mono font-semibold text-slate-700">{item.cantidad.toFixed(2)}</span></span>
-                <span>P/u: <span className="font-mono font-semibold text-slate-700">{formatUSD(item.precioUnitario)}</span></span>
-                <span className="font-mono font-bold text-slate-800">{formatUSD(item.cantidad * item.precioUnitario)}</span>
+        {isMobileSm ? (
+          <div className="divide-y divide-slate-100">
+            {(proforma.items || []).map((item, idx) => (
+              <div key={idx} className="px-4 py-3 flex flex-col gap-1">
+                <p className="text-sm font-semibold text-slate-800">{item.descripcion}</p>
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>Cant: <span className="font-mono font-semibold text-slate-700">{item.cantidad.toFixed(2)}</span></span>
+                  <span>P/u: <span className="font-mono font-semibold text-slate-700">{formatUSD(item.precioUnitario)}</span></span>
+                  <span className="font-mono font-bold text-slate-800">{formatUSD(item.cantidad * item.precioUnitario)}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
+                  <th className="text-left px-6 py-3.5">Descripción</th>
+                  <th className="text-center px-4 py-3.5 w-24">Cantidad</th>
+                  <th className="text-right px-4 py-3.5 w-32">P. Unitario</th>
+                  <th className="text-right px-4 py-3.5 w-32">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {(proforma.items || []).map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
+                    <td className="px-6 py-4 text-slate-800 font-medium">{item.descripcion}</td>
+                    <td className="px-4 py-4 text-center text-slate-600 font-mono">{item.cantidad.toFixed(2)}</td>
+                    <td className="px-4 py-4 text-right text-slate-600 font-mono">{formatUSD(item.precioUnitario)}</td>
+                    <td className="px-4 py-4 text-right text-slate-800 font-bold font-mono">{formatUSD(item.cantidad * item.precioUnitario)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Totals Summary */}
         <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4 flex flex-col items-end">
@@ -397,9 +377,27 @@ export const ProformaDetallePage = () => {
           </div>
 
           {(proforma.abonos && proforma.abonos.length > 0) ? (
-            <>
-              {/* Desktop table */}
-              <div className="hidden sm:block overflow-x-auto">
+            isMobileSm ? (
+              <div className="divide-y divide-slate-100">
+                {proforma.abonos.map((ab) => (
+                  <div key={ab.id} className="px-4 py-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-700">{ab.metodoPago?.nombre || 'Caja General'}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{ab.fecha}</span>
+                      </div>
+                      <span className="text-sm font-extrabold text-slate-800 font-mono">{formatUSD(ab.monto)}</span>
+                    </div>
+                    {ab.referencia && (
+                      <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded px-2 py-1">
+                        Ref: {ab.referencia}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
@@ -423,27 +421,7 @@ export const ProformaDetallePage = () => {
                   </tbody>
                 </table>
               </div>
-
-              {/* Mobile abono cards */}
-              <div className="sm:hidden divide-y divide-slate-100">
-                {proforma.abonos.map((ab) => (
-                  <div key={ab.id} className="px-4 py-3 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-slate-700">{ab.metodoPago?.nombre || 'Caja General'}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">{ab.fecha}</span>
-                      </div>
-                      <span className="text-sm font-extrabold text-slate-800 font-mono">{formatUSD(ab.monto)}</span>
-                    </div>
-                    {ab.referencia && (
-                      <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded px-2 py-1">
-                        Ref: {ab.referencia}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
+            )
           ) : (
             <div className="p-6 text-center text-slate-400 text-sm">
               No se han registrado abonos en esta proforma.
@@ -577,7 +555,12 @@ export const ProformaDetallePage = () => {
                   disabled={submittingAbono}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-200 flex items-center gap-1.5"
                 >
-                  {submittingAbono && <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white" />}
+                  {submittingAbono && (
+                    <span
+                      className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white"
+                      aria-hidden="true"
+                    />
+                  )}
                   {submittingAbono ? 'Registrando...' : 'Confirmar Registro'}
                 </button>
               </div>
@@ -595,12 +578,6 @@ export const ProformaDetallePage = () => {
         />
       )}
 
-      <SendProformaModal
-        isOpen={showSendModal}
-        onClose={() => setShowSendModal(false)}
-        proforma={proforma}
-        onSent={reloadProforma}
-      />
     </div>
   );
 };
