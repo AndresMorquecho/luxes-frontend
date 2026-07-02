@@ -24,11 +24,6 @@ export const FormOrdenCompraPage = () => {
   const isEdit = !!id;
   const isTaller = isTallerUser(JSON.parse(localStorage.getItem('user') || 'null'));
 
-  const proyectosAsociables = useMemo(
-    () => filterProyectosAsociables(proyectos, { incluirProyectoId: form.proyectoId || null }),
-    [proyectos, form.proyectoId],
-  );
-
   const [searchParams] = useSearchParams();
   const queryProyectoId = searchParams.get('proyectoId') || '';
 
@@ -54,6 +49,11 @@ export const FormOrdenCompraPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchingMateriales, setSearchingMateriales] = useState(false);
   const searchRequestRef = useRef(0);
+
+  const proyectosAsociables = useMemo(
+    () => filterProyectosAsociables(proyectos, { incluirProyectoId: form.proyectoId || null }),
+    [proyectos, form.proyectoId],
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
