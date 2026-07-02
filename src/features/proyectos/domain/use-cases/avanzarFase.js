@@ -43,6 +43,14 @@ export function validarCamposFase(faseConfig, datosFase = {}) {
     if (!datosFase.datos?.montoEstimado && !datosFase.montoEstimado) {
       // monto está en el proyecto raíz, no bloqueamos aquí
     }
+  } else if (faseConfig.id === 'ENTREGA') {
+    const datos = datosFase.datos || datosFase || {};
+    const tieneFoto =
+      (Array.isArray(datos.fotoEntrega) && datos.fotoEntrega.length > 0) ||
+      (Array.isArray(datosFase.fotoEntrega) && datosFase.fotoEntrega.length > 0);
+    if (!tieneFoto) {
+      faltantes.push('Al menos una foto de evidencia de la entrega');
+    }
   }
 
   return { valido: faltantes.length === 0, faltantes };

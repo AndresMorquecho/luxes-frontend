@@ -15,7 +15,9 @@ export function CompletadoPanel({ proyectoId, soloLectura = false }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const puedeEnviarEncuesta = isTallerUser(user) || isAdminUser(user);
+  const userRole = (user?.rol || '').toLowerCase();
+  const isVentasODisenador = userRole.includes('ventas') || userRole.includes('diseñador') || userRole.includes('disenador');
+  const puedeEnviarEncuesta = isTallerUser(user) || isAdminUser(user) || (proyecto?.requiereInstalacion === false && isVentasODisenador);
   const encuesta = getEncuestaSatisfaccion(proyecto);
   const instalacionCompletada = instalacionListaParaEncuesta(proyecto);
   const enviada = encuestaFueEnviada(proyecto);

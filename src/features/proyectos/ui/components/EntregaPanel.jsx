@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Image as ImageIcon, CheckCircle, UploadCloud, Trash2, PenTool, ShieldCheck } from 'lucide-react';
+import { Camera, Image as ImageIcon, CheckCircle, UploadCloud, Trash2, PenTool, ShieldCheck, Loader2 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
+import { uploadArchivoDiseno } from '../../application/proyectosService.js';
 
 export function EntregaPanel({ proyectoId, soloLectura }) {
-  const { proyecto } = useProyecto(proyectoId);
-  const [fotos, setFotos] = useState(proyecto?.fases?.ENTREGA?.fotoEntrega || []);
-  const [firma, setFirma] = useState(proyecto?.fases?.ENTREGA?.firmaCliente || false);
+  const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
+  const [fotos, setFotos] = useState(proyecto?.fases?.ENTREGA?.datos?.fotoEntrega || proyecto?.fases?.ENTREGA?.fotoEntrega || []);
+  const [firma, setFirma] = useState(proyecto?.fases?.ENTREGA?.datos?.firmaCliente || proyecto?.fases?.ENTREGA?.firmaCliente || false);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
   // Drag & Drop para las fotos
@@ -34,17 +36,41 @@ export function EntregaPanel({ proyectoId, soloLectura }) {
     }
   };
 
-  const handleFiles = (fileList) => {
-    const newFotos = Array.from(fileList).map(file => ({
-      name: file.name,
-      url: URL.createObjectURL(file), // Mock URL
-      size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
-    }));
-    setFotos([...fotos, ...newFotos]);
+  const handleFiles = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
+    
+    setUploading(true);
+    try {
+      const uploadedFiles = [];
+      for (const file of fileList) {
+        const fileData = await uploadArchivoDiseno(proyectoId, file);
+        uploadedFiles.push({
+          name: file.name,
+          url: fileData.url,
+          size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
+        });
+      }
+      
+      const nuevoFotos = [...fotos, ...uploadedFiles];
+      setFotos(nuevoFotos);
+      
+      await updateFaseDatos('ENTREGA', {
+        fotoEntrega: nuevoFotos
+      });
+    } catch (error) {
+      console.error('Error al subir fotos de entrega:', error);
+      alert('Error al subir fotos: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const removeFoto = (index) => {
-    setFotos(fotos.filter((_, i) => i !== index));
+  const removeFoto = async (index) => {
+    const nuevoFotos = fotos.filter((_, i) => i !== index);
+    setFotos(nuevoFotos);
+    await updateFaseDatos('ENTREGA', {
+      fotoEntrega: nuevoFotos
+    });
   };
 
   return (
@@ -64,11 +90,11 @@ export function EntregaPanel({ proyectoId, soloLectura }) {
           <div
             className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-colors cursor-pointer mb-6 ${
               isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-400 hover:bg-slate-50'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            } ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}
+            onDragOver={uploading ? undefined : handleDragOver}
+            onDragLeave={uploading ? undefined : handleDragLeave}
+            onDrop={uploading ? undefined : handleDrop}
+            onClick={() => !uploading && fileInputRef.current?.click()}
           >
             <input
               type="file"
@@ -77,15 +103,22 @@ export function EntregaPanel({ proyectoId, soloLectura }) {
               className="hidden"
               accept="image/*"
               onChange={handleFileChange}
+              disabled={uploading}
             />
-            <div className="w-12 h-12 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center mb-3">
-              <UploadCloud size={20} className={isDragging ? 'text-emerald-600' : 'text-slate-400'} />
-            </div>
+            {uploading ? (
+              <div className="w-12 h-12 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center mb-3">
+                <Loader2 size={20} className="text-indigo-500 animate-spin" />
+              </div>
+            ) : (
+              <div className="w-12 h-12 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center mb-3">
+                <UploadCloud size={20} className={isDragging ? 'text-emerald-600' : 'text-slate-400'} />
+              </div>
+            )}
             <p className="text-sm font-bold text-slate-700 mb-1">
-              Arrastra fotos aquí o haz clic para buscar
+              {uploading ? 'Subiendo imágenes...' : 'Arrastra fotos aquí o haz clic para buscar'}
             </p>
             <p className="text-xs text-slate-500">
-              Puedes subir múltiples imágenes (JPG, PNG)
+              {uploading ? 'Por favor espera un momento' : 'Puedes subir múltiples imágenes (JPG, PNG)'}
             </p>
           </div>
         )}
