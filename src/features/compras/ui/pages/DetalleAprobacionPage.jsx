@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
-import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
+import { fetchOrdenCompleta, getOrdenDetalles, restaurarDetallesOrden, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
 import { getOrdenProyectoLabel, normalizeOrdenDetalles } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import './ComprasPage.css';
@@ -9,7 +9,9 @@ const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))
 
 export const DetalleAprobacionPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+  const [ordenFromList] = useState(() => location.state?.ordenFromList ?? null);
   const [currentUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
   
   const [orden, setOrden] = useState(null);
@@ -35,27 +37,43 @@ export const DetalleAprobacionPage = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [ordenData, provList, mpsList] = await Promise.all([
-        getOrdenById(id),
+      let ordenMerged = await fetchOrdenCompleta(
+        id,
+        ordenFromList?.id === id ? ordenFromList : null,
+      );
+
+      const lineasDetectadas = normalizeOrdenDetalles(ordenMerged);
+      if (lineasDetectadas.length > 0) {
+        try {
+          const detallesDb = await getOrdenDetalles(id);
+          if (!detallesDb.length) {
+            ordenMerged = await restaurarDetallesOrden(id, lineasDetectadas);
+          }
+        } catch (restoreErr) {
+          console.warn('No se pudieron restaurar los detalles en la base de datos:', restoreErr);
+        }
+      }
+
+      const [provList, mpsList] = await Promise.all([
         getProveedores(),
-        getMetodosPago().catch(() => [])
+        getMetodosPago().catch(() => []),
       ]);
 
-      setOrden(ordenData);
+      setOrden(ordenMerged);
       setProveedores(provList);
       setMetodosPago(mpsList);
-      setProveedorId(ordenData.proveedorId || '');
+      setProveedorId(ordenMerged.proveedorId || '');
 
-      if (ordenData.proveedorId) {
-        const provObj = provList.find(p => p.id === ordenData.proveedorId);
+      if (ordenMerged.proveedorId) {
+        const provObj = provList.find(p => p.id === ordenMerged.proveedorId);
         if (provObj) setProviderSearch(provObj.nombre);
       } else {
         setProviderSearch('Sin proveedor específico');
       }
 
-      setImpuesto(String(ordenData.impuesto || 0));
+      setImpuesto(String(ordenMerged.impuesto || 0));
 
-      const lineas = normalizeOrdenDetalles(ordenData);
+      const lineas = normalizeOrdenDetalles(ordenMerged);
       const preciosIniciales = {};
       lineas.forEach((linea) => {
         preciosIniciales[linea.id] = linea.precioUnitario;
@@ -67,7 +85,7 @@ export const DetalleAprobacionPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, ordenFromList]);
 
   useEffect(() => {
     loadData();
@@ -142,15 +160,18 @@ export const DetalleAprobacionPage = () => {
       const payload = {
         proveedorId: proveedorId || null,
         impuesto: impuestoVal,
-        detalles: lineas.map(d => ({
+        estado: 'aprobada',
+        aprobadoPorId: currentUser?.id,
+      };
+
+      if (lineas.length > 0) {
+        payload.detalles = lineas.map(d => ({
           descripcion: d.descripcion,
           cantidad: d.cantidad,
           precioUnitario: parseFloat(d.precioUnitario) || 0,
           materialId: d.materialId,
-        })),
-        estado: 'aprobada',
-        aprobadoPorId: currentUser?.id,
-      };
+        }));
+      }
 
       const nAbono = parseFloat(abonoMonto) || 0;
       if (nAbono > 0) {
@@ -395,7 +416,7 @@ export const DetalleAprobacionPage = () => {
                 <th>Descripción</th>
                 <th style={{ width: '100px', textAlign: 'center' }}>Cantidad</th>
                 <th style={{ width: '180px', textAlign: 'right' }}>Precio Unitario</th>
-                <th style={{ width: '140px', textAlign: 'right' }}>Subtotal</th>
+                <th style={{ width: '140px', textAlign: 'right' }}>Total parcial</th>
               </tr>
             </thead>
             <tbody>
@@ -424,7 +445,18 @@ export const DetalleAprobacionPage = () => {
               {lineas.length === 0 && (
                 <tr>
                   <td colSpan={4} className="text-center py-12 text-slate-400 text-sm font-medium">
-                    No hay items registrados en esta orden.
+                    <p>No hay artículos registrados en esta orden.</p>
+                    <p className="mt-2 text-xs text-slate-400">
+                      Si la orden tenía materiales, es posible que se hayan perdido al aprobar sin cargar los ítems.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/compras/editar/${id}`)}
+                      className="co-btn-primary mt-4"
+                      style={{ padding: '8px 18px', fontSize: '12px' }}
+                    >
+                      Editar orden y volver a agregar materiales
+                    </button>
                   </td>
                 </tr>
               )}
@@ -437,7 +469,7 @@ export const DetalleAprobacionPage = () => {
           <div style={{ width: '320px' }}>
             <div className="co-totals-box">
               <div className="co-total-row">
-                <span>Subtotal:</span>
+                <span>Total parcial:</span>
                 <span className="font-bold text-slate-800">{fmt(subtotal)}</span>
               </div>
               <div className="co-total-row">

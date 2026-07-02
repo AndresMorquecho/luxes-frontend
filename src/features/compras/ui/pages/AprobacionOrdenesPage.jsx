@@ -190,7 +190,7 @@ export const AprobacionOrdenesPage = () => {
                       <div className="flex items-center justify-center gap-1.5">
                         {/* Botón Ver - lleva a página de detalle */}
                         <button
-                          onClick={() => navigate(`/compras/aprobacion/${o.id}`)}
+                          onClick={() => navigate(`/compras/aprobacion/${o.id}`, { state: { ordenFromList: o } })}
                           className="px-3 py-1.5 text-xs font-bold text-white rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm"
                           title="Ver y aprobar/rechazar"
                         >
@@ -273,7 +273,7 @@ export const AprobacionOrdenesPage = () => {
                       <div className="prest-card-actions" style={{ gap: '0.5rem' }}>
                         <button
                           type="button"
-                          onClick={() => navigate(`/compras/aprobacion/${o.id}`)}
+                          onClick={() => navigate(`/compras/aprobacion/${o.id}`, { state: { ordenFromList: o } })}
                           className="co-action-btn co-action-blue"
                           style={{ flex: 2, height: '36px', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}
                         >
