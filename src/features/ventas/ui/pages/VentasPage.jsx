@@ -38,7 +38,10 @@ export const VentasPage = () => {
     try {
       // Pedimos las proformas aprobadas y pagadas. Usamos un límite alto (100) para calcular KPIs y paginar
       const res = await getVentas({ limit: 100 });
-      setItems(res.data || []);
+      const onlyApprovedOrPaid = (res.data || []).filter(
+        v => v.estado === 'Aprobada' || v.estado === 'Pagada' || v.estado === 'Pagado'
+      );
+      setItems(onlyApprovedOrPaid);
     } catch (err) {
       console.error(err);
       toast.error('Error al cargar las ventas');
@@ -357,7 +360,7 @@ export const VentasPage = () => {
                           <td className="px-5 py-4 text-center">
                             {pendiente > 0.01 ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200" title={`Falta cobrar ${fmt(pendiente)}`}>
-                                Pendiente
+                                Aprobada
                               </span>
                             ) : (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200">
@@ -431,7 +434,7 @@ export const VentasPage = () => {
                         <div>
                           {pendiente > 0.01 ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
-                              Pendiente
+                              Aprobada
                             </span>
                           ) : (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
