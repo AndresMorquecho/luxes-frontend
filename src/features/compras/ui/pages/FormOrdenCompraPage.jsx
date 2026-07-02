@@ -345,12 +345,12 @@ export const FormOrdenCompraPage = () => {
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
             Información de la Orden
           </div>
-          <div className={`grid grid-cols-1 gap-4 ${isTaller ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
-            {!isTaller && (
+          <div className={`grid grid-cols-1 gap-4 ${isTaller || isEdit ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+            {!isTaller && !isEdit && (
               <div>
                 <label className="co-label">No. de Orden</label>
                 <div className="co-input bg-slate-50 font-mono text-xs font-semibold flex items-center h-[38px] text-slate-400 px-4 border border-slate-200/80" style={{ borderRadius: '10px' }}>
-                  {isEdit ? `ORC-${id}` : 'ORC-XXX (Autogenerado)'}
+                  ORC-XXX (Autogenerado)
                 </div>
               </div>
             )}
