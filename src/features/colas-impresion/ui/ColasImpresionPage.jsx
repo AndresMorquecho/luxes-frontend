@@ -1,6 +1,7 @@
 /* c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/colas-impresion/ui/ColasImpresionPage.jsx */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './ColasImpresionPage.css';
 import { usePrintQueue } from '../context/PrintQueueContext';
 import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService';
@@ -90,6 +91,7 @@ const isImageFile = (name, url) => {
 };
 
 export const ColasImpresionPage = () => {
+  const navigate = useNavigate();
   const {
     activeJob,
     queue,
@@ -410,12 +412,12 @@ export const ColasImpresionPage = () => {
     }
   };
 
-  const handleCreateQuickPO = async () => {
+  const handleCreateQuickPO = () => {
     if (!prepJob) return;
     
     const deficitItems = cartItems.filter(item => !item.isInformative && item.quantity > item.stockActual);
     if (deficitItems.length === 0) {
-      await confirmDialog(
+      confirmDialog(
         'Insumos Suficientes',
         'No hay materiales con stock insuficiente en los insumos asignados. Todos los insumos tienen stock disponible.',
         { confirmLabel: 'Entendido', showCancel: false, type: 'info' }
@@ -423,47 +425,27 @@ export const ColasImpresionPage = () => {
       return;
     }
 
-    setSubmittingAction(true);
-    try {
-      const detalles = deficitItems.map(item => ({
-        descripcion: `Material: ${item.nombre} (Stock insuficiente para trabajo ${prepJob.name})`,
+    // Guardar los materiales faltantes en localStorage para que la pantalla de orden de compra los precargue
+    const preloadedData = {
+      concepto: `Reposición de insumos para impresión - Trabajo: ${prepJob.name}`,
+      proyectoId: prepJob.proyectoId || '',
+      detalles: deficitItems.map(item => ({
+        descripcion: `Material: ${item.nombre} (Falta stock para impresión)`,
         cantidad: Number((item.quantity - item.stockActual).toFixed(2)),
         materialId: item.materialId,
-        precioUnitario: item.precioCosto || 0,
-      }));
-
-      // Create a single purchase order for all deficit items
-      const res = await createOrden({
-        concepto: `Reposición urgente de insumos para impresión - Trabajo: ${prepJob.name}`,
-        notes: `Orden de compra rápida generada automáticamente por falta de stock.`,
-        proyectoId: prepJob.proyectoId || null,
-        detalles
-      });
-
-      toast.success(`Orden de compra ${res.numero} creada exitosamente.`);
-      
-      // Refresh materials stock in state
-      const data = await getMateriales(buildMaterialesQuery());
-      const items = data.items || data || [];
-      setMaterialesImpresion(items);
-      
-      // Update stockActual in cartItems based on newly loaded database values
-      const updatedCart = cartItems.map(cartItem => {
-        const freshMat = items.find(m => m.id === cartItem.materialId);
-        if (freshMat) {
-          return {
-            ...cartItem,
-            stockActual: freshMat.stockActual
-          };
-        }
-        return cartItem;
-      });
-      setCartItems(updatedCart);
-    } catch (err) {
-      toast.error('Error al crear orden de compra: ' + err.message);
-    } finally {
-      setSubmittingAction(false);
-    }
+        isCustom: false
+      }))
+    };
+    
+    localStorage.setItem('preloaded_po_items', JSON.stringify(preloadedData));
+    
+    // Cerrar el modal actual
+    setShowPrepModal(false);
+    setPrepJob(null);
+    setCartItems([]);
+    
+    // Redirigir a la pantalla de creación de orden de compra
+    navigate('/compras/nueva');
   };
 
   // Reset pagination when filters change
