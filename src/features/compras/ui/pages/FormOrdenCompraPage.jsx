@@ -34,12 +34,30 @@ export const FormOrdenCompraPage = () => {
   const [proyectos, setProyectos] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [creatingMaterial, setCreatingMaterial] = useState(false);
-  const [form, setForm] = useState({
-    fecha: new Date().toISOString().split('T')[0],
-    concepto: '',
-    notas: '',
-    detalles: [],
-    proyectoId: queryProyectoId,
+  const [form, setForm] = useState(() => {
+    const defaultState = {
+      fecha: new Date().toISOString().split('T')[0],
+      concepto: '',
+      notas: '',
+      detalles: [],
+      proyectoId: queryProyectoId,
+    };
+    try {
+      const preloaded = localStorage.getItem('preloaded_po_items');
+      if (preloaded) {
+        const parsed = JSON.parse(preloaded);
+        localStorage.removeItem('preloaded_po_items');
+        return {
+          ...defaultState,
+          concepto: parsed.concepto || '',
+          proyectoId: parsed.proyectoId || queryProyectoId,
+          detalles: parsed.detalles || [],
+        };
+      }
+    } catch (e) {
+      console.error('Error parsing preloaded_po_items:', e);
+    }
+    return defaultState;
   });
   const [itemInput, setItemInput] = useState({
     materialId: '',

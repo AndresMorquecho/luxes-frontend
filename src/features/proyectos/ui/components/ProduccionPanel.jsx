@@ -6,6 +6,7 @@ import {
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { getMateriales } from '../../../inventario/application/inventarioService.js';
 
 export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const { proyecto } = useProyecto(proyectoId);
@@ -51,6 +52,31 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successJobName, setSuccessJobName] = useState('');
+  const [materialesList, setMaterialesList] = useState([]);
+
+  useEffect(() => {
+    const fetchMateriales = async () => {
+      try {
+        const response = await getMateriales({ tipo: 'consumible', categoria: 'Impresión' });
+        const list = Array.isArray(response) ? response : (response?.items || []);
+        // Filtrar tintas que no son sustratos de impresión
+        const sustratos = list.filter(m => 
+          !m.nombre.toLowerCase().includes('tinta') &&
+          !m.nombre.toLowerCase().includes('cyan') &&
+          !m.nombre.toLowerCase().includes('magenta') &&
+          !m.nombre.toLowerCase().includes('yellow') &&
+          !m.nombre.toLowerCase().includes('black')
+        );
+        setMaterialesList(sustratos);
+        if (sustratos.length > 0) {
+          setFormat(sustratos[0].nombre);
+        }
+      } catch (err) {
+        console.error('Error fetching print materials:', err);
+      }
+    };
+    fetchMateriales();
+  }, []);
 
   // Get real print jobs linked to this project
   const linkedJobs = getJobsByProyectoId(proyectoId);
@@ -241,7 +267,11 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
       }, 4000);
 
       // Reset form controls except client name and file From design
-      setFormat('Lona brillo');
+      if (materialesList.length > 0) {
+        setFormat(materialesList[0].nombre);
+      } else {
+        setFormat('Lona brillo');
+      }
       setUrgency('Media');
       setCopies(1);
       setWidth('1.0');
@@ -681,15 +711,25 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                 disabled={formBloqueado}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
               >
-                <option value="Lona traslúcida">Lona traslúcida</option>
-                <option value="Lona brillo">Lona brillo</option>
-                <option value="Lona mate">Lona mate</option>
-                <option value="Vinil brillo">Vinil brillo</option>
-                <option value="Vinil mate">Vinil mate</option>
-                <option value="Vinil laminación brillo">Vinil laminación brillo</option>
-                <option value="Vinil laminación mate">Vinil laminación mate</option>
-                <option value="Tela sintética">Tela sintética</option>
-                <option value="PVC">PVC</option>
+                {materialesList.length > 0 ? (
+                  materialesList.map(mat => (
+                    <option key={mat.id} value={mat.nombre}>
+                      {mat.nombre}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Lona traslúcida">Lona traslúcida</option>
+                    <option value="Lona brillo">Lona brillo</option>
+                    <option value="Lona mate">Lona mate</option>
+                    <option value="Vinil brillo">Vinil brillo</option>
+                    <option value="Vinil mate">Vinil mate</option>
+                    <option value="Vinil laminación brillo">Vinil laminación brillo</option>
+                    <option value="Vinil laminación mate">Vinil laminación mate</option>
+                    <option value="Tela sintética">Tela sintética</option>
+                    <option value="PVC">PVC</option>
+                  </>
+                )}
               </select>
             </div>
 
