@@ -1,21 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
-import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
+import { fetchOrdenCompleta, getOrdenDetalles, restaurarDetallesOrden, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
 import { getOrdenProyectoLabel, normalizeOrdenDetalles } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import './ComprasPage.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-const mergeOrdenConDetalles = (ordenApi, ordenFallback) => {
-  if (!ordenApi) return null;
-  const detallesApi = normalizeOrdenDetalles(ordenApi);
-  if (detallesApi.length > 0) return ordenApi;
-  if (!ordenFallback || ordenFallback.id !== ordenApi.id) return ordenApi;
-  const detallesFallback = normalizeOrdenDetalles(ordenFallback);
-  if (detallesFallback.length === 0) return ordenApi;
-  return { ...ordenApi, detalles: ordenFallback.detalles };
-};
 
 export const DetalleAprobacionPage = () => {
   const navigate = useNavigate();
@@ -47,13 +37,27 @@ export const DetalleAprobacionPage = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [ordenData, provList, mpsList] = await Promise.all([
-        getOrdenById(id),
-        getProveedores(),
-        getMetodosPago().catch(() => [])
-      ]);
+      let ordenMerged = await fetchOrdenCompleta(
+        id,
+        ordenFromList?.id === id ? ordenFromList : null,
+      );
 
-      const ordenMerged = mergeOrdenConDetalles(ordenData, ordenFromList?.id === id ? ordenFromList : null);
+      const lineasDetectadas = normalizeOrdenDetalles(ordenMerged);
+      if (lineasDetectadas.length > 0) {
+        try {
+          const detallesDb = await getOrdenDetalles(id);
+          if (!detallesDb.length) {
+            ordenMerged = await restaurarDetallesOrden(id, lineasDetectadas);
+          }
+        } catch (restoreErr) {
+          console.warn('No se pudieron restaurar los detalles en la base de datos:', restoreErr);
+        }
+      }
+
+      const [provList, mpsList] = await Promise.all([
+        getProveedores(),
+        getMetodosPago().catch(() => []),
+      ]);
 
       setOrden(ordenMerged);
       setProveedores(provList);
@@ -412,7 +416,7 @@ export const DetalleAprobacionPage = () => {
                 <th>Descripción</th>
                 <th style={{ width: '100px', textAlign: 'center' }}>Cantidad</th>
                 <th style={{ width: '180px', textAlign: 'right' }}>Precio Unitario</th>
-                <th style={{ width: '140px', textAlign: 'right' }}>Subtotal</th>
+                <th style={{ width: '140px', textAlign: 'right' }}>Total parcial</th>
               </tr>
             </thead>
             <tbody>
@@ -441,7 +445,18 @@ export const DetalleAprobacionPage = () => {
               {lineas.length === 0 && (
                 <tr>
                   <td colSpan={4} className="text-center py-12 text-slate-400 text-sm font-medium">
-                    No hay items registrados en esta orden.
+                    <p>No hay artículos registrados en esta orden.</p>
+                    <p className="mt-2 text-xs text-slate-400">
+                      Si la orden tenía materiales, es posible que se hayan perdido al aprobar sin cargar los ítems.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/compras/editar/${id}`)}
+                      className="co-btn-primary mt-4"
+                      style={{ padding: '8px 18px', fontSize: '12px' }}
+                    >
+                      Editar orden y volver a agregar materiales
+                    </button>
                   </td>
                 </tr>
               )}
@@ -454,7 +469,7 @@ export const DetalleAprobacionPage = () => {
           <div style={{ width: '320px' }}>
             <div className="co-totals-box">
               <div className="co-total-row">
-                <span>Subtotal:</span>
+                <span>Total parcial:</span>
                 <span className="font-bold text-slate-800">{fmt(subtotal)}</span>
               </div>
               <div className="co-total-row">

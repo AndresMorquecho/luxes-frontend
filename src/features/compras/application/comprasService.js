@@ -6,6 +6,20 @@ const getHeaders = () => {
   };
 };
 
+const countDetalles = (orden) => {
+  if (!orden) return 0;
+  const raw = orden.detalles || orden.items || [];
+  return Array.isArray(raw) ? raw.length : 0;
+};
+
+const mapDetallesPayload = (detalles) =>
+  (detalles || []).map((d) => ({
+    descripcion: d.descripcion || d.nombre || '',
+    cantidad: Number(d.cantidad) || 0,
+    precioUnitario: parseFloat(d.precioUnitario ?? d.precio ?? 0) || 0,
+    materialId: d.materialId || null,
+  }));
+
 // ── Proveedores ─────────────────────────────────────────────────────────────
 
 export async function getProveedores() {
@@ -46,27 +60,60 @@ export async function getOrdenDetalles(ordenId) {
   return Array.isArray(data.data) ? data.data : [];
 }
 
-export async function getOrdenById(id) {
+export async function restaurarDetallesOrden(ordenId, detalles) {
+  const res = await fetch(`/api/compras/${ordenId}/restaurar-detalles`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ detalles: mapDetallesPayload(detalles) }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al restaurar detalles');
+  return data.data;
+}
+
+export async function fetchOrdenCompleta(id, ordenFromList = null) {
   const res = await fetch(`/api/compras/${id}`, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener orden');
-  const orden = data.data;
+  let orden = data.data;
   if (!orden) return orden;
 
-  if (!Array.isArray(orden.detalles) || orden.detalles.length === 0) {
+  if (!Array.isArray(orden.detalles)) {
+    orden.detalles = [];
+  }
+
+  if (countDetalles(orden) === 0) {
     try {
       const detalles = await getOrdenDetalles(id);
       if (detalles.length > 0) {
-        orden.detalles = detalles;
-      } else {
-        orden.detalles = [];
+        orden = { ...orden, detalles };
       }
     } catch {
-      orden.detalles = Array.isArray(orden.detalles) ? orden.detalles : [];
+      // ignorar
     }
   }
 
+  if (countDetalles(orden) === 0 && orden?.numero) {
+    try {
+      const list = await getOrdenes({ search: orden.numero, limit: 30 });
+      const alt = (list.items || []).find((o) => o.id === id);
+      if (alt && countDetalles(alt) > 0) {
+        orden = { ...orden, detalles: alt.detalles };
+      }
+    } catch {
+      // ignorar fallback de listado
+    }
+  }
+
+  if (ordenFromList?.id === id && countDetalles(ordenFromList) > 0 && countDetalles(orden) === 0) {
+    orden = { ...orden, detalles: ordenFromList.detalles };
+  }
+
   return orden;
+}
+
+export async function getOrdenById(id) {
+  return fetchOrdenCompleta(id);
 }
 
 export async function createOrden(body) {
