@@ -33,18 +33,25 @@ export function SendSurveyModal({
     ? proyecto?.cliente?.telefono
     : '';
 
-  const mensajeDefault = useMemo(() => (
-    `Hola ${nombreCliente}, en LUXES queremos seguir mejorando para brindarte el mejor servicio. `
-    + `La instalación del proyecto "${proyecto?.nombre || 'Proyecto'}" ha sido completada. `
-    + `Por favor califica nuestro trabajo con las estrellas en este enlace: ${urlEncuesta} `
-    + `¡Gracias por tu confianza!`
-  ), [nombreCliente, proyecto?.nombre, urlEncuesta]);
+  const mensajeDefault = useMemo(() => {
+    const isInstalacion = proyecto?.requiereInstalacion !== false;
+    const actionText = isInstalacion ? 'La instalación del proyecto' : 'El proyecto';
+    const completionText = isInstalacion ? 'completada' : 'finalizado';
+    return (
+      `Hola ${nombreCliente}, en LUXES queremos seguir mejorando para brindarte el mejor servicio. `
+      + `${actionText} "${proyecto?.nombre || 'Proyecto'}" ha sido ${completionText}. `
+      + `Por favor califica nuestro trabajo con las estrellas en este enlace: ${urlEncuesta} `
+      + `¡Gracias por tu confianza!`
+    );
+  }, [nombreCliente, proyecto?.nombre, proyecto?.requiereInstalacion, urlEncuesta]);
 
   const [mensaje, setMensaje] = useState(mensajeDefault);
   const numeroWA = formatWhatsAppNumber(telefonoCliente);
 
   // Determinar si la encuesta ya fue enviada pero no calificada por el cliente
-  const datosInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
+  const datosInstalacion = proyecto?.requiereInstalacion !== false
+    ? (proyecto?.fases?.INSTALACION?.datos || {})
+    : (proyecto?.fases?.COMPLETADO?.datos || {});
   const yaEnviada = datosInstalacion.encuestaEnviada === true;
   const yaRespondida = datosInstalacion.encuestaSatisfaccion?.completada === true;
 

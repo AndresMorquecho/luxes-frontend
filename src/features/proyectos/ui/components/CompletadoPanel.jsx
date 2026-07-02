@@ -9,19 +9,20 @@ import {
 import { EncuestaResultadosView } from './EncuestaResultadosView.jsx';
 import { SendSurveyModal } from './SendSurveyModal.jsx';
 import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
-import { isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
+import { isTallerUser, isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 export function CompletadoPanel({ proyectoId, soloLectura = false }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const puedeEnviarEncuesta = isTallerUser(user);
+  const puedeEnviarEncuesta = isTallerUser(user) || isAdminUser(user);
   const encuesta = getEncuestaSatisfaccion(proyecto);
   const instalacionCompletada = instalacionListaParaEncuesta(proyecto);
   const enviada = encuestaFueEnviada(proyecto);
 
   const marcarEncuestaEnviada = async () => {
-    await updateFaseDatos('INSTALACION', {
+    const targetFase = proyecto.requiereInstalacion !== false ? 'INSTALACION' : 'COMPLETADO';
+    await updateFaseDatos(targetFase, {
       encuestaEnviada: true,
       fechaEncuestaEnviada: new Date().toISOString().split('T')[0],
     });
@@ -56,18 +57,21 @@ export function CompletadoPanel({ proyectoId, soloLectura = false }) {
         <h3 className="text-lg font-bold text-slate-700">
           {instalacionCompletada && enviada
             ? 'Esperando respuesta del cliente'
-            : instalacionCompletada
-              ? 'Encuesta pendiente de envío'
-              : 'Encuesta no disponible aún'}
+            : 'Encuesta pendiente de envío'}
         </h3>
         <p className="text-sm text-slate-500 mt-2 max-w-md">
           {instalacionCompletada && enviada
-            ? 'La instalación fue completada y la encuesta ya fue enviada. Los resultados aparecerán aquí cuando el cliente responda.'
-            : instalacionCompletada
-              ? (puedeEnviarEncuesta
-                ? 'La obra está completada. Envía el enlace de calificación con estrellas al cliente por WhatsApp.'
-                : 'La obra está completada. El equipo de Taller enviará la encuesta de calificación al cliente.')
-              : 'La encuesta de satisfacción la enviará Taller cuando la instalación sea completada en obra.'}
+            ? (proyecto.requiereInstalacion !== false
+                ? 'La instalación fue completada y la encuesta ya fue enviada. Los resultados aparecerán aquí cuando el cliente responda.'
+                : 'El proyecto fue finalizado y la encuesta ya fue enviada. Los resultados aparecerán aquí cuando el cliente responda.')
+            : (puedeEnviarEncuesta
+                ? (proyecto.requiereInstalacion !== false
+                    ? 'La obra está completada. Envía el enlace de calificación con estrellas al cliente por WhatsApp.'
+                    : 'El proyecto está finalizado. Envía el enlace de calificación con estrellas al cliente por WhatsApp.')
+                : (proyecto.requiereInstalacion !== false
+                    ? 'La obra está completada. El equipo de Taller enviará la encuesta de calificación al cliente.'
+                    : 'El proyecto está finalizado. El equipo de LUXES enviará la encuesta de calificación al cliente.'))
+          }
         </p>
         {instalacionCompletada && !soloLectura && puedeEnviarEncuesta && (
           <button

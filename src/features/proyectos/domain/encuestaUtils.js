@@ -14,13 +14,19 @@ export function getEncuestaSatisfaccion(proyecto) {
 
   return null;
 }
-
 export function instalacionListaParaEncuesta(proyecto) {
+  if (proyecto?.requiereInstalacion === false) {
+    return true;
+  }
   const datos = proyecto?.fases?.INSTALACION?.datos || {};
   return datos.instalacionCompletada === true || proyecto?.instalacion?.instalacionCompletada === true;
 }
 
 export function encuestaFueEnviada(proyecto) {
+  if (proyecto?.requiereInstalacion === false) {
+    const datos = proyecto?.fases?.COMPLETADO?.datos || {};
+    return datos.encuestaEnviada === true;
+  }
   const datos = proyecto?.fases?.INSTALACION?.datos || {};
   return datos.encuestaEnviada === true;
 }
