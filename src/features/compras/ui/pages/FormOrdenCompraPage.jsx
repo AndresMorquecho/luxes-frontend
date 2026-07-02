@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { getOrdenById, createOrden, updateOrden } from '../../application/comprasService';
 import { 
@@ -11,6 +11,8 @@ import {
 import { getProyectos } from '../../../proyectos/application/proyectosService';
 import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
+import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
 
 const MATERIAL_SEARCH_LIMIT = 5;
 const MIN_FILTER_CHARS = 2;
@@ -20,6 +22,12 @@ export const FormOrdenCompraPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+  const isTaller = isTallerUser(JSON.parse(localStorage.getItem('user') || 'null'));
+
+  const proyectosAsociables = useMemo(
+    () => filterProyectosAsociables(proyectos, { incluirProyectoId: form.proyectoId || null }),
+    [proyectos, form.proyectoId],
+  );
 
   const [searchParams] = useSearchParams();
   const queryProyectoId = searchParams.get('proyectoId') || '';
@@ -107,6 +115,15 @@ export const FormOrdenCompraPage = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Nueva orden: no preseleccionar un proyecto ya terminado o cancelado
+  useEffect(() => {
+    if (loading || isEdit || !form.proyectoId || proyectos.length === 0) return;
+    const selected = proyectos.find((p) => p.id === form.proyectoId);
+    if (selected && !isProyectoEnCurso(selected)) {
+      setForm((p) => ({ ...p, proyectoId: '' }));
+    }
+  }, [loading, isEdit, proyectos, form.proyectoId]);
 
   // Al abrir: muestra 5 productos. Al escribir 2+ caracteres: filtra en servidor.
   useEffect(() => {
@@ -328,13 +345,15 @@ export const FormOrdenCompraPage = () => {
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
             Información de la Orden
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="co-label">No. de Orden</label>
-              <div className="co-input bg-slate-50 font-mono text-xs font-semibold flex items-center h-[38px] text-slate-400 px-4 border border-slate-200/80" style={{ borderRadius: '10px' }}>
-                {isEdit ? `ORC-${id}` : 'ORC-XXX (Autogenerado)'}
+          <div className={`grid grid-cols-1 gap-4 ${isTaller ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+            {!isTaller && (
+              <div>
+                <label className="co-label">No. de Orden</label>
+                <div className="co-input bg-slate-50 font-mono text-xs font-semibold flex items-center h-[38px] text-slate-400 px-4 border border-slate-200/80" style={{ borderRadius: '10px' }}>
+                  {isEdit ? `ORC-${id}` : 'ORC-XXX (Autogenerado)'}
+                </div>
               </div>
-            </div>
+            )}
             <div>
               <label className="co-label">Fecha de Solicitud</label>
               <input
@@ -354,7 +373,7 @@ export const FormOrdenCompraPage = () => {
                 onChange={e => setForm(p => ({ ...p, proyectoId: e.target.value }))}
               >
                 <option value="">-- Sin Proyecto (Gasto General) --</option>
-                {proyectos.map(p => (
+                {proyectosAsociables.map(p => (
                   <option key={p.id} value={p.id}>{p.id} - {p.nombre}</option>
                 ))}
               </select>

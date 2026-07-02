@@ -31,7 +31,12 @@ export function validarCamposFase(faseConfig, datosFase = {}) {
     if (!datos.fechaAprobacionDiseno && !datosFase.fechaAprobacionDiseno) {
       faltantes.push('Fecha de aprobación de diseño');
     }
-    if (!datos.archivoArte && !datosFase.archivoArte) {
+    const tieneArte =
+      datos.archivoArte ||
+      datosFase.archivoArte ||
+      (Array.isArray(datos.archivosArte) && datos.archivosArte.length > 0) ||
+      (Array.isArray(datosFase.archivosArte) && datosFase.archivosArte.length > 0);
+    if (!tieneArte) {
       faltantes.push('Archivo de diseño aprobado');
     }
   } else if (faseConfig.id === 'COTIZACION') {

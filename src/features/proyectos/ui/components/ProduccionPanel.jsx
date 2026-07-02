@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
-import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { toast } from '../../../../shared/ui/components/Toast';
 
 export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const { proyecto } = useProyecto(proyectoId);
@@ -54,6 +54,14 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
 
   // Get real print jobs linked to this project
   const linkedJobs = getJobsByProyectoId(proyectoId);
+  const impresionEnviada = linkedJobs.some((job) => job.trackingStatus !== 'Cancelado');
+  const formBloqueado = soloLectura || impresionEnviada;
+
+  useEffect(() => {
+    if (impresionEnviada) {
+      setActiveSubTab('timeline');
+    }
+  }, [proyectoId, impresionEnviada]);
 
   // Initialize and pre-fill form data when project changes
   useEffect(() => {
@@ -175,26 +183,11 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file || formBloqueado) return;
 
-    // Check if there are already print jobs for this project
-    const hasActiveOrWaiting = linkedJobs.some(job => ['En espera', 'Listo', 'Imprimiendo', 'Pausado'].includes(job.trackingStatus));
-    const hasCompleted = linkedJobs.some(job => job.trackingStatus === 'Completado');
-
-    if (hasActiveOrWaiting) {
-      const confirmSend = await confirmDialog(
-        '¿Reenviar Trabajo?',
-        'Ya enviaste este proyecto a impresión y está activo o en espera. ¿Estás seguro de enviar nuevamente?',
-        { confirmLabel: 'Sí, enviar', cancelLabel: 'Cancelar', type: 'warning' }
-      );
-      if (!confirmSend) return;
-    } else if (hasCompleted) {
-      const confirmSend = await confirmDialog(
-        '¿Reenviar Trabajo?',
-        'Este proyecto ya fue enviado a impresión y completado. ¿Estás seguro de enviar nuevamente?',
-        { confirmLabel: 'Sí, enviar', cancelLabel: 'Cancelar', type: 'warning' }
-      );
-      if (!confirmSend) return;
+    if (impresionEnviada) {
+      toast.error('Este proyecto ya fue enviado a impresión. Revisa el timeline o la cola de impresión.');
+      return;
     }
 
     const filesToSubmit = file.isMultiple ? file.files : [file];
@@ -259,6 +252,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
       setActiveSubTab('timeline');
     } catch (err) {
       console.error('[ProduccionPanel] Error submitting job:', err);
+      toast.error(err.message || 'No se pudo enviar a impresión');
     }
   };
 
@@ -291,12 +285,16 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
         </button>
         <button
           type="button"
-          onClick={() => setActiveSubTab('enviar')}
+          onClick={() => !impresionEnviada && setActiveSubTab('enviar')}
+          disabled={impresionEnviada}
           className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-            activeSubTab === 'enviar'
+            impresionEnviada
+              ? 'text-slate-400 cursor-not-allowed opacity-60'
+              : activeSubTab === 'enviar'
               ? 'bg-white text-blue-600 shadow-sm font-bold'
               : 'text-slate-600 hover:text-slate-800'
           }`}
+          title={impresionEnviada ? 'Ya se envió a impresión. Sigue el avance en el timeline.' : undefined}
         >
           Enviar a Impresión
         </button>
@@ -504,6 +502,18 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {impresionEnviada && (
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <Lock size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-amber-900">Envío único completado</p>
+                  <p className="text-xs text-amber-800 mt-1">
+                    Este proyecto ya fue enviado a la cola de impresión. No se permiten reenvíos.
+                    Sigue el progreso en <strong>Timeline de Impresión</strong> o en el módulo de cola del taller.
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Select Design from Project if available */}
             {proyecto && (() => {
               const disenoFase = proyecto.fases?.['DISEÑO'] || proyecto.fases?.DISEÑO;
@@ -553,10 +563,12 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Documento a Imprimir</label>
               {!file ? (
-                soloLectura ? (
+                formBloqueado ? (
                   <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center bg-slate-50 flex flex-col items-center justify-center gap-2 opacity-50 cursor-not-allowed select-none">
                     <Lock size={28} className="text-slate-300" />
-                    <span className="text-sm font-semibold text-slate-400">Solo lectura — proyecto concluido</span>
+                    <span className="text-sm font-semibold text-slate-400">
+                      {impresionEnviada ? 'Ya enviado a impresión — no se permiten reenvíos' : 'Solo lectura — proyecto concluido'}
+                    </span>
                   </div>
                 ) : (
                 <div 
@@ -602,7 +614,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                         </span>
                       )}
                       {/* Only allow removing file if it is NOT from design phase and project is NOT read-only */}
-                      {!fileFromProject && !soloLectura && (
+                      {!fileFromProject && !formBloqueado && (
                         <button 
                           type="button" 
                           onClick={() => { setFile(null); setFileFromProject(false); }} 
@@ -640,7 +652,8 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                   value={client} 
                   onChange={e => setClient(e.target.value)}
                   placeholder="Nombre del cliente"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  disabled={formBloqueado}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                   required
                 />
               </div>
@@ -649,7 +662,8 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                 <select 
                   value={urgency} 
                   onChange={e => setUrgency(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  disabled={formBloqueado}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                 >
                   <option value="Alta">Alta</option>
                   <option value="Media">Media</option>
@@ -664,7 +678,8 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
               <select 
                 value={format} 
                 onChange={e => setFormat(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                disabled={formBloqueado}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
               >
                 <option value="Lona traslúcida">Lona traslúcida</option>
                 <option value="Lona brillo">Lona brillo</option>
@@ -683,15 +698,16 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Copias</label>
                 <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white">
-                  <button type="button" onClick={() => adjustCopies(-1)} className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold border-r border-slate-300">-</button>
+                  <button type="button" onClick={() => adjustCopies(-1)} disabled={formBloqueado} className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold border-r border-slate-300 disabled:opacity-50">-</button>
                   <input 
                     type="number" 
                     value={copies} 
                     onChange={e => setCopies(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full text-center text-sm font-semibold text-slate-800 outline-none"
+                    disabled={formBloqueado}
+                    className="w-full text-center text-sm font-semibold text-slate-800 outline-none disabled:bg-slate-100"
                     min="1"
                   />
-                  <button type="button" onClick={() => adjustCopies(1)} className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold border-l border-slate-300">+</button>
+                  <button type="button" onClick={() => adjustCopies(1)} disabled={formBloqueado} className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold border-l border-slate-300 disabled:opacity-50">+</button>
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -703,7 +719,8 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                   value={width} 
                   onChange={e => setWidth(e.target.value)}
                   placeholder="1.0"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  disabled={formBloqueado}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                   required
                 />
               </div>
@@ -716,7 +733,8 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                   value={height} 
                   onChange={e => setHeight(e.target.value)}
                   placeholder="1.0"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  disabled={formBloqueado}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                   required
                 />
               </div>
@@ -730,7 +748,8 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                 value={notes} 
                 onChange={e => setNotes(e.target.value)}
                 placeholder="Añadir notas del acabado, troquelado, refuerzos perimetrales u ojalillos..."
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none"
+                disabled={formBloqueado}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none disabled:bg-slate-100 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -738,11 +757,12 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
             <div className="flex justify-end pt-3">
               <button 
                 type="submit" 
-                disabled={!file || soloLectura}
+                disabled={!file || formBloqueado}
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+                title={impresionEnviada ? 'Este proyecto ya fue enviado a impresión' : undefined}
               >
                 <Printer size={16} />
-                <span>Enviar a Impresión</span>
+                <span>{impresionEnviada ? 'Ya enviado a impresión' : 'Enviar a Impresión'}</span>
               </button>
             </div>
           </form>

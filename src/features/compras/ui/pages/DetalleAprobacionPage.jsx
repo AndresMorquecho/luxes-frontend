@@ -261,8 +261,8 @@ export const DetalleAprobacionPage = () => {
         <h3 className="text-xs font-bold text-slate-500" style={{ marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Datos de Facturación
         </h3>
-        <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
-          <div className="relative">
+        <div className="co-form-row-split">
+          <div className="co-form-field relative">
             <label className="co-label">
               Proveedor
             </label>
@@ -338,7 +338,7 @@ export const DetalleAprobacionPage = () => {
               </div>
             )}
           </div>
-          <div>
+          <div className="co-form-field">
             <label className="co-label">IVA / Impuesto</label>
             <input
               type="number"
@@ -420,7 +420,7 @@ export const DetalleAprobacionPage = () => {
       </div>
 
       {/* Botones de Acción */}
-      <div className="flex items-center justify-end gap-3" style={{ marginBottom: '2rem' }}>
+      <div className="co-actions-row">
         <button
           onClick={triggerAprobarConfirm}
           disabled={saving}

@@ -87,13 +87,24 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
     });
   };
 
-  const handleAprobarHoy = () => {
-    const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const handleAprobarHoy = async () => {
+    const hoy = new Date().toISOString().split('T')[0];
     const user = JSON.parse(localStorage.getItem('user') || 'null');
-    updateFaseDatos('DISEÑO', { 
-      fechaAprobacionDiseno: hoy,
-      disenadorNombre: user?.nombre || 'Diseñador'
-    });
+    try {
+      await updateFaseDatos('DISEÑO', {
+        fechaAprobacionDiseno: hoy,
+        disenadorNombre: user?.nombre || 'Diseñador',
+      });
+    } catch (error) {
+      alert('No se pudo registrar la aprobación: ' + error.message);
+    }
+  };
+
+  const formatFechaAprobacion = (fecha) => {
+    if (!fecha) return '';
+    const [y, m, d] = fecha.split('-');
+    if (y && m && d) return `${d}/${m}/${y}`;
+    return fecha;
   };
 
   return (
@@ -204,25 +215,26 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
           Aprobación del Cliente
         </h3>
 
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col gap-5">
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-700">¿El cliente aprobó este arte?</p>
             <p className="text-xs text-slate-500 mt-0.5">
               Es necesario registrar la fecha de aprobación para poder avanzar el proyecto a Producción.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="w-full min-w-0">
             {fechaAprobacion ? (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-100/50 px-4 py-2.5 rounded-xl border border-emerald-200">
-                  <CheckCircle size={16} />
-                  <span className="text-sm font-bold">Aprobado el {fechaAprobacion}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-100/50 px-4 py-2.5 rounded-xl border border-emerald-200 w-full sm:w-auto">
+                  <CheckCircle size={16} className="shrink-0" />
+                  <span className="text-sm font-bold">Aprobado el {formatFechaAprobacion(fechaAprobacion)}</span>
                 </div>
                 {!soloLectura && (
                   <button
+                    type="button"
                     onClick={() => updateFaseDatos('DISEÑO', { fechaAprobacionDiseno: '' })}
-                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200"
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200 self-start sm:self-center"
                     title="Deshacer aprobación"
                   >
                     <X size={16} />
@@ -230,12 +242,12 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <div className="relative w-full md:w-40">
-                  <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="relative flex-1 min-w-0 w-full">
+                  <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="date"
-                    disabled={soloLectura}
+                    disabled={soloLectura || archivos.length === 0}
                     value={fechaAprobacion}
                     onChange={(e) => updateFaseDatos('DISEÑO', { fechaAprobacionDiseno: e.target.value })}
                     className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:bg-slate-50 disabled:text-slate-400"
@@ -243,10 +255,11 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
                 </div>
                 {!soloLectura && (
                   <button
+                    type="button"
                     onClick={handleAprobarHoy}
                     disabled={archivos.length === 0}
-                    className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                    title={archivos.length === 0 ? "Sube el archivo primero" : "Marcar con fecha de hoy"}
+                    className="w-full sm:w-auto sm:shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={archivos.length === 0 ? 'Sube el archivo primero' : 'Marcar con fecha de hoy'}
                   >
                     Aprobar Hoy
                   </button>

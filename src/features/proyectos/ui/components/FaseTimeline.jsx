@@ -107,7 +107,7 @@ export function FaseTimeline({ faseActual, fases = {}, onFaseClick, faseVista, r
                 type="button"
                 disabled={!clickable}
                 onClick={() => clickable && onFaseClick && onFaseClick(fase.id)}
-                className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-xs font-bold transition-all focus:outline-none
+                className={`flex items-center justify-center gap-2 px-2.5 py-2 rounded-xl border text-xs font-bold transition-all focus:outline-none
                   ${fase.id === 'COMPLETADO' ? 'col-span-2' : ''}
                   ${esVista 
                     ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 

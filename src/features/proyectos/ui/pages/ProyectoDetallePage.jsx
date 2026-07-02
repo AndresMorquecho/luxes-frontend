@@ -106,7 +106,7 @@ export default function ProyectoDetallePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-12">
+    <div className="min-h-screen bg-slate-50 pb-6 sm:pb-12">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20 shadow-sm">
         <div className="w-full mx-auto space-y-3">
@@ -180,7 +180,7 @@ export default function ProyectoDetallePage() {
         </div>
       </div>
 
-      <div className="w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5 sm:space-y-6">
+      <div className="w-full mx-auto px-4 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
 
         {/* Selector de sub-pestañas principales */}
         <div className="flex gap-1 sm:gap-2 border-b border-slate-200 pb-px overflow-x-auto">
@@ -209,7 +209,7 @@ export default function ProyectoDetallePage() {
         {subTab === 'fases' ? (
           <>
             {/* Timeline + Progreso */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 relative">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 relative">
               <FaseTimeline 
                 faseActual={proyecto.faseActual} 
                 fases={proyecto.fases} 
@@ -217,7 +217,7 @@ export default function ProyectoDetallePage() {
                 onFaseClick={(fId) => setFaseVista(fId)}
                 requiereInstalacion={proyecto.requiereInstalacion}
               />
-          <div className="mt-5">
+          <div className="mt-3 sm:mt-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
               <span className="text-sm font-bold" style={{ color: faseConfig?.color }}>
@@ -231,29 +231,29 @@ export default function ProyectoDetallePage() {
         {/* Panel de fase actual / vista */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
           <div
-            className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 rounded-t-2xl gap-3"
+            className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50 rounded-t-2xl gap-2 sm:gap-3"
             style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
           >
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="font-bold text-slate-800">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <h2 className="font-bold text-slate-800 text-sm sm:text-base truncate">
                   {esVistaSoloLectura ? `Historial: ${faseConfig?.label}` : `Fase actual: ${faseConfig?.label}`}
                 </h2>
                 {esVistaSoloLectura && (
                   <button 
                     onClick={() => setFaseVista(proyecto.faseActual)}
-                    className="text-[10px] font-bold bg-white text-slate-500 px-2 py-1 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors uppercase tracking-wider"
+                    className="text-[10px] font-bold bg-white text-slate-500 px-2 py-1 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors uppercase tracking-wider shrink-0"
                   >
                     Ver actual
                   </button>
                 )}
               </div>
-              <p className="text-sm text-slate-500 mt-0.5">{faseConfig?.descripcion}</p>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{faseConfig?.descripcion}</p>
             </div>
             <FaseBadge faseId={faseActiva} />
           </div>
 
-          <div className="p-4 sm:p-6">
+          <div className="p-3 sm:p-6">
             {faseActiva === 'INSTALACION' ? (
               <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
             ) : faseActiva === 'COTIZACION' ? (
@@ -288,7 +288,7 @@ export default function ProyectoDetallePage() {
 
           {/* Acciones de fase (Footer como en EditarFasePage) */}
           {!esVistaSoloLectura && (
-            <div className="px-6 py-5 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-4 rounded-b-2xl">
+            <div className="px-4 py-3 sm:px-6 sm:py-5 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-3 sm:gap-4 rounded-b-2xl">
               
               {/* Botón Retroceder (Izquierda) */}
               <div className="flex items-center">

@@ -329,18 +329,17 @@ export const PrintQueueProvider = ({ children }) => {
 
   // Add a new job dispatched from Impresiones module
   const addJobToQueue = async (newJob) => {
-    try {
-      const res = await fetch('/api/impresiones', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(newJob),
-      });
-      if (res.ok) {
-        notifyUpdate();
-      }
-    } catch (e) {
-      console.error(e);
+    const res = await fetch('/api/impresiones', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(newJob),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'Error al enviar a la cola de impresión');
     }
+    notifyUpdate();
+    return data.data;
   };
 
   // Get all jobs (active + queue + completed) linked to a specific project

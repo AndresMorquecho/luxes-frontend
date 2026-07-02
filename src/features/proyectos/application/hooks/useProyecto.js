@@ -73,12 +73,16 @@ export function useProyecto(id) {
     // Actualizar localmente
     dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios } });
     
-    // Persistir en backend usando el endpoint avanzarFase
+    // Persistir en backend y sincronizar respuesta del servidor
     try {
-      await adapter.avanzarFase(id, faseId, {
+      const datosCompletos = {
         ...(proyecto.fases?.[faseId]?.datos || {}),
         ...nuevosDatos,
-      });
+      };
+      const servidor = await adapter.avanzarFase(id, faseId, datosCompletos);
+      if (servidor) {
+        dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios: servidor } });
+      }
     } catch (error) {
       console.error('Error al guardar datos de fase:', error);
       throw error;

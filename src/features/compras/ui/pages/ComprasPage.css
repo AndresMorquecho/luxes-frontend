@@ -164,6 +164,55 @@
   letter-spacing: 0.05em;
   margin-bottom: 6px;
 }
+
+/* Fila de formulario: campos alineados (ej. Proveedor + IVA) */
+.co-form-row-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: end;
+}
+
+@media (min-width: 640px) {
+  .co-form-row-split {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+
+.co-form-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.co-form-field .co-label {
+  min-height: 2rem;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-end;
+  line-height: 1.25;
+}
+
+.co-form-field .co-input {
+  height: 42px;
+  box-sizing: border-box;
+}
+
+.co-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.co-actions-row .co-btn-primary {
+  min-height: 44px;
+  flex: 1 1 220px;
+  justify-content: center;
+  max-width: 100%;
+}
 .co-select-sm {
   max-width: 180px;
   padding: 6px 10px;
@@ -877,6 +926,19 @@ input[type="number"] {
   .co-btn-primary {
     justify-content: center !important;
     width: 100% !important;
+  }
+
+  .co-form-row-split {
+    grid-template-columns: 1fr !important;
+  }
+
+  .co-actions-row {
+    flex-direction: column !important;
+  }
+
+  .co-actions-row .co-btn-primary {
+    width: 100% !important;
+    flex: none !important;
   }
 
   /* 2x2 grid for KPI Cards */

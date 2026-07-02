@@ -191,6 +191,11 @@
     min-width: 0 !important;
   }
 
+  .layout-main:has(.nt-page) {
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+  }
+
   .layout-body.has-mobile-search {
     padding-top: 120px;
   }
@@ -268,6 +273,12 @@
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
+  }
+
+  .layout-container.mobile-taller-layout .layout-main:has(.nt-page) {
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+    padding-top: calc(64px + 0.625rem) !important;
   }
 }
 

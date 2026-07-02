@@ -7,12 +7,23 @@ import './NotificacionesPage.css';
 const fmtDate = (d) => {
   if (!d) return '—';
   const date = new Date(d);
-  return date.toLocaleDateString('es-EC', { 
-    year: 'numeric', 
-    month: 'short', 
+  return date.toLocaleDateString('es-EC', {
+    year: 'numeric',
+    month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+  });
+};
+
+const fmtDateShort = (d) => {
+  if (!d) return '—';
+  const date = new Date(d);
+  return date.toLocaleDateString('es-EC', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 };
 
@@ -91,6 +102,9 @@ const getNotificationRoute = (notification) => {
 
 const getSenderName = (notification) =>
   notification.createdBy || notification.created_by || 'Sistema Luxes';
+
+const displayMessage = (message) =>
+  (message || '').replace(/\[seed-prueba\]\s*/gi, '').trim();
 
 const getLoadErrorMessage = (err) => {
   if (err.message === NETWORK_ERROR) {
@@ -203,24 +217,22 @@ export const NotificacionesPage = () => {
 
   return (
     <div className="nt-page animate-slide-up">
-      {/* Header */}
-      <div className="nt-card nt-header">
-        <div>
+      <div className="nt-toolbar">
+        <div className="nt-toolbar-text">
           <h1 className="nt-title">Buzón de Notificaciones</h1>
           <p className="nt-subtitle">Alertas de compra, aprobaciones y estado del sistema</p>
         </div>
-        {notifications.some(n => !n.isRead) && (
-          <button onClick={handleMarkAllRead} className="nt-btn-primary">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        {notifications.some((n) => !n.isRead) && (
+          <button type="button" onClick={handleMarkAllRead} className="nt-btn-primary">
+            <svg className="nt-btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
-            Marcar todas como leídas
+            <span className="nt-btn-label">Marcar todas como leídas</span>
           </button>
         )}
       </div>
 
-      {/* List Container */}
-      <div className="nt-card nt-list-card">
+      <div className="nt-list-shell">
         {loading ? (
           <div className="nt-loader-box"><div className="nt-spinner" /></div>
         ) : notifications.length === 0 ? (
@@ -235,53 +247,69 @@ export const NotificacionesPage = () => {
           </div>
         ) : (
           <div className="nt-list">
-            {notifications.map(n => {
+            {notifications.map((n) => {
               const hasRoute = !!getNotificationRoute(n);
+              const actionLabel =
+                n.title?.toLowerCase().includes('impresi') || n.message?.toLowerCase().includes('impresi')
+                  ? 'Ver'
+                  : 'Ir';
+
               return (
-                <div key={n.id} className={`nt-item ${n.isRead ? 'nt-read' : 'nt-unread'}`}>
-                  {/* Unread indicator dot */}
-                  {!n.isRead && <span className="nt-dot" />}
-                  
+                <article key={n.id} className={`nt-item ${n.isRead ? 'nt-read' : 'nt-unread'}`}>
+                  {!n.isRead && <span className="nt-dot" aria-hidden="true" />}
+
                   <div className="nt-item-body">
                     <div className="nt-item-header">
                       <h4 className="nt-item-title">{n.title}</h4>
-                      <span className="nt-item-date">{fmtDate(n.createdAt)}</span>
+                      <time className="nt-item-date nt-item-date-full" dateTime={n.createdAt}>
+                        {fmtDate(n.createdAt)}
+                      </time>
+                      <time className="nt-item-date nt-item-date-short" dateTime={n.createdAt}>
+                        {fmtDateShort(n.createdAt)}
+                      </time>
                     </div>
-                    <p className="nt-item-message">{n.message}</p>
+
+                    <p className="nt-item-message">{displayMessage(n.message)}</p>
+
                     <p className="nt-item-user">
-                      <svg className="w-3 h-3 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <svg className="nt-user-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                       </svg>
-                      Enviado por: {getSenderName(n)}
+                      <span>Enviado por: {getSenderName(n)}</span>
                     </p>
                   </div>
 
-                  <div className="nt-actions-group">
-                    {hasRoute && (
-                      <button 
-                        onClick={() => handleGoToNotification(n)} 
-                        className="nt-action-btn-primary"
-                        title="Ir a la página relacionada"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                        </svg>
-                        {(n.title?.toLowerCase().includes('impresi') || n.message?.toLowerCase().includes('impresi')) ? 'Ver' : 'Ir'}
-                      </button>
-                    )}
-                    {!n.isRead && (
-                      <button 
-                        onClick={() => handleMarkRead(n.id)} 
-                        className="nt-action-btn"
-                        title="Marcar como leída"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
+                  {(hasRoute || !n.isRead) && (
+                    <div className="nt-item-actions">
+                      {hasRoute && (
+                        <button
+                          type="button"
+                          onClick={() => handleGoToNotification(n)}
+                          className="nt-action-btn-primary"
+                          title="Ir a la página relacionada"
+                        >
+                          <svg className="nt-action-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                          </svg>
+                          <span>{actionLabel}</span>
+                        </button>
+                      )}
+                      {!n.isRead && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkRead(n.id)}
+                          className="nt-action-btn nt-action-btn-mark"
+                          title="Marcar como leída"
+                        >
+                          <svg className="nt-action-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          <span className="nt-action-btn-text">Leída</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </article>
               );
             })}
           </div>
