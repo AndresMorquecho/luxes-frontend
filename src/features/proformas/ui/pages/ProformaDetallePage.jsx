@@ -4,7 +4,6 @@ import { getProformaById, aprobarProforma, rechazarProforma, registrarAbonoProfo
 import { getMetodosPago } from '../../../gastos/application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { ProformaPDF } from '../components/ProformaPDF';
-import { SendProformaModal } from '../components/SendProformaModal.jsx';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -21,7 +20,6 @@ export const ProformaDetallePage = () => {
   
   // Modal states
   const [showAbonoModal, setShowAbonoModal] = useState(false);
-  const [showSendModal, setShowSendModal] = useState(false);
   const [abonoForm, setAbonoForm] = useState({
     monto: '',
     metodoPagoId: '',
@@ -33,7 +31,6 @@ export const ProformaDetallePage = () => {
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (loggedInUser?.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
-  const isVentas = ['VENTAS', 'DISEÑADOR', 'DISENADOR'].includes(userRole);
 
   useEffect(() => {
     const loadDetails = async () => {
@@ -83,16 +80,6 @@ export const ProformaDetallePage = () => {
   const total = subtotal * (1 + Number(proforma.iva));
   const totalCobrado = (proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
   const totalPendiente = Math.max(0, total - totalCobrado);
-  const canEnviarProforma = (isVentas || isAdmin) && proforma.estado !== 'Rechazada';
-
-  const reloadProforma = async () => {
-    try {
-      const data = await getProformaById(id);
-      setProforma(data);
-    } catch {
-      toast.error('No se pudo actualizar la proforma');
-    }
-  };
 
   const handleRechazar = async () => {
     if (!window.confirm('¿Está seguro de que desea rechazar esta proforma?')) return;
@@ -221,15 +208,6 @@ export const ProformaDetallePage = () => {
             </svg>
             Ver PDF
           </button>
-
-          {canEnviarProforma && (
-            <button
-              onClick={() => setShowSendModal(true)}
-              className="px-4 py-2 border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-bold rounded-xl transition-colors shrink-0 flex items-center gap-1.5"
-            >
-              {proforma.fechaEnvio ? 'Reenviar al cliente' : 'Enviar al cliente'}
-            </button>
-          )}
 
           {isAdmin && proforma.estado === 'Pendiente' && (
             <>
@@ -595,12 +573,6 @@ export const ProformaDetallePage = () => {
         />
       )}
 
-      <SendProformaModal
-        isOpen={showSendModal}
-        onClose={() => setShowSendModal(false)}
-        proforma={proforma}
-        onSent={reloadProforma}
-      />
     </div>
   );
 };
