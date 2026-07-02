@@ -22,6 +22,7 @@ export function useProyectos() {
     responsable: 'TODOS',
     prioridad: 'TODAS',
     estado: 'TODOS',
+    instalacion: 'TODOS',
   });
 
   const proyectosFiltrados = useMemo(() => {
@@ -39,8 +40,12 @@ export function useProyectos() {
         filtros.prioridad === 'TODAS' || p.prioridad === filtros.prioridad;
       const matchEstado =
         filtros.estado === 'TODOS' || p.estado === filtros.estado;
+      const matchInstalacion =
+        filtros.instalacion === 'TODOS' ||
+        (filtros.instalacion === 'SI' && p.requiereInstalacion === true) ||
+        (filtros.instalacion === 'NO' && p.requiereInstalacion === false);
 
-      return matchBusqueda && matchFase && matchResponsable && matchPrioridad && matchEstado;
+      return matchBusqueda && matchFase && matchResponsable && matchPrioridad && matchEstado && matchInstalacion;
     });
   }, [proyectos, filtros]);
 

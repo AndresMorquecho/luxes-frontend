@@ -1,7 +1,7 @@
 // src/features/proyectos/ui/pages/ProyectoDetallePage.jsx
 
 import React, { useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
   DollarSign, Calendar, Tag, User, Eye, X,
@@ -28,8 +28,16 @@ import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
 export default function ProyectoDetallePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { reloadProyectos } = useProyectosContext();
+
+  React.useEffect(() => {
+    if (reloadProyectos) {
+      reloadProyectos();
+    }
+  }, [location.pathname, location.search, reloadProyectos]);
+
   const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual } = useProyecto(id);
   const [faseVista, setFaseVista] = useState(() => {
     const tab = searchParams.get('tab');

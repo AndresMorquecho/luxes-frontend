@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Eye, PenLine, Trash2 } from 'lucide-react';
+import { AlertTriangle, Eye, PenLine, Trash2, Wrench } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { calcularDiasDesde } from '../../domain/utils/proyectoDates.js';
@@ -69,6 +69,22 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
       {/* Fase */}
       <td className="px-4 py-3">
         <FaseBadge faseId={proyecto.faseActual} />
+      </td>
+
+      {/* Instalación */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1.5">
+          {proyecto.requiereInstalacion ? (
+            <span className="flex items-center gap-1 text-[11px] text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full font-semibold border border-orange-100" title="Requiere instalación en obra">
+              <Wrench size={12} className="text-orange-500 shrink-0" />
+              <span>Sí</span>
+            </span>
+          ) : (
+            <span className="text-[11px] text-slate-400 font-medium" title="No requiere instalación">
+              No
+            </span>
+          )}
+        </div>
       </td>
 
       {/* Progreso */}
