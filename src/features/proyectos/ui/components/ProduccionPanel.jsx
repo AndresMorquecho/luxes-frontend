@@ -714,7 +714,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                 {materialesList.length > 0 ? (
                   materialesList.map(mat => (
                     <option key={mat.id} value={mat.nombre}>
-                      {mat.nombre} {mat.stockActual !== undefined ? `(Stock: ${mat.stockActual})` : ''}
+                      {mat.nombre}
                     </option>
                   ))
                 ) : (
