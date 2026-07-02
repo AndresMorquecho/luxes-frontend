@@ -3,17 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getOrdenById } from '../../../compras/application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { RecepcionNav } from './RecepcionNav';
+import { formatDateOnlyES } from '../../../../shared/utils/dateOnly.js';
 import './RecepcionInsumos.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-const fmtDate = (d) => d
-  ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' })
-  : '—';
-const fmtDateTime = (d) => d
-  ? new Date(d).toLocaleDateString('es-EC', {
-    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-  : '—';
+const fmtDate = (d) => formatDateOnlyES(d, { year: 'numeric', month: 'long', day: 'numeric' });
 
 export const HistorialRecepcionDetallePage = ({ basePath = '/compras/recepcion' }) => {
   const { ordenId } = useParams();
@@ -93,7 +87,7 @@ export const HistorialRecepcionDetallePage = ({ basePath = '/compras/recepcion' 
         <div className="ri-info-grid">
           <div className="ri-info-item">
             <label>Fecha de llegada (última)</label>
-            <p className="font-semibold text-emerald-700">{fmtDateTime(orden.fechaRecepcion)}</p>
+            <p className="font-semibold text-emerald-700">{fmtDate(orden.fechaRecepcion)}</p>
           </div>
           <div className="ri-info-item">
             <label>Recibido por</label>

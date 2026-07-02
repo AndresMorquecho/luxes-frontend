@@ -4,10 +4,10 @@ import { getOrdenById, recepcionarOrden } from '../../../compras/application/com
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal';
+import { formatDateOnlyES, toDateInputValue, todayDateInputValue } from '../../../../shared/utils/dateOnly.js';
 import './RecepcionInsumos.css';
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
-const todayISO = () => new Date().toISOString().split('T')[0];
+const fmtDate = (d) => formatDateOnlyES(d, { year: 'numeric', month: 'long', day: 'numeric' });
 
 const mapDetalleFromOrden = (d) => ({
   id: d.id,
@@ -19,8 +19,8 @@ const mapDetalleFromOrden = (d) => ({
   observacion: '',
   descargableInventario: d.descargableInventario ?? !!d.materialId,
   fechaRecepcion: d.fechaRecepcion
-    ? new Date(d.fechaRecepcion).toISOString().split('T')[0]
-    : todayISO(),
+    ? toDateInputValue(d.fechaRecepcion)
+    : todayDateInputValue(),
   yaRecibido: (d.cantidadRecibida ?? 0) > 0,
 });
 
@@ -92,7 +92,7 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
 
   const buildRecepcionPDF = (ordenData, items) => ({
     numeroOrden: ordenData.numero,
-    fecha: items.map(i => i.fechaRecepcion).sort().reverse()[0] || todayISO(),
+    fecha: items.map(i => i.fechaRecepcion).sort().reverse()[0] || todayDateInputValue(),
     proveedor: ordenData.proveedor?.nombre || '—',
     solicitante: ordenData.usuario?.nombre || '—',
     observaciones: observaciones || ordenData.notasRecepcion || 'Sin observaciones',

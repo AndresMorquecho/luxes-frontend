@@ -16,11 +16,12 @@ import { confirmDialog } from '../../../shared/ui/components/ConfirmModal.jsx';
 import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
 import './InventarioPage.css';
 import { NuevoProductoModal } from './NuevoProductoModal.jsx';
+import { formatDateOnlyES } from '../../../shared/utils/dateOnly.js';
 
 // ── Helper ─────────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 25;
 const fmt = (n) => `$${Number(n).toFixed(2)}`;
-const fmtCompra = (d) => d ? new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmtCompra = (d) => formatDateOnlyES(d, { day: '2-digit', month: 'short', year: 'numeric' });
 const elapsed = (fechaSalida) => {
   const diff = Date.now() - new Date(fechaSalida).getTime();
   const h = Math.floor(diff / 3_600_000);
