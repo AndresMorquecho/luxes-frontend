@@ -143,6 +143,18 @@ export const ColasImpresionPage = () => {
   // Shopping Cart state
   const [cartItems, setCartItems] = useState([]);
 
+  const [isTvMode, setIsTvMode] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsTvMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Smart calculations for roll width consumption
   const calculateSuggestedQuantity = (material, width, height, copies) => {
     if (!material) return 1.0;
@@ -572,7 +584,30 @@ export const ColasImpresionPage = () => {
                     <h3 className="active-job-file-name">{activeJob.name}</h3>
                   </div>
 
-                  <div className="active-job-header-badges">
+                  <div className="active-job-header-badges" style={{ gap: '0.75rem' }}>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsTvMode(true)}
+                      className="btn-control-premium"
+                      style={{ 
+                        padding: '0.2rem 0.5rem', 
+                        fontSize: '0.7rem', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '0.25rem', 
+                        backgroundColor: '#fff', 
+                        border: '1px solid #cbd5e1',
+                        color: '#334155',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                      title="Pantalla Completa / Modo TV"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ width: '12px', height: '12px' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v6.5m0-6.5h6.5m-6.5 0L9 9M3.75 20.25v-6.5m0 6.5h6.5m-6.5 0L9 15M20.25 3.75v6.5m0-6.5h-6.5m6.5 0L15 9m5.25 11.25v-6.5m0 6.5h-6.5m6.5 0L15 15" />
+                      </svg>
+                      Modo TV
+                    </button>
                     {renderPriorityBadge(activeJob.urgency || 'Media')}
                     <div className="status-badge-container">
                       {activeJob.status === "Listo" ? (
@@ -1961,6 +1996,181 @@ export const ColasImpresionPage = () => {
                 Cerrar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TV / Fullscreen Mode Overlay */}
+      {isTvMode && activeJob && (
+        <div 
+          className="colas-tv-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#0f172a',
+            color: '#f8fafc',
+            zIndex: 99999,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '2.5rem',
+            fontFamily: 'system-ui, -apple-system, sans-serif'
+          }}
+        >
+          <style>{`
+            @keyframes tv-pulse {
+              0% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.2); opacity: 0.5; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            .tv-pulse-dot {
+              animation: tv-pulse 1.8s infinite ease-in-out;
+            }
+          `}</style>
+          
+          {/* Top Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', borderBottom: '1px solid #334155', paddingBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div 
+                className="tv-pulse-dot"
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  backgroundColor: activeJob.status === 'Imprimiendo' ? '#10b981' : '#f59e0b',
+                  boxShadow: activeJob.status === 'Imprimiendo' ? '0 0 12px #10b981' : '0 0 12px #f59e0b',
+                }} 
+              />
+              <span style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>
+                Monitoreo de Producción en Taller
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              <span style={{ fontSize: '1.1rem', color: '#94a3b8', fontWeight: 500 }}>
+                Presiona <strong style={{ color: '#fff', backgroundColor: '#334155', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.9rem' }}>ESC</strong> para salir
+              </span>
+              <button 
+                type="button" 
+                onClick={() => setIsTvMode(false)}
+                style={{
+                  padding: '0.6rem 1.2rem',
+                  backgroundColor: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  transition: 'background-color 0.2s'
+                }}
+              >
+                Salir de Pantalla Completa
+              </button>
+            </div>
+          </div>
+
+          {/* Main Grid Content */}
+          <div style={{ display: 'flex', flex: 1, gap: '3rem', minHeight: 0 }}>
+            
+            {/* Left Side: Main details */}
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1.3, justifyContent: 'space-between', minWidth: 0 }}>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Status Badge */}
+                <div style={{ display: 'inline-flex', alignSelf: 'flex-start', padding: '0.4rem 1rem', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', textTransform: 'uppercase', tracking: '0.05em', backgroundColor: activeJob.status === 'Imprimiendo' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: activeJob.status === 'Imprimiendo' ? '#34d399' : '#fbbf24', border: activeJob.status === 'Imprimiendo' ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(245,158,11,0.3)' }}>
+                  {activeJob.status}
+                </div>
+
+                {/* Job Title */}
+                <h1 style={{ fontSize: '3.5rem', fontWeight: 900, lineHeight: 1.1, color: '#ffffff', wordBreak: 'break-word', margin: 0 }}>
+                  {activeJob.name}
+                </h1>
+
+                {/* Client & Project */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                  <div style={{ fontSize: '1.8rem', color: '#e2e8f0' }}>
+                    Cliente: <strong style={{ color: '#60a5fa' }}>{activeJob.client || 'Sin cliente'}</strong>
+                  </div>
+                  {activeJob.proyectoNombre && (
+                    <div style={{ fontSize: '1.5rem', color: '#cbd5e1' }}>
+                      Proyecto: <strong style={{ color: '#a78bfa' }}>{activeJob.proyectoNombre}</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Specs */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+                <span style={{ fontSize: '1.1rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 'bold' }}>Especificaciones de Impresión</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+                  
+                  {/* Material */}
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '1.25rem 2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '200px' }}>
+                    <span style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sustrato / Material</span>
+                    <span style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#38bdf8' }}>{activeJob.format}</span>
+                  </div>
+
+                  {/* Medidas */}
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '1.25rem 2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '150px' }}>
+                    <span style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Medidas</span>
+                    <span style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#38bdf8' }}>{activeJob.width || 1.0}m x {activeJob.height || 1.0}m</span>
+                  </div>
+
+                  {/* Copias */}
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '1.25rem 2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px' }}>
+                    <span style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cantidad</span>
+                    <span style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#38bdf8' }}>{activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'}</span>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Operator and Timing */}
+              <div style={{ display: 'flex', gap: '3rem', marginTop: '2rem', borderTop: '1px solid #334155', paddingTop: '2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#3b82f6', color: '#fff', fontSize: '1.6rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {(activeJob.responsible || 'OP').substring(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase' }}>Operador Responsable</span>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{activeJob.responsible || 'Sin asignar'}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase' }}>Hora de Inicio</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>{activeJob.startTime || 'Sin iniciar'}</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Side: Image preview if available */}
+            {(() => {
+              const files = parseJobFiles(activeJob);
+              const firstImage = files.find(f => isImageFile(f.name, f.url));
+              
+              if (firstImage) {
+                return (
+                  <div style={{ display: 'flex', flex: 1, flexDirection: 'column', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '24px', padding: '1.5rem', justifyContent: 'center', alignItems: 'center', minWidth: 0 }}>
+                    <span style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', alignSelf: 'flex-start', fontWeight: 'bold' }}>
+                      Vista Previa del Arte
+                    </span>
+                    <div style={{ display: 'flex', flex: 1, width: '100%', minHeight: 0, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '16px', backgroundColor: '#1e293b', border: '1px solid #334155' }}>
+                      <img 
+                        src={firstImage.url} 
+                        alt="TV preview" 
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} 
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
           </div>
         </div>
       )}
