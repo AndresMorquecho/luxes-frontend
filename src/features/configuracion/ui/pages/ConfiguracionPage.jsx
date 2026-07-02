@@ -366,7 +366,9 @@ export const ConfiguracionPage = () => {
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 shadow-sm text-sm"
               style={{ backgroundColor: '#1d4ed8' }}
             >
-              {saving && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
+              {saving && (
+                <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" aria-hidden="true" />
+              )}
               {saving ? 'Guardando...' : 'Guardar Configuración'}
             </button>
           </div>
@@ -421,7 +423,9 @@ export const ConfiguracionPage = () => {
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 shadow-sm text-sm"
               style={{ backgroundColor: '#1d4ed8' }}
             >
-              {savingSidebar && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />}
+              {savingSidebar && (
+                <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" aria-hidden="true" />
+              )}
               {savingSidebar ? 'Guardando...' : 'Guardar Configuración de Sidebar'}
             </button>
           </div>

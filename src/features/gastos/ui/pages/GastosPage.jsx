@@ -1451,7 +1451,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 disabled={!cierrePreview || savingCierre}
                 className="ga-btn-primary w-full justify-center"
               >
-                {savingCierre && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" />}
+                {savingCierre && (
+                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" aria-hidden="true" />
+                )}
                 Guardar Cierre de Caja
               </button>
             </div>

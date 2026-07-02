@@ -574,7 +574,12 @@ export const VentasPage = () => {
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                   <button type="button" onClick={() => setShowAbonoModal(false)} className="ve-btn-ghost">Cancelar</button>
                   <button type="submit" disabled={submittingAbono} className="ve-btn-primary flex items-center gap-1.5">
-                    {submittingAbono && <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white" />}
+                    {submittingAbono && (
+                      <span
+                        className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white"
+                        aria-hidden="true"
+                      />
+                    )}
                     {submittingAbono ? 'Registrando...' : 'Confirmar Cobro'}
                   </button>
                 </div>
