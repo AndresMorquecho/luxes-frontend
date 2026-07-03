@@ -30,6 +30,7 @@ import {
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../proyectos/domain/encuestaUtils.js';
 import { EncuestaResultadosView } from '../../proyectos/ui/components/EncuestaResultadosView.jsx';
 import { isTallerUser } from '../../../shared/utils/userRoleHelpers.js';
+import { CameraCaptureModal } from './components/CameraCaptureModal.jsx';
 import './MaterialesRequestPage.css';
 
 
@@ -147,6 +148,7 @@ export function MaterialesRequestPage() {
   const [isPDFOpen, setIsPDFOpen] = useState(false);
   const [previewOC, setPreviewOC] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false);
   const [proyectoParaEncuesta, setProyectoParaEncuesta] = useState(null);
   const [modalConfig, setModalConfig] = useState({
@@ -438,6 +440,15 @@ export function MaterialesRequestPage() {
         reject(err);
       };
     });
+  };
+
+  const handleOpenCamera = () => {
+    if (esSoloLectura) return;
+    if (!instalacionIniciada) {
+      toast.error('Debes iniciar la instalación en obra antes de subir evidencias.');
+      return;
+    }
+    setIsCameraOpen(true);
   };
 
   const handleUploadEvidencias = async (files) => {
@@ -1246,25 +1257,17 @@ export function MaterialesRequestPage() {
                       </div>
 
                       {/* Abrir Cámara */}
-                      <div className="evidencias-dropzone flex-1">
-                        <input
-                          type="file"
-                          id="evidencias-input-camera"
-                          accept="image/*"
-                          capture="environment"
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            if (e.target.files) {
-                              handleUploadEvidencias(e.target.files);
-                            }
-                          }}
-                        />
-                        <label htmlFor="evidencias-input-camera" className="dropzone-label cursor-pointer flex flex-col items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={handleOpenCamera}
+                        className="evidencias-dropzone flex-1 border-0 bg-transparent p-0 cursor-pointer"
+                      >
+                        <span className="dropzone-label cursor-pointer flex flex-col items-center justify-center w-full h-full">
                           <Camera size={36} className="text-emerald-500 mb-2" />
                           <span className="font-bold text-slate-700 text-xs sm:text-sm">Abrir Cámara</span>
                           <span className="text-[10px] text-slate-400 mt-1">Toma una foto directamente</span>
-                        </label>
-                      </div>
+                        </span>
+                      </button>
                     </div>
                   ) : (
                     <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-4 text-xs text-slate-500 flex items-center gap-2">
@@ -1523,6 +1526,12 @@ export function MaterialesRequestPage() {
         </div>
         </ModalPortal>
       )}
+
+      <CameraCaptureModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={(file) => handleUploadEvidencias([file])}
+      />
     </div>
   );
 }
