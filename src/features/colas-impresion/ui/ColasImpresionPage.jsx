@@ -320,7 +320,7 @@ export const ColasImpresionPage = () => {
     setShowPrepModal(true);
     setLoadingMaterials(true);
     try {
-      const data = await getMateriales(buildMaterialesQuery());
+      const data = await getMateriales(buildMaterialesQuery({ categoria: 'Impresión' }));
       const items = data.items || data || [];
       setMaterialesImpresion(items);
 

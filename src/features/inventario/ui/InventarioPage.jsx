@@ -527,7 +527,7 @@ export function InventarioPage() {
                           {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
                         </td>
                         <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
-                          {isTool && item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}
+                          {isTool && item.estadoUso === 'EN USO' ? (item.aCargoEmpleado?.nombre || item.aCargo || 'Asignado') : '—'}
                         </td>
                         <td className="inv-td-actions">
                           <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
@@ -602,7 +602,7 @@ export function InventarioPage() {
                         {isTool && item.estadoUso === 'EN USO' && (
                           <div className="inv-card-row">
                             <span className="inv-card-label">A cargo</span>
-                            <span className="inv-card-value">{item.aCargo || 'Asignado'}</span>
+                            <span className="inv-card-value">{item.aCargoEmpleado?.nombre || item.aCargo || 'Asignado'}</span>
                           </div>
                         )}
                       </div>
