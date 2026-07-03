@@ -4,17 +4,11 @@ import { getOrdenes } from '../../../compras/application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { RecepcionNav } from './RecepcionNav';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
+import { formatDateOnlyES, formatDateTimeES } from '../../../../shared/utils/dateOnly.js';
 import './RecepcionInsumos.css';
 
-const fmtDate = (d) => d
-  ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' })
-  : '—';
-
-const fmtDateTime = (d) => d
-  ? new Date(d).toLocaleDateString('es-EC', {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-  : '—';
+const fmtDate = (d) => formatDateOnlyES(d, { year: 'numeric', month: 'short', day: 'numeric' });
+const fmtDateTime = (d) => formatDateTimeES(d);
 
 export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) => {
   const navigate = useNavigate();
