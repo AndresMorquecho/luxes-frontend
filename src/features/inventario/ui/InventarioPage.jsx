@@ -256,7 +256,7 @@ export function InventarioPage() {
   }, [loadMaterials, loadStats, loadUnits]);
 
   // ── CRUD handlers ─────────────────────────────────────────────────────────
-  async function handleSaveMaterial(form) {
+  async function handleSaveMaterial(form, keepOpen = false) {
     try {
       if (matModal && matModal !== 'new') {
         await updateMaterial(matModal.id, form);
@@ -265,9 +265,14 @@ export function InventarioPage() {
         await createMaterial(form);
         toast.success('Material creado correctamente.');
       }
-      setMatModal(null);
+      if (!keepOpen) {
+        setMatModal(null);
+      }
       loadAll();
-    } catch (e) { toast.error(e.message); }
+    } catch (e) {
+      toast.error(e.message);
+      throw e;
+    }
   }
 
   async function handleDeleteMaterial(item) {

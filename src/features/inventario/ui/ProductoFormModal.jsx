@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   X, Check, Wrench, Package, Monitor, Printer, Droplets,
-  ScrollText, ChevronLeft, ArrowDownToLine, ArrowUpFromLine
+  ScrollText, ArrowDownToLine, ArrowUpFromLine, RefreshCw
 } from 'lucide-react';
 import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
 import './ProductoFormModal.css';
@@ -12,7 +12,7 @@ const SUBTYPES = {
     {
       id: 'herramienta',
       name: 'Herramienta / Equipo',
-      desc: 'Martillos, taladros, moladoras, etc. Se asigna responsable.',
+      desc: 'Martillos, taladros, moladoras, etc. Se presta/asigna a responsable.',
       Icon: Wrench,
       descargaStock: false,
       esPrestable: true,
@@ -21,7 +21,7 @@ const SUBTYPES = {
     {
       id: 'consumible_registro',
       name: 'Consumible (solo registro)',
-      desc: 'Tornillos, clavos, cintas. Se registra uso pero no se descarga stock.',
+      desc: 'Tornillos, clavos, cintas. Se registra gasto pero no descarga inventario.',
       Icon: Package,
       descargaStock: false,
       esPrestable: false,
@@ -43,7 +43,7 @@ const SUBTYPES = {
     {
       id: 'consumible_descargable',
       name: 'Material descargable (rollos/lonas)',
-      desc: 'Se compra y se descuenta del inventario por metraje.',
+      desc: 'Se descuenta del inventario por metraje de impresión.',
       Icon: ScrollText,
       descargaStock: true,
       esPrestable: false,
@@ -52,7 +52,7 @@ const SUBTYPES = {
     {
       id: 'consumible_registro',
       name: 'Material no rastreable (tintas)',
-      desc: 'Se compra pero no se puede rastrear consumo exacto.',
+      desc: 'Se compra pero no se descarga automáticamente.',
       Icon: Droplets,
       descargaStock: false,
       esPrestable: false,
@@ -62,56 +62,54 @@ const SUBTYPES = {
 };
 
 const CATEGORIES = [
-  {
-    id: 'Taller',
-    name: 'Taller',
-    desc: 'Herramientas y materiales de instalación',
-    Icon: Wrench,
-    cssClass: 'taller',
-  },
-  {
-    id: 'Oficina',
-    name: 'Oficina',
-    desc: 'Activos fijos de la empresa',
-    Icon: Monitor,
-    cssClass: 'oficina',
-  },
-  {
-    id: 'Impresión',
-    name: 'Impresión',
-    desc: 'Materiales e insumos de impresión',
-    Icon: Printer,
-    cssClass: 'impresion',
-  },
+  { id: 'Taller', name: 'Taller', Icon: Wrench, cssClass: 'taller' },
+  { id: 'Oficina', name: 'Oficina', Icon: Monitor, cssClass: 'oficina' },
+  { id: 'Impresión', name: 'Impresión', Icon: Printer, cssClass: 'impresion' },
 ];
 
-// ── Component ──────────────────────────────────────────────────────────────
 export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose, onSave }) {
   const isEdit = !!item;
+  const nameInputRef = useRef(null);
 
-  // ── Resolve default subtype for existing items
-  const resolveSubtype = () => {
+  // ── Resolve default category and subtype
+  const defaultCategory = lockedCategory || item?.categoria || 'Taller';
+  
+  const resolveSubtype = (cat) => {
     if (item?.subtipo) return item.subtipo;
     if (item?.tipo === 'herramienta') return 'herramienta';
-    if (item?.categoria === 'Oficina') return 'activo_fijo';
-    if (item?.categoria === 'Impresión') return 'consumible_descargable';
+    if (cat === 'Oficina') return 'activo_fijo';
+    if (cat === 'Impresión') return 'consumible_descargable';
     return 'consumible_registro';
   };
 
   // ── State ──
-  const [step, setStep] = useState(isEdit ? 3 : 1);
-  const [categoria, setCategoria] = useState(lockedCategory || item?.categoria || '');
-  const [subtipo, setSubtipo] = useState(isEdit ? resolveSubtype() : '');
+  const [categoria, setCategoria] = useState(defaultCategory);
+  const [subtipo, setSubtipo] = useState(() => resolveSubtype(defaultCategory));
   const [saving, setSaving] = useState(false);
 
-  // Resolve subtype config
+  // Auto-focus name field on mount
+  useEffect(() => {
+    if (nameInputRef.current) {
+      nameInputRef.current.focus();
+    }
+  }, []);
+
+  // When category changes, auto-select the first subtype of that category
+  const handleCategoryChange = (newCat) => {
+    setCategoria(newCat);
+    const subs = SUBTYPES[newCat] || [];
+    if (subs.length > 0) {
+      handleSubtypeSelect(subs[0]);
+    }
+  };
+
   const subtipoConfig = useMemo(() => {
     if (!categoria || !subtipo) return null;
     const subs = SUBTYPES[categoria] || [];
     return subs.find(s => s.id === subtipo) || null;
   }, [categoria, subtipo]);
 
-  // ── Form fields ──
+  // Default unit calculation
   const defaultUnit = useMemo(() => {
     if (item?.unidadMedida?.id) {
       return unidades.find(u => u.id === (item.unidadMedidaId || item.unidadMedida?.id));
@@ -122,6 +120,7 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
     return unidades.find(u => u.nombre.toLowerCase() === 'metros') || unidades[0];
   }, [unidades, subtipo, item]);
 
+  // Form State
   const [form, setForm] = useState(() => {
     if (item) {
       return {
@@ -144,8 +143,8 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
       stockActual: '',
       stockMinimo: 0,
       precioCosto: '',
-      unidadMedidaId: defaultUnit?.id || '',
-      unidadMedida: defaultUnit?.nombre || '',
+      unidadMedidaId: '',
+      unidadMedida: '',
       codigo: '',
       marca: '',
       modelo: '',
@@ -155,6 +154,17 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
     };
   });
 
+  // Assign unit once units are loaded
+  useEffect(() => {
+    if (!isEdit && defaultUnit && !form.unidadMedidaId) {
+      setForm(prev => ({
+        ...prev,
+        unidadMedidaId: defaultUnit.id,
+        unidadMedida: defaultUnit.nombre
+      }));
+    }
+  }, [defaultUnit, unidades, isEdit, form.unidadMedidaId]);
+
   const set = (key, value) => setForm(prev => {
     const updated = { ...prev, [key]: value };
     if (key === 'estadoUso' && value === 'BODEGA') {
@@ -163,10 +173,8 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
     return updated;
   });
 
-  // ── When subtype changes, update the default unit
   const handleSubtypeSelect = (sub) => {
     setSubtipo(sub.id);
-    // Auto-update unit of measure based on subtype
     if (!isEdit) {
       let unit;
       if (sub.id === 'herramienta' || sub.id === 'activo_fijo') {
@@ -180,9 +188,9 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
     }
   };
 
-  // ── Submit ──
-  async function handleSubmit(e) {
-    e.preventDefault();
+  // Submit Handler
+  async function handleSubmit(e, keepOpen = false) {
+    if (e) e.preventDefault();
     if (!subtipoConfig) return;
 
     setSaving(true);
@@ -199,8 +207,8 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
         precioCosto: parseFloat(form.precioCosto) || 0,
         unidadMedidaId: form.unidadMedidaId,
         unidadMedida: form.unidadMedida,
-        // Herramienta-specific
-        ...(subtipo === 'herramienta' || subtipo === 'activo_fijo' ? {
+        // Herramienta/Activo Fijo specific fields
+        ...((subtipo === 'herramienta' || subtipo === 'activo_fijo') ? {
           codigo: form.codigo.trim() || undefined,
           marca: form.marca.trim() || undefined,
           modelo: form.modelo.trim() || undefined,
@@ -209,144 +217,101 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
           aCargo: form.aCargo.trim() || undefined,
         } : {}),
       };
-      await onSave(payload);
+
+      await onSave(payload, keepOpen);
+
+      if (keepOpen) {
+        // Reset name, stock, prices, etc. But preserve category, subtype, and unit
+        setForm(prev => ({
+          ...prev,
+          nombre: '',
+          stockActual: '',
+          precioCosto: '',
+          codigo: '',
+          marca: '',
+          modelo: '',
+          serie: '',
+          estadoUso: 'BODEGA',
+          aCargo: '',
+        }));
+        
+        // Re-focus the name field
+        if (nameInputRef.current) {
+          nameInputRef.current.focus();
+        }
+      }
+    } catch (err) {
+      // Error handled by parent component / toast
     } finally {
       setSaving(false);
     }
   }
 
   const handleClose = () => deferClose(onClose);
-
-  // ── Navigation ──
-  const canNext = () => {
-    if (step === 1) return !!categoria;
-    if (step === 2) return !!subtipo;
-    return true;
-  };
-
-  const goNext = () => {
-    if (step === 1 && categoria) {
-      // If category has only one subtype, skip step 2
-      const subs = SUBTYPES[categoria] || [];
-      if (subs.length === 1) {
-        handleSubtypeSelect(subs[0]);
-        setStep(3);
-      } else {
-        setStep(2);
-      }
-    } else if (step === 2 && subtipo) {
-      setStep(3);
-    }
-  };
-
-  const goBack = () => {
-    if (step === 3) {
-      const subs = SUBTYPES[categoria] || [];
-      if (subs.length === 1) {
-        setSubtipo('');
-        setStep(1);
-      } else {
-        setStep(2);
-      }
-    } else if (step === 2) {
-      setSubtipo('');
-      setStep(1);
-    }
-  };
-
-  // ── Render ──
   const showHerramientaFields = subtipo === 'herramienta' || subtipo === 'activo_fijo';
 
   return (
     <ModalPortal>
       <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
-        <div className="inv-modal" style={{ maxWidth: step === 3 ? '580px' : '540px' }} onMouseDown={e => e.stopPropagation()}>
+        <div className="inv-modal" style={{ maxWidth: '580px', maxHeight: '92vh' }} onMouseDown={e => e.stopPropagation()}>
+          
           {/* Header */}
           <div className="inv-modal-header">
-            <h3>{isEdit ? 'Editar Producto' : 'Nuevo Producto'}</h3>
+            <h3>{isEdit ? 'Editar Producto' : 'Registro de Producto Rápido'}</h3>
             <button type="button" className="inv-close" onClick={handleClose}>
               <X size={18} />
             </button>
           </div>
 
-          {/* Step Indicator */}
-          {!isEdit && (
-            <div className="pfm-steps">
-              <div className={`pfm-step-dot ${step >= 1 ? (step > 1 ? 'done' : 'active') : ''}`} />
-              <div className={`pfm-step-line ${step > 1 ? 'done' : ''}`} />
-              <div className={`pfm-step-dot ${step >= 2 ? (step > 2 ? 'done' : 'active') : ''}`} />
-              <div className={`pfm-step-line ${step > 2 ? 'done' : ''}`} />
-              <div className={`pfm-step-dot ${step >= 3 ? 'active' : ''}`} />
-            </div>
-          )}
-
-          {/* Step 1: Category Selection */}
-          {step === 1 && (
-            <div className="inv-modal-body pfm-step-content">
-              <p className="pfm-section-title">¿A qué sección pertenece?</p>
-              <div className="pfm-category-grid">
-                {CATEGORIES.map(cat => (
-                  <div
-                    key={cat.id}
-                    className={`pfm-cat-card ${categoria === cat.id ? 'selected' : ''}`}
-                    onClick={() => {
-                      setCategoria(cat.id);
-                      setSubtipo('');
-                    }}
-                  >
-                    {categoria === cat.id && (
-                      <span className="pfm-cat-check"><Check size={12} /></span>
-                    )}
-                    <div className={`pfm-cat-icon ${cat.cssClass}`}>
-                      <cat.Icon size={22} />
-                    </div>
-                    <span className="pfm-cat-name">{cat.name}</span>
-                    <span className="pfm-cat-desc">{cat.desc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Subtype Selection */}
-          {step === 2 && (
-            <div className="inv-modal-body pfm-step-content">
-              <p className="pfm-section-title">¿Qué tipo de producto es?</p>
-              <div className="pfm-subtype-grid">
-                {(SUBTYPES[categoria] || []).map(sub => (
-                  <div
-                    key={sub.id}
-                    className={`pfm-sub-card ${subtipo === sub.id ? 'selected' : ''}`}
-                    onClick={() => handleSubtypeSelect(sub)}
-                  >
-                    <div className="pfm-sub-icon">
-                      <sub.Icon size={18} />
-                    </div>
-                    <div className="pfm-sub-text">
-                      <div className="pfm-sub-name">{sub.name}</div>
-                      <div className="pfm-sub-desc">{sub.desc}</div>
-                      <div className="pfm-behavior-tags">
-                        <span className={`pfm-tag ${sub.descargaStock ? 'descarga-si' : 'descarga-no'}`}>
-                          {sub.descargaStock ? <><ArrowDownToLine size={10} /> Descarga stock</> : <><ArrowUpFromLine size={10} /> Solo registro</>}
-                        </span>
-                        {sub.esPrestable && (
-                          <span className="pfm-tag prestable-si">
-                            Prestable
-                          </span>
-                        )}
-                      </div>
+          <form onSubmit={(e) => handleSubmit(e, false)} className="inv-modal-body" style={{ gap: '0.85rem' }}>
+            
+            {/* Inline selectors (Only if not editing) */}
+            {!isEdit ? (
+              <div className="pfm-inline-selectors-box">
+                {/* Category Button Group */}
+                {!lockedCategory && (
+                  <div style={{ marginBottom: '0.65rem' }}>
+                    <p className="pfm-section-title">Sección o Destino</p>
+                    <div className="pfm-inline-categories">
+                      {CATEGORIES.map(cat => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          className={`pfm-inline-cat-btn ${categoria === cat.id ? 'selected' : ''}`}
+                          onClick={() => handleCategoryChange(cat.id)}
+                        >
+                          <cat.Icon size={14} />
+                          <span>{cat.name}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                )}
 
-          {/* Step 3: Form Fields */}
-          {step === 3 && (
-            <form onSubmit={handleSubmit} className="inv-modal-body pfm-step-content">
-              {/* Summary bar showing selection */}
-              {subtipoConfig && (
+                {/* Subtype Pill Selector */}
+                <div style={{ marginBottom: '0.25rem' }}>
+                  <p className="pfm-section-title">Clasificación / Tipo</p>
+                  <div className="pfm-inline-sub-row">
+                    {(SUBTYPES[categoria] || []).map(sub => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        className={`pfm-inline-sub-btn ${subtipo === sub.id ? 'selected' : ''}`}
+                        onClick={() => handleSubtypeSelect(sub)}
+                      >
+                        <sub.Icon size={13} />
+                        <span>{sub.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {subtipoConfig && (
+                    <p className="pfm-sub-hint">{subtipoConfig.desc}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Static summary when editing */
+              subtipoConfig && (
                 <div className="pfm-summary-bar">
                   <span style={{ fontWeight: 600, color: '#0f172a' }}>{categoria}</span>
                   <span style={{ color: '#cbd5e1' }}>→</span>
@@ -360,28 +325,47 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                     )}
                   </div>
                 </div>
-              )}
+              )
+            )}
 
-              {/* Name */}
+            {/* Behavior Tags display when creating */}
+            {!isEdit && subtipoConfig && (
+              <div className="pfm-behavior-tags" style={{ padding: '0 0.25rem' }}>
+                <span className={`pfm-tag ${subtipoConfig.descargaStock ? 'descarga-si' : 'descarga-no'}`}>
+                  {subtipoConfig.descargaStock ? <><ArrowDownToLine size={10} /> Descarga stock automáticamente</> : <><ArrowUpFromLine size={10} /> Solo registro (no descuenta del total)</>}
+                </span>
+                {subtipoConfig.esPrestable && (
+                  <span className="pfm-tag prestable-si">
+                    Asignación y Préstamo (con responsable)
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Form Fields */}
+            <div className="pfm-fields-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.8rem' }}>
+              
+              {/* Product Name */}
               <label>Nombre del producto *
                 <input
+                  ref={nameInputRef}
+                  id="pfm-name-input"
                   required
-                  autoFocus
                   value={form.nombre}
                   onChange={e => set('nombre', e.target.value)}
                   placeholder={
                     subtipo === 'herramienta' ? 'Ej: Taladro percutor 18V' :
-                    subtipo === 'activo_fijo' ? 'Ej: Laptop Dell Latitude 5520' :
-                    subtipo === 'consumible_descargable' ? 'Ej: Vinilo laminación mate 1.2m' :
+                    subtipo === 'activo_fijo' ? 'Ej: Silla ergonómica giratoria' :
+                    subtipo === 'consumible_descargable' ? 'Ej: Rollo Vinil Mate 1.2m' :
                     'Ej: Tinta Cyan 1 litro'
                   }
                 />
               </label>
 
-              {/* Stock & Unit */}
+              {/* Stock and Unit */}
               <div className="pfm-form-cols">
                 <label>
-                  {subtipoConfig?.descargaStock ? 'Stock actual *' : 'Cantidad referencial'}
+                  {subtipoConfig?.descargaStock ? 'Stock Inicial *' : 'Cantidad Referencial'}
                   <input
                     type="number"
                     min="0"
@@ -392,7 +376,7 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                     onChange={e => set('stockActual', e.target.value)}
                   />
                 </label>
-                <label>Unidad de medida *
+                <label>Unidad de Medida *
                   <select
                     required
                     value={form.unidadMedidaId || ''}
@@ -415,10 +399,10 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                 </label>
               </div>
 
-              {/* Stock mínimo & Precio */}
+              {/* Price and Stock Limit */}
               <div className="pfm-form-cols">
-                {subtipoConfig?.descargaStock && (
-                  <label>Stock mínimo
+                {subtipoConfig?.descargaStock ? (
+                  <label>Stock Mínimo
                     <input
                       type="number"
                       min="0"
@@ -427,8 +411,10 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                       onChange={e => set('stockMinimo', e.target.value)}
                     />
                   </label>
+                ) : (
+                  <div /> /* spacer */
                 )}
-                <label>Precio costo ($)
+                <label>Precio Costo ($)
                   <input
                     type="number"
                     min="0"
@@ -440,22 +426,22 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                 </label>
               </div>
 
-              {/* Herramienta / Activo fijo specific fields */}
+              {/* Extra fields for tool/fixed assets */}
               {showHerramientaFields && (
-                <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: '#f8fafc', padding: '0.85rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
                   <div className="pfm-form-cols">
-                    <label>Código inventario / barra
+                    <label>Código / Placa
                       <input
                         value={form.codigo}
                         onChange={e => set('codigo', e.target.value)}
-                        placeholder="Ej: ADC001"
+                        placeholder="Ej: HER-001"
                       />
                     </label>
                     <label>Marca
                       <input
                         value={form.marca}
                         onChange={e => set('marca', e.target.value)}
-                        placeholder="Ej: Milwaukee"
+                        placeholder="Ej: Bosch, Milwaukee"
                       />
                     </label>
                   </div>
@@ -467,7 +453,7 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                         placeholder="Ej: GSB 18V"
                       />
                     </label>
-                    <label>Estado de uso
+                    <label>Estado de Uso
                       <select value={form.estadoUso} onChange={e => set('estadoUso', e.target.value)}>
                         <option value="BODEGA">En Bodega / Disponible</option>
                         <option value="EN USO">En Uso / Asignado</option>
@@ -476,15 +462,15 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                       </select>
                     </label>
                   </div>
-                  <label>Serie / Características / Descripción
+                  <label>Serie o Características
                     <input
                       value={form.serie}
                       onChange={e => set('serie', e.target.value)}
-                      placeholder="Ej: 19.5 LED, 7 diagonal cutting plier..."
+                      placeholder="Ej: Serie A-9874, cargador extra..."
                     />
                   </label>
                   {form.estadoUso !== 'BODEGA' && (
-                    <label>A cargo de
+                    <label>Responsable Asignado
                       <input
                         value={form.aCargo}
                         onChange={e => set('aCargo', e.target.value)}
@@ -492,55 +478,40 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                       />
                     </label>
                   )}
-                </>
+                </div>
               )}
 
-              {/* Footer inside form for step 3 */}
-              <div className="pfm-footer" style={{ margin: '0 -1.5rem -1.25rem', width: 'calc(100% + 3rem)' }}>
-                <div className="pfm-footer-left">
-                  {!isEdit && (
-                    <button type="button" className="pfm-btn-back" onClick={goBack}>
-                      <ChevronLeft size={14} /> Atrás
-                    </button>
-                  )}
-                </div>
-                <div className="pfm-footer-right">
-                  <button type="button" className="inv-btn-ghost" onClick={handleClose} disabled={saving}>
-                    Cancelar
-                  </button>
-                  <button type="submit" className="inv-btn-primary" disabled={saving}>
-                    {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear producto'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
+            </div>
 
-          {/* Footer for steps 1 & 2 */}
-          {step < 3 && (
-            <div className="pfm-footer">
+            {/* Footer with multiple action paths */}
+            <div className="pfm-footer" style={{ margin: '0.5rem -1.5rem -1.25rem', width: 'calc(100% + 3rem)' }}>
               <div className="pfm-footer-left">
-                {step > 1 && (
-                  <button type="button" className="pfm-btn-back" onClick={goBack}>
-                    <ChevronLeft size={14} /> Atrás
-                  </button>
-                )}
-              </div>
-              <div className="pfm-footer-right">
-                <button type="button" className="inv-btn-ghost" onClick={handleClose}>
+                <button type="button" className="inv-btn-ghost" onClick={handleClose} disabled={saving}>
                   Cancelar
                 </button>
-                <button
-                  type="button"
-                  className="inv-btn-primary"
-                  disabled={!canNext()}
-                  onClick={goNext}
-                >
-                  Siguiente
+              </div>
+              <div className="pfm-footer-right">
+                {/* Save and Add Another option (Only for creation) */}
+                {!isEdit && (
+                  <button
+                    type="button"
+                    className="inv-btn-secondary"
+                    disabled={saving || !form.nombre.trim()}
+                    onClick={() => handleSubmit(null, true)}
+                    style={{ borderColor: '#3b82f6', color: '#1d4ed8' }}
+                  >
+                    {saving ? <RefreshCw size={14} className="animate-spin" /> : 'Guardar y agregar otro'}
+                  </button>
+                )}
+                
+                {/* Standard Save (Closes modal) */}
+                <button type="submit" className="inv-btn-primary" disabled={saving}>
+                  {saving ? 'Guardando…' : isEdit ? 'Guardar Cambios' : 'Guardar y Cerrar'}
                 </button>
               </div>
             </div>
-          )}
+            
+          </form>
         </div>
       </div>
     </ModalPortal>
