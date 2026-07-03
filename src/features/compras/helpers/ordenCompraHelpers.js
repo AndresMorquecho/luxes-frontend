@@ -21,6 +21,45 @@ export const fmtDateTime = (d) => d
   ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '—';
 
+/** Solo órdenes vinculadas al proyecto indicado. */
+export function filterOrdenesPorProyecto(ordenes, proyectoId) {
+  if (!proyectoId) return [];
+  return (ordenes || []).filter((oc) => {
+    const pid = oc.proyectoId ?? oc.proyecto?.id;
+    return pid === proyectoId;
+  });
+}
+
+/** Normaliza una orden (API o proyecto) para la tabla de instalaciones. */
+export function mapOrdenCompraParaInstalacion(oc) {
+  if (!oc) return null;
+  if (Array.isArray(oc.items) && oc.items.length > 0 && !oc.detalles?.length) {
+    return {
+      ...oc,
+      proyectoId: oc.proyectoId ?? oc.proyecto?.id ?? null,
+    };
+  }
+
+  const detalles = oc.detalles || oc.items || [];
+  const estadoRaw = (oc.estado || '').toLowerCase();
+  const estado = estadoRaw === 'pendiente_aprobacion' ? 'PENDIENTE' : estadoRaw.toUpperCase();
+
+  return {
+    id: oc.id,
+    numero: oc.numero,
+    fecha: oc.fecha,
+    fechaCreacion: oc.fechaCreacion || oc.fecha,
+    estado,
+    comentarios: oc.comentarios || oc.notas || '',
+    proyectoId: oc.proyectoId ?? oc.proyecto?.id ?? null,
+    items: detalles.map((d) => ({
+      nombre: d.descripcion || d.nombre,
+      cantidadSolicitada: Number(d.cantidadSolicitada ?? d.cantidad) || 0,
+      cantidadAprobada: Number(d.cantidadAprobada ?? d.cantidad) || 0,
+    })),
+  };
+}
+
 /** Etiqueta legible del proyecto vinculado a una orden de compra. */
 export const getOrdenProyectoLabel = (orden) => {
   if (orden?.proyecto?.nombre) {

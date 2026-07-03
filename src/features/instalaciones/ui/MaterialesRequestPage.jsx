@@ -1,6 +1,6 @@
 // src/features/instalaciones/ui/MaterialesRequestPage.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProyectosContext } from '../../proyectos/application/context/ProyectosContext.jsx';
 import { ACTIONS } from '../../proyectos/application/store/proyectosStore.js';
@@ -12,6 +12,11 @@ import {
 import { PDFPreviewModal } from '../../../shared/ui/components/PDFPreviewModal.jsx';
 import { useProyecto } from '../../proyectos/application/hooks/useProyecto.js';
 import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService.js';
+import { getOrdenes } from '../../compras/application/comprasService.js';
+import {
+  filterOrdenesPorProyecto,
+  mapOrdenCompraParaInstalacion,
+} from '../../compras/helpers/ordenCompraHelpers.js';
 import { PersonalSelector } from '../../proyectos/ui/components/PersonalSelector.jsx';
 import { SendSurveyModal } from '../../proyectos/ui/components/SendSurveyModal.jsx';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
@@ -40,17 +45,52 @@ export function MaterialesRequestPage() {
   const materialesExistentes = datosInstalacion.materiales || [];
   const esSoloLectura = datosInstalacion.instalacionCompletada === true;
   const instalacionIniciada = isInstalacionIniciada(datosInstalacion);
-  const ordenesProyecto = proyecto?.ordenesCompra || [];
+  const encuestaCliente = getEncuestaSatisfaccion(proyecto);
+
+  const [ordenesCompraProyecto, setOrdenesCompraProyecto] = useState([]);
+  const [activeTab, setActiveTab] = useState('equipo'); // 'equipo' | 'bodega' | 'distribucion' | 'compras' | 'cierre'
+
+  const cargarOrdenesProyecto = useCallback(async () => {
+    if (!id) {
+      setOrdenesCompraProyecto([]);
+      return;
+    }
+    try {
+      const data = await getOrdenes({ proyectoId: id, limit: 100 });
+      const items = (data?.items || []).map(mapOrdenCompraParaInstalacion).filter(Boolean);
+      setOrdenesCompraProyecto(items);
+    } catch (err) {
+      console.error('Error al cargar órdenes del proyecto:', err);
+      const fallback = filterOrdenesPorProyecto(proyecto?.ordenesCompra || [], id)
+        .map(mapOrdenCompraParaInstalacion)
+        .filter(Boolean);
+      setOrdenesCompraProyecto(fallback);
+    }
+  }, [id, proyecto?.ordenesCompra]);
+
+  useEffect(() => {
+    cargarOrdenesProyecto();
+  }, [cargarOrdenesProyecto]);
+
+  useEffect(() => {
+    if (activeTab === 'compras') {
+      cargarOrdenesProyecto();
+    }
+  }, [activeTab, cargarOrdenesProyecto]);
+
+  const ordenesProyecto = filterOrdenesPorProyecto(
+    ordenesCompraProyecto.length > 0
+      ? ordenesCompraProyecto
+      : (proyecto?.ordenesCompra || []).map(mapOrdenCompraParaInstalacion).filter(Boolean),
+    id,
+  );
   const bloqueosCierre = getInstalacionCompletionBlockers(datosInstalacion, {
     ordenesCompra: ordenesProyecto,
   });
   const puedeCompletar = canCompletarInstalacion(datosInstalacion, {
     ordenesCompra: ordenesProyecto,
   });
-  const encuestaCliente = getEncuestaSatisfaccion(proyecto);
 
-  // Pestaña Activa
-  const [activeTab, setActiveTab] = useState('equipo'); // 'equipo' | 'bodega' | 'distribucion' | 'compras' | 'cierre'
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
   // Estados locales para edición y guardado explícito
@@ -1058,7 +1098,7 @@ export function MaterialesRequestPage() {
                   Historial de Solicitudes de Compra
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Consulta o solicita órdenes de compra para insumos que no se encuentren disponibles en bodega.
+                  Solo se muestran las órdenes de compra vinculadas a este proyecto ({proyecto.id}).
                 </p>
               </div>
               <button
