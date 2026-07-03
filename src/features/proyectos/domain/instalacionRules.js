@@ -3,7 +3,42 @@
  */
 
 export function isInstalacionIniciada(datos = {}) {
+  if (datos.instalacionCompletada === true) return true;
   return Boolean(datos.fechaInstalacion && datos.horaInstalacion);
+}
+
+/** Hay registro guardado de cierre (fotos, notas o fecha de fin). */
+export function tieneRegistroCierreObra(datos = {}) {
+  if (datos.instalacionCompletada === true) return true;
+  if (Array.isArray(datos.evidencias) && datos.evidencias.length > 0) return true;
+  if (String(datos.notasCierre || '').trim()) return true;
+  if (datos.fechaFin) return true;
+  return false;
+}
+
+/**
+ * Equipo y materiales listos para trabajar cierre en sitio.
+ */
+export function tieneEquipoYMateriales(datos = {}) {
+  return Boolean(datos.personalAsignado?.length && datos.materiales?.length);
+}
+
+/** Si el tab Cierre de Obra debe mostrar el formulario/registro (no el aviso vacío). */
+export function puedeAccederCierreObra(datos = {}) {
+  return (
+    isInstalacionIniciada(datos) ||
+    tieneRegistroCierreObra(datos) ||
+    tieneEquipoYMateriales(datos)
+  );
+}
+
+/** Payload de inicio en obra si aún no se registró fecha/hora. */
+export function buildInicioObraSiFalta(datos = {}, now = new Date()) {
+  if (datos.fechaInstalacion && datos.horaInstalacion) return {};
+  return {
+    fechaInstalacion: now.toISOString().split('T')[0],
+    horaInstalacion: now.toTimeString().slice(0, 5),
+  };
 }
 
 /** Herramientas de la lista sin responsable asignado. */
@@ -28,7 +63,9 @@ export function getInstalacionCompletionBlockers(datos = {}, opts = {}) {
   const ordenes = opts.ordenesCompra || [];
 
   if (!isInstalacionIniciada(datos)) {
-    faltantes.push('Inicia la instalación en obra (botón "Iniciar Instalación")');
+    faltantes.push(
+      'Registra el inicio en obra (botón "Iniciar Instalación" o sube al menos una evidencia fotográfica)',
+    );
   }
   if (!datos.personalAsignado?.length) {
     faltantes.push('Asigna al menos un miembro al equipo técnico');

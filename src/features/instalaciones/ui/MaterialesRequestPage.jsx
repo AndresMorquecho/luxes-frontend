@@ -27,6 +27,8 @@ import {
   canCompletarInstalacion,
   getHerramientasSinResponsable,
   formatFechaCierre,
+  puedeAccederCierreObra,
+  buildInicioObraSiFalta,
 } from '../../proyectos/domain/instalacionRules.js';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../proyectos/domain/encuestaUtils.js';
 import { EncuestaResultadosView } from '../../proyectos/ui/components/EncuestaResultadosView.jsx';
@@ -38,19 +40,44 @@ import './MaterialesRequestPage.css';
 export function MaterialesRequestPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { reloadProyectos, adapter } = useProyectosContext();
+  const { adapter, dispatch } = useProyectosContext();
   const { proyecto, updateFaseDatos } = useProyecto(id);
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const puedeEnviarEncuesta = isTallerUser(user);
 
+  const faseInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
+  const instalacionRow = proyecto?.instalacion || {};
   const datosInstalacion = {
-    ...(proyecto?.instalacion || {}),
-    ...(proyecto?.fases?.INSTALACION?.datos || {}),
+    ...instalacionRow,
+    ...faseInstalacion,
+    personalAsignado: faseInstalacion.personalAsignado?.length
+      ? faseInstalacion.personalAsignado
+      : instalacionRow.personalAsignado,
+    materiales: faseInstalacion.materiales?.length
+      ? faseInstalacion.materiales
+      : instalacionRow.materiales,
+    evidencias: faseInstalacion.evidencias ?? instalacionRow.evidencias,
+    instalacionCompletada:
+      faseInstalacion.instalacionCompletada === true || instalacionRow.instalacionCompletada === true,
   };
   const materialesExistentes = datosInstalacion.materiales || [];
   const esSoloLectura = datosInstalacion.instalacionCompletada === true;
   const instalacionIniciada = isInstalacionIniciada(datosInstalacion);
+  const mostrarContenidoCierre = puedeAccederCierreObra(datosInstalacion);
   const encuestaCliente = getEncuestaSatisfaccion(proyecto);
+
+  // Cargar proyecto completo al entrar (evidencias y cierre viven en fases.INSTALACION.datos)
+  useEffect(() => {
+    if (!id || !adapter?.getById) return;
+    adapter
+      .getById(id)
+      .then((proyectoFresh) => {
+        if (proyectoFresh) {
+          dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios: proyectoFresh } });
+        }
+      })
+      .catch((err) => console.error('Error al cargar proyecto:', err));
+  }, [id, adapter, dispatch]);
 
   const [ordenesCompraProyecto, setOrdenesCompraProyecto] = useState([]);
   const [activeTab, setActiveTab] = useState('equipo'); // 'equipo' | 'bodega' | 'distribucion' | 'compras' | 'cierre'
@@ -204,9 +231,6 @@ export function MaterialesRequestPage() {
   useEffect(() => {
     fetchInventario();
     fetchEmpleados();
-    if (reloadProyectos) {
-      reloadProyectos();
-    }
   }, []);
 
   const showModal = (title, message, type = 'success', onConfirm = null) => {
@@ -266,9 +290,6 @@ export function MaterialesRequestPage() {
       await updateFaseDatos('INSTALACION', {
         personalAsignado: personalLocal
       });
-      if (reloadProyectos) {
-        reloadProyectos();
-      }
       toast.success('Equipo de trabajo guardado con éxito');
       setActiveTab('bodega');
     } catch (err) {
@@ -332,10 +353,6 @@ export function MaterialesRequestPage() {
           // Recargar inventario local
           await fetchInventario();
 
-          if (reloadProyectos) {
-            reloadProyectos();
-          }
-
           toast.success('Materiales y carga guardados con éxito');
         } catch (err) {
           toast.error('No se pudo registrar los materiales: ' + err.message);
@@ -390,10 +407,6 @@ export function MaterialesRequestPage() {
             personalAsignado: personalLocal,
             materiales: materialesLocales
           });
-          
-          if (reloadProyectos) {
-            reloadProyectos();
-          }
 
           toast.success('Instalación iniciada con éxito, equipo/materiales guardados y administración notificada');
         } catch (err) {
@@ -448,8 +461,8 @@ export function MaterialesRequestPage() {
 
   const handleOpenCamera = () => {
     if (esSoloLectura) return;
-    if (!instalacionIniciada) {
-      toast.error('Debes iniciar la instalación en obra antes de subir evidencias.');
+    if (!mostrarContenidoCierre) {
+      toast.error('Asigna equipo y materiales antes de subir evidencias.');
       return;
     }
     setIsCameraOpen(true);
@@ -457,8 +470,8 @@ export function MaterialesRequestPage() {
 
   const handleUploadEvidencias = async (files) => {
     if (esSoloLectura) return;
-    if (!instalacionIniciada) {
-      toast.error('Debes iniciar la instalación en obra antes de subir evidencias.');
+    if (!mostrarContenidoCierre) {
+      toast.error('Asigna equipo y materiales antes de subir evidencias.');
       return;
     }
     const fileList = Array.from(files);
@@ -471,8 +484,12 @@ export function MaterialesRequestPage() {
 
       const evidenciasActuales = datosInstalacion.evidencias || [];
       const updatedEvidencias = [...evidenciasActuales, ...nuevasEvidencias];
+      const now = new Date();
 
       await updateFaseDatos('INSTALACION', {
+        ...buildInicioObraSiFalta(datosInstalacion, now),
+        personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
+        materiales: materialesLocales.length ? materialesLocales : datosInstalacion.materiales,
         evidencias: updatedEvidencias
       });
 
@@ -539,6 +556,9 @@ export function MaterialesRequestPage() {
         };
         try {
           await updateFaseDatos('INSTALACION', {
+            ...buildInicioObraSiFalta(datosInstalacion, now),
+            personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
+            materiales: materialesLocales.length ? materialesLocales : datosInstalacion.materiales,
             instalacionCompletada: true,
             notasCierre: observacionesCierre,
             fechaFin,
@@ -1215,8 +1235,21 @@ export function MaterialesRequestPage() {
         {activeTab === 'cierre' && (
           <div className="space-y-6 animate-slide-up">
             
-            {instalacionIniciada ? (
+            {mostrarContenidoCierre ? (
               <div className="space-y-6">
+
+                {!instalacionIniciada && !datosInstalacion.instalacionCompletada && (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-xs text-amber-800 flex items-start gap-2">
+                    <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Obra aún no iniciada formalmente</p>
+                      <p className="mt-1">
+                        Puedes subir evidencias y cerrar la obra aquí. Al subir la primera foto o finalizar el cierre
+                        se registrará automáticamente la fecha y hora de inicio en obra.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Evidencia Fotográfica en Cierre */}
                 <div className="request-section-card glass-panel">
@@ -1445,7 +1478,8 @@ export function MaterialesRequestPage() {
               </div>
             ) : (
               <div className="request-section-card glass-panel p-6 text-center text-slate-400 italic text-sm">
-                Debes iniciar la instalación (usando el botón "Iniciar Instalación" en el encabezado) antes de poder registrar las notas de cierre o completar la obra en sitio.
+                Asigna al menos un técnico en &quot;Equipo Técnico&quot; y registra materiales en &quot;Materiales de Bodega&quot;
+                antes de cargar evidencias o cerrar la obra en sitio.
               </div>
             )}
           </div>

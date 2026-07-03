@@ -13,9 +13,20 @@ import { ACTIONS } from '../store/proyectosStore.js';
 export function useInstalacion(proyectoId) {
   const { state, dispatch, adapter } = useProyectosContext();
   const proyecto = state.proyectos.find((p) => p.id === proyectoId) ?? null;
+  const faseInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
+  const instalacionRow = proyecto?.instalacion || {};
   const datosInstalacion = {
-    ...(proyecto?.instalacion || {}),
-    ...(proyecto?.fases?.INSTALACION?.datos || {}),
+    ...instalacionRow,
+    ...faseInstalacion,
+    personalAsignado: faseInstalacion.personalAsignado?.length
+      ? faseInstalacion.personalAsignado
+      : instalacionRow.personalAsignado,
+    materiales: faseInstalacion.materiales?.length
+      ? faseInstalacion.materiales
+      : instalacionRow.materiales,
+    evidencias: faseInstalacion.evidencias ?? instalacionRow.evidencias,
+    instalacionCompletada:
+      faseInstalacion.instalacionCompletada === true || instalacionRow.instalacionCompletada === true,
   };
 
   const [empleados, setEmpleados] = useState([]);

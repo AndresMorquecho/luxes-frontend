@@ -18,7 +18,7 @@ export const ProyectosProvider = ({ children, adapter = proyectoApiAdapter }) =>
   useEffect(() => {
     dispatch({ type: ACTIONS.SET_LOADING, payload: true });
     adapter
-      .getAll()
+      .getAll({ limit: 1000 })
       .then((proyectos) => {
         dispatch({ type: ACTIONS.SET_PROYECTOS, payload: proyectos });
         isInitialLoad.current = false;
@@ -29,7 +29,7 @@ export const ProyectosProvider = ({ children, adapter = proyectoApiAdapter }) =>
   // Función reutilizable para recargar proyectos desde el adaptador
   const reloadProyectos = useCallback(() => {
     adapter
-      .getAll()
+      .getAll({ limit: 1000 })
       .then((proyectos) => dispatch({ type: ACTIONS.SET_PROYECTOS, payload: proyectos }))
       .catch((err) => console.error('[ProyectosContext] Error reloading projects:', err));
   }, [adapter]);
