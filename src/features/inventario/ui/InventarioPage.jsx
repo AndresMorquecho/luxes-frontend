@@ -15,7 +15,7 @@ import { toast } from '../../../shared/ui/components/Toast.jsx';
 import { confirmDialog } from '../../../shared/ui/components/ConfirmModal.jsx';
 import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
 import './InventarioPage.css';
-import { NuevoProductoModal } from './NuevoProductoModal.jsx';
+import { ProductoFormModal } from './ProductoFormModal.jsx';
 
 // ── Helper ─────────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 25;
@@ -41,163 +41,7 @@ const usoBadge = (estado) => {
   return <span className="inv-badge success">Bodega</span>;
 };
 
-// ── Material Form Modal ────────────────────────────────────────────────────
-function MaterialModal({ item, onClose, onSave, unidades = [] }) {
-  const [form, setForm] = useState(() => {
-    if (item) {
-      return {
-        ...item,
-        codigo: item.codigo || '',
-        marca: item.marca || '',
-        modelo: item.modelo || '',
-        serie: item.serie || '',
-        categoria: item.categoria || 'Taller',
-        estadoUso: item.estadoUso || 'BODEGA',
-        aCargo: item.aCargo || '',
-      };
-    }
-    const defaultUnit = unidades.find(u => u.nombre.toLowerCase() === 'unidades') || unidades[0];
-    return {
-      nombre: '', tipo: 'consumible',
-      unidadMedidaId: defaultUnit?.id || '',
-      unidadMedida: defaultUnit?.nombre || 'unidades',
-      stockActual: 1, stockMinimo: 0, precioCosto: 0,
-      codigo: '', marca: '', modelo: '', serie: '',
-      categoria: 'Taller', estadoUso: 'BODEGA', aCargo: '',
-    };
-  });
-
-  const set = (k, v) => setForm(f => {
-    const updated = { ...f, [k]: v };
-    // Si cambia a BODEGA, limpiar responsable
-    if (k === 'estadoUso' && v === 'BODEGA') {
-      updated.aCargo = '';
-    }
-    // Si cambia a consumible, limpiar campos de herramienta
-    if (k === 'tipo' && v === 'consumible') {
-      const defaultConsUnit = unidades.find(u => u.nombre.toLowerCase() === 'metros') || unidades[0];
-      updated.unidadMedidaId = defaultConsUnit?.id || '';
-      updated.unidadMedida = defaultConsUnit?.nombre || 'metros';
-    } else if (k === 'tipo' && v === 'herramienta') {
-      const defaultHerrUnit = unidades.find(u => u.nombre.toLowerCase() === 'unidades') || unidades[0];
-      updated.unidadMedidaId = defaultHerrUnit?.id || '';
-      updated.unidadMedida = defaultHerrUnit?.nombre || 'unidades';
-    }
-    return updated;
-  });
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    await onSave(form);
-  }
-
-  return (
-    <ModalPortal>
-      <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}>
-        <div className="inv-modal" onMouseDown={e => e.stopPropagation()}>
-        <div className="inv-modal-header">
-          <h3>{item ? 'Editar Material' : 'Nuevo Material'}</h3>
-          <button type="button" className="inv-close" onClick={() => deferClose(onClose)}><X size={18}/></button>
-        </div>
-        <form onSubmit={handleSubmit} className="inv-modal-body">
-          <label>Nombre del Material *
-            <input required value={form.nombre} onChange={e => set('nombre', e.target.value)} />
-          </label>
-          <div className="inv-row">
-            <label>Tipo *
-              <select value={form.tipo} onChange={e => set('tipo', e.target.value)}>
-                <option value="consumible">Consumible</option>
-                <option value="herramienta">Herramienta / Equipo</option>
-              </select>
-            </label>
-            <label>Unidad de Medida *
-              <select
-                required
-                value={form.unidadMedidaId || ''}
-                onChange={e => {
-                  const val = e.target.value;
-                  const selectedUnit = unidades.find(u => u.id === val);
-                  setForm(f => ({
-                    ...f,
-                    unidadMedidaId: val,
-                    unidadMedida: selectedUnit ? selectedUnit.nombre : ''
-                  }));
-                }}
-              >
-                <option value="" disabled>Seleccionar Unidad</option>
-                {unidades.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.nombre} {u.abreviacion ? `(${u.abreviacion})` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="inv-row">
-            <label>Stock Actual
-              <input type="number" min="0" value={form.stockActual} onChange={e => set('stockActual', +e.target.value)} />
-            </label>
-            <label>Stock Mínimo
-              <input type="number" min="0" value={form.stockMinimo} onChange={e => set('stockMinimo', +e.target.value)} />
-            </label>
-            <label>Precio Costo ($)
-              <input type="number" min="0" step="0.01" value={form.precioCosto} onChange={e => set('precioCosto', +e.target.value)} />
-            </label>
-          </div>
-
-          {form.tipo === 'herramienta' && (
-            <>
-              <div className="inv-row">
-                <label>Código Inventario / Barra
-                  <input value={form.codigo} onChange={e => set('codigo', e.target.value)} placeholder="Ej: ADC001" />
-                </label>
-                <label>Categoría *
-                  <select value={form.categoria} onChange={e => set('categoria', e.target.value)}>
-                    <option value="Taller">Taller</option>
-                    <option value="Oficina">Oficina</option>
-                    <option value="Impresión">Impresión</option>
-                  </select>
-                </label>
-              </div>
-              <div className="inv-row">
-                <label>Marca
-                  <input value={form.marca} onChange={e => set('marca', e.target.value)} placeholder="Ej: Milwaukee" />
-                </label>
-                <label>Modelo
-                  <input value={form.modelo} onChange={e => set('modelo', e.target.value)} placeholder="Ej: GSB 18V" />
-                </label>
-              </div>
-              <label>Serie / Características / Descripción
-                <input value={form.serie} onChange={e => set('serie', e.target.value)} placeholder="Ej: 19.5 LED, 7 diagonal cutting plier..." />
-              </label>
-              <div className="inv-row">
-                <label>Estado de Uso
-                  <select value={form.estadoUso} onChange={e => set('estadoUso', e.target.value)}>
-                    <option value="BODEGA">En Bodega / Disponible</option>
-                    <option value="EN USO">En Uso / Asignado</option>
-                    <option value="NO SIRVE">No Sirve / Dañado</option>
-                    <option value="EN REPARACION">En Reparación</option>
-                  </select>
-                </label>
-                <label>A Cargo De
-                  <input value={form.aCargo} onChange={e => set('aCargo', e.target.value)} placeholder="Ej: Jimmy, Víctor, etc." disabled={form.estadoUso === 'BODEGA'} />
-                </label>
-              </div>
-            </>
-          )}
-
-          <div className="inv-modal-footer">
-            <button type="button" className="inv-btn-ghost" onClick={() => deferClose(onClose)}>Cancelar</button>
-            <button type="submit" className="inv-btn-primary">
-              {item ? 'Guardar Cambios' : 'Crear Material'}
-            </button>
-          </div>
-        </form>
-        </div>
-      </div>
-    </ModalPortal>
-  );
-}
+// MaterialModal removed — replaced by ProductoFormModal
 
 // ── Movimiento rápido (desde fila de tabla) ────────────────────────────────
 function MovimientoModal({ material, onClose, onSave }) {
@@ -337,7 +181,6 @@ export function InventarioPage() {
   const [unidades, setUnidades] = useState([]);
 
   const [matModal, setMatModal] = useState(null);       // null | 'new' | item
-  const [productoModal, setProductoModal] = useState(false);
   const [movModal, setMovModal] = useState(null);       // null | item
 
   // ── Debounce Search ──────────────────────────────────────────────────────
@@ -443,15 +286,6 @@ export function InventarioPage() {
     } catch (e) { toast.error(e.message); }
   }
 
-  async function handleNuevoProducto(form) {
-    try {
-      await createMaterial(form);
-      toast.success('Producto creado correctamente.');
-      setProductoModal(false);
-      loadAll();
-    } catch (e) { toast.error(e.message); }
-  }
-
   async function handleMovimiento(form) {
     try {
       await registrarMovimiento(movModal.id, form);
@@ -463,8 +297,9 @@ export function InventarioPage() {
 
   // ── Stock badge ───────────────────────────────────────────────────────────
   const stockBadge = (item) => {
-    const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
-    if (isLogistico) return <span className="inv-badge success" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>Logístico</span>;
+    // Use descargaStock to determine if stock tracking applies (falls back to old category logic for unmigrated data)
+    const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
+    if (!tracksStock) return <span className="inv-badge success" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>Solo registro</span>;
     if (item.stockActual === 0) return <span className="inv-badge empty">Agotado</span>;
     if (item.stockActual <= item.stockMinimo) return <span className="inv-badge low">Stock Bajo</span>;
     return <span className="inv-badge ok">En Stock</span>;
@@ -579,14 +414,9 @@ export function InventarioPage() {
             <input className="inv-search-inp" placeholder="Buscar material…" value={search}
               onChange={e=>setSearch(e.target.value)} aria-label="Buscar en inventario"/>
           </div>
-          {isAdmin && activeTab === 'consumibles' && (
-            <button type="button" className="inv-btn-primary inv-btn-primary--compact" onClick={() => setProductoModal(true)}>
-              <Plus size={16}/> <span className="inv-btn-text">Nuevo producto</span>
-            </button>
-          )}
-          {isAdmin && !isImpresion && !isTaller && activeTab === 'herramientas' && (
+          {isAdmin && (
             <button type="button" className="inv-btn-primary inv-btn-primary--compact" onClick={() => setMatModal('new')}>
-              <Plus size={16}/> <span className="inv-btn-text">Nuevo material</span>
+              <Plus size={16}/> <span className="inv-btn-text">Nuevo producto</span>
             </button>
           )}
         </div>
@@ -623,16 +453,16 @@ export function InventarioPage() {
                       <tr><td colSpan={isTaller ? 8 : 9} className="inv-empty">Sin consumibles registrados.</td></tr>
                     )}
                     {items.map(item => {
-                      const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
-                      const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
+                      const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
+                      const isWarn = tracksStock && item.stockActual <= item.stockMinimo;
                       return (
                         <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
                           <td className="inv-td-name">{item.nombre}</td>
                           <td>{item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid'}</td>
                           <td className="inv-td-stock">
-                            <strong>{isLogistico ? '—' : item.stockActual}</strong>
+                            <strong style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>{item.stockActual}</strong>
                           </td>
-                          <td className="inv-td-min">{isLogistico ? '—' : item.stockMinimo}</td>
+                          <td className="inv-td-min" style={!tracksStock ? { color: '#94a3b8' } : {}}>{tracksStock ? item.stockMinimo : '—'}</td>
                           <td>{stockBadge(item)}</td>
                           <td>{fmt(item.precioCosto)}</td>
                           <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
@@ -672,8 +502,8 @@ export function InventarioPage() {
                     <div className="inv-empty-mobile">Sin consumibles registrados.</div>
                   )}
                   {items.map(item => {
-                    const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
-                    const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
+                    const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
+                    const isWarn = tracksStock && item.stockActual <= item.stockMinimo;
                     const unidad = item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid';
                     return (
                       <div key={item.id} className={`inv-mobile-card ${isWarn ? 'warn' : ''}`}>
@@ -688,11 +518,11 @@ export function InventarioPage() {
                           </div>
                           <div className="inv-card-row">
                             <span className="inv-card-label">Stock</span>
-                            <span className="inv-card-value highlight">{isLogistico ? '—' : item.stockActual}</span>
+                            <span className="inv-card-value highlight" style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>{item.stockActual}</span>
                           </div>
                           <div className="inv-card-row">
                             <span className="inv-card-label">Mínimo</span>
-                            <span className="inv-card-value">{isLogistico ? '—' : item.stockMinimo}</span>
+                            <span className="inv-card-value" style={!tracksStock ? { color: '#94a3b8' } : {}}>{tracksStock ? item.stockMinimo : '—'}</span>
                           </div>
                           <div className="inv-card-row">
                             <span className="inv-card-label">Costo</span>
@@ -963,19 +793,12 @@ export function InventarioPage() {
 
       {/* Modals */}
       {matModal && (
-        <MaterialModal
+        <ProductoFormModal
           item={matModal === 'new' ? null : matModal}
           unidades={unidades}
+          lockedCategory={lockedCategory}
           onClose={() => setMatModal(null)}
           onSave={handleSaveMaterial}
-        />
-      )}
-      {productoModal && (
-        <NuevoProductoModal
-          unidades={unidades}
-          lockedCategory={lockedCategory}
-          onClose={() => setProductoModal(false)}
-          onSave={handleNuevoProducto}
         />
       )}
       {movModal && (

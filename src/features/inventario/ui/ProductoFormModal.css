@@ -1,0 +1,326 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   ProductoFormModal.css — Unified product registration/edit modal
+   Uses the same DM Sans / DM Mono stack and slate palette as InventarioPage
+───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Step Indicator ──────────────────────────────────────────────────────── */
+.pfm-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0 1.5rem;
+  margin-bottom: 0.25rem;
+}
+.pfm-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pfm-step-dot.active {
+  background: #1d4ed8;
+  width: 24px;
+  border-radius: 4px;
+}
+.pfm-step-dot.done {
+  background: #16a34a;
+}
+.pfm-step-line {
+  width: 20px;
+  height: 2px;
+  background: #e2e8f0;
+  transition: background 0.3s;
+}
+.pfm-step-line.done {
+  background: #16a34a;
+}
+
+/* ── Category Selection Cards ────────────────────────────────────────────── */
+.pfm-category-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+.pfm-cat-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1.25rem 0.75rem;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+}
+.pfm-cat-card:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.pfm-cat-card.selected {
+  border-color: #1d4ed8;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+}
+.pfm-cat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.pfm-cat-icon.taller { background: #f1f5f9; color: #475569; }
+.pfm-cat-icon.oficina { background: #faf5ff; color: #7c3aed; }
+.pfm-cat-icon.impresion { background: #ecfdf5; color: #059669; }
+
+.pfm-cat-card.selected .pfm-cat-icon.taller { background: #e2e8f0; }
+.pfm-cat-card.selected .pfm-cat-icon.oficina { background: #ede9fe; }
+.pfm-cat-card.selected .pfm-cat-icon.impresion { background: #d1fae5; }
+
+.pfm-cat-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.pfm-cat-desc {
+  font-size: 0.68rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+.pfm-cat-check {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #1d4ed8;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pfm-pop 0.2s ease;
+}
+@keyframes pfm-pop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+/* ── Subtype Selection ───────────────────────────────────────────────────── */
+.pfm-subtype-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.25rem 0;
+}
+.pfm-sub-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pfm-sub-card:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+.pfm-sub-card.selected {
+  border-color: #1d4ed8;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+}
+.pfm-sub-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 0.625rem;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.pfm-sub-card.selected .pfm-sub-icon {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.pfm-sub-text {
+  flex: 1;
+  min-width: 0;
+}
+.pfm-sub-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.pfm-sub-desc {
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.3;
+  margin-top: 0.1rem;
+}
+
+/* ── Behavior Tags ───────────────────────────────────────────────────────── */
+.pfm-behavior-tags {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+.pfm-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.pfm-tag.descarga-si {
+  background: #dcfce7;
+  color: #15803d;
+}
+.pfm-tag.descarga-no {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.pfm-tag.prestable-si {
+  background: #fef3c7;
+  color: #92400e;
+}
+.pfm-tag.prestable-no {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* ── Step Content Transition ─────────────────────────────────────────────── */
+.pfm-step-content {
+  animation: pfm-slidein 0.25s ease;
+}
+@keyframes pfm-slidein {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Section Title ───────────────────────────────────────────────────────── */
+.pfm-section-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+}
+
+/* ── Footer with back button ─────────────────────────────────────────────── */
+.pfm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  background: #fafbfc;
+  border-radius: 0 0 1.25rem 1.25rem;
+}
+.pfm-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pfm-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pfm-btn-back {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.45rem 0.875rem;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pfm-btn-back:hover { background: #f8fafc; color: #334155; }
+
+/* ── Info Summary ────────────────────────────────────────────────────────── */
+.pfm-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  font-size: 0.78rem;
+  color: #475569;
+  margin-bottom: 0.25rem;
+}
+.pfm-summary-bar .pfm-tag {
+  font-size: 0.62rem;
+}
+
+/* ── Form Columns ────────────────────────────────────────────────────────── */
+.pfm-form-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.pfm-form-cols-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+}
+
+/* ── Mobile Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .pfm-category-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .pfm-cat-card {
+    flex-direction: row;
+    padding: 0.875rem 1rem;
+    text-align: left;
+  }
+  .pfm-cat-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .pfm-form-cols,
+  .pfm-form-cols-3 {
+    grid-template-columns: 1fr;
+  }
+  .pfm-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .pfm-footer-left, .pfm-footer-right {
+    width: 100%;
+  }
+  .pfm-footer-right {
+    justify-content: flex-end;
+  }
+}
