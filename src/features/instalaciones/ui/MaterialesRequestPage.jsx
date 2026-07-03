@@ -20,6 +20,7 @@ import {
   isInstalacionIniciada,
   getInstalacionCompletionBlockers,
   canCompletarInstalacion,
+  getHerramientasSinResponsable,
 } from '../../proyectos/domain/instalacionRules.js';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../proyectos/domain/encuestaUtils.js';
 import { EncuestaResultadosView } from '../../proyectos/ui/components/EncuestaResultadosView.jsx';
@@ -270,6 +271,8 @@ export function MaterialesRequestPage() {
 
   // Guardar Consumo de Bodega completo (Tab 2)
   async function handleConfirmarConsumo() {
+    if (!validarResponsablesHerramientas()) return;
+
     showModal(
       'Registrar Materiales para Instalación',
       `¿Estás seguro de que deseas registrar y guardar estos ${materialesLocales.length} materiales para esta instalación?`,
@@ -324,6 +327,8 @@ export function MaterialesRequestPage() {
       }
       return;
     }
+
+    if (!validarResponsablesHerramientas()) return;
 
     showModal(
       'Iniciar Instalación',
@@ -519,6 +524,22 @@ export function MaterialesRequestPage() {
 
   const proyectoEncuesta = proyectoParaEncuesta || proyecto;
 
+  const herramientasSinResponsable = getHerramientasSinResponsable(materialesLocales);
+  const bloqueoPorHerramientas = herramientasSinResponsable.length > 0;
+
+  function validarResponsablesHerramientas() {
+    if (!bloqueoPorHerramientas) return true;
+    const nombres = herramientasSinResponsable.map((m) => m.nombre).join(', ');
+    if (!personalLocal?.length) {
+      toast.error(
+        `Asigna primero el equipo en la pestaña "Equipo de Trabajo" y luego un responsable para cada herramienta: ${nombres}`,
+      );
+    } else {
+      toast.error(`Debes asignar un responsable a cada herramienta antes de continuar: ${nombres}`);
+    }
+    return false;
+  }
+
   const surveyModalEl = puedeEnviarEncuesta ? (
     <SendSurveyModal
       isOpen={isSurveyModalOpen && !!proyectoEncuesta}
@@ -682,7 +703,17 @@ export function MaterialesRequestPage() {
       {!datosInstalacion.instalacionCompletada && !instalacionIniciada && (
         <button
           onClick={handleIniciarInstalacion}
-          className="px-5 py-3 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-md shadow-emerald-100 transition-all cursor-pointer shrink-0"
+          disabled={bloqueoPorHerramientas}
+          title={
+            bloqueoPorHerramientas
+              ? 'Asigna un responsable a cada herramienta en Materiales de Bodega'
+              : undefined
+          }
+          className={`px-5 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all shrink-0 ${
+            bloqueoPorHerramientas
+              ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100 cursor-pointer'
+          }`}
         >
           <Play size={16} fill="currentColor" />
           Iniciar Instalación
@@ -872,6 +903,17 @@ export function MaterialesRequestPage() {
                     Anota los materiales y herramientas que se llevarán a la obra. Asigna responsable solo para las herramientas no consumibles.
                   </p>
 
+                  {bloqueoPorHerramientas && !esSoloLectura && (
+                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                      <span>
+                        {personalLocal.length === 0
+                          ? 'Hay herramientas sin responsable. Primero asigna el equipo en la pestaña "Equipo de Trabajo".'
+                          : `Falta asignar responsable en: ${herramientasSinResponsable.map((m) => m.nombre).join(', ')}.`}
+                      </span>
+                    </div>
+                  )}
+
                   {materialesConStock.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-slate-400 italic text-sm">
                       <Package size={36} className="text-slate-300 mb-2" />
@@ -928,11 +970,17 @@ export function MaterialesRequestPage() {
                                 ) : (
                                   m.tipo === 'herramienta' ? (
                                     <select
-                                      className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                                      className={`w-full border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 bg-white ${
+                                        !(m.responsable || '').trim()
+                                          ? 'border-red-300 ring-1 ring-red-200 focus:ring-red-400'
+                                          : 'border-slate-200 focus:ring-indigo-400'
+                                      }`}
                                       value={m.responsable || ''}
                                       onChange={(e) => handleLocalMaterialChange(i, 'responsable', e.target.value)}
                                     >
-                                      <option value="">Seleccionar...</option>
+                                      <option value="">
+                                        {personalLocal.length === 0 ? 'Sin equipo asignado' : 'Seleccionar...'}
+                                      </option>
                                       {(personalLocal || []).map((p, idx) => (
                                         <option key={idx} value={p.nombre}>{p.nombre}</option>
                                       ))}
@@ -978,7 +1026,17 @@ export function MaterialesRequestPage() {
                   <div className="flex justify-end mt-6 pt-4 border-t border-slate-100">
                     <button
                       onClick={handleConfirmarConsumo}
-                      className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-sm shadow-emerald-100 transition-all cursor-pointer"
+                      disabled={bloqueoPorHerramientas}
+                      title={
+                        bloqueoPorHerramientas
+                          ? 'Asigna un responsable a cada herramienta antes de guardar'
+                          : undefined
+                      }
+                      className={`px-6 py-2.5 font-bold text-sm rounded-xl flex items-center gap-2 transition-all ${
+                        bloqueoPorHerramientas
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-100 cursor-pointer'
+                      }`}
                     >
                       <Save size={16} />
                       Guardar Materiales y Carga

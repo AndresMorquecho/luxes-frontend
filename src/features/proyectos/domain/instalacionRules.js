@@ -6,6 +6,17 @@ export function isInstalacionIniciada(datos = {}) {
   return Boolean(datos.fechaInstalacion && datos.horaInstalacion);
 }
 
+/** Herramientas de la lista sin responsable asignado. */
+export function getHerramientasSinResponsable(materiales = []) {
+  return (materiales || []).filter(
+    (m) => m.tipo === 'herramienta' && !(String(m.responsable || '').trim()),
+  );
+}
+
+export function tieneHerramientasSinResponsable(materiales = []) {
+  return getHerramientasSinResponsable(materiales).length > 0;
+}
+
 /**
  * @param {object} datos - fases.INSTALACION.datos
  * @param {object} [opts]
@@ -26,7 +37,12 @@ export function getInstalacionCompletionBlockers(datos = {}, opts = {}) {
     faltantes.push('Registra al menos un material para la obra');
   }
 
-
+  const herramientasSinResponsable = getHerramientasSinResponsable(datos.materiales);
+  if (herramientasSinResponsable.length > 0) {
+    faltantes.push(
+      `Asigna responsable a las herramientas: ${herramientasSinResponsable.map((m) => m.nombre).join(', ')}`,
+    );
+  }
 
   if (!datos.evidencias?.length) {
     faltantes.push('Sube al menos una evidencia fotográfica del trabajo realizado');

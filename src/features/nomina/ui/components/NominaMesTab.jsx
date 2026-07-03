@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
-import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { NominaContext } from '../../application/context/NominaContext';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 import { registrarAbono } from '../../domain/use-cases/registrarAbono';
@@ -1561,7 +1561,7 @@ export const NominaMesTab = () => {
           ]);
         }
       }
-      setPayTarget(null);
+      deferClose(() => setPayTarget(null));
       toast.success('Pago registrado exitosamente.');
       await loadAll();
     } catch (err) {
@@ -1844,8 +1844,8 @@ export const NominaMesTab = () => {
         </div>
       </div>
 
-      {payTarget && (
-        <ModalPortal>
+      <ModalPortal open={Boolean(payTarget)}>
+        {payTarget && (
         <PayModal
           emp={payTarget.emp}
           monto={payTarget.monto}
@@ -1853,40 +1853,40 @@ export const NominaMesTab = () => {
           restante={payTarget.restante}
           isCross={payTarget.isCross}
           quincenaLabel={`${mesLabel} ${year}`}
-          onClose={() => setPayTarget(null)}
+          onClose={() => deferClose(() => setPayTarget(null))}
           onConfirm={handleConfirmPago}
           onMontoChange={handleMontoChange}
         />
-        </ModalPortal>
-      )}
+        )}
+      </ModalPortal>
 
-      {activeEgresoModal && (
-        <ModalPortal>
+      <ModalPortal open={Boolean(activeEgresoModal)}>
+        {activeEgresoModal && (
         <DetalleEgresosModal
           empleadoId={activeEgresoModal.empleadoId}
           empleadoNombre={activeEgresoModal.empleadoNombre}
           fechaInicio={activeEgresoModal.fechaInicio}
           fechaFin={activeEgresoModal.fechaFin}
           adapter={adapter}
-          onClose={() => setActiveEgresoModal(null)}
+          onClose={() => deferClose(() => setActiveEgresoModal(null))}
           onUpdate={loadAll}
         />
-        </ModalPortal>
-      )}
+        )}
+      </ModalPortal>
 
-      {activeIngresoModal && (
-        <ModalPortal>
+      <ModalPortal open={Boolean(activeIngresoModal)}>
+        {activeIngresoModal && (
         <DetalleIngresosModal
           empleadoId={activeIngresoModal.empleadoId}
           empleadoNombre={activeIngresoModal.empleadoNombre}
           fechaInicio={activeIngresoModal.fechaInicio}
           fechaFin={activeIngresoModal.fechaFin}
           adapter={adapter}
-          onClose={() => setActiveIngresoModal(null)}
+          onClose={() => deferClose(() => setActiveIngresoModal(null))}
           onUpdate={loadAll}
         />
-        </ModalPortal>
-      )}
+        )}
+      </ModalPortal>
     </div>
   );
 };

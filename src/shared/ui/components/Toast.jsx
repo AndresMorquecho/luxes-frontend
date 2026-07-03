@@ -7,13 +7,7 @@ export { toast };
 
 function getToastRoot() {
   if (typeof document === 'undefined') return null;
-  let root = document.getElementById('toast-root');
-  if (!root) {
-    root = document.createElement('div');
-    root.id = 'toast-root';
-    document.body.appendChild(root);
-  }
-  return root;
+  return document.getElementById('toast-root');
 }
 
 export const ToastContainer = () => {
