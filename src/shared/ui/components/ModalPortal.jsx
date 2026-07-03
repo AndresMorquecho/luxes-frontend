@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 function getRoot(id) {
@@ -15,7 +15,8 @@ export function getOverlayRoot() {
 }
 
 /**
- * Contenedor DOM propio por instancia de portal, montado antes del primer paint.
+ * Contenedor DOM aislado por instancia. El cleanup es síncrono en useLayoutEffect
+ * (sin requestAnimationFrame) para no competir con el unmount del portal de React.
  */
 function usePortalContainer(rootId) {
   const containerRef = useRef(null);
@@ -32,57 +33,46 @@ function usePortalContainer(rootId) {
     setReady(true);
 
     return () => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (el.isConnected) {
-            el.remove();
-          }
-          if (containerRef.current === el) {
-            containerRef.current = null;
-          }
-        });
-      });
+      if (el.parentNode === root) {
+        root.removeChild(el);
+      }
+      containerRef.current = null;
     };
   }, [rootId]);
 
   return ready ? containerRef.current : null;
 }
 
-function useDeferredUnmount(isOpen) {
-  const [mounted, setMounted] = useState(isOpen);
+/**
+ * Retraso opcional para animaciones de salida (usar fuera de ModalPortal, no dentro).
+ */
+export function useModalVisibility(isOpen) {
+  const [visible, setVisible] = useState(isOpen);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen) {
-      setMounted(true);
+      setVisible(true);
       return undefined;
     }
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setMounted(false));
-    });
-    return () => cancelAnimationFrame(id);
+    const id = window.setTimeout(() => setVisible(false), 0);
+    return () => window.clearTimeout(id);
   }, [isOpen]);
 
-  return mounted;
+  return visible;
 }
 
 export function ModalPortal({ open = true, children }) {
-  const mounted = useDeferredUnmount(open);
   const container = usePortalContainer('modal-root');
 
-  if (!container || !mounted || children == null || children === false) return null;
+  if (!container || !open || children == null || children === false) return null;
   return createPortal(children, container);
 }
 
 export function OverlayPortal({ open = true, children }) {
-  const mounted = useDeferredUnmount(open);
   const container = usePortalContainer('overlay-root');
 
-  if (!container || !mounted || children == null || children === false) return null;
+  if (!container || !open || children == null || children === false) return null;
   return createPortal(children, container);
-}
-
-export function useModalVisibility(isOpen) {
-  return useDeferredUnmount(isOpen);
 }
 
 /**
@@ -90,9 +80,7 @@ export function useModalVisibility(isOpen) {
  */
 export function deferClose(callback) {
   if (typeof callback !== 'function') return;
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      callback();
-    });
-  });
+  window.setTimeout(() => {
+    callback();
+  }, 0);
 }

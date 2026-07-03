@@ -1,7 +1,7 @@
 // c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/ui/components/HorasExtrasTable.jsx
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { HoraExtra } from '../../domain/entities/HoraExtra';
 import { calcularHorasExtras } from '../../domain/use-cases/calcularHorasExtras';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -344,7 +344,7 @@ export const HorasExtrasTable = ({
 
     const updated = [...records, newRecord];
     setRecords(updated);
-    setIsModalOpen(false);
+    deferClose(() => setIsModalOpen(false));
     await syncWithBackend(updated, 'Horas extras registradas correctamente.');
   };
 
@@ -819,14 +819,14 @@ export const HorasExtrasTable = ({
         </div>
       </div>
 
-      {isModalOpen && (
-        <ModalPortal>
+      <ModalPortal open={isModalOpen}>
+        {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
-          <div className="fixed inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+          <div className="fixed inset-0 bg-black/45 backdrop-blur-sm" onClick={() => deferClose(() => setIsModalOpen(false))} />
           <div className="relative w-full max-w-[95vw] md:max-w-2xl lg:max-w-3xl bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-gray-100 max-h-[92vh] overflow-y-auto flex flex-col space-y-5 animate-modal-in">
 
             <button
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => deferClose(() => setIsModalOpen(false))}
               className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors text-gray-450 hover:text-gray-600 cursor-pointer border-none"
             >
               ✕
@@ -940,7 +940,7 @@ export const HorasExtrasTable = ({
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-150">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => deferClose(() => setIsModalOpen(false))}
                   className="w-full sm:w-auto px-6 py-2.5 border border-gray-200 rounded-xl text-gray-600 font-bold text-xs hover:bg-gray-50 cursor-pointer transition-all bg-white"
                 >
                   Cancelar
@@ -955,8 +955,8 @@ export const HorasExtrasTable = ({
             </form>
           </div>
         </div>
-        </ModalPortal>
-      )}
+        )}
+      </ModalPortal>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes modal-in {

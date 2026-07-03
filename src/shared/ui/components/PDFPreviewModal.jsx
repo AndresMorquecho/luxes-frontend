@@ -34,7 +34,7 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
   ) || 0;
 
   return (
-    <ModalPortal open={shouldShow}>
+    <ModalPortal>
       <div
         className="pdf-modal-overlay"
         onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}

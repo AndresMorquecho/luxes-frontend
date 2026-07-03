@@ -1,15 +1,16 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 
 const formatUSD = (val) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val ?? 0);
 
 export const HorasExtrasSummaryModal = ({ isOpen, summary, onClose }) => {
-  if (!isOpen || !summary) return null;
+  if (!summary) return null;
 
   const colaboradores = Object.values(summary.porColaborador ?? []);
 
-  return createPortal(
+  return (
+    <ModalPortal open={isOpen}>
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
       onClick={onClose}
@@ -77,7 +78,7 @@ export const HorasExtrasSummaryModal = ({ isOpen, summary, onClose }) => {
           </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
+    </ModalPortal>
   );
 };

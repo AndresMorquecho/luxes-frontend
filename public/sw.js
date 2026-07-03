@@ -1,6 +1,6 @@
 // Service Worker for Luxes PWA
 
-const CACHE_NAME = 'luxes-static-cache-v5';
+const CACHE_NAME = 'luxes-static-cache-v6';
 
 function isAssetResponse(url, response) {
   if (!response || !response.ok) return false;
