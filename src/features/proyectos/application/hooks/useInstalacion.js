@@ -1,6 +1,7 @@
 // src/features/proyectos/application/hooks/useInstalacion.js
 
 import { useState, useEffect } from 'react';
+import { resolveFechaHoraFin } from '../../domain/instalacionRules.js';
 import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
 
@@ -13,9 +14,10 @@ import { ACTIONS } from '../store/proyectosStore.js';
 export function useInstalacion(proyectoId) {
   const { state, dispatch, adapter } = useProyectosContext();
   const proyecto = state.proyectos.find((p) => p.id === proyectoId) ?? null;
-  const faseInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
+  const faseInstalacionMeta = proyecto?.fases?.INSTALACION || {};
+  const faseInstalacion = faseInstalacionMeta.datos || {};
   const instalacionRow = proyecto?.instalacion || {};
-  const datosInstalacion = {
+  const datosInstalacionBase = {
     ...instalacionRow,
     ...faseInstalacion,
     personalAsignado: faseInstalacion.personalAsignado?.length
@@ -27,6 +29,12 @@ export function useInstalacion(proyectoId) {
     evidencias: faseInstalacion.evidencias ?? instalacionRow.evidencias,
     instalacionCompletada:
       faseInstalacion.instalacionCompletada === true || instalacionRow.instalacionCompletada === true,
+  };
+  const { fechaFin, horaFin } = resolveFechaHoraFin(datosInstalacionBase, faseInstalacionMeta);
+  const datosInstalacion = {
+    ...datosInstalacionBase,
+    fechaFin: fechaFin || datosInstalacionBase.fechaFin,
+    horaFin: horaFin || datosInstalacionBase.horaFin,
   };
 
   const [empleados, setEmpleados] = useState([]);

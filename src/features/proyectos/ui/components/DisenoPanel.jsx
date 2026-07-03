@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { UploadCloud, Image as ImageIcon, CheckCircle, Clock, File, Trash2, Calendar, ShieldCheck, X } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { uploadArchivoDiseno } from '../../application/proyectosService.js';
+import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
 
 export function DisenoPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
@@ -168,7 +169,7 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
                     className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shrink-0 relative group"
                   >
                     {file.type && file.type.includes('image') ? (
-                      <img src={file.url} alt="Preview" className="w-full h-full object-cover" />
+                      <ProjectMediaImage archivo={file} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <File size={28} className="text-slate-400" />
                     )}

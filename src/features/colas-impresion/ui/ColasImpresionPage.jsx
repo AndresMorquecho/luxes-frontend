@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { resolveMediaUrl } from '../../../shared/utils/mediaUrl.js';
+import { ProjectMediaImage } from '../../../shared/ui/components/ProjectMediaImage.jsx';
 import './ColasImpresionPage.css';
 import { usePrintQueue } from '../context/PrintQueueContext';
 import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService';
@@ -72,14 +74,19 @@ const parseJobFiles = (job) => {
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
       const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.map((f) => ({
+          ...f,
+          url: resolveMediaUrl(f.url),
+        }));
+      }
     } catch (e) {
       console.error('Error parsing job files JSON:', e);
     }
   }
   return [{
     name: job.name,
-    url: job.fileUrl
+    url: resolveMediaUrl(job.fileUrl)
   }];
 };
 
@@ -668,7 +675,7 @@ export const ColasImpresionPage = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
                                   <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
                                     {isImageFile(f.name, f.url) ? (
-                                      <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      <ProjectMediaImage archivo={f} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
                                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -895,7 +902,7 @@ export const ColasImpresionPage = () => {
                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '0.15rem 0.35rem', borderRadius: '6px', maxWidth: '200px' }} title={f.name}>
                                              <div style={{ width: '20px', height: '20px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                                {isImageFile(f.name, f.url) ? (
-                                                 <img src={f.url} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                 <ProjectMediaImage archivo={f} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                ) : (
                                                  <span style={{ fontSize: '9px' }}>📄</span>
                                                )}
@@ -1021,7 +1028,7 @@ export const ColasImpresionPage = () => {
                                     <div key={i} className="colas-card-file-chip" title={f.name}>
                                       <div className="colas-card-file-preview">
                                         {isImageFile(f.name, f.url) ? (
-                                          <img src={f.url} alt="thumb" />
+                                          <ProjectMediaImage archivo={f} alt="thumb" />
                                         ) : (
                                           <span>📄</span>
                                         )}
@@ -1488,7 +1495,7 @@ export const ColasImpresionPage = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
                         <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
                           {isImageFile(f.name, f.url) ? (
-                            <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <ProjectMediaImage archivo={f} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -1639,7 +1646,7 @@ export const ColasImpresionPage = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
                             <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
                               {isImageFile(f.name, f.url) ? (
-                                <img src={f.url} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <ProjectMediaImage archivo={f} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               ) : (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -1950,7 +1957,7 @@ export const ColasImpresionPage = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
                     <div style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {isImageFile(f.name, f.url) ? (
-                        <img src={f.url} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <ProjectMediaImage archivo={f} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '16px', height: '16px', color: '#7c3aed' }}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />

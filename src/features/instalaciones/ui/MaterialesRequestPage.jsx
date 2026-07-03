@@ -29,11 +29,16 @@ import {
   formatFechaCierre,
   puedeAccederCierreObra,
   buildInicioObraSiFalta,
+  nowCierreObra,
+  resolveFechaHoraFin,
 } from '../../proyectos/domain/instalacionRules.js';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../proyectos/domain/encuestaUtils.js';
 import { EncuestaResultadosView } from '../../proyectos/ui/components/EncuestaResultadosView.jsx';
 import { isTallerUser } from '../../../shared/utils/userRoleHelpers.js';
+import { uploadEvidenciaInstalacion } from '../../proyectos/application/proyectosService.js';
 import { CameraCaptureModal } from './components/CameraCaptureModal.jsx';
+import { ProjectMediaImage } from '../../../shared/ui/components/ProjectMediaImage.jsx';
+import { resolveEvidenciaSrc } from '../../../shared/utils/mediaUrl.js';
 import './MaterialesRequestPage.css';
 
 
@@ -45,9 +50,10 @@ export function MaterialesRequestPage() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const puedeEnviarEncuesta = isTallerUser(user);
 
-  const faseInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
+  const faseInstalacionMeta = proyecto?.fases?.INSTALACION || {};
+  const faseInstalacion = faseInstalacionMeta.datos || {};
   const instalacionRow = proyecto?.instalacion || {};
-  const datosInstalacion = {
+  const datosInstalacionBase = {
     ...instalacionRow,
     ...faseInstalacion,
     personalAsignado: faseInstalacion.personalAsignado?.length
@@ -59,6 +65,15 @@ export function MaterialesRequestPage() {
     evidencias: faseInstalacion.evidencias ?? instalacionRow.evidencias,
     instalacionCompletada:
       faseInstalacion.instalacionCompletada === true || instalacionRow.instalacionCompletada === true,
+  };
+  const { fechaFin: fechaFinResuelta, horaFin: horaFinResuelta } = resolveFechaHoraFin(
+    datosInstalacionBase,
+    faseInstalacionMeta,
+  );
+  const datosInstalacion = {
+    ...datosInstalacionBase,
+    fechaFin: fechaFinResuelta || datosInstalacionBase.fechaFin,
+    horaFin: horaFinResuelta || datosInstalacionBase.horaFin,
   };
   const materialesExistentes = datosInstalacion.materiales || [];
   const esSoloLectura = datosInstalacion.instalacionCompletada === true;
@@ -477,21 +492,41 @@ export function MaterialesRequestPage() {
     const fileList = Array.from(files);
     if (fileList.length === 0) return;
 
-    toast.info('Procesando y comprimiendo imágenes...');
+    toast.info('Subiendo evidencias...');
     try {
-      const nuevasEvidenciasPromises = fileList.map(file => compressAndConvertImage(file));
-      const nuevasEvidencias = await Promise.all(nuevasEvidenciasPromises);
+      let ultimoProyecto = null;
+      for (const file of fileList) {
+        let fileToUpload = file;
+        if (file.type?.startsWith('image/')) {
+          try {
+            const compressed = await compressAndConvertImage(file);
+            if (compressed.startsWith('data:')) {
+              const res = await fetch(compressed);
+              const blob = await res.blob();
+              fileToUpload = new File([blob], file.name.replace(/\.\w+$/, '.jpg') || 'evidencia.jpg', {
+                type: 'image/jpeg',
+              });
+            }
+          } catch {
+            fileToUpload = file;
+          }
+        }
+        const result = await uploadEvidenciaInstalacion(id, fileToUpload);
+        if (result?.proyecto) {
+          ultimoProyecto = result.proyecto;
+        }
+      }
 
-      const evidenciasActuales = datosInstalacion.evidencias || [];
-      const updatedEvidencias = [...evidenciasActuales, ...nuevasEvidencias];
-      const now = new Date();
-
-      await updateFaseDatos('INSTALACION', {
-        ...buildInicioObraSiFalta(datosInstalacion, now),
-        personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
-        materiales: materialesLocales.length ? materialesLocales : datosInstalacion.materiales,
-        evidencias: updatedEvidencias
-      });
+      if (ultimoProyecto) {
+        dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios: ultimoProyecto } });
+      } else if (!instalacionIniciada) {
+        const now = new Date();
+        await updateFaseDatos('INSTALACION', {
+          ...buildInicioObraSiFalta(datosInstalacion, now),
+          personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
+          materiales: materialesLocales.length ? materialesLocales : datosInstalacion.materiales,
+        });
+      }
 
       toast.success('Evidencia(s) cargada(s) con éxito');
     } catch (err) {
@@ -536,8 +571,7 @@ export function MaterialesRequestPage() {
       'confirm',
       async () => {
         const now = new Date();
-        const fechaFin = now.toISOString().split('T')[0];
-        const horaFin = now.toTimeString().slice(0, 5);
+        const { fechaFin, horaFin } = nowCierreObra(now);
         const snapshot = {
           ...proyecto,
           fases: {
@@ -734,7 +768,11 @@ export function MaterialesRequestPage() {
                   </p>
                   <p className="font-medium mt-0.5">
                     {datosInstalacion.instalacionCompletada ? (
-                      formatFechaCierre(datosInstalacion.fechaFin, datosInstalacion.horaFin) || 'Completada'
+                      formatFechaCierre(
+                        datosInstalacion.fechaFin,
+                        datosInstalacion.horaFin,
+                        faseInstalacionMeta,
+                      ) || 'Completada'
                     ) : datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion ? (
                       `${datosInstalacion.fechaInstalacion} a las ${datosInstalacion.horaInstalacion}`
                     ) : (
@@ -1328,15 +1366,15 @@ export function MaterialesRequestPage() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {datosInstalacion.evidencias.map((imgBase64, idx) => (
+                        {datosInstalacion.evidencias.map((evidencia, idx) => (
                           <div 
                             key={idx} 
-                            onClick={() => setPreviewImage(imgBase64)}
+                            onClick={() => setPreviewImage(resolveEvidenciaSrc(evidencia))}
                             className="group relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm aspect-video flex items-center justify-center cursor-pointer"
                           >
-                            <img 
-                              src={imgBase64} 
-                              alt={`Evidencia ${idx + 1}`} 
+                            <ProjectMediaImage
+                              evidencia={evidencia}
+                              alt={`Evidencia ${idx + 1}`}
                               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                             />
                             
@@ -1386,7 +1424,11 @@ export function MaterialesRequestPage() {
                         <p className="font-bold">Montaje Completado</p>
                         <p className="mt-1">
                           Finalizó el{' '}
-                          {formatFechaCierre(datosInstalacion.fechaFin, datosInstalacion.horaFin) || 'recientemente'}
+                          {formatFechaCierre(
+                            datosInstalacion.fechaFin,
+                            datosInstalacion.horaFin,
+                            faseInstalacionMeta,
+                          ) || 'recientemente'}
                           .
                         </p>
                         {datosInstalacion.notasCierre ? (

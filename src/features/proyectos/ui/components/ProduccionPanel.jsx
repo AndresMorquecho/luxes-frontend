@@ -7,6 +7,8 @@ import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { getMateriales } from '../../../inventario/application/inventarioService.js';
+import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
+import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 
 export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const { proyecto } = useProyecto(proyectoId);
@@ -388,7 +390,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                                     <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-1.5 pr-2.5 py-1 rounded-xl shadow-sm hover:shadow-md transition-shadow max-w-full min-w-0">
                                       <div className="w-8 h-8 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 flex items-center justify-center">
                                         {isImageFile(f.name, f.url) ? (
-                                          <img src={f.url} alt="preview" className="w-full h-full object-cover" />
+                                          <ProjectMediaImage archivo={f} alt="preview" className="w-full h-full object-cover" />
                                         ) : (
                                           <FileText size={14} className="text-slate-400" />
                                         )}
@@ -571,7 +573,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                       >
                         <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-purple-100 shrink-0">
                           {art.type && art.type.includes('image') && art.url ? (
-                            <img src={art.url} alt="art preview" className="w-full h-full object-cover" />
+                            <ProjectMediaImage archivo={art} alt="art preview" className="w-full h-full object-cover" />
                           ) : (
                             <FileText size={16} className="text-purple-400" />
                           )}

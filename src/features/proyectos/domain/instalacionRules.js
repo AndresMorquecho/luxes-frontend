@@ -97,17 +97,61 @@ export function canCompletarInstalacion(datos = {}, opts = {}) {
   return getInstalacionCompletionBlockers(datos, opts).length === 0;
 }
 
-/** Texto legible para fecha/hora de cierre de obra. */
-export function formatFechaCierre(fechaFin, horaFin) {
-  if (!fechaFin) return '';
-  const iso = horaFin ? `${fechaFin}T${horaFin}:00` : `${fechaFin}T12:00:00`;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(fechaFin);
-  const fecha = d.toLocaleDateString('es-EC', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+const TZ_ECUADOR = 'America/Guayaquil';
+
+/** Hora local HH:mm desde ISO o Date. */
+export function extractHoraLocal(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    const m = String(value).match(/(\d{1,2}:\d{2})/);
+    return m ? m[1] : '';
+  }
+  return d.toLocaleTimeString('es-EC', {
+    timeZone: TZ_ECUADOR,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   });
-  if (!horaFin) return fecha;
-  return `${fecha} a las ${horaFin}`;
+}
+
+/** Fecha y hora locales al cerrar obra (YYYY-MM-DD + HH:mm). */
+export function nowCierreObra(now = new Date()) {
+  const fechaFin = now.toLocaleDateString('en-CA', { timeZone: TZ_ECUADOR });
+  const horaFin = extractHoraLocal(now);
+  return { fechaFin, horaFin };
+}
+
+/** Mismo formato que "Inicio en Obra": YYYY-MM-DD HH:mm */
+export function formatFechaHoraObra(fecha, hora) {
+  if (!fecha) return '';
+  const fechaNorm = String(fecha).slice(0, 10);
+  const horaNorm = String(hora || '').trim();
+  if (!horaNorm) return fechaNorm;
+  return `${fechaNorm} ${horaNorm}`;
+}
+
+/**
+ * Resuelve fecha/hora de cierre desde datos de fase o timestamp de completado.
+ * @param {object} datos
+ * @param {{ fechaCompletada?: string, fechaCompletadaAt?: string }} [faseMeta]
+ */
+export function resolveFechaHoraFin(datos = {}, faseMeta = {}) {
+  const fechaFin =
+    datos.fechaFin ||
+    (faseMeta.fechaCompletada ? String(faseMeta.fechaCompletada).slice(0, 10) : '');
+  let horaFin = String(datos.horaFin || '').trim();
+  if (!horaFin && faseMeta.fechaCompletadaAt) {
+    horaFin = extractHoraLocal(faseMeta.fechaCompletadaAt);
+  }
+  return { fechaFin, horaFin };
+}
+
+/** Texto legible para fecha/hora de cierre de obra (incluye hora si existe). */
+export function formatFechaCierre(fechaFin, horaFin, faseMeta = null) {
+  const resolved = resolveFechaHoraFin(
+    { fechaFin, horaFin },
+    faseMeta || {},
+  );
+  return formatFechaHoraObra(resolved.fechaFin, resolved.horaFin);
 }

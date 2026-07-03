@@ -1,10 +1,10 @@
 // src/features/proyectos/ui/components/InstalacionPanel.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MapPin, Calendar, Users, Package, StickyNote, CheckCircle, 
   PlayCircle, AlertTriangle, FileText, CheckCircle2, X, Printer,
-  HelpCircle, Eye, Wrench
+  HelpCircle, Eye, Wrench, Camera
 } from 'lucide-react';
 import { PersonalSelector } from './PersonalSelector.jsx';
 import { MaterialesForm } from './MaterialesForm.jsx';
@@ -15,7 +15,9 @@ import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModa
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../domain/encuestaUtils.js';
 import { EncuestaResultadosView } from './EncuestaResultadosView.jsx';
-import { getInstalacionCompletionBlockers, formatFechaCierre } from '../../domain/instalacionRules.js';
+import { getInstalacionCompletionBlockers, formatFechaHoraObra, resolveFechaHoraFin } from '../../domain/instalacionRules.js';
+import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
+import { resolveEvidenciaSrc } from '../../../../shared/utils/mediaUrl.js';
 
 const SECCIONES = ['datos', 'personal', 'materiales', 'estado'];
 
@@ -40,11 +42,26 @@ export function InstalacionPanel({ proyectoId }) {
   const [seccionActiva, setSeccionActiva] = useState('datos');
   const [insumosOpen, setInsumosOpen] = useState(false);
   const [detallesMobileOpen, setDetallesMobileOpen] = useState(false);
-  const { state, dispatch } = useProyectosContext();
+  const { state, dispatch, adapter } = useProyectosContext();
   const [aprobaciones, setAprobaciones] = useState({}); // { [sku]: cantidad }
   const [comentarioOC, setComentarioOC] = useState('');
   const [printableOC, setPrintableOC] = useState(null); // OC a imprimir
+  const [previewEvidencia, setPreviewEvidencia] = useState(null);
+
+  useEffect(() => {
+    if (!proyectoId || !adapter?.getById) return;
+    adapter
+      .getById(proyectoId)
+      .then((proyectoFresh) => {
+        if (proyectoFresh) {
+          dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id: proyectoId, cambios: proyectoFresh } });
+        }
+      })
+      .catch((err) => console.error('Error al cargar instalación:', err));
+  }, [proyectoId, adapter, dispatch]);
+
   const ordenesProyecto = (state.ordenesCompra || []).filter(oc => oc.proyectoId === proyectoId);
+  const evidencias = datosInstalacion.evidencias || [];
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
@@ -180,6 +197,11 @@ export function InstalacionPanel({ proyectoId }) {
   }
 
   const bloqueosCierre = getInstalacionCompletionBlockers(datosInstalacion, { ordenesCompra: ordenesProyecto });
+  const faseInstalacionMeta = proyecto?.fases?.INSTALACION || {};
+  const { fechaFin: fechaFinObra, horaFin: horaFinObra } = resolveFechaHoraFin(
+    datosInstalacion,
+    faseInstalacionMeta,
+  );
   const requisitosValidacion = [
     { ok: Boolean(datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion), label: 'Instalación iniciada en obra' },
     { ok: (datosInstalacion.personalAsignado?.length || 0) > 0, label: 'Equipo técnico asignado' },
@@ -223,7 +245,9 @@ export function InstalacionPanel({ proyectoId }) {
           <div className="min-w-0">
             <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">Inicio en Obra</span>
             <span className="text-[11px] sm:text-xs font-bold text-slate-800 mt-0.5 block truncate">
-              {datosInstalacion.fechaInstalacion ? `${datosInstalacion.fechaInstalacion}${datosInstalacion.horaInstalacion ? ` ${datosInstalacion.horaInstalacion}` : ''}` : 'No iniciado'}
+              {datosInstalacion.fechaInstalacion
+                ? formatFechaHoraObra(datosInstalacion.fechaInstalacion, datosInstalacion.horaInstalacion)
+                : 'No iniciado'}
             </span>
           </div>
         </div>
@@ -279,11 +303,11 @@ export function InstalacionPanel({ proyectoId }) {
                   {datosInstalacion.direccionInstalacion || proyecto?.cliente?.direccion || 'Sin dirección registrada'}
                 </p>
               </div>
-              {datosInstalacion.fechaFin && (
+              {fechaFinObra && (
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Fecha Fin</span>
                   <p className="text-sm font-semibold text-slate-700 mt-1">
-                    {formatFechaCierre(datosInstalacion.fechaFin, datosInstalacion.horaFin) || datosInstalacion.fechaFin}
+                    {formatFechaHoraObra(fechaFinObra, horaFinObra)}
                   </p>
                 </div>
               )}
@@ -304,6 +328,31 @@ export function InstalacionPanel({ proyectoId }) {
                 <p className="text-xs text-slate-650 bg-emerald-50/20 p-2.5 sm:p-3 rounded-lg border border-emerald-100/30 whitespace-pre-line italic leading-relaxed">
                   &quot;{datosInstalacion.notasCierre}&quot;
                 </p>
+              </div>
+            )}
+
+            {evidencias.length > 0 && (
+              <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-3">
+                  <Camera size={12} />
+                  Evidencias fotográficas ({evidencias.length})
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                  {evidencias.map((evidencia, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setPreviewEvidencia(resolveEvidenciaSrc(evidencia))}
+                      className="relative aspect-video rounded-lg overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer"
+                    >
+                      <ProjectMediaImage
+                        evidencia={evidencia}
+                        alt={`Evidencia ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -497,6 +546,22 @@ export function InstalacionPanel({ proyectoId }) {
         proyecto={proyecto}
         title="Orden de Compra"
       />
+
+      {previewEvidencia && (
+        <ModalPortal open>
+          <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/80"
+            onClick={() => setPreviewEvidencia(null)}
+          >
+            <img
+              src={previewEvidencia}
+              alt="Evidencia ampliada"
+              className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </ModalPortal>
+      )}
 
       {/* Modal Dialog de Alertas (Reemplazo de alert nativo) */}
       {modalConfig.isOpen && (

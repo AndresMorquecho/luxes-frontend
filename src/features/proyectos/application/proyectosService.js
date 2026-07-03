@@ -109,13 +109,31 @@ export const uploadArchivoDiseno = async (proyectoId, file) => {
     method: 'POST',
     headers: {
       Authorization: token ? `Bearer ${token}` : '',
-      // No incluir Content-Type, el navegador lo establece automáticamente con el boundary
     },
     body: formData,
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
     throw new Error(data.error?.message || 'Error al subir archivo');
+  }
+  return data.data;
+};
+
+export const uploadEvidenciaInstalacion = async (proyectoId, file) => {
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  formData.append('archivo', file);
+
+  const res = await fetch(`/api/proyectos/${proyectoId}/upload-evidencia`, {
+    method: 'POST',
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al subir evidencia');
   }
   return data.data;
 };
