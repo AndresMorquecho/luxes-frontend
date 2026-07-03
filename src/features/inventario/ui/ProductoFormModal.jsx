@@ -6,6 +6,7 @@ import {
 import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
 import { downloadProductoTemplate, parseProductoExcel } from '../application/productoExcelUtils.js';
 import { downloadImportTemplate, importMaterialesBulk } from '../application/inventarioService.js';
+import { getEmpleados } from '../../empleados/application/empleadosService.js';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
 import './ProductoFormModal.css';
 
@@ -97,6 +98,12 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
   const [importErrors, setImportErrors] = useState([]);
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [empleados, setEmpleados] = useState([]);
+
+  // Fetch employees on mount
+  useEffect(() => {
+    getEmpleados().then(data => setEmpleados(data || [])).catch(() => {});
+  }, []);
 
   // Auto-focus name field on mount
   useEffect(() => {
@@ -147,6 +154,7 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
         serie: item.serie || '',
         estadoUso: item.estadoUso || 'BODEGA',
         aCargo: item.aCargo || '',
+        aCargoId: item.aCargoId || item.aCargoEmpleado?.id || '',
       };
     }
     return {
@@ -162,6 +170,7 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
       serie: '',
       estadoUso: 'BODEGA',
       aCargo: '',
+      aCargoId: '',
     };
   });
 
@@ -180,6 +189,7 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
     const updated = { ...prev, [key]: value };
     if (key === 'estadoUso' && value === 'BODEGA') {
       updated.aCargo = '';
+      updated.aCargoId = '';
     }
     return updated;
   });
@@ -225,7 +235,8 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
           modelo: form.modelo.trim() || undefined,
           serie: form.serie.trim() || undefined,
           estadoUso: form.estadoUso,
-          aCargo: form.aCargo.trim() || undefined,
+          aCargoId: form.aCargoId || undefined,
+          aCargo: form.aCargoId ? empleados.find(e => e.id === form.aCargoId)?.nombre : (form.aCargo.trim() || undefined),
         } : {}),
       };
 
@@ -244,6 +255,7 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
           serie: '',
           estadoUso: 'BODEGA',
           aCargo: '',
+          aCargoId: '',
         }));
         
         // Re-focus the name field
@@ -724,11 +736,15 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                       
                       {form.estadoUso !== 'BODEGA' ? (
                         <label className="pfm-input-label">Responsable Asignado
-                          <input
-                            value={form.aCargo}
-                            onChange={e => set('aCargo', e.target.value)}
-                            placeholder="Ej: Víctor, Jimmy, etc."
-                          />
+                          <select
+                            value={form.aCargoId}
+                            onChange={e => set('aCargoId', e.target.value)}
+                          >
+                            <option value="">-- Seleccionar empleado --</option>
+                            {empleados.map(emp => (
+                              <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                            ))}
+                          </select>
                         </label>
                       ) : (
                         <div className="pfm-empty-grid-slot" />
