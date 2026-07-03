@@ -78,6 +78,68 @@ export async function createMaterial(body) {
   return data.data;
 }
 
+/** Descarga plantilla Excel desde el backend según la sección */
+export async function downloadImportTemplate(categoria) {
+  const params = new URLSearchParams({ categoria });
+  const res = await fetch(`/api/inventario/importar/plantilla?${params}`, {
+    headers: { Authorization: getHeaders().Authorization },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error?.message || 'Error al descargar plantilla');
+  }
+  const blob = await res.blob();
+  const slug = categoria.toLowerCase().replace(/[^a-z0-9]+/gi, '_');
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `plantilla_inventario_${slug}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+/** Importa materiales validados vía endpoint bulk del backend */
+export async function importMaterialesBulk(categoria, materiales) {
+  const res = await fetch('/api/inventario/importar', {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      categoria,
+      items: materiales.map(({ line, nombre, payload }) => ({
+        line,
+        nombre,
+        payload,
+      })),
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al importar materiales');
+  }
+  return data.data;
+}
+
+/** Sube archivo Excel directamente al backend (parseo + importación en servidor) */
+export async function importMaterialesFromFile(categoria, file) {
+  const formData = new FormData();
+  formData.append('archivo', file);
+  formData.append('categoria', categoria);
+
+  const token = localStorage.getItem('token');
+  const res = await fetch('/api/inventario/importar/archivo', {
+    method: 'POST',
+    headers: { Authorization: token ? `Bearer ${token}` : '' },
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al importar archivo');
+  }
+  return data.data;
+}
+
 export async function updateMaterial(id, body) {
   const res = await fetch(`/api/inventario/${id}`, {
     method: 'PUT', headers: getHeaders(), body: JSON.stringify(body),

@@ -804,6 +804,7 @@ export function InventarioPage() {
           lockedCategory={lockedCategory}
           onClose={() => setMatModal(null)}
           onSave={handleSaveMaterial}
+          onImportComplete={loadAll}
         />
       )}
       {movModal && (

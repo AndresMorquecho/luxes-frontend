@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   X, Check, Wrench, Package, Monitor, Printer, Droplets,
-  ScrollText, ArrowDownToLine, ArrowUpFromLine, RefreshCw
+  ScrollText, RefreshCw, UploadCloud, Download, FileSpreadsheet, ArrowLeft, AlertCircle
 } from 'lucide-react';
 import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
+import { downloadProductoTemplate, parseProductoExcel } from '../application/productoExcelUtils.js';
+import { downloadImportTemplate, importMaterialesBulk } from '../application/inventarioService.js';
+import { toast } from '../../../shared/ui/components/Toast.jsx';
 import './ProductoFormModal.css';
 
 // ── Subtype Definitions ────────────────────────────────────────────────────
@@ -67,9 +70,10 @@ const CATEGORIES = [
   { id: 'Impresión', name: 'Impresión', Icon: Printer, cssClass: 'impresion' },
 ];
 
-export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose, onSave }) {
+export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose, onSave, onImportComplete }) {
   const isEdit = !!item;
   const nameInputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // ── Resolve default category and subtype
   const defaultCategory = lockedCategory || item?.categoria || 'Taller';
@@ -86,6 +90,13 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
   const [categoria, setCategoria] = useState(defaultCategory);
   const [subtipo, setSubtipo] = useState(() => resolveSubtype(defaultCategory));
   const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState('form');
+  const [isDragging, setIsDragging] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [parsing, setParsing] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   // Auto-focus name field on mount
   useEffect(() => {
@@ -250,6 +261,112 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
   const handleClose = () => deferClose(onClose);
   const showHerramientaFields = subtipo === 'herramienta' || subtipo === 'activo_fijo';
 
+  const resetImportState = () => {
+    setImportFile(null);
+    setImportRows([]);
+    setImportErrors([]);
+    setIsDragging(false);
+  };
+
+  const switchToImport = () => {
+    resetImportState();
+    setMode('import');
+  };
+
+  const switchToForm = () => {
+    resetImportState();
+    setMode('form');
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadImportTemplate(categoria);
+      toast.success(`Plantilla de ${categoria} descargada.`);
+    } catch (err) {
+      try {
+        downloadProductoTemplate(categoria);
+        toast.success(`Plantilla de ${categoria} descargada.`);
+      } catch {
+        toast.error(err.message || 'No se pudo descargar la plantilla.');
+      }
+    }
+  };
+
+  const processImportFile = async (file) => {
+    if (!file) return;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+      toast.error('Formato no válido. Use un archivo .xlsx, .xls o .csv');
+      return;
+    }
+
+    setParsing(true);
+    setImportFile(file);
+    try {
+      const { rows, errors } = await parseProductoExcel(file, categoria, unidades);
+      setImportRows(rows);
+      setImportErrors(errors);
+      if (rows.length === 0 && errors.length === 0) {
+        toast.warning('El archivo no contiene filas de productos.');
+      } else if (errors.length > 0) {
+        toast.warning(`${errors.length} fila(s) con errores. Revise antes de importar.`);
+      } else {
+        toast.success(`${rows.length} producto(s) listos para importar.`);
+      }
+    } catch (err) {
+      toast.error(err.message || 'No se pudo leer el archivo Excel.');
+      resetImportState();
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processImportFile(file);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) processImportFile(file);
+    e.target.value = '';
+  };
+
+  const handleImportSubmit = async () => {
+    if (!importRows.length) {
+      toast.error('No hay productos válidos para importar.');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const { created, failed } = await importMaterialesBulk(categoria, importRows);
+      if (created.length > 0) {
+        toast.success(`${created.length} producto(s) importados correctamente.`);
+        onImportComplete?.();
+      }
+      if (failed.length > 0) {
+        toast.error(`${failed.length} producto(s) no se pudieron importar.`);
+        setImportErrors(prev => [
+          ...prev,
+          ...failed.map(f => ({ line: f.line, nombre: f.nombre, messages: [f.message] })),
+        ]);
+      }
+      if (failed.length === 0) {
+        handleClose();
+      } else if (created.length > 0) {
+        const failedLines = new Set(failed.map(f => f.line));
+        setImportRows(prev => prev.filter(r => failedLines.has(r.line)));
+      }
+    } catch (err) {
+      toast.error(err.message || 'Error al importar productos.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <ModalPortal>
       <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
@@ -257,11 +374,142 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
           
           {/* Header */}
           <div className="inv-modal-header">
-            <h3>{isEdit ? 'Editar Producto' : 'Registro de Producto Rápido'}</h3>
+            <h3>
+              {isEdit ? 'Editar Producto' : mode === 'import' ? 'Importar Productos desde Excel' : 'Registro de Producto Rápido'}
+            </h3>
             <button type="button" className="inv-close" onClick={handleClose}>
               <X size={18} />
             </button>
           </div>
+
+          {mode === 'import' && !isEdit ? (
+            <div className="pfm-import-container">
+              <div className="pfm-import-toolbar">
+                {!lockedCategory ? (
+                  <div className="pfm-import-categories">
+                    <p className="pfm-section-title">Sección o Destino</p>
+                    <div className="pfm-inline-categories">
+                      {CATEGORIES.map(cat => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          className={`pfm-inline-cat-btn ${categoria === cat.id ? 'selected' : ''}`}
+                          onClick={() => {
+                            setCategoria(cat.id);
+                            resetImportState();
+                          }}
+                        >
+                          <cat.Icon size={14} />
+                          <span>{cat.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pfm-import-locked-cat">
+                    <p className="pfm-section-title">Sección</p>
+                    <span className="pfm-import-cat-badge">{categoria}</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="pfm-download-template-btn"
+                  onClick={handleDownloadTemplate}
+                >
+                  <Download size={15} />
+                  Descargar plantilla ({categoria})
+                </button>
+              </div>
+
+              <div
+                className={`pfm-import-dropzone ${isDragging ? 'dragging' : ''} ${importFile ? 'has-file' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                onDrop={handleFileDrop}
+                onClick={() => !parsing && fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="pfm-import-file-input"
+                  onChange={handleFileSelect}
+                />
+                {parsing ? (
+                  <>
+                    <RefreshCw size={28} className="pfm-spin pfm-import-icon" />
+                    <p className="pfm-import-drop-title">Leyendo archivo…</p>
+                  </>
+                ) : importFile ? (
+                  <>
+                    <FileSpreadsheet size={28} className="pfm-import-icon file" />
+                    <p className="pfm-import-drop-title">{importFile.name}</p>
+                    <p className="pfm-import-drop-hint">Haz clic o arrastra otro archivo para reemplazar</p>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud size={32} className="pfm-import-icon" />
+                    <p className="pfm-import-drop-title">Arrastra tu Excel aquí o haz clic para subir</p>
+                    <p className="pfm-import-drop-hint">
+                      Usa la plantilla de <strong>{categoria}</strong> con columnas de subtipo, nombre, cantidad y unidad
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {(importRows.length > 0 || importErrors.length > 0) && (
+                <div className="pfm-import-preview">
+                  {importRows.length > 0 && (
+                    <div className="pfm-import-summary ok">
+                      <Check size={14} />
+                      <span>{importRows.length} producto(s) listos para importar</span>
+                    </div>
+                  )}
+                  {importErrors.length > 0 && (
+                    <div className="pfm-import-error-list">
+                      <div className="pfm-import-summary error">
+                        <AlertCircle size={14} />
+                        <span>{importErrors.length} fila(s) con errores</span>
+                      </div>
+                      <ul>
+                        {importErrors.slice(0, 6).map(err => (
+                          <li key={`${err.line}-${err.nombre}`}>
+                            Fila {err.line} — {err.nombre}: {err.messages.join(', ')}
+                          </li>
+                        ))}
+                        {importErrors.length > 6 && (
+                          <li className="pfm-import-more">… y {importErrors.length - 6} más</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="pfm-footer">
+                <div className="pfm-footer-left">
+                  <button type="button" className="inv-btn-ghost" onClick={handleClose} disabled={importing}>
+                    Cancelar
+                  </button>
+                  <button type="button" className="pfm-back-form-btn" onClick={switchToForm} disabled={importing}>
+                    <ArrowLeft size={14} />
+                    Registro manual
+                  </button>
+                </div>
+                <div className="pfm-footer-right">
+                  <button
+                    type="button"
+                    className="inv-btn-primary"
+                    disabled={importing || importRows.length === 0}
+                    onClick={handleImportSubmit}
+                  >
+                    {importing ? 'Importando…' : `Importar ${importRows.length || ''} producto(s)`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
 
           <form onSubmit={(e) => handleSubmit(e, false)} className="pfm-widescreen-form">
             
@@ -509,6 +757,17 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
                 <button type="button" className="inv-btn-ghost" onClick={handleClose} disabled={saving}>
                   Cancelar
                 </button>
+                {!isEdit && (
+                  <button
+                    type="button"
+                    className="pfm-import-btn"
+                    onClick={switchToImport}
+                    disabled={saving}
+                  >
+                    <FileSpreadsheet size={14} />
+                    Importar Excel
+                  </button>
+                )}
               </div>
               <div className="pfm-footer-right">
                 {/* Save and Add Another option (Only for creation) */}
@@ -532,6 +791,8 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
             </div>
 
           </form>
+          )}
+
         </div>
       </div>
     </ModalPortal>

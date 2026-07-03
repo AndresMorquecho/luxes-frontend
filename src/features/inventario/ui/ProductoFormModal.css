@@ -348,6 +348,205 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Import View ─────────────────────────────────────────────────────────── */
+.pfm-import-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 60px);
+  overflow: hidden;
+}
+
+.pfm-import-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.75rem 0.75rem;
+}
+
+.pfm-import-categories {
+  flex: 1;
+  min-width: 0;
+}
+
+.pfm-import-locked-cat {
+  flex: 1;
+}
+
+.pfm-import-cat-badge {
+  display: inline-flex;
+  padding: 0.35rem 0.75rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.pfm-download-template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1rem;
+  background: #ffffff;
+  border: 1px solid #2563eb;
+  border-radius: 0.625rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pfm-download-template-btn:hover {
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.pfm-import-dropzone {
+  flex: 1;
+  margin: 0 1.75rem;
+  min-height: 180px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 1rem;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.pfm-import-dropzone:hover,
+.pfm-import-dropzone.dragging {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.pfm-import-dropzone.has-file {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.pfm-import-file-input {
+  display: none;
+}
+
+.pfm-import-icon {
+  color: #94a3b8;
+  transition: color 0.2s;
+}
+
+.pfm-import-dropzone:hover .pfm-import-icon,
+.pfm-import-dropzone.dragging .pfm-import-icon {
+  color: #2563eb;
+}
+
+.pfm-import-icon.file {
+  color: #059669;
+}
+
+.pfm-import-drop-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pfm-import-drop-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  max-width: 420px;
+  line-height: 1.4;
+}
+
+.pfm-import-preview {
+  padding: 0.75rem 1.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.pfm-import-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.5rem;
+  width: fit-content;
+}
+
+.pfm-import-summary.ok {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.pfm-import-summary.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.pfm-import-error-list ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.72rem;
+  color: #b91c1c;
+  line-height: 1.45;
+}
+
+.pfm-import-more {
+  color: #64748b;
+  font-style: italic;
+}
+
+.pfm-import-btn,
+.pfm-back-form-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 0.5rem;
+}
+
+.pfm-import-btn:hover,
+.pfm-back-form-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.pfm-footer-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
 /* ── Responsive Styling (< 992px) ────────────────────────────────────────── */
 @media (max-width: 992px) {
   .pfm-modal-widescreen {
@@ -416,5 +615,39 @@
   
   .pfm-footer-left button {
     width: 100%;
+  }
+
+  .pfm-import-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem 1.5rem 0.75rem;
+  }
+
+  .pfm-download-template-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pfm-import-dropzone {
+    margin: 0 1.5rem;
+    min-height: 160px;
+    padding: 1.5rem;
+  }
+
+  .pfm-import-container .pfm-footer {
+    flex-direction: column-reverse;
+  }
+
+  .pfm-import-container .pfm-footer-right,
+  .pfm-import-container .pfm-footer-left {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .pfm-back-form-btn,
+  .pfm-import-btn {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
   }
 }
