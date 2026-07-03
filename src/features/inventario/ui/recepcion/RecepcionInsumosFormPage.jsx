@@ -35,9 +35,6 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
   const [detalles, setDetalles] = useState([]);
   const [observaciones, setObservaciones] = useState('');
   const [savingId, setSavingId] = useState(null);
-  const [showPDFPreview, setShowPDFPreview] = useState(false);
-  const [exitAfterPdf, setExitAfterPdf] = useState(false);
-  const [recepcionData, setRecepcionData] = useState(null);
   const [showOrdenPDF, setShowOrdenPDF] = useState(false);
 
   const loadOrden = useCallback(async () => {
@@ -76,33 +73,9 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
     return () => { cancelled = true; };
   }, [loadOrden, basePath, navigate]);
 
-  useEffect(() => {
-    if (exitAfterPdf && !showPDFPreview) {
-      const timer = window.setTimeout(() => {
-        setExitAfterPdf(false);
-        navigate(basePath);
-      }, 50);
-      return () => window.clearTimeout(timer);
-    }
-  }, [exitAfterPdf, showPDFPreview, navigate, basePath]);
-
   const updateDetalle = (index, patch) => {
     setDetalles(prev => prev.map((item, idx) => (idx === index ? { ...item, ...patch } : item)));
   };
-
-  const buildRecepcionPDF = (ordenData, items) => ({
-    numeroOrden: ordenData.numero,
-    fecha: items.map(i => i.fechaRecepcion).sort().reverse()[0] || todayDateInputValue(),
-    proveedor: ordenData.proveedor?.nombre || '—',
-    solicitante: ordenData.usuario?.nombre || '—',
-    observaciones: observaciones || ordenData.notasRecepcion || 'Sin observaciones',
-    items: items.map(d => ({
-      ...d,
-      cantidadRecibida: parseFloat(d.cantidadRecibida) || 0,
-      descargableInventario: d.descargableInventario && !!d.materialId,
-    })),
-    total: ordenData.total,
-  });
 
   const handleRecepcionarItem = async (index) => {
     const detalle = detalles[index];
@@ -142,11 +115,8 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
       }
 
       if (updated.estado === 'recibida') {
-        const recibidos = (updated.detalles || []).filter(d => (d.cantidadRecibida ?? 0) > 0);
-        setRecepcionData(buildRecepcionPDF(updated, recibidos.map(mapDetalleFromOrden)));
-        setShowPDFPreview(true);
-        setOrden(updated);
-        setDetalles(recibidos.map(mapDetalleFromOrden));
+        toast.success('Orden de compra recibida en su totalidad');
+        navigate(basePath);
       } else {
         await loadOrden();
       }
@@ -155,11 +125,6 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
     } finally {
       setSavingId(null);
     }
-  };
-
-  const handleClosePDF = () => {
-    setShowPDFPreview(false);
-    setExitAfterPdf(true);
   };
 
   const mapOrdenToPDFFormat = (ordenData) => {
@@ -321,12 +286,6 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
         </div>
       </div>
 
-      {showPDFPreview && recepcionData && (
-        <ModalPortal open>
-          <PDFRecepcionModal recepcion={recepcionData} onClose={handleClosePDF} />
-        </ModalPortal>
-      )}
-
       {showOrdenPDF && orden && (
         <PDFPreviewModal
           isOpen
@@ -345,79 +304,6 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
           title="Orden de Compra"
         />
       )}
-    </div>
-  );
-};
-
-const PDFRecepcionModal = ({ recepcion, onClose }) => {
-  const handleDownload = () => {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
-    doc.text('COMPROBANTE DE PRODUCTOS RECIBIDOS', 105, 20, { align: 'center' });
-
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Orden de Compra: ${recepcion.numeroOrden}`, 20, 35);
-    doc.text(`Proveedor: ${recepcion.proveedor}`, 20, 42);
-    doc.text(`Recibido por: ${recepcion.solicitante}`, 20, 49);
-
-    doc.setFont(undefined, 'bold');
-    doc.text('Descripción', 20, 63);
-    doc.text('Fecha', 100, 63);
-    doc.text('Solic.', 130, 63);
-    doc.text('Recib.', 155, 63);
-    doc.line(20, 65, 190, 65);
-
-    let y = 73;
-    doc.setFont(undefined, 'normal');
-    recepcion.items.forEach((item) => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      doc.text(item.descripcion.substring(0, 40), 20, y);
-      doc.text(fmtDate(item.fechaRecepcion), 100, y);
-      doc.text(String(item.cantidadSolicitada), 135, y, { align: 'center' });
-      doc.text(String(item.cantidadRecibida), 160, y, { align: 'center' });
-      y += 10;
-    });
-
-    doc.save(`Recepcion_${recepcion.numeroOrden}_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
-
-  return (
-    <div className="ri-pdf-modal-root">
-      <div
-        className="ri-pdf-modal-backdrop"
-        onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}
-      >
-        <div
-          className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-co-modal-in flex flex-col pointer-events-auto"
-          style={{ maxHeight: '90vh' }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-            <h2 className="text-lg font-bold text-slate-800">Listo</h2>
-            <button type="button" onClick={() => deferClose(onClose)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">✕</button>
-          </div>
-          <div className="overflow-y-auto p-6 flex-1">
-            <div className="space-y-2">
-              {recepcion.items.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm border-b border-slate-100 py-2 gap-3">
-                  <span className="text-slate-700 font-medium">{item.descripcion}</span>
-                  <span className="text-emerald-700 font-semibold shrink-0">{fmtDate(item.fechaRecepcion)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 shrink-0 bg-slate-50">
-            <button type="button" onClick={() => deferClose(onClose)} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white font-semibold text-sm">Cerrar</button>
-            <button type="button" onClick={handleDownload} className="flex items-center gap-2 px-5 py-2 rounded-lg text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
-              Descargar PDF
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
