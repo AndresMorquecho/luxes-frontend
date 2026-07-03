@@ -15,7 +15,7 @@ import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModa
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../domain/encuestaUtils.js';
 import { EncuestaResultadosView } from './EncuestaResultadosView.jsx';
-import { getInstalacionCompletionBlockers } from '../../domain/instalacionRules.js';
+import { getInstalacionCompletionBlockers, formatFechaCierre } from '../../domain/instalacionRules.js';
 
 const SECCIONES = ['datos', 'personal', 'materiales', 'estado'];
 
@@ -185,7 +185,7 @@ export function InstalacionPanel({ proyectoId }) {
     { ok: (datosInstalacion.personalAsignado?.length || 0) > 0, label: 'Equipo técnico asignado' },
     { ok: (datosInstalacion.materiales?.length || 0) > 0, label: 'Materiales registrados' },
     { ok: (datosInstalacion.evidencias?.length || 0) > 0, label: 'Evidencias fotográficas cargadas' },
-    { ok: !datosInstalacion.instalacionCompletada, label: 'Instalación pendiente de cierre' },
+    { ok: datosInstalacion.instalacionCompletada === true, label: 'Instalación cerrada en obra' },
   ];
 
   const metCount = requisitosValidacion.filter(r => r.ok).length;
@@ -283,7 +283,7 @@ export function InstalacionPanel({ proyectoId }) {
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Fecha Fin</span>
                   <p className="text-sm font-semibold text-slate-700 mt-1">
-                    {datosInstalacion.fechaFin}
+                    {formatFechaCierre(datosInstalacion.fechaFin, datosInstalacion.horaFin) || datosInstalacion.fechaFin}
                   </p>
                 </div>
               )}

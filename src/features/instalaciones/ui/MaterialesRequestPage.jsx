@@ -26,6 +26,7 @@ import {
   getInstalacionCompletionBlockers,
   canCompletarInstalacion,
   getHerramientasSinResponsable,
+  formatFechaCierre,
 } from '../../proyectos/domain/instalacionRules.js';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../proyectos/domain/encuestaUtils.js';
 import { EncuestaResultadosView } from '../../proyectos/ui/components/EncuestaResultadosView.jsx';
@@ -42,7 +43,10 @@ export function MaterialesRequestPage() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const puedeEnviarEncuesta = isTallerUser(user);
 
-  const datosInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
+  const datosInstalacion = {
+    ...(proyecto?.instalacion || {}),
+    ...(proyecto?.fases?.INSTALACION?.datos || {}),
+  };
   const materialesExistentes = datosInstalacion.materiales || [];
   const esSoloLectura = datosInstalacion.instalacionCompletada === true;
   const instalacionIniciada = isInstalacionIniciada(datosInstalacion);
@@ -472,9 +476,6 @@ export function MaterialesRequestPage() {
         evidencias: updatedEvidencias
       });
 
-      if (reloadProyectos) {
-        reloadProyectos();
-      }
       toast.success('Evidencia(s) cargada(s) con éxito');
     } catch (err) {
       console.error(err);
@@ -497,9 +498,6 @@ export function MaterialesRequestPage() {
             evidencias: updatedEvidencias
           });
 
-          if (reloadProyectos) {
-            reloadProyectos();
-          }
           toast.success('Evidencia eliminada con éxito');
         } catch (err) {
           toast.error('No se pudo eliminar la evidencia: ' + err.message);
@@ -520,6 +518,9 @@ export function MaterialesRequestPage() {
       '¿Estás seguro de que deseas marcar la instalación como completada en sitio? Esto notificará a la administración.',
       'confirm',
       async () => {
+        const now = new Date();
+        const fechaFin = now.toISOString().split('T')[0];
+        const horaFin = now.toTimeString().slice(0, 5);
         const snapshot = {
           ...proyecto,
           fases: {
@@ -530,7 +531,8 @@ export function MaterialesRequestPage() {
                 ...(proyecto.fases?.INSTALACION?.datos || {}),
                 instalacionCompletada: true,
                 notasCierre: observacionesCierre,
-                fechaFin: new Date().toISOString().split('T')[0],
+                fechaFin,
+                horaFin,
               },
             },
           },
@@ -539,8 +541,10 @@ export function MaterialesRequestPage() {
           await updateFaseDatos('INSTALACION', {
             instalacionCompletada: true,
             notasCierre: observacionesCierre,
-            fechaFin: new Date().toISOString().split('T')[0]
+            fechaFin,
+            horaFin,
           });
+          setActiveTab('cierre');
           if (puedeEnviarEncuesta) {
             setProyectoParaEncuesta(snapshot);
             toast.success('¡Instalación completada! Envía la encuesta al cliente.');
@@ -559,10 +563,7 @@ export function MaterialesRequestPage() {
     setIsSurveyModalOpen(false);
     setProyectoParaEncuesta(null);
     deferClose(() => {
-      if (reloadProyectos) {
-        reloadProyectos();
-      }
-      navigate('/instalaciones');
+      setActiveTab('cierre');
     });
   };
 
@@ -704,16 +705,21 @@ export function MaterialesRequestPage() {
                 </div>
               </div>
 
-              {/* Fecha Programada */}
+              {/* Fecha Programada / Cierre */}
               <div className="flex items-start gap-2 text-slate-600">
                 <Calendar size={16} className="text-indigo-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Programación</p>
+                  <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">
+                    {datosInstalacion.instalacionCompletada ? 'Cierre en obra' : 'Programación'}
+                  </p>
                   <p className="font-medium mt-0.5">
-                    {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion 
-                      ? `${datosInstalacion.fechaInstalacion} a las ${datosInstalacion.horaInstalacion}`
-                      : 'Pendiente de arranque en obra'
-                    }
+                    {datosInstalacion.instalacionCompletada ? (
+                      formatFechaCierre(datosInstalacion.fechaFin, datosInstalacion.horaFin) || 'Completada'
+                    ) : datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion ? (
+                      `${datosInstalacion.fechaInstalacion} a las ${datosInstalacion.horaInstalacion}`
+                    ) : (
+                      'Pendiente de arranque en obra'
+                    )}
                   </p>
                 </div>
               </div>
@@ -1345,7 +1351,11 @@ export function MaterialesRequestPage() {
                       </p>
                       <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-xs text-emerald-800">
                         <p className="font-bold">Montaje Completado</p>
-                        <p className="mt-1">Finalizó el {datosInstalacion.fechaFin || 'recientemente'}.</p>
+                        <p className="mt-1">
+                          Finalizó el{' '}
+                          {formatFechaCierre(datosInstalacion.fechaFin, datosInstalacion.horaFin) || 'recientemente'}
+                          .
+                        </p>
                         {datosInstalacion.notasCierre ? (
                           <p className="mt-2 pt-2 border-t border-emerald-100 italic">
                             Notas: &quot;{datosInstalacion.notasCierre}&quot;

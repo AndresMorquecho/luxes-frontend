@@ -13,7 +13,10 @@ import { ACTIONS } from '../store/proyectosStore.js';
 export function useInstalacion(proyectoId) {
   const { state, dispatch, adapter } = useProyectosContext();
   const proyecto = state.proyectos.find((p) => p.id === proyectoId) ?? null;
-  const datosInstalacion = proyecto?.fases?.INSTALACION?.datos || {};
+  const datosInstalacion = {
+    ...(proyecto?.instalacion || {}),
+    ...(proyecto?.fases?.INSTALACION?.datos || {}),
+  };
 
   const [empleados, setEmpleados] = useState([]);
 

@@ -56,5 +56,21 @@ export function getInstalacionCompletionBlockers(datos = {}, opts = {}) {
 }
 
 export function canCompletarInstalacion(datos = {}, opts = {}) {
+  if (datos.instalacionCompletada === true) return false;
   return getInstalacionCompletionBlockers(datos, opts).length === 0;
+}
+
+/** Texto legible para fecha/hora de cierre de obra. */
+export function formatFechaCierre(fechaFin, horaFin) {
+  if (!fechaFin) return '';
+  const iso = horaFin ? `${fechaFin}T${horaFin}:00` : `${fechaFin}T12:00:00`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(fechaFin);
+  const fecha = d.toLocaleDateString('es-EC', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  if (!horaFin) return fecha;
+  return `${fecha} a las ${horaFin}`;
 }
