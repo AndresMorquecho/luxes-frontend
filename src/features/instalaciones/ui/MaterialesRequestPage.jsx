@@ -1,6 +1,6 @@
 // src/features/instalaciones/ui/MaterialesRequestPage.jsx
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProyectosContext } from '../../proyectos/application/context/ProyectosContext.jsx';
 import { ACTIONS } from '../../proyectos/application/store/proyectosStore.js';
@@ -524,6 +524,22 @@ export function MaterialesRequestPage() {
 
   const proyectoEncuesta = proyectoParaEncuesta || proyecto;
 
+  const herramientasSinResponsable = getHerramientasSinResponsable(materialesLocales);
+  const bloqueoPorHerramientas = herramientasSinResponsable.length > 0;
+
+  function validarResponsablesHerramientas() {
+    if (!bloqueoPorHerramientas) return true;
+    const nombres = herramientasSinResponsable.map((m) => m.nombre).join(', ');
+    if (!personalLocal?.length) {
+      toast.error(
+        `Asigna primero el equipo en la pestaña "Equipo de Trabajo" y luego un responsable para cada herramienta: ${nombres}`,
+      );
+    } else {
+      toast.error(`Debes asignar un responsable a cada herramienta antes de continuar: ${nombres}`);
+    }
+    return false;
+  }
+
   const surveyModalEl = puedeEnviarEncuesta ? (
     <SendSurveyModal
       isOpen={isSurveyModalOpen && !!proyectoEncuesta}
@@ -577,25 +593,6 @@ export function MaterialesRequestPage() {
       stock: invItem ? invItem.stock : 0
     };
   });
-
-  const herramientasSinResponsable = useMemo(
-    () => getHerramientasSinResponsable(materialesLocales),
-    [materialesLocales],
-  );
-  const bloqueoPorHerramientas = herramientasSinResponsable.length > 0;
-
-  function validarResponsablesHerramientas() {
-    if (!bloqueoPorHerramientas) return true;
-    const nombres = herramientasSinResponsable.map((m) => m.nombre).join(', ');
-    if (!personalLocal?.length) {
-      toast.error(
-        `Asigna primero el equipo en la pestaña "Equipo de Trabajo" y luego un responsable para cada herramienta: ${nombres}`,
-      );
-    } else {
-      toast.error(`Debes asignar un responsable a cada herramienta antes de continuar: ${nombres}`);
-    }
-    return false;
-  }
 
   return (
     <div className="request-page-container">
