@@ -739,6 +739,40 @@
   color: #94a3b8;
 }
 
+/* ── Segment Control ── */
+.inv-segment-control {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 0.2rem;
+  border-radius: 0.625rem;
+  border: 1px solid #e2e8f0;
+  gap: 0.15rem;
+  align-items: center;
+}
+.inv-segment-btn {
+  border: none;
+  background: transparent;
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.5rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  outline: none;
+}
+.inv-segment-btn:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.35);
+}
+.inv-segment-btn.active {
+  background: #ffffff;
+  color: #1d4ed8;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 .inv-desktop-only {
   display: block;
@@ -866,13 +900,19 @@
     width: 100%;
   }
 
-  .inv-select-wrap,
+  .inv-segment-control {
+    width: 100%;
+    display: flex;
+  }
+  .inv-segment-btn {
+    flex: 1;
+    text-align: center;
+  }
   .inv-search-box {
     width: 100%;
     min-width: 0;
   }
 
-  .inv-select,
   .inv-search-inp {
     width: 100%;
   }

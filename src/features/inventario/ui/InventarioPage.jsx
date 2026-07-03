@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Package, Wrench, ArrowRightLeft, Search, Plus, Edit2, Trash2,
   ArrowUp, ArrowDown, RefreshCw, AlertTriangle, CheckCircle2,
-  Clock, X, Layers, User, ExternalLink, Filter, ChevronLeft, ChevronRight
+  Clock, X, Layers, User, ExternalLink, Filter, ChevronLeft, ChevronRight,
+  Monitor, Printer
 } from 'lucide-react';
 import {
   getMateriales, createMaterial, updateMaterial, deleteMaterial,
@@ -29,8 +30,10 @@ const elapsed = (fechaSalida) => {
 };
 
 const TABS = [
-  { id: 'consumibles',  label: 'Consumibles',  Icon: Layers },
-  { id: 'herramientas', label: 'Herramientas', Icon: Wrench },
+  { id: 'all',        label: 'Todos',          Icon: Layers },
+  { id: 'Oficina',    label: 'Inv. Oficina',   Icon: Monitor },
+  { id: 'Taller',     label: 'Inv. Taller',    Icon: Wrench },
+  { id: 'Impresión',  label: 'Inv. Impresión', Icon: Printer },
 ];
 
 const usoBadge = (estado) => {
@@ -164,8 +167,8 @@ export function InventarioPage() {
   const lockedCategory = getInventarioCategoriaPorRol(user);
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
 
-  const [activeTab, setActiveTab] = useState('consumibles');
-  const [activeCategory, setActiveCategory] = useState(lockedCategory || '');
+  const [activeTab, setActiveTab] = useState(lockedCategory || 'all');
+  const [subTipoFilter, setSubTipoFilter] = useState('all'); // 'all' | 'consumible' | 'herramienta'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -194,7 +197,7 @@ export function InventarioPage() {
   // Reset page to 1 when filters or tabs change
   useEffect(() => {
     setPage(1);
-  }, [activeTab, activeCategory, debouncedSearch]);
+  }, [activeTab, subTipoFilter, debouncedSearch]);
 
   // ── Loaders ──────────────────────────────────────────────────────────────
   const loadUnits = useCallback(async () => {
@@ -215,20 +218,22 @@ export function InventarioPage() {
     }
   }, []);
 
-  const visibleTabs = (isImpresion || isTaller)
-    ? TABS.filter(t => t.id !== 'herramientas')
+  const visibleTabs = lockedCategory
+    ? TABS.filter(t => t.id === lockedCategory)
     : TABS;
 
   const loadMaterials = useCallback(async () => {
     setLoading(true);
     try {
-      const tipo = activeTab === 'consumibles' ? 'consumible' : 'herramienta';
+      const categoriaQuery = activeTab === 'all' ? undefined : activeTab;
+      const tipoQuery = subTipoFilter === 'all' ? undefined : subTipoFilter;
+
       const res = await getMateriales(buildMaterialesQuery({
-        tipo,
+        tipo: tipoQuery,
         page,
         limit: ITEMS_PER_PAGE,
         search: debouncedSearch,
-        ...(lockedCategory ? {} : { categoria: activeCategory || undefined }),
+        ...(lockedCategory ? {} : { categoria: categoriaQuery }),
       }));
       setItems(res.items || []);
       setTotalItems(res.total || 0);
@@ -237,7 +242,7 @@ export function InventarioPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, debouncedSearch, activeCategory, lockedCategory]);
+  }, [activeTab, subTipoFilter, page, debouncedSearch, lockedCategory]);
 
   useEffect(() => {
     loadMaterials();
@@ -398,22 +403,29 @@ export function InventarioPage() {
           )}
         </div>
         <div className="inv-toolbar-filters">
-          {!isImpresion && !isTaller && (
-            <div className="inv-select-wrap">
-              <Filter size={14} className="inv-select-ico"/>
-              <select
-                className="inv-select"
-                value={activeCategory}
-                onChange={e => setActiveCategory(e.target.value)}
-                aria-label="Filtrar por categoría"
-              >
-                <option value="">Todas las categorías</option>
-                <option value="Taller">Taller</option>
-                <option value="Oficina">Oficina</option>
-                <option value="Impresión">Impresión</option>
-              </select>
-            </div>
-          )}
+          <div className="inv-segment-control">
+            <button 
+              type="button" 
+              className={`inv-segment-btn ${subTipoFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setSubTipoFilter('all')}
+            >
+              Todos
+            </button>
+            <button 
+              type="button" 
+              className={`inv-segment-btn ${subTipoFilter === 'consumible' ? 'active' : ''}`}
+              onClick={() => setSubTipoFilter('consumible')}
+            >
+              Consumibles
+            </button>
+            <button 
+              type="button" 
+              className={`inv-segment-btn ${subTipoFilter === 'herramienta' ? 'active' : ''}`}
+              onClick={() => setSubTipoFilter('herramienta')}
+            >
+              Herramientas
+            </button>
+          </div>
           <div className="inv-search-box">
             <Search size={15} className="inv-search-icon"/>
             <input className="inv-search-inp" placeholder="Buscar material…" value={search}
@@ -435,364 +447,230 @@ export function InventarioPage() {
         </div>
       ) : (
         <>
-          {/* ── Consumibles Tab ── */}
-          {activeTab === 'consumibles' && (
-            <div className="inv-table-card">
-              <div className="inv-desktop-only">
-                <table className="inv-table">
-                  <thead>
-                    <tr>
-                      <th>Material</th>
-                      <th>Unidad</th>
-                      <th>Stock</th>
-                      <th>Mínimo</th>
-                      <th>Estado</th>
-                      <th>Costo Unit.</th>
-                      <th>CPP</th>
-                      {!isTaller && <th>Últ. compra</th>}
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.length === 0 && (
-                      <tr><td colSpan={isTaller ? 8 : 9} className="inv-empty">Sin consumibles registrados.</td></tr>
-                    )}
-                    {items.map(item => {
-                      const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
-                      const isWarn = tracksStock && item.stockActual <= item.stockMinimo;
-                      return (
-                        <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
-                          <td className="inv-td-name">{item.nombre}</td>
-                          <td>{item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid'}</td>
-                          <td className="inv-td-stock">
-                            <strong style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>{item.stockActual}</strong>
-                          </td>
-                          <td className="inv-td-min" style={!tracksStock ? { color: '#94a3b8' } : {}}>{tracksStock ? item.stockMinimo : '—'}</td>
-                          <td>{stockBadge(item)}</td>
-                          <td>{fmt(item.precioCosto)}</td>
-                          <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
-                            {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
-                          </td>
-                          {!isTaller && (
-                            <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                              {fmtCompra(item.ultimaFechaCompra)}
-                            </td>
-                          )}
-                          <td className="inv-td-actions">
-                            <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
-                              <Clock size={14}/>
-                            </button>
-                            {isAdmin && (
-                              <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                                <Edit2 size={14}/>
-                              </button>
-                            )}
-                            {isAdmin && (
-                              <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                                <Trash2 size={14}/>
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Cards View */}
-              <div className="inv-mobile-only">
-                <div className="inv-mobile-cards-grid">
+          <div className="inv-table-card">
+            <div className="inv-desktop-only">
+              <table className="inv-table">
+                <thead>
+                  <tr>
+                    <th>Producto / Equipo</th>
+                    <th>Clasificación</th>
+                    {activeTab === 'all' && <th>Sección</th>}
+                    <th>Stock / Disp.</th>
+                    <th>Mínimo</th>
+                    <th>Estado</th>
+                    <th>Costo Unit.</th>
+                    <th>CPP</th>
+                    <th>A Cargo</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {items.length === 0 && (
-                    <div className="inv-empty-mobile">Sin consumibles registrados.</div>
+                    <tr><td colSpan={activeTab === 'all' ? 10 : 9} className="inv-empty">Sin productos registrados.</td></tr>
                   )}
                   {items.map(item => {
                     const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
                     const isWarn = tracksStock && item.stockActual <= item.stockMinimo;
-                    const unidad = item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid';
-                    return (
-                      <div key={item.id} className={`inv-mobile-card ${isWarn ? 'warn' : ''}`}>
-                        <div className="inv-card-header">
-                          <span className="inv-card-title">{item.nombre}</span>
-                          {stockBadge(item)}
-                        </div>
-                        <div className="inv-card-body">
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">Unidad</span>
-                            <span className="inv-card-value">{unidad}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">Stock</span>
-                            <span className="inv-card-value highlight" style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>{item.stockActual}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">Mínimo</span>
-                            <span className="inv-card-value" style={!tracksStock ? { color: '#94a3b8' } : {}}>{tracksStock ? item.stockMinimo : '—'}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">Costo</span>
-                            <span className="inv-card-value">{fmt(item.precioCosto)}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">CPP</span>
-                            <span className="inv-card-value cpp">{fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}</span>
-                          </div>
-                          {!isTaller && (
-                            <div className="inv-card-row col-span-2">
-                              <span className="inv-card-label">Última compra</span>
-                              <span className="inv-card-value date">{fmtCompra(item.ultimaFechaCompra)}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="inv-card-actions">
-                          <button type="button" className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)}>
-                            <Clock size={15}/>
-                            <span>Historial</span>
-                          </button>
-                          {isAdmin && (
-                            <button type="button" className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                              <Edit2 size={15}/>
-                              <span>Editar</span>
-                            </button>
-                          )}
-                          {isAdmin && (
-                            <button type="button" className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                              <Trash2 size={15}/>
-                              <span>Eliminar</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              {totalPages > 1 && (
-                <div className="inv-pagination">
-                  <div className="inv-pagination-info">
-                    Mostrando <strong>{Math.min(totalItems, (page - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
-                    <strong>{Math.min(totalItems, page * ITEMS_PER_PAGE)}</strong> de{' '}
-                    <strong>{totalItems}</strong> materiales
-                  </div>
-                  <div className="inv-pagination-pages">
-                    <button
-                      className="inv-page-btn"
-                      disabled={page === 1}
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                    >
-                      <ChevronLeft size={14}/>
-                    </button>
-                    {getPageNumbers().map((pNum, index) => {
-                      if (pNum === '...') {
-                        return <span key={`dots-${index}`} className="inv-pagination-dots">...</span>;
-                      }
-                      return (
-                        <button
-                          key={pNum}
-                          className={`inv-page-btn ${page === pNum ? 'active' : ''}`}
-                          onClick={() => setPage(pNum)}
-                        >
-                          {pNum}
-                        </button>
-                      );
-                    })}
-                    <button
-                      className="inv-page-btn"
-                      disabled={page === totalPages}
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    >
-                      <ChevronRight size={14}/>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                    const isTool = item.tipo === 'herramienta';
 
-          {/* ── Herramientas Tab ── */}
-          {activeTab === 'herramientas' && (
-            <div className="inv-table-card">
-              <div className="inv-desktop-only">
-                <table className="inv-table">
-                  <thead>
-                    <tr>
-                      <th>Código</th>
-                      <th>Herramienta / Equipo</th>
-                      <th>Marca / Modelo</th>
-                      <th>Serie / Características</th>
-                      <th>Categoría</th>
-                      <th>Estado Uso</th>
-                      <th>Disponibles</th>
-                      <th>A Cargo</th>
-                      <th>Valor</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.length === 0 && (
-                      <tr><td colSpan={10} className="inv-empty">Sin herramientas registradas.</td></tr>
-                    )}
-                    {items.map(item => {
-                      const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
-                      const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
-                      return (
-                        <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
-                          <td style={{ fontFamily: 'DM Mono, monospace', fontSize: '0.8rem', color: '#64748b' }}>
-                            {item.codigo || '—'}
-                          </td>
-                          <td className="inv-td-name">
-                            <Wrench size={14} className="inv-row-icon"/>
-                            {item.nombre}
-                          </td>
-                          <td>
-                            {item.marca || item.modelo ? `${item.marca || ''} ${item.modelo ? `/ ${item.modelo}` : ''}` : '—'}
-                          </td>
-                          <td style={{ fontSize: '0.8rem', color: '#475569', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.serie}>
-                            {item.serie || '—'}
-                          </td>
+                    // Get human-readable classification
+                    const getClassificationLabel = (sub) => {
+                      if (sub === 'herramienta') return 'Herramienta';
+                      if (sub === 'consumible_descargable') return 'Consumible (Descargable)';
+                      if (sub === 'consumible_registro') return 'Consumible (Solo registro)';
+                      if (sub === 'activo_fijo') return 'Activo Fijo';
+                      return item.tipo === 'herramienta' ? 'Herramienta' : 'Consumible';
+                    };
+
+                    return (
+                      <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
+                        <td className="inv-td-name">
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              {isTool ? <Wrench size={13} style={{ color: '#64748b' }} /> : <Package size={13} style={{ color: '#64748b' }} />}
+                              <strong style={{ color: '#0f172a' }}>{item.nombre}</strong>
+                            </div>
+                            {item.codigo && (
+                              <span style={{ fontSize: '0.72rem', color: '#64748b', fontFamily: 'DM Mono, monospace', marginTop: '0.15rem' }}>
+                                Cod: {item.codigo}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ fontSize: '0.78rem', color: '#475569' }}>
+                          {getClassificationLabel(item.subtipo)}
+                        </td>
+                        {activeTab === 'all' && (
                           <td>
                             <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>
                               {item.categoria || 'Taller'}
                             </span>
                           </td>
-                          <td>
-                            {usoBadge(item.estadoUso)}
-                          </td>
-                          <td className="inv-td-stock"><strong>{item.stockActual}</strong></td>
-                          <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
-                            {item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}
-                          </td>
-                          <td>{fmt(item.precioCosto)}</td>
-                          <td className="inv-td-actions">
-                            <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
-                              <Clock size={14}/>
-                            </button>
-                            {isAdmin && (
-                              <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                                <Edit2 size={14}/>
-                              </button>
-                            )}
-                            {isAdmin && (
-                              <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                                <Trash2 size={14}/>
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Cards View */}
-              <div className="inv-mobile-only">
-                <div className="inv-mobile-cards-grid">
-                  {items.length === 0 && (
-                    <div className="inv-empty-mobile">Sin herramientas registradas.</div>
-                  )}
-                  {items.map(item => {
-                    const isLogistico = item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina';
-                    const isWarn = !isLogistico && item.stockActual <= item.stockMinimo;
-                    return (
-                      <div key={item.id} className={`inv-mobile-card ${isWarn ? 'warn' : ''}`}>
-                        <div className="inv-card-header">
-                          <div className="inv-card-title-group">
-                            <span className="inv-card-code">{item.codigo || 'S/C'}</span>
-                            <span className="inv-card-title">{item.nombre}</span>
-                          </div>
-                          {usoBadge(item.estadoUso)}
-                        </div>
-                        <div className="inv-card-body">
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">Marca / modelo</span>
-                            <span className="inv-card-value">{item.marca || item.modelo ? `${item.marca || ''} ${item.modelo ? `/ ${item.modelo}` : ''}` : '—'}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">Disponibles</span>
-                            <span className="inv-card-value highlight">{item.stockActual}</span>
-                          </div>
-                          <div className="inv-card-row col-span-2">
-                            <span className="inv-card-label">Serie / descripción</span>
-                            <span className="inv-card-value desc" title={item.serie}>{item.serie || '—'}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">Categoría</span>
-                            <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>{item.categoria || 'Taller'}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">A cargo</span>
-                            <span className="inv-card-value">{item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}</span>
-                          </div>
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">Valor</span>
-                            <span className="inv-card-value">{fmt(item.precioCosto)}</span>
-                          </div>
-                        </div>
-                        <div className="inv-card-actions">
-                          <button type="button" className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)}>
-                            <Clock size={15}/>
-                            <span>Historial</span>
+                        )}
+                        <td className="inv-td-stock">
+                          <strong style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>
+                            {item.stockActual} {item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unid'}
+                          </strong>
+                        </td>
+                        <td className="inv-td-min" style={!tracksStock ? { color: '#94a3b8' } : {}}>
+                          {tracksStock ? item.stockMinimo : '—'}
+                        </td>
+                        <td>
+                          {isTool ? (
+                            usoBadge(item.estadoUso)
+                          ) : (
+                            stockBadge(item)
+                          )}
+                        </td>
+                        <td>{fmt(item.precioCosto)}</td>
+                        <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
+                          {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
+                        </td>
+                        <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
+                          {isTool && item.estadoUso === 'EN USO' ? (item.aCargo || 'Asignado') : '—'}
+                        </td>
+                        <td className="inv-td-actions">
+                          <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
+                            <Clock size={14}/>
                           </button>
                           {isAdmin && (
-                            <button type="button" className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
-                              <Edit2 size={15}/>
-                              <span>Editar</span>
+                            <button className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                              <Edit2 size={14}/>
                             </button>
                           )}
                           {isAdmin && (
-                            <button type="button" className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
-                              <Trash2 size={15}/>
-                              <span>Eliminar</span>
+                            <button className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                              <Trash2 size={14}/>
                             </button>
                           )}
-                        </div>
-                      </div>
+                        </td>
+                      </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="inv-mobile-only">
+              <div className="inv-mobile-cards-grid">
+                {items.length === 0 && (
+                  <div className="inv-empty-mobile">Sin productos registrados.</div>
+                )}
+                {items.map(item => {
+                  const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
+                  const isWarn = tracksStock && item.stockActual <= item.stockMinimo;
+                  const isTool = item.tipo === 'herramienta';
+                  const unidad = item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid';
+                  
+                  return (
+                    <div key={item.id} className={`inv-mobile-card ${isWarn ? 'warn' : ''}`}>
+                      <div className="inv-card-header">
+                        <div className="inv-card-title-group">
+                          {item.codigo && <span className="inv-card-code">{item.codigo}</span>}
+                          <span className="inv-card-title">{item.nombre}</span>
+                        </div>
+                        {isTool ? usoBadge(item.estadoUso) : stockBadge(item)}
+                      </div>
+                      <div className="inv-card-body">
+                        <div className="inv-card-row">
+                          <span className="inv-card-label">Clasificación</span>
+                          <span className="inv-card-value">{item.subtipo || (isTool ? 'Herramienta' : 'Consumible')}</span>
+                        </div>
+                        {activeTab === 'all' && (
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">Sección</span>
+                            <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>{item.categoria}</span>
+                          </div>
+                        )}
+                        <div className="inv-card-row">
+                          <span className="inv-card-label">Stock</span>
+                          <span className="inv-card-value highlight" style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>{item.stockActual} {unidad}</span>
+                        </div>
+                        <div className="inv-card-row">
+                          <span className="inv-card-label">Mínimo</span>
+                          <span className="inv-card-value" style={!tracksStock ? { color: '#94a3b8' } : {}}>{tracksStock ? item.stockMinimo : '—'}</span>
+                        </div>
+                        <div className="inv-card-row">
+                          <span className="inv-card-label">Costo</span>
+                          <span className="inv-card-value">{fmt(item.precioCosto)}</span>
+                        </div>
+                        <div className="inv-card-row">
+                          <span className="inv-card-label">CPP</span>
+                          <span className="inv-card-value cpp">{fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}</span>
+                        </div>
+                        {isTool && item.estadoUso === 'EN USO' && (
+                          <div className="inv-card-row">
+                            <span className="inv-card-label">A cargo</span>
+                            <span className="inv-card-value">{item.aCargo || 'Asignado'}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="inv-card-actions">
+                        <button type="button" className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)}>
+                          <Clock size={15}/>
+                          <span>Historial</span>
+                        </button>
+                        {isAdmin && (
+                          <button type="button" className="inv-act-btn edit" title="Editar" onClick={() => setMatModal(item)}>
+                            <Edit2 size={15}/>
+                            <span>Editar</span>
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button type="button" className="inv-act-btn del" title="Eliminar" onClick={() => handleDeleteMaterial(item)}>
+                            <Trash2 size={15}/>
+                            <span>Eliminar</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="inv-pagination">
+                <div className="inv-pagination-info">
+                  Mostrando <strong>{Math.min(totalItems, (page - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
+                  <strong>{Math.min(totalItems, page * ITEMS_PER_PAGE)}</strong> de{' '}
+                  <strong>{totalItems}</strong> materiales
+                </div>
+                <div className="inv-pagination-pages">
+                  <button
+                    className="inv-page-btn"
+                    disabled={page === 1}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft size={14}/>
+                  </button>
+                  {getPageNumbers().map((pNum, index) => {
+                    if (pNum === '...') {
+                      return <span key={`dots-${index}`} className="inv-pagination-dots">...</span>;
+                    }
+                    return (
+                      <button
+                        key={pNum}
+                        className={`inv-page-btn ${page === pNum ? 'active' : ''}`}
+                        onClick={() => setPage(pNum)}
+                      >
+                        {pNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    className="inv-page-btn"
+                    disabled={page === totalPages}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    <ChevronRight size={14}/>
+                  </button>
                 </div>
               </div>
-              {totalPages > 1 && (
-                <div className="inv-pagination">
-                  <div className="inv-pagination-info">
-                    Mostrando <strong>{Math.min(totalItems, (page - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
-                    <strong>{Math.min(totalItems, page * ITEMS_PER_PAGE)}</strong> de{' '}
-                    <strong>{totalItems}</strong> materiales
-                  </div>
-                  <div className="inv-pagination-pages">
-                    <button
-                      className="inv-page-btn"
-                      disabled={page === 1}
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                    >
-                      <ChevronLeft size={14}/>
-                    </button>
-                    {getPageNumbers().map((pNum, index) => {
-                      if (pNum === '...') {
-                        return <span key={`dots-${index}`} className="inv-pagination-dots">...</span>;
-                      }
-                      return (
-                        <button
-                          key={pNum}
-                          className={`inv-page-btn ${page === pNum ? 'active' : ''}`}
-                          onClick={() => setPage(pNum)}
-                        >
-                          {pNum}
-                        </button>
-                      );
-                    })}
-                    <button
-                      className="inv-page-btn"
-                      disabled={page === totalPages}
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    >
-                      <ChevronRight size={14}/>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
 
