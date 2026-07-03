@@ -1,7 +1,21 @@
 /**
- * Convierte rutas /uploads/proyectos/... a la API (mismo origen, proxy nginx).
- * Las imágenes en <img> no envían JWT; la ruta de archivos es pública con nombre aleatorio.
+ * Rutas de medios de proyecto.
+ * Las etiquetas <img> no envían JWT: usar /uploads (público) o previewDataUrl embebido.
  */
+
+export function uploadsProyectoUrl(proyectoId, filename) {
+  if (!proyectoId || !filename) return '';
+  return `/uploads/proyectos/${proyectoId}/${filename}`;
+}
+
+/** Convierte /api/proyectos/.../archivos/... → /uploads/proyectos/... */
+export function apiArchivoToUploadsUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const match = url.trim().match(/^\/api\/proyectos\/([^/]+)\/archivos\/([^/?#]+)/);
+  if (!match) return '';
+  return uploadsProyectoUrl(match[1], decodeURIComponent(match[2]));
+}
+
 export function resolveMediaUrl(url) {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
@@ -13,10 +27,8 @@ export function resolveMediaUrl(url) {
   ) {
     return trimmed;
   }
-  const match = trimmed.match(/^\/uploads\/proyectos\/([^/]+)\/([^/?#]+)/);
-  if (match) {
-    return `/api/proyectos/${match[1]}/archivos/${encodeURIComponent(match[2])}`;
-  }
+  const fromApi = apiArchivoToUploadsUrl(trimmed);
+  if (fromApi) return fromApi;
   return trimmed;
 }
 
@@ -53,4 +65,33 @@ export function resolveEvidenciaSrc(item) {
 export function getArchivoPreviewFallback(archivo) {
   if (!archivo || typeof archivo === 'string') return '';
   return archivo.previewDataUrl || '';
+}
+
+/** Descarga con JWT (fallback si /uploads no está disponible). */
+export async function fetchMediaBlobUrl(url) {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+  const uploadsUrl = resolveMediaUrl(url);
+  const candidates = [];
+  if (uploadsUrl) candidates.push(uploadsUrl);
+  const apiFromUploads = uploadsUrl?.match(/^\/uploads\/proyectos\/([^/]+)\/([^/?#]+)/);
+  if (apiFromUploads) {
+    candidates.push(
+      `/api/proyectos/${apiFromUploads[1]}/archivos/${encodeURIComponent(apiFromUploads[2])}`,
+    );
+  }
+  if (url?.startsWith('/api/')) candidates.push(url);
+
+  for (const candidate of candidates) {
+    try {
+      const res = await fetch(candidate, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    } catch {
+      /* siguiente candidato */
+    }
+  }
+  return null;
 }

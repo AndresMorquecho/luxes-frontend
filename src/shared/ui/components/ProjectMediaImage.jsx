@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { getArchivoMediaSrc, getArchivoPreviewFallback, resolveEvidenciaSrc } from '../../utils/mediaUrl.js';
+import {
+  getArchivoMediaSrc,
+  getArchivoPreviewFallback,
+  resolveEvidenciaSrc,
+  fetchMediaBlobUrl,
+} from '../../utils/mediaUrl.js';
 
 /**
- * Imagen de proyecto con fallback a preview embebido si el archivo en disco no está disponible.
+ * Imagen de proyecto con fallback: preview embebido → /uploads → fetch autenticado.
  */
 export function ProjectMediaImage({
   archivo,
@@ -12,19 +17,30 @@ export function ProjectMediaImage({
   ...props
 }) {
   const primary = evidencia != null ? resolveEvidenciaSrc(evidencia) : getArchivoMediaSrc(archivo);
-  const fallback = evidencia != null
+  const embeddedPreview = evidencia != null
     ? (typeof evidencia === 'object' ? evidencia.previewDataUrl : '')
     : getArchivoPreviewFallback(archivo);
+  const rawUrl = typeof archivo === 'object' ? archivo?.url : (typeof archivo === 'string' ? archivo : '');
 
   const [src, setSrc] = useState(primary);
+  const [fetchAttempted, setFetchAttempted] = useState(false);
 
   useEffect(() => {
     setSrc(primary);
+    setFetchAttempted(false);
   }, [primary]);
 
-  const handleError = () => {
-    if (fallback && src !== fallback) {
-      setSrc(fallback);
+  const handleError = async () => {
+    if (embeddedPreview && src !== embeddedPreview) {
+      setSrc(embeddedPreview);
+      return;
+    }
+    if (!fetchAttempted) {
+      setFetchAttempted(true);
+      const blobUrl = await fetchMediaBlobUrl(rawUrl || primary);
+      if (blobUrl) {
+        setSrc(blobUrl);
+      }
     }
   };
 
