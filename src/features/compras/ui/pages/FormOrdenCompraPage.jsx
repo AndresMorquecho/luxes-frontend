@@ -345,6 +345,12 @@ export const FormOrdenCompraPage = () => {
     });
   };
 
+  const handlePrecioChange = (index, rawValue) => {
+    const val = String(rawValue ?? '');
+    if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
+    updateDetalle(index, 'precioUnitario', val);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -720,16 +726,15 @@ export const FormOrdenCompraPage = () => {
                       <td className="text-right">
                         {adminEditaPrecios ? (
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             className="co-table-input text-right"
                             style={{ maxWidth: '130px', marginLeft: 'auto' }}
-                            min="0.01"
-                            step="0.01"
                             value={d.precioUnitario ?? ''}
-                            onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
+                            onChange={(e) => handlePrecioChange(index, e.target.value)}
                             placeholder="0.00"
                             required
-                            onWheel={e => e.target.blur()}
+                            autoComplete="off"
                           />
                         ) : (
                           <span className="font-semibold text-slate-700">{fmtMoney(d.precioUnitario)}</span>
@@ -802,85 +807,90 @@ export const FormOrdenCompraPage = () => {
                 <span className="text-xs font-semibold text-slate-600">Nuevo saldo pendiente</span>
                 <span className="text-base font-extrabold text-slate-900">{fmtMoney(nuevoSaldoPendiente)}</span>
               </div>
-              {diferenciaTotal < -0.01 && (
-                <p className="text-[11px] text-green-700 font-medium mt-2">
-                  El total bajó. El saldo se recalcula automáticamente; los pagos anteriores se conservan.
-                </p>
-              )}
-              {hayCambioPrecio && diferenciaTotal > 0.01 && (
-                <p className="text-[11px] text-orange-700 font-medium mt-2">
-                  El total aumentó en {fmtMoney(diferenciaTotal)}. Puedes registrar el pago del ajuste ahora o dejarlo en cuenta por pagar.
-                </p>
-              )}
+              <p className="text-[11px] font-medium mt-2 min-h-[16px]">
+                {diferenciaTotal < -0.01 ? (
+                  <span className="text-green-700">
+                    El total bajó. El saldo se recalcula automáticamente; los pagos anteriores se conservan.
+                  </span>
+                ) : hayCambioPrecio && diferenciaTotal > 0.01 ? (
+                  <span className="text-orange-700">
+                    El total aumentó en {fmtMoney(diferenciaTotal)}. Puedes registrar el pago del ajuste ahora o dejarlo en cuenta por pagar.
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Ajusta precios y, si aplica, registra el abono del saldo pendiente.</span>
+                )}
+              </p>
             </div>
 
-            {nuevoSaldoPendiente > 0.01 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="co-label" style={{ margin: 0 }}>Abono del ajuste ($)</label>
-                    <button
-                      type="button"
-                      className="text-[10px] font-bold text-blue-600 underline"
-                      onClick={() => setAbonoAjuste((p) => ({
-                        ...p,
-                        monto: nuevoSaldoPendiente.toFixed(2),
-                      }))}
-                    >
-                      Usar saldo
-                    </button>
-                  </div>
-                  <input
-                    type="number"
-                    className="co-input"
-                    min="0"
-                    step="0.01"
-                    max={nuevoSaldoPendiente}
-                    value={abonoAjuste.monto}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setAbonoAjuste((p) => {
-                        const next = { ...p, monto: val };
-                        if (parseFloat(val) > 0 && !p.metodoPagoId && metodosPago.length > 0) {
-                          const activo = metodosPago.find((m) => m.activo);
-                          if (activo) next.metodoPagoId = activo.id;
-                        }
-                        return next;
-                      });
-                    }}
-                    placeholder="0.00 (opcional)"
-                    onWheel={(e) => e.target.blur()}
-                  />
-                </div>
-                <div>
-                  <label className="co-label">Método de pago</label>
-                  <select
-                    className="co-input"
-                    value={abonoAjuste.metodoPagoId}
-                    onChange={(e) => setAbonoAjuste((p) => ({ ...p, metodoPagoId: e.target.value }))}
-                    disabled={!(abonoAjusteNum > 0)}
-                    style={{ background: abonoAjusteNum > 0 ? '#fff' : '#f8fafc' }}
+            <div
+              className="grid grid-cols-1 md:grid-cols-3 gap-4"
+              style={{ opacity: nuevoSaldoPendiente > 0.01 ? 1 : 0.55 }}
+            >
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="co-label" style={{ margin: 0 }}>Abono del ajuste ($)</label>
+                  <button
+                    type="button"
+                    className="text-[10px] font-bold text-blue-600 underline"
+                    disabled={!(nuevoSaldoPendiente > 0.01)}
+                    onClick={() => setAbonoAjuste((p) => ({
+                      ...p,
+                      monto: nuevoSaldoPendiente.toFixed(2),
+                    }))}
                   >
-                    <option value="">{abonoAjusteNum > 0 ? 'Selecciona cuenta...' : 'No requiere (sin abono)'}</option>
-                    {metodosPago.filter((m) => m.activo).map((m) => (
-                      <option key={m.id} value={m.id}>{m.nombre}</option>
-                    ))}
-                  </select>
+                    Usar saldo
+                  </button>
                 </div>
-                <div>
-                  <label className="co-label">Referencia</label>
-                  <input
-                    type="text"
-                    className="co-input"
-                    value={abonoAjuste.referencia}
-                    onChange={(e) => setAbonoAjuste((p) => ({ ...p, referencia: e.target.value }))}
-                    disabled={!(abonoAjusteNum > 0)}
-                    placeholder="No. transferencia, cheque..."
-                    style={{ background: abonoAjusteNum > 0 ? '#fff' : '#f8fafc' }}
-                  />
-                </div>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="co-input"
+                  value={abonoAjuste.monto}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
+                    setAbonoAjuste((p) => {
+                      const next = { ...p, monto: val };
+                      if (parseFloat(val) > 0 && !p.metodoPagoId && metodosPago.length > 0) {
+                        const activo = metodosPago.find((m) => m.activo);
+                        if (activo) next.metodoPagoId = activo.id;
+                      }
+                      return next;
+                    });
+                  }}
+                  placeholder="0.00 (opcional)"
+                  disabled={!(nuevoSaldoPendiente > 0.01)}
+                  autoComplete="off"
+                />
               </div>
-            )}
+              <div>
+                <label className="co-label">Método de pago</label>
+                <select
+                  className="co-input"
+                  value={abonoAjuste.metodoPagoId}
+                  onChange={(e) => setAbonoAjuste((p) => ({ ...p, metodoPagoId: e.target.value }))}
+                  disabled={!(nuevoSaldoPendiente > 0.01) || !(abonoAjusteNum > 0)}
+                  style={{ background: abonoAjusteNum > 0 && nuevoSaldoPendiente > 0.01 ? '#fff' : '#f8fafc' }}
+                >
+                  <option value="">{abonoAjusteNum > 0 ? 'Selecciona cuenta...' : 'No requiere (sin abono)'}</option>
+                  {metodosPago.filter((m) => m.activo).map((m) => (
+                    <option key={m.id} value={m.id}>{m.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="co-label">Referencia</label>
+                <input
+                  type="text"
+                  className="co-input"
+                  value={abonoAjuste.referencia}
+                  onChange={(e) => setAbonoAjuste((p) => ({ ...p, referencia: e.target.value }))}
+                  disabled={!(nuevoSaldoPendiente > 0.01) || !(abonoAjusteNum > 0)}
+                  placeholder="No. transferencia, cheque..."
+                  style={{ background: abonoAjusteNum > 0 && nuevoSaldoPendiente > 0.01 ? '#fff' : '#f8fafc' }}
+                />
+              </div>
+            </div>
           </div>
         )}
 
