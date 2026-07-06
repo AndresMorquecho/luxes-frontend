@@ -3,7 +3,7 @@ import {
   Wrench, Clock, User, RefreshCw, CheckCircle2, Search, X,
 } from 'lucide-react';
 import { getPrestamos, devolverPrestamo, sincronizarDevolucionesInstalacion } from '../application/inventarioService.js';
-import { getEmpleados } from '../../empleados/application/empleadosService.js';
+import { isAdminUser } from '../../../shared/utils/userRoleHelpers.js';
 import { DateRangePicker } from '../../../shared/ui/components/DateRangePicker.jsx';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
 import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
@@ -97,6 +97,11 @@ function DevolucionModal({ prestamo, onClose, onConfirm }) {
 }
 
 export function DevolucionesPage() {
+  const currentUser = useMemo(
+    () => JSON.parse(localStorage.getItem('user') || 'null'),
+    [],
+  );
+  const esAdmin = isAdminUser(currentUser);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -180,11 +185,13 @@ export function DevolucionesPage() {
   }, []);
 
   useEffect(() => {
+    if (!esAdmin) return undefined;
     const fetchPersonas = async () => {
       try {
+        const { getEmpleados } = await import('../../empleados/application/empleadosService.js');
         const emps = await getEmpleados();
         if (Array.isArray(emps)) {
-          const names = emps.map(e => e.nombre).filter(Boolean);
+          const names = emps.map((e) => e.nombre).filter(Boolean);
           setPersonas([...new Set(names)].sort());
         }
       } catch (e) {
@@ -192,7 +199,8 @@ export function DevolucionesPage() {
       }
     };
     fetchPersonas();
-  }, []);
+    return undefined;
+  }, [esAdmin]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -261,7 +269,11 @@ export function DevolucionesPage() {
         <div className="prest-header-main">
           <div>
             <h1 className="prest-title">Devoluciones</h1>
-            <p className="prest-sub">Herramientas y equipos que salieron con un encargado</p>
+            <p className="prest-sub">
+              {esAdmin
+                ? 'Herramientas y equipos que salieron con un encargado'
+                : 'Tus herramientas y equipos pendientes por devolver'}
+            </p>
           </div>
           <div className="prest-header-actions">
             <button type="button" className="prest-btn-ghost" onClick={load} title="Actualizar">
@@ -304,19 +316,21 @@ export function DevolucionesPage() {
           )}
         </div>
 
-        <div className="prest-select-wrap">
-          <User size={14} className="prest-select-ico" />
-          <select
-            className="prest-select"
-            value={filterPersona}
-            onChange={(e) => setFilterPersona(e.target.value)}
-          >
-            <option value="">Todas las personas</option>
-            {personas.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
+        {esAdmin && (
+          <div className="prest-select-wrap">
+            <User size={14} className="prest-select-ico" />
+            <select
+              className="prest-select"
+              value={filterPersona}
+              onChange={(e) => setFilterPersona(e.target.value)}
+            >
+              <option value="">Todas las personas</option>
+              {personas.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="prest-datepicker-container">
           <DateRangePicker
