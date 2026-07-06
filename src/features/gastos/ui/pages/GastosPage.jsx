@@ -959,7 +959,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                           {g.referencia && g.origen === 'orden_compra' && (
                             <div className="text-[11px] text-slate-500 mt-0.5">Ref: {g.referencia}</div>
                           )}
-                          {g.id && <div className="text-[10px] text-slate-300 font-mono mt-0.5">{g.id}</div>}
                         </td>
                         <td className="px-5 py-4">
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
