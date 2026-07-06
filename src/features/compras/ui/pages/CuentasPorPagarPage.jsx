@@ -4,6 +4,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats
 } from '../../application/comprasService';
+import { buildOrdenParaAbono, getAbonoSaldoPendiente } from '../../helpers/ordenCompraHelpers';
 import './ComprasPage.css';
 
 const CXP_BADGES = {
@@ -53,11 +54,15 @@ export const CuentasPorPagarPage = () => {
   useEffect(() => { loadStats(); loadMetodos(); }, []);
   useEffect(() => { loadCxP(); }, [loadCxP]);
 
-  const openAbonoModal = (orden) => {
+  const openAbonoModal = (cuenta) => {
+    const orden = buildOrdenParaAbono(cuenta);
+    if (!orden) return;
     setAbonoOrden(orden);
     setAbonoForm({ metodoPagoId: metodos.filter(m => m.activo)[0]?.id || '', monto: '', referencia: '' });
     setAbonoModalOpen(true);
   };
+
+  const saldoAbono = abonoOrden ? getAbonoSaldoPendiente(abonoOrden) : 0;
 
   const handleAbonoSave = async (e) => {
     e.preventDefault();
@@ -68,6 +73,7 @@ export const CuentasPorPagarPage = () => {
         monto: parseFloat(abonoForm.monto) || 0,
         referencia: abonoForm.referencia
       });
+      toast.success('Abono registrado con éxito');
       setAbonoModalOpen(false);
       loadStats(); loadCxP();
     } catch (err) { toast.error(err.message); }
@@ -148,7 +154,7 @@ export const CuentasPorPagarPage = () => {
                     </td>
                     <td className="text-center">
                       {c.estado !== 'pagado' && (
-                        <button onClick={() => openAbonoModal(c.ordenCompra)} className="co-action-btn co-action-green" title="Registrar Abono">
+                        <button onClick={() => openAbonoModal(c)} className="co-action-btn co-action-green" title="Registrar Abono">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                           </svg>
@@ -201,7 +207,7 @@ export const CuentasPorPagarPage = () => {
                       <div className="prest-card-footer">
                         <button
                           type="button"
-                          onClick={() => openAbonoModal(c.ordenCompra)}
+                          onClick={() => openAbonoModal(c)}
                           className="w-full py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
                         >
                           Registrar Abono
@@ -252,11 +258,17 @@ export const CuentasPorPagarPage = () => {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Total:</span>
-                      <span className="font-semibold">{fmt(abonoOrden.total)}</span>
+                      <span className="font-semibold">{fmt(abonoOrden.cuentaPorPagar?.montoTotal ?? abonoOrden.total)}</span>
                     </div>
+                    {(abonoOrden.cuentaPorPagar?.montoPagado ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Pagado:</span>
+                        <span className="font-semibold text-emerald-600">{fmt(abonoOrden.cuentaPorPagar.montoPagado)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Saldo pendiente:</span>
-                      <span className="font-bold text-red-500">{fmt(abonoOrden.cuentaPorPagar?.saldo || abonoOrden.total)}</span>
+                      <span className="font-bold text-red-500">{fmt(saldoAbono)}</span>
                     </div>
                   </div>
                 )}
@@ -276,13 +288,12 @@ export const CuentasPorPagarPage = () => {
                   <div>
                     <label className="co-label">Monto ($)</label>
                     <input type="number" className="co-input" step="0.01" min="0.01"
-                      max={abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 999999}
+                      max={saldoAbono || 999999}
                       value={abonoForm.monto}
                       onChange={e => {
                         const val = e.target.value;
-                        const maxVal = abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 0;
-                        if (parseFloat(val) > maxVal) {
-                          setAbonoForm(p => ({ ...p, monto: maxVal.toString() }));
+                        if (parseFloat(val) > saldoAbono) {
+                          setAbonoForm(p => ({ ...p, monto: saldoAbono.toString() }));
                         } else {
                           setAbonoForm(p => ({ ...p, monto: val }));
                         }
@@ -295,7 +306,7 @@ export const CuentasPorPagarPage = () => {
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
                     <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={abonoSaving || !abonoForm.monto || parseFloat(abonoForm.monto) <= 0 || parseFloat(abonoForm.monto) > (abonoOrden?.cuentaPorPagar?.saldo || abonoOrden?.total || 0)} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
+                    <button type="submit" disabled={abonoSaving || !abonoForm.monto || parseFloat(abonoForm.monto) <= 0 || parseFloat(abonoForm.monto) > saldoAbono} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
                       {abonoSaving && <div className="co-spinner-sm" />}
                       Registrar Abono
                     </button>

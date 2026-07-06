@@ -9,7 +9,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
-import { mapOrdenToPDFFormat, isOrdenEditable } from '../../helpers/ordenCompraHelpers';
+import { mapOrdenToPDFFormat, isOrdenEditable, getAbonoSaldoPendiente } from '../../helpers/ordenCompraHelpers';
 import './ComprasPage.css';
 
 const ESTADOS = ['pendiente_aprobacion', 'aprobada', 'recibida', 'cancelada'];
@@ -156,6 +156,8 @@ export const ComprasPage = () => {
     setAbonoForm({ metodoPagoId: metodos.filter(m => m.activo)[0]?.id || '', monto: '', referencia: '' });
     setAbonoModalOpen(true);
   };
+
+  const saldoAbono = abonoOrden ? getAbonoSaldoPendiente(abonoOrden) : 0;
 
   const handleAbonoSave = async (e) => {
     e.preventDefault();
@@ -558,11 +560,17 @@ export const ComprasPage = () => {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Total:</span>
-                      <span className="font-semibold">{fmt(abonoOrden.total)}</span>
+                      <span className="font-semibold">{fmt(abonoOrden.cuentaPorPagar?.montoTotal ?? abonoOrden.total)}</span>
                     </div>
+                    {(abonoOrden.cuentaPorPagar?.montoPagado ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Pagado:</span>
+                        <span className="font-semibold text-emerald-600">{fmt(abonoOrden.cuentaPorPagar.montoPagado)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Saldo pendiente:</span>
-                      <span className="font-bold text-red-500">{fmt(abonoOrden.cuentaPorPagar?.saldo || abonoOrden.total)}</span>
+                      <span className="font-bold text-red-500">{fmt(saldoAbono)}</span>
                     </div>
                   </div>
                 )}
@@ -578,9 +586,16 @@ export const ComprasPage = () => {
                   <div>
                     <label className="co-label">Monto ($)</label>
                     <input type="number" className="co-input" step="0.01" min="0.01"
-                      max={abonoOrden?.cuentaPorPagar?.saldo || 999999}
+                      max={saldoAbono || 999999}
                       value={abonoForm.monto}
-                      onChange={e => setAbonoForm(p => ({ ...p, monto: e.target.value }))} required />
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (parseFloat(val) > saldoAbono) {
+                          setAbonoForm(p => ({ ...p, monto: saldoAbono.toString() }));
+                        } else {
+                          setAbonoForm(p => ({ ...p, monto: val }));
+                        }
+                      }} required />
                   </div>
                   <div>
                     <label className="co-label">Referencia (Nro. cheque, transferencia, etc.)</label>

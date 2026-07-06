@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { getOrdenById, createOrden, updateOrden, getMetodosPago, getOrdenDetalles } from '../../application/comprasService';
+import { getOrdenById, createOrden, updateOrden, editarOrden, getMetodosPago, getOrdenDetalles } from '../../application/comprasService';
 import { 
   getMateriales, 
   buildMaterialesQuery, 
@@ -41,8 +41,8 @@ export const FormOrdenCompraPage = () => {
   const [impuestoOrden, setImpuestoOrden] = useState(0);
   const [montoPagado, setMontoPagado] = useState(0);
   const [metodosPago, setMetodosPago] = useState([]);
-  const [registrarPagoAjuste, setRegistrarPagoAjuste] = useState(false);
-  const [abonoAjuste, setAbonoAjuste] = useState({ monto: '', metodoPagoId: '', referencia: '' });
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [confirmPago, setConfirmPago] = useState({ monto: '', metodoPagoId: '', referencia: '' });
   const [form, setForm] = useState(() => {
     const defaultState = {
       fecha: new Date().toISOString().split('T')[0],
@@ -87,6 +87,13 @@ export const FormOrdenCompraPage = () => {
   const editBloqueado = isEdit && !isOrdenEditable(ordenEstado);
   const adminEditaPrecios = isAdmin && isEdit && !editBloqueado;
   const adminVePrecios = isAdmin && isEdit;
+  const usaEdicionReconciliada = isEdit && isAdmin && !editBloqueado;
+
+  const proyectoLabel = useMemo(() => {
+    if (!form.proyectoId) return null;
+    const p = proyectos.find((pr) => pr.id === form.proyectoId);
+    return p ? (p.nombre ? `${p.id} - ${p.nombre}` : p.id) : form.proyectoId;
+  }, [form.proyectoId, proyectos]);
 
   const subtotalOrden = useMemo(
     () => form.detalles.reduce(
@@ -111,7 +118,7 @@ export const FormOrdenCompraPage = () => {
     [totalNuevo, montoPagado],
   );
 
-  const abonoAjusteNum = parseFloat(abonoAjuste.monto) || 0;
+  const abonoConfirmNum = parseFloat(confirmPago.monto) || 0;
   const hayCambioPrecio = Math.abs(diferenciaTotal) > 0.01;
 
   const tableColCount = useMemo(() => {
@@ -352,78 +359,104 @@ export const FormOrdenCompraPage = () => {
     updateDetalle(index, 'precioUnitario', val);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const buildPayload = () => ({
+    fecha: form.fecha,
+    concepto: form.concepto,
+    notas: form.notas,
+    proyectoId: form.proyectoId || null,
+    detalles: form.detalles.map((d) => ({
+      descripcion: d.descripcion,
+      cantidad: parseFloat(d.cantidad) || 0,
+      materialId: d.materialId || null,
+      ...(isEdit
+        ? {
+            precioUnitario: parseFloat(d.precioUnitario) || 0,
+            ...(d.lineId && !String(d.lineId).startsWith('det-') ? { id: d.lineId } : {}),
+            isCustom: !!d.isCustom,
+          }
+        : {}),
+    })),
+    ...(isEdit ? { impuesto: parseFloat(impuestoOrden) || 0 } : {}),
+  });
 
+  const validateForm = () => {
     if (editBloqueado) {
       toast.error(getOrdenNoEditableMensaje(ordenEstado));
-      return;
+      return false;
     }
-    
     if (form.detalles.length === 0) {
       toast.error('Debe agregar al menos un item a la orden.');
-      return;
+      return false;
     }
-
-    if (form.proyectoId && form.detalles.some(d => d.isCustom || !d.materialId)) {
+    if (form.proyectoId && form.detalles.some((d) => d.isCustom || !d.materialId)) {
       toast.error('Esta orden está asociada a un proyecto y no puede contener materiales libres. Registra los materiales o remuévelos de la lista.');
-      return;
+      return false;
     }
-
     if (adminEditaPrecios && form.detalles.some((d) => !parseFloat(d.precioUnitario) || parseFloat(d.precioUnitario) <= 0)) {
       toast.error('Todos los items deben tener un precio unitario mayor a 0.');
+      return false;
+    }
+    return true;
+  };
+
+  const openSaveConfirm = () => {
+    const activeMethod = metodosPago.find((m) => m.activo);
+    setConfirmPago({
+      monto: totalNuevo > 0 ? totalNuevo.toFixed(2) : '',
+      metodoPagoId: activeMethod?.id || '',
+      referencia: '',
+    });
+    setShowSaveConfirm(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (abonoConfirmNum > 0 && !confirmPago.metodoPagoId) {
+      toast.error('Selecciona un método de pago para registrar el abono.');
       return;
     }
-
-    if (adminEditaPrecios && registrarPagoAjuste) {
-      if (!(abonoAjusteNum > 0)) {
-        toast.error('Indica el monto del abono o desmarca "Registrar pago del ajuste".');
-        return;
-      }
-      if (!abonoAjuste.metodoPagoId) {
-        toast.error('Selecciona un método de pago para registrar el abono del ajuste.');
-        return;
-      }
-      if (abonoAjusteNum > nuevoSaldoPendiente + 0.01) {
-        toast.error(`El abono no puede exceder el saldo pendiente (${fmtMoney(nuevoSaldoPendiente)}).`);
-        return;
-      }
+    if (abonoConfirmNum > totalNuevo + 0.01) {
+      toast.error(`El abono no puede exceder el total de la orden (${fmtMoney(totalNuevo)}).`);
+      return;
     }
 
     setSaving(true);
     try {
-      const payload = {
-        fecha: form.fecha,
-        concepto: form.concepto,
-        notas: form.notas,
-        proyectoId: form.proyectoId || null,
-        detalles: form.detalles.map(d => ({
-          descripcion: d.descripcion,
-          cantidad: parseFloat(d.cantidad) || 0,
-          materialId: d.materialId || null,
-          ...(isEdit
-            ? { precioUnitario: parseFloat(d.precioUnitario) || 0 }
-            : {}),
-        })),
-      };
-
-      if (isEdit) {
-        payload.impuesto = parseFloat(impuestoOrden) || 0;
-        if (adminEditaPrecios && registrarPagoAjuste && abonoAjusteNum > 0) {
-          payload.registrarAbonoAjuste = true;
-          payload.abonoMonto = abonoAjusteNum;
-          payload.metodoPagoId = abonoAjuste.metodoPagoId;
-          payload.abonoReferencia = abonoAjuste.referencia.trim()
-            || `Ajuste por edición de precios - ${ordenNumero}`;
-        }
+      const payload = buildPayload();
+      if (abonoConfirmNum > 0) {
+        payload.abonoMonto = abonoConfirmNum;
+        payload.metodoPagoId = confirmPago.metodoPagoId;
+        payload.abonoReferencia = confirmPago.referencia.trim()
+          || `Pago inicial - edición ${ordenNumero}`;
       }
 
+      await editarOrden(id, payload);
+      toast.success('Orden de compra actualizada con éxito');
+      setShowSaveConfirm(false);
+      navigate('/compras');
+    } catch (err) {
+      toast.error('Error al guardar la orden: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    if (usaEdicionReconciliada) {
+      openSaveConfirm();
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = buildPayload();
       if (isEdit) {
         await updateOrden(id, payload);
       } else {
         await createOrden(payload);
       }
-
       toast.success(isEdit ? 'Orden de compra actualizada con éxito' : 'Orden de compra creada con éxito');
       navigate('/compras');
     } catch (err) {
@@ -816,103 +849,20 @@ export const FormOrdenCompraPage = () => {
               <p className="text-[11px] font-medium mt-2 min-h-[16px]">
                 {diferenciaTotal < -0.01 ? (
                   <span className="text-green-700">
-                    El total bajó. El saldo se recalcula automáticamente; los pagos anteriores se conservan.
+                    El total bajó. Al guardar se creará una nueva orden y los pagos anteriores se revertirán automáticamente.
                   </span>
                 ) : hayCambioPrecio && diferenciaTotal > 0.01 ? (
                   <span className="text-orange-700">
-                    El total aumentó en {fmtMoney(diferenciaTotal)}. Puedes registrar el pago del ajuste ahora o dejarlo en cuenta por pagar.
+                    El total aumentó en {fmtMoney(diferenciaTotal)}. Al confirmar podrás registrar el pago de la nueva orden.
+                  </span>
+                ) : montoPagado > 0 ? (
+                  <span className="text-slate-600">
+                    Esta orden tiene pagos registrados. Al guardar se anulará la orden actual y podrás registrar el pago de la nueva.
                   </span>
                 ) : (
-                  <span className="text-slate-400">Ajusta precios y, si aplica, registra el abono del saldo pendiente.</span>
+                  <span className="text-slate-400">Revisa los totales antes de guardar los cambios.</span>
                 )}
               </p>
-            </div>
-
-            <label
-              className="flex items-start gap-2 mb-4 cursor-pointer select-none"
-              style={{ opacity: nuevoSaldoPendiente > 0.01 ? 1 : 0.55 }}
-            >
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={registrarPagoAjuste}
-                disabled={!(nuevoSaldoPendiente > 0.01)}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setRegistrarPagoAjuste(checked);
-                  if (!checked) {
-                    setAbonoAjuste({ monto: '', metodoPagoId: '', referencia: '' });
-                  }
-                }}
-              />
-              <span className="text-xs text-slate-600 leading-snug">
-                <span className="font-semibold text-slate-800">Registrar pago del ajuste ahora</span>
-                {' '}
-                (opcional). Si solo cambias precios, deja esto desmarcado: no se creará ningún movimiento en caja.
-              </span>
-            </label>
-
-            <div
-              className="grid grid-cols-1 md:grid-cols-3 gap-4"
-              style={{ opacity: registrarPagoAjuste && nuevoSaldoPendiente > 0.01 ? 1 : 0.55 }}
-            >
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="co-label" style={{ margin: 0 }}>Abono del ajuste ($)</label>
-                  <button
-                    type="button"
-                    className="text-[10px] font-bold text-blue-600 underline"
-                    disabled={!registrarPagoAjuste || !(nuevoSaldoPendiente > 0.01)}
-                    onClick={() => setAbonoAjuste((p) => ({
-                      ...p,
-                      monto: nuevoSaldoPendiente.toFixed(2),
-                    }))}
-                  >
-                    Usar saldo
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="co-input"
-                  value={abonoAjuste.monto}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
-                    setAbonoAjuste((p) => ({ ...p, monto: val }));
-                  }}
-                  placeholder="0.00"
-                  disabled={!registrarPagoAjuste || !(nuevoSaldoPendiente > 0.01)}
-                  autoComplete="off"
-                />
-              </div>
-              <div>
-                <label className="co-label">Método de pago</label>
-                <select
-                  className="co-input"
-                  value={abonoAjuste.metodoPagoId}
-                  onChange={(e) => setAbonoAjuste((p) => ({ ...p, metodoPagoId: e.target.value }))}
-                  disabled={!registrarPagoAjuste || !(nuevoSaldoPendiente > 0.01)}
-                  style={{ background: registrarPagoAjuste && nuevoSaldoPendiente > 0.01 ? '#fff' : '#f8fafc' }}
-                >
-                  <option value="">Selecciona cuenta...</option>
-                  {metodosPago.filter((m) => m.activo).map((m) => (
-                    <option key={m.id} value={m.id}>{m.nombre}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="co-label">Referencia</label>
-                <input
-                  type="text"
-                  className="co-input"
-                  value={abonoAjuste.referencia}
-                  onChange={(e) => setAbonoAjuste((p) => ({ ...p, referencia: e.target.value }))}
-                  disabled={!registrarPagoAjuste || !(nuevoSaldoPendiente > 0.01)}
-                  placeholder="No. transferencia, cheque..."
-                  style={{ background: registrarPagoAjuste && nuevoSaldoPendiente > 0.01 ? '#fff' : '#f8fafc' }}
-                />
-              </div>
             </div>
           </div>
         )}
@@ -954,6 +904,186 @@ export const FormOrdenCompraPage = () => {
         </div>
 
       </form>
+
+      {showSaveConfirm && (
+        <>
+          <div className="co-overlay" onClick={() => !saving && setShowSaveConfirm(false)} />
+          <div className="co-modal-wrap">
+            <div className="co-modal-fixed-wide co-modal-edit-save animate-co-modal-in">
+              <div className="co-modal-header">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Confirmar edición e inicializar pago</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    La orden anterior se anulará y se creará una nueva con los cambios aplicados
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !saving && setShowSaveConfirm(false)}
+                  className="co-modal-close"
+                  disabled={saving}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="co-modal-body">
+                {montoPagado > 0 && (
+                  <div className="co-modal-edit-alert">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="font-semibold mb-0.5">Información de reversión</p>
+                      <p className="font-medium">
+                        Se devolvieron {fmtMoney(montoPagado)} a las cuentas de origen al anular la orden anterior.
+                        Puedes registrar aquí el pago de la nueva orden o dejar el saldo en cuenta por pagar.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="co-modal-grid-2col">
+                  <div className="co-modal-col-left">
+                    <div className="co-modal-summary-card">
+                      <p className="co-modal-summary-card__title">Resumen de nueva orden</p>
+                      <div className="co-modal-summary-row">
+                        <span>Orden original</span>
+                        <span className="font-mono">{ordenNumero || '—'}</span>
+                      </div>
+                      <div className="co-modal-summary-row">
+                        <span>Concepto</span>
+                        <span>{form.concepto?.trim() || 'Sin concepto'}</span>
+                      </div>
+                      {proyectoLabel && (
+                        <div className="co-modal-summary-row">
+                          <span>Proyecto</span>
+                          <span>{proyectoLabel}</span>
+                        </div>
+                      )}
+                      {Math.abs(diferenciaTotal) > 0.01 && (
+                        <div className="co-modal-summary-row">
+                          <span>Total anterior</span>
+                          <span>{fmtMoney(totalAnterior)}</span>
+                        </div>
+                      )}
+                      <div className="co-modal-summary-row co-modal-summary-total">
+                        <span>Total nueva orden</span>
+                        <span>{fmtMoney(totalNuevo)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="co-modal-col-right">
+                    <div className="co-modal-payment-stack">
+                      <div>
+                        <label className="co-label" style={{ fontSize: '10px' }}>Cuenta / método de pago</label>
+                        <select
+                          className="co-input"
+                          value={confirmPago.metodoPagoId}
+                          onChange={(e) => setConfirmPago((p) => ({ ...p, metodoPagoId: e.target.value }))}
+                          disabled={!(abonoConfirmNum > 0) || saving}
+                          style={{ background: abonoConfirmNum > 0 ? '#fff' : '#f8fafc' }}
+                        >
+                          <option value="">
+                            {abonoConfirmNum > 0 ? 'Selecciona cuenta...' : 'No requiere (sin abono)'}
+                          </option>
+                          {metodosPago.filter((m) => m.activo).map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.nombre} — Saldo: {fmtMoney(m.saldoActual || 0)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="co-label" style={{ margin: 0, fontSize: '10px' }}>Monto a pagar ($)</label>
+                          <button
+                            type="button"
+                            className="co-label-action"
+                            onClick={() => setConfirmPago((p) => ({
+                              ...p,
+                              monto: totalNuevo.toFixed(2),
+                              metodoPagoId: p.metodoPagoId || metodosPago.find((m) => m.activo)?.id || '',
+                            }))}
+                          >
+                            Copiar total
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="co-input"
+                          value={confirmPago.monto}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
+                            setConfirmPago((p) => ({ ...p, monto: val }));
+                          }}
+                          placeholder="0.00 (opcional)"
+                          disabled={saving}
+                          autoComplete="off"
+                        />
+                        {abonoConfirmNum > totalNuevo + 0.01 && (
+                          <p className="text-[10.5px] font-semibold text-red-600 mt-1">
+                            El abono no puede exceder {fmtMoney(totalNuevo)}.
+                          </p>
+                        )}
+                        {abonoConfirmNum <= 0 && (
+                          <p className="text-[10.5px] font-medium text-slate-500 mt-1">
+                            Deja en 0 para registrar la orden como cuenta por pagar.
+                          </p>
+                        )}
+                        {abonoConfirmNum > 0 && abonoConfirmNum < totalNuevo - 0.01 && (
+                          <p className="text-[10.5px] font-medium text-blue-600 mt-1">
+                            Abono parcial. Saldo de {fmtMoney(totalNuevo - abonoConfirmNum)} quedará pendiente.
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="co-label" style={{ fontSize: '10px' }}>Referencia / nota de pago</label>
+                        <input
+                          type="text"
+                          className="co-input"
+                          value={confirmPago.referencia}
+                          onChange={(e) => setConfirmPago((p) => ({ ...p, referencia: e.target.value }))}
+                          placeholder="No. transferencia, cheque..."
+                          disabled={!(abonoConfirmNum > 0) || saving}
+                          style={{ background: abonoConfirmNum > 0 ? '#fff' : '#f8fafc' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="co-modal-fixed-footer">
+                <button
+                  type="button"
+                  onClick={() => setShowSaveConfirm(false)}
+                  className="co-btn-ghost"
+                  disabled={saving}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSave}
+                  disabled={saving || abonoConfirmNum > totalNuevo + 0.01}
+                  className="co-btn-primary"
+                  style={{ minWidth: '160px' }}
+                >
+                  {saving ? 'Guardando...' : 'Confirmar guardar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
