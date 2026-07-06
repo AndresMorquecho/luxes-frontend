@@ -85,6 +85,7 @@ const getNotificationRoute = (notification) => {
 
     const proyectoId = notification.proyectoId
       || notification.data?.proyectoId
+      || (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/)?.[1]
       || (notification.message || '').match(/PROY-\d+/i)?.[0]
       || (notification.message || '').match(/[0-9a-fA-F]{24}/)?.[0];
       
@@ -104,7 +105,10 @@ const getSenderName = (notification) =>
   notification.createdBy || notification.created_by || 'Sistema Luxes';
 
 const displayMessage = (message) =>
-  (message || '').replace(/\[seed-prueba\]\s*/gi, '').trim();
+  (message || '')
+    .replace(/\[seed-prueba\]\s*/gi, '')
+    .replace(/\[PROYECTO_ID:.+?\]\s*/g, '')
+    .trim();
 
 const getLoadErrorMessage = (err) => {
   if (err.message === NETWORK_ERROR) {
@@ -203,6 +207,15 @@ export const NotificacionesPage = () => {
   const handleGoToNotification = (notification) => {
     const route = getNotificationRoute(notification);
     if (route) {
+      const title = (notification.title || '').toLowerCase();
+      if (title.includes('instalación completada') || title.includes('instalacion completada')) {
+        const proyectoId = (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/)?.[1]
+          || notification.proyectoId
+          || notification.data?.proyectoId;
+        window.dispatchEvent(new CustomEvent('instalacion-completada-admin', {
+          detail: { proyectoId: proyectoId || null, notificationId: notification.id },
+        }));
+      }
       // Marcar como leída antes de navegar
       if (!notification.isRead) {
         handleMarkRead(notification.id);

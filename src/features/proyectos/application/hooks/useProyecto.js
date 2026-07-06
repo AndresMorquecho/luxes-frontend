@@ -4,6 +4,7 @@ import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
 import { validarCamposFase, avanzarFase as avanzarFaseUseCase, retrocederFase as retrocederFaseUseCase } from '../../domain/use-cases/avanzarFase.js';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
+import { getDatosInstalacionMerged } from '../../domain/instalacionRules.js';
 import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 
 /**
@@ -109,7 +110,9 @@ export function useProyecto(id) {
   let validacionFaseActual = proyecto
     ? validarCamposFase(
         getFaseConfig(proyecto.faseActual) || {},
-        proyecto.fases?.[proyecto.faseActual] || {}
+        proyecto.faseActual === 'INSTALACION'
+          ? { datos: getDatosInstalacionMerged(proyecto) }
+          : (proyecto.fases?.[proyecto.faseActual] || {})
       )
     : { valido: false, faltantes: [] };
 

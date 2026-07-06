@@ -8,6 +8,7 @@ import {
   Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package
 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
+import { useAutoAvanceInstalacionAdmin } from '../../application/hooks/useAutoAvanceInstalacionAdmin.js';
 import { useProyectosContext } from '../../application/context/ProyectosContext.jsx';
 import { updateOrden } from '../../../compras/application/comprasService.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
@@ -24,6 +25,7 @@ import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { PRIORIDADES_CONFIG, ESTADOS_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { getFaseConfig, FASES } from '../../domain/value-objects/FaseConfig.js';
 import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 export default function ProyectoDetallePage() {
   const { id } = useParams();
@@ -38,7 +40,20 @@ export default function ProyectoDetallePage() {
     }
   }, [location.pathname, location.search, reloadProyectos]);
 
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const isAdmin = isAdminUser(user);
+  const userRole = (user?.rol || '').toLowerCase();
+
   const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual } = useProyecto(id);
+
+  useAutoAvanceInstalacionAdmin({
+    proyectoId: id,
+    proyecto,
+    isAdmin,
+    avanzar,
+    reloadProyectos,
+    validacionFaseActual,
+  });
   const [faseVista, setFaseVista] = useState(() => {
     const tab = searchParams.get('tab');
     if (tab && tab.toUpperCase() === 'PRODUCCION') {
@@ -51,9 +66,6 @@ export default function ProyectoDetallePage() {
   const [confirmRetroceder, setConfirmRetroceder] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const userRole = (user?.rol || '').toLowerCase();
-  const isAdmin = userRole === 'admin' || userRole === 'administrador';
   const isVentasODisenador = userRole === 'ventas' || userRole === 'diseñador' || userRole === 'disenador' || userRole === 'ventas / diseñador' || userRole === 'ventas / disenador';
   const canViewGastos = !isVentasODisenador;
 

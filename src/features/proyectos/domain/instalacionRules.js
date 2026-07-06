@@ -2,6 +2,26 @@
  * Reglas de negocio para iniciar y cerrar una instalación en sitio.
  */
 
+/** Combina datos de fase INSTALACION con la fila instalacion del proyecto. */
+export function getDatosInstalacionMerged(proyecto) {
+  const faseInstalacionMeta = proyecto?.fases?.INSTALACION || {};
+  const faseInstalacion = faseInstalacionMeta.datos || {};
+  const instalacionRow = proyecto?.instalacion || {};
+  return {
+    ...instalacionRow,
+    ...faseInstalacion,
+    personalAsignado: faseInstalacion.personalAsignado?.length
+      ? faseInstalacion.personalAsignado
+      : instalacionRow.personalAsignado,
+    materiales: faseInstalacion.materiales?.length
+      ? faseInstalacion.materiales
+      : instalacionRow.materiales,
+    evidencias: faseInstalacion.evidencias ?? instalacionRow.evidencias,
+    instalacionCompletada:
+      faseInstalacion.instalacionCompletada === true || instalacionRow.instalacionCompletada === true,
+  };
+}
+
 export function isInstalacionIniciada(datos = {}) {
   if (datos.instalacionCompletada === true) return true;
   return Boolean(datos.fechaInstalacion && datos.horaInstalacion);

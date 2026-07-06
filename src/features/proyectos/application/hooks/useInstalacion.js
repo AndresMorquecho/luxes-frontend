@@ -1,7 +1,7 @@
 // src/features/proyectos/application/hooks/useInstalacion.js
 
 import { useState, useEffect } from 'react';
-import { resolveFechaHoraFin } from '../../domain/instalacionRules.js';
+import { getDatosInstalacionMerged, resolveFechaHoraFin } from '../../domain/instalacionRules.js';
 import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
 
@@ -15,21 +15,7 @@ export function useInstalacion(proyectoId) {
   const { state, dispatch, adapter } = useProyectosContext();
   const proyecto = state.proyectos.find((p) => p.id === proyectoId) ?? null;
   const faseInstalacionMeta = proyecto?.fases?.INSTALACION || {};
-  const faseInstalacion = faseInstalacionMeta.datos || {};
-  const instalacionRow = proyecto?.instalacion || {};
-  const datosInstalacionBase = {
-    ...instalacionRow,
-    ...faseInstalacion,
-    personalAsignado: faseInstalacion.personalAsignado?.length
-      ? faseInstalacion.personalAsignado
-      : instalacionRow.personalAsignado,
-    materiales: faseInstalacion.materiales?.length
-      ? faseInstalacion.materiales
-      : instalacionRow.materiales,
-    evidencias: faseInstalacion.evidencias ?? instalacionRow.evidencias,
-    instalacionCompletada:
-      faseInstalacion.instalacionCompletada === true || instalacionRow.instalacionCompletada === true,
-  };
+  const datosInstalacionBase = getDatosInstalacionMerged(proyecto);
   const { fechaFin, horaFin } = resolveFechaHoraFin(datosInstalacionBase, faseInstalacionMeta);
   const datosInstalacion = {
     ...datosInstalacionBase,
