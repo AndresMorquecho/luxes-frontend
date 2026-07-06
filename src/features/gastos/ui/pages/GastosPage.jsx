@@ -240,6 +240,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [filtroOrigen, setFiltroOrigen] = useState('todos');
   const [page, setPage] = useState(1);
   const perPage = 8;
 
@@ -615,7 +616,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   // --- FILTRADOS Y PAGINACIÓN DE GASTOS ---
   const q = search.toLowerCase();
-  const filteredAll = items.filter(g =>
+  const itemsPorOrigen = items.filter((g) => {
+    if (filtroOrigen === 'gasto') return g.origen !== 'orden_compra';
+    if (filtroOrigen === 'orden_compra') return g.origen === 'orden_compra';
+    return true;
+  });
+  const filteredAll = itemsPorOrigen.filter(g =>
     !q
     || g.concepto?.toLowerCase().includes(q)
     || g.categoria?.includes(q)
@@ -623,15 +629,20 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     || g.referencia?.toLowerCase().includes(q)
     || g.notas?.toLowerCase().includes(q)
     || g.registradoPor?.nombre?.toLowerCase().includes(q)
+    || g.ordenNumero?.toLowerCase?.().includes(q)
   );
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
   const safePage = Math.min(page, totalPages);
   const paginated = filteredAll.slice((safePage - 1) * perPage, safePage * perPage);
 
-  useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => { setPage(1); }, [search, filtroOrigen]);
 
   // --- TOTALES KPI GASTOS ---
-  const totalMes = items.filter(g => {
+  const gastosManuales = items.filter((g) => g.origen !== 'orden_compra');
+  const pagosOC = items.filter((g) => g.origen === 'orden_compra');
+  const sumMontos = (list) => list.reduce((s, g) => s + Number(g.monto || 0), 0);
+
+  const totalMesManuales = gastosManuales.filter(g => {
     const d = new Date(g.fecha);
     const ahora = new Date();
     return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
@@ -639,10 +650,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   const totales = {
     total: items.length,
-    totalMonto: items.reduce((s, g) => s + Number(g.monto || 0), 0),
-    promedio: items.length ? (items.reduce((s, g) => s + Number(g.monto || 0), 0) / items.length) : 0,
-    totalMes,
-    pagosCompra: items.filter((g) => g.origen === 'orden_compra').length,
+    totalMonto: sumMontos(items),
+    totalGastosManuales: sumMontos(gastosManuales),
+    totalPagosOC: sumMontos(pagosOC),
+    promedio: gastosManuales.length ? sumMontos(gastosManuales) / gastosManuales.length : 0,
+    totalMes: totalMesManuales,
+    pagosCompra: pagosOC.length,
+    gastosManuales: gastosManuales.length,
   };
 
   // --- TOTALES KPI VEHÍCULOS ---
@@ -878,14 +892,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {activeTab === 'gastos' && (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div className="ga-card px-5 py-4 flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
                 <FileText size={20} style={{ color: '#3b82f6' }} />
               </div>
               <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Transacciones</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{totales.total}</div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gastos manuales</div>
+                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{totales.gastosManuales}</div>
               </div>
             </div>
             <div className="ga-card px-5 py-4 flex items-center gap-4">
@@ -893,8 +907,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <DollarSign size={20} style={{ color: '#10b981' }} />
               </div>
               <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Registrado</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalMonto)}</div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Egresos manuales</div>
+                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalGastosManuales)}</div>
               </div>
             </div>
             <div className="ga-card px-5 py-4 flex items-center gap-4">
@@ -902,8 +916,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <RefreshCw size={20} style={{ color: '#f59e0b' }} />
               </div>
               <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Promedio x Gasto</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.promedio)}</div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pagos OC (caja)</div>
+                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalPagosOC)}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">{totales.pagosCompra} pago{totales.pagosCompra !== 1 ? 's' : ''} registrado{totales.pagosCompra !== 1 ? 's' : ''}</div>
               </div>
             </div>
             <div className="ga-card px-5 py-4 flex items-center gap-4">
@@ -911,10 +926,32 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <Calendar size={20} style={{ color: '#ec4899' }} />
               </div>
               <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Presupuesto Mes</div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gastos del mes</div>
                 <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalMes)}</div>
               </div>
             </div>
+          </div>
+
+          <div className="mb-4 px-4 py-3 rounded-xl text-[12px] text-slate-600 leading-relaxed" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
+            Los <strong>pagos de órdenes de compra</strong> solo aparecen cuando se registran al aprobar la orden o al marcar explícitamente
+            {' '}<strong>“Registrar pago del ajuste”</strong> al editar precios. Cambiar precios sin pagar no genera egresos nuevos.
+          </div>
+
+          <div className="ga-tab-bar mb-4">
+            {[
+              { id: 'todos', label: 'Todos' },
+              { id: 'gasto', label: 'Gastos manuales' },
+              { id: 'orden_compra', label: 'Pagos OC' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setFiltroOrigen(tab.id)}
+                className={`ga-tab-btn ${filtroOrigen === tab.id ? 'active' : ''}`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* Tabla de Gastos */}
@@ -955,7 +992,15 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       <tr key={`${g.origen || 'gasto'}-${g.id}`} className="ga-tr">
                         <td className="px-5 py-4">
                           <div className="font-semibold text-slate-800">{g.concepto}</div>
-                          {g.notas && <div className="text-[11px] text-slate-400 mt-0.5">{g.notas}</div>}
+                          {g.origen === 'orden_compra' && g.ordenTotal != null && (
+                            <div className="text-[11px] text-slate-500 mt-0.5">
+                              Pago en caja · Total orden {fmt(g.ordenTotal)}
+                              {g.ordenSaldo > 0.01 ? ` · Saldo pendiente ${fmt(g.ordenSaldo)}` : ' · Pagada'}
+                            </div>
+                          )}
+                          {g.notas && g.origen !== 'orden_compra' && (
+                            <div className="text-[11px] text-slate-400 mt-0.5">{g.notas}</div>
+                          )}
                           {g.referencia && g.origen === 'orden_compra' && (
                             <div className="text-[11px] text-slate-500 mt-0.5">Ref: {g.referencia}</div>
                           )}

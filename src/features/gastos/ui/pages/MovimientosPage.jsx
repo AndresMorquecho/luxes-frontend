@@ -318,6 +318,10 @@ export const MovimientosPage = () => {
           <p className="text-sm text-slate-400 mt-0.5 font-medium">
             Bitácora consolidada de ingresos y egresos del negocio
           </p>
+          <p className="text-[11px] text-slate-400 mt-1 max-w-2xl">
+            Los egresos por orden de compra reflejan pagos reales en caja, no el total de la orden.
+            Editar precios sin registrar pago no crea movimientos nuevos.
+          </p>
         </div>
       </div>
 
@@ -530,7 +534,13 @@ export const MovimientosPage = () => {
                           </span>
                         </td>
                         <td style={{ fontWeight: 600, color: '#1e293b', maxWidth: '240px' }}>
-                          {m.descripcion}
+                          <div>{m.descripcion}</div>
+                          {m.origen === 'orden_compra' && m.ordenTotal != null && (
+                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, marginTop: '2px' }}>
+                              Total orden {fmt(m.ordenTotal)}
+                              {m.ordenSaldo > 0.01 ? ` · Saldo ${fmt(m.ordenSaldo)}` : ' · Pagada'}
+                            </div>
+                          )}
                         </td>
                         <td style={{ fontSize: '12.5px', color: '#64748b', fontWeight: 500 }}>
                           {m.entidad || '—'}
@@ -583,6 +593,12 @@ export const MovimientosPage = () => {
                     <div className="text-sm font-bold text-slate-800" style={{ lineHeight: '1.4' }}>
                       {m.descripcion}
                     </div>
+                    {m.origen === 'orden_compra' && m.ordenTotal != null && (
+                      <div className="text-[11px] text-slate-500 font-medium">
+                        Total orden {fmt(m.ordenTotal)}
+                        {m.ordenSaldo > 0.01 ? ` · Saldo ${fmt(m.ordenSaldo)}` : ' · Pagada'}
+                      </div>
+                    )}
                     <div className="flex justify-between items-end mt-1">
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-2">
