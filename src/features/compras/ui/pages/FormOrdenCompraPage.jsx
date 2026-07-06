@@ -41,6 +41,7 @@ export const FormOrdenCompraPage = () => {
   const [impuestoOrden, setImpuestoOrden] = useState(0);
   const [montoPagado, setMontoPagado] = useState(0);
   const [metodosPago, setMetodosPago] = useState([]);
+  const [registrarPagoAjuste, setRegistrarPagoAjuste] = useState(false);
   const [abonoAjuste, setAbonoAjuste] = useState({ monto: '', metodoPagoId: '', referencia: '' });
   const [form, setForm] = useState(() => {
     const defaultState = {
@@ -374,7 +375,11 @@ export const FormOrdenCompraPage = () => {
       return;
     }
 
-    if (adminEditaPrecios && abonoAjusteNum > 0) {
+    if (adminEditaPrecios && registrarPagoAjuste) {
+      if (!(abonoAjusteNum > 0)) {
+        toast.error('Indica el monto del abono o desmarca "Registrar pago del ajuste".');
+        return;
+      }
       if (!abonoAjuste.metodoPagoId) {
         toast.error('Selecciona un método de pago para registrar el abono del ajuste.');
         return;
@@ -404,7 +409,8 @@ export const FormOrdenCompraPage = () => {
 
       if (isEdit) {
         payload.impuesto = parseFloat(impuestoOrden) || 0;
-        if (adminEditaPrecios && abonoAjusteNum > 0) {
+        if (adminEditaPrecios && registrarPagoAjuste && abonoAjusteNum > 0) {
+          payload.registrarAbonoAjuste = true;
           payload.abonoMonto = abonoAjusteNum;
           payload.metodoPagoId = abonoAjuste.metodoPagoId;
           payload.abonoReferencia = abonoAjuste.referencia.trim()
@@ -822,9 +828,33 @@ export const FormOrdenCompraPage = () => {
               </p>
             </div>
 
+            <label
+              className="flex items-start gap-2 mb-4 cursor-pointer select-none"
+              style={{ opacity: nuevoSaldoPendiente > 0.01 ? 1 : 0.55 }}
+            >
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={registrarPagoAjuste}
+                disabled={!(nuevoSaldoPendiente > 0.01)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setRegistrarPagoAjuste(checked);
+                  if (!checked) {
+                    setAbonoAjuste({ monto: '', metodoPagoId: '', referencia: '' });
+                  }
+                }}
+              />
+              <span className="text-xs text-slate-600 leading-snug">
+                <span className="font-semibold text-slate-800">Registrar pago del ajuste ahora</span>
+                {' '}
+                (opcional). Si solo cambias precios, deja esto desmarcado: no se creará ningún movimiento en caja.
+              </span>
+            </label>
+
             <div
               className="grid grid-cols-1 md:grid-cols-3 gap-4"
-              style={{ opacity: nuevoSaldoPendiente > 0.01 ? 1 : 0.55 }}
+              style={{ opacity: registrarPagoAjuste && nuevoSaldoPendiente > 0.01 ? 1 : 0.55 }}
             >
               <div>
                 <div className="flex justify-between items-center mb-1">
@@ -832,7 +862,7 @@ export const FormOrdenCompraPage = () => {
                   <button
                     type="button"
                     className="text-[10px] font-bold text-blue-600 underline"
-                    disabled={!(nuevoSaldoPendiente > 0.01)}
+                    disabled={!registrarPagoAjuste || !(nuevoSaldoPendiente > 0.01)}
                     onClick={() => setAbonoAjuste((p) => ({
                       ...p,
                       monto: nuevoSaldoPendiente.toFixed(2),
@@ -849,17 +879,10 @@ export const FormOrdenCompraPage = () => {
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
-                    setAbonoAjuste((p) => {
-                      const next = { ...p, monto: val };
-                      if (parseFloat(val) > 0 && !p.metodoPagoId && metodosPago.length > 0) {
-                        const activo = metodosPago.find((m) => m.activo);
-                        if (activo) next.metodoPagoId = activo.id;
-                      }
-                      return next;
-                    });
+                    setAbonoAjuste((p) => ({ ...p, monto: val }));
                   }}
-                  placeholder="0.00 (opcional)"
-                  disabled={!(nuevoSaldoPendiente > 0.01)}
+                  placeholder="0.00"
+                  disabled={!registrarPagoAjuste || !(nuevoSaldoPendiente > 0.01)}
                   autoComplete="off"
                 />
               </div>
@@ -869,10 +892,10 @@ export const FormOrdenCompraPage = () => {
                   className="co-input"
                   value={abonoAjuste.metodoPagoId}
                   onChange={(e) => setAbonoAjuste((p) => ({ ...p, metodoPagoId: e.target.value }))}
-                  disabled={!(nuevoSaldoPendiente > 0.01) || !(abonoAjusteNum > 0)}
-                  style={{ background: abonoAjusteNum > 0 && nuevoSaldoPendiente > 0.01 ? '#fff' : '#f8fafc' }}
+                  disabled={!registrarPagoAjuste || !(nuevoSaldoPendiente > 0.01)}
+                  style={{ background: registrarPagoAjuste && nuevoSaldoPendiente > 0.01 ? '#fff' : '#f8fafc' }}
                 >
-                  <option value="">{abonoAjusteNum > 0 ? 'Selecciona cuenta...' : 'No requiere (sin abono)'}</option>
+                  <option value="">Selecciona cuenta...</option>
                   {metodosPago.filter((m) => m.activo).map((m) => (
                     <option key={m.id} value={m.id}>{m.nombre}</option>
                   ))}
@@ -885,9 +908,9 @@ export const FormOrdenCompraPage = () => {
                   className="co-input"
                   value={abonoAjuste.referencia}
                   onChange={(e) => setAbonoAjuste((p) => ({ ...p, referencia: e.target.value }))}
-                  disabled={!(nuevoSaldoPendiente > 0.01) || !(abonoAjusteNum > 0)}
+                  disabled={!registrarPagoAjuste || !(nuevoSaldoPendiente > 0.01)}
                   placeholder="No. transferencia, cheque..."
-                  style={{ background: abonoAjusteNum > 0 && nuevoSaldoPendiente > 0.01 ? '#fff' : '#f8fafc' }}
+                  style={{ background: registrarPagoAjuste && nuevoSaldoPendiente > 0.01 ? '#fff' : '#f8fafc' }}
                 />
               </div>
             </div>
