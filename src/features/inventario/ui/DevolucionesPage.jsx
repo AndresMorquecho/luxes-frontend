@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Wrench, Clock, User, RefreshCw, CheckCircle2, Search, X,
 } from 'lucide-react';
-import { getPrestamos, devolverPrestamo } from '../application/inventarioService.js';
+import { getPrestamos, devolverPrestamo, sincronizarDevolucionesInstalacion } from '../application/inventarioService.js';
 import { getEmpleados } from '../../empleados/application/empleadosService.js';
 import { DateRangePicker } from '../../../shared/ui/components/DateRangePicker.jsx';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
@@ -23,6 +23,12 @@ const fmtDate = (d) => (d
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
   : '—');
+
+function getEncargadoDisplay(prestamo) {
+  const match = (prestamo.comentarios || '').match(/Encargado:\s*([^|]+)/i);
+  if (match?.[1]) return match[1].trim();
+  return prestamo.responsable?.nombre || 'Desconocido';
+}
 
 function DevolucionModal({ prestamo, onClose, onConfirm }) {
   const [observacion, setObservacion] = useState('');
@@ -154,6 +160,24 @@ export function DevolucionesPage() {
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await sincronizarDevolucionesInstalacion();
+      } catch (err) {
+        console.error('Sync devoluciones instalación:', err);
+      }
+      if (!cancelled) {
+        loadData();
+        loadStats();
+      }
+    })();
+    return () => { cancelled = true; };
+    // Solo al montar: sincroniza instalaciones ya cerradas y recarga la lista
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const fetchPersonas = async () => {
@@ -388,7 +412,7 @@ export function DevolucionesPage() {
                     </td>
                     <td className="prest-td-person">
                       <div className="prest-person-cell prest-person-cell--plain">
-                        <div className="prest-person-name">{p.responsable?.nombre || 'Desconocido'}</div>
+                        <div className="prest-person-name">{getEncargadoDisplay(p)}</div>
                         <div className="prest-person-user">@{p.responsable?.username || '—'}</div>
                       </div>
                     </td>
@@ -474,7 +498,7 @@ export function DevolucionesPage() {
                       <div className="prest-card-field">
                         <span className="prest-card-field-label">Encargado</span>
                         <span className="prest-card-field-value">
-                          {p.responsable?.nombre || 'Desconocido'}
+                          {getEncargadoDisplay(p)}
                           <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>
                             @{p.responsable?.username || '—'}
                           </span>

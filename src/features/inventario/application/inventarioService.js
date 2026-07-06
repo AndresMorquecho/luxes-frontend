@@ -210,6 +210,16 @@ export async function registrarPrestamo(body) {
   return data.data;
 }
 
+export async function sincronizarDevolucionesInstalacion() {
+  const res = await fetch('/api/proyectos/sincronizar-devoluciones', {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al sincronizar devoluciones');
+  return data.data;
+}
+
 export async function devolverPrestamo(id, body = {}) {
   const res = await fetch(`/api/inventario/prestamos/${id}/retorno`, {
     method: 'PUT',

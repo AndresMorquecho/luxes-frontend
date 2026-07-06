@@ -221,7 +221,9 @@ export function MaterialesRequestPage() {
           precioUnitario: item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : (item.precioCosto || 0),
           unidad: item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unidad',
           categoria: item.categoria || 'Taller',
-          tipo: item.tipo || 'consumible'
+          tipo: item.subtipo === 'herramienta' || item.esPrestable
+            ? 'herramienta'
+            : (item.tipo || 'consumible'),
         }));
       setInventarioDb(mapped);
     } catch (err) {
