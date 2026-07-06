@@ -113,6 +113,13 @@ export const FormOrdenCompraPage = () => {
   const abonoAjusteNum = parseFloat(abonoAjuste.monto) || 0;
   const hayCambioPrecio = Math.abs(diferenciaTotal) > 0.01;
 
+  const tableColCount = useMemo(() => {
+    let cols = 4;
+    if (adminVePrecios) cols += 2;
+    if (!editBloqueado) cols += 1;
+    return cols;
+  }, [adminVePrecios, editBloqueado]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -165,7 +172,9 @@ export const FormOrdenCompraPage = () => {
           });
 
           if (filas.length === 0) {
-            toast.error('Esta orden no tiene ítems cargados. Agrégalos manualmente o revisa en aprobación.');
+            window.setTimeout(() => {
+              toast.error('Esta orden no tiene ítems cargados. Agrégalos manualmente o revisa en aprobación.');
+            }, 0);
           }
         } else {
           toast.error('No se pudo cargar la orden de compra.');
@@ -306,6 +315,7 @@ export const FormOrdenCompraPage = () => {
       detalles: [
         ...prev.detalles,
         {
+          lineId: `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           descripcion: itemInput.descripcion,
           cantidad: itemInput.cantidad,
           precioUnitario: adminEditaPrecios ? '0' : undefined,
@@ -666,8 +676,9 @@ export const FormOrdenCompraPage = () => {
             <tbody>
               {form.detalles.map((d, index) => {
                 const lineSubtotal = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
+                const rowKey = d.lineId || `${d.materialId || 'custom'}-${d.descripcion}-${index}`;
                 return (
-                <tr key={index}>
+                <tr key={rowKey}>
                   <td className="text-center font-bold text-slate-400">{index + 1}</td>
                   <td>
                     <span className={`co-badge-pill ${d.isCustom ? 'co-badge-pill-slate' : 'co-badge-pill-blue'}`}>
@@ -743,7 +754,7 @@ export const FormOrdenCompraPage = () => {
               );})}
               {form.detalles.length === 0 && (
                 <tr>
-                  <td colSpan={adminVePrecios ? 7 : (editBloqueado ? 4 : 5)} className="text-center py-16 text-slate-400 font-medium text-sm">
+                  <td colSpan={tableColCount} className="text-center py-16 text-slate-400 font-medium text-sm">
                     No hay items agregados. Usa la barra superior para agregar items.
                   </td>
                 </tr>
@@ -752,7 +763,7 @@ export const FormOrdenCompraPage = () => {
                 <tr>
                   <td colSpan={5} className="text-right font-bold text-slate-500 text-sm pt-4">Total orden</td>
                   <td className="text-right font-bold text-slate-900 text-base pt-4">{fmtMoney(totalNuevo)}</td>
-                  <td />
+                  {!editBloqueado && <td className="pt-4" />}
                 </tr>
               )}
             </tbody>

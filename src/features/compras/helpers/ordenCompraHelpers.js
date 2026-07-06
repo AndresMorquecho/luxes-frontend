@@ -107,6 +107,7 @@ export function mergeOrdenDetalles(orden, detallesFallback = []) {
 /** Mapea líneas normalizadas al estado del formulario de edición. */
 export function mapDetallesToFormRows(ordenOrDetalles) {
   return normalizeOrdenDetalles(ordenOrDetalles).map((d) => ({
+    lineId: d.id,
     descripcion: d.descripcion,
     cantidad: String(d.cantidad),
     precioUnitario: d.precioUnitario,
