@@ -97,6 +97,19 @@ export async function deleteOrden(id) {
   return data.data;
 }
 
+/**
+ * Edición de OC con reconciliación financiera (solo admins).
+ * Preserva el historial de pagos y recalcula la Cuenta por Pagar.
+ */
+export async function editarOrden(id, body) {
+  const res = await fetch(`/api/compras/${id}/editar`, {
+    method: 'PUT', headers: getHeaders(), body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al editar la orden');
+  return data.data;
+}
+
 // ── Abonos ──────────────────────────────────────────────────────────────────
 
 export async function getAbonos(ordenId) {

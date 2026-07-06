@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { getOrdenById, createOrden, updateOrden } from '../../application/comprasService';
+import { getOrdenById, createOrden, updateOrden, editarOrden } from '../../application/comprasService';
 import { 
   getMateriales, 
   buildMaterialesQuery, 
@@ -34,6 +34,7 @@ export const FormOrdenCompraPage = () => {
   const [proyectos, setProyectos] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [creatingMaterial, setCreatingMaterial] = useState(false);
+  const [ordenOriginal, setOrdenOriginal] = useState(null); // Para el panel de ajuste financiero
   const [form, setForm] = useState(() => {
     const defaultState = {
       fecha: new Date().toISOString().split('T')[0],
@@ -102,16 +103,20 @@ export const FormOrdenCompraPage = () => {
         setUnidades(units);
 
         if (o) {
+          setOrdenOriginal(o);
           setForm({
             fecha: o.fecha ? new Date(o.fecha).toISOString().split('T')[0] : '',
             concepto: o.concepto || '',
             notas: o.notas || '',
             detalles: o.detalles && o.detalles.length > 0
               ? o.detalles.map(d => ({
+                  id: d.id, // Preservar ID para reconciliación
                   descripcion: d.descripcion,
                   cantidad: d.cantidad,
+                  precioUnitario: d.precioUnitario ?? 0, // Cargar precio existente
                   materialId: d.materialId || null,
-                  isCustom: !d.materialId
+                  isCustom: !d.materialId,
+                  cantidadRecibida: d.cantidadRecibida ?? 0, // Para saber si está bloqueado
                 }))
               : [],
             proyectoId: o.proyectoId || '',
@@ -281,6 +286,14 @@ export const FormOrdenCompraPage = () => {
     });
   };
 
+  // Calcular totales para el panel de ajuste financiero
+  const totalAnterior = ordenOriginal?.total ?? 0;
+  const montoPagado = ordenOriginal?.cuentaPorPagar?.montoPagado ?? 0;
+  const totalNuevo = form.detalles.reduce((sum, d) => sum + (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0), 0);
+  const diferencia = totalNuevo - totalAnterior;
+  const nuevoSaldo = Math.max(0, totalNuevo - montoPagado);
+  const esSaldoAFavor = totalNuevo < montoPagado;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -302,14 +315,23 @@ export const FormOrdenCompraPage = () => {
         notas: form.notas,
         proyectoId: form.proyectoId || null,
         detalles: form.detalles.map(d => ({
+          id: d.id || undefined,
           descripcion: d.descripcion,
           cantidad: parseFloat(d.cantidad) || 0,
-          materialId: d.materialId || null
+          precioUnitario: isAdmin && isEdit ? (parseFloat(d.precioUnitario) || 0) : 0,
+          materialId: d.materialId || null,
+          isCustom: d.isCustom,
         })),
       };
 
       if (isEdit) {
-        await updateOrden(id, payload);
+        if (isAdmin) {
+          // Admin: usa el endpoint de reconciliación financiera
+          await editarOrden(id, { ...payload, impuesto: 0 });
+        } else {
+          // Creador pendiente: actualización simple sin precios
+          await updateOrden(id, payload);
+        }
       } else {
         await createOrden(payload);
       }
@@ -345,10 +367,14 @@ export const FormOrdenCompraPage = () => {
           </div>
           <div>
             <h1 className="co-title" style={{ color: '#1e293b', fontWeight: 800 }}>
-              {isEdit ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}
+              {isEdit ? (isAdmin ? 'Editar Orden de Compra' : 'Modificar mi Solicitud') : 'Nueva Orden de Compra'}
             </h1>
             <p className="co-subtitle">
-              {isEdit ? 'Modifica los items de la orden' : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
+              {isEdit 
+                ? (isAdmin 
+                  ? 'Modifica ítems, cantidades y precios. Los pagos previos se reconcilian automáticamente.'
+                  : 'Modifica los ítems de tu solicitud (aún pendiente de aprobación)')
+                : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
             </p>
           </div>
         </div>
@@ -544,66 +570,170 @@ export const FormOrdenCompraPage = () => {
                 <th style={{ width: '130px' }}>Tipo</th>
                 <th>Descripción / Material</th>
                 <th className="text-center" style={{ width: '150px' }}>Cantidad</th>
+                {isAdmin && isEdit && (
+                  <th className="text-right" style={{ width: '130px' }}>Precio Unit.</th>
+                )}
+                {isAdmin && isEdit && (
+                  <th className="text-right" style={{ width: '110px' }}>Subtotal</th>
+                )}
                 <th className="text-center" style={{ width: '80px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {form.detalles.map((d, index) => (
-                <tr key={index}>
-                  <td className="text-center font-bold text-slate-400">{index + 1}</td>
-                  <td>
-                    <span className={`co-badge-pill ${d.isCustom ? 'co-badge-pill-slate' : 'co-badge-pill-blue'}`}>
-                      {d.isCustom ? 'Libre' : 'Inventario'}
-                    </span>
-                  </td>
-                  <td>
-                    {d.isCustom ? (
+              {form.detalles.map((d, index) => {
+                const fueRecepcionado = (d.cantidadRecibida ?? 0) > 0;
+                const esInventario = !!d.materialId;
+                const cantidadBloqueada = isEdit && fueRecepcionado && esInventario;
+                const eliminacionBloqueada = isEdit && fueRecepcionado && esInventario;
+                const subtotalFila = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
+
+                return (
+                  <tr key={index} style={cantidadBloqueada ? { background: '#f8fafc' } : {}}>
+                    <td className="text-center font-bold text-slate-400">{index + 1}</td>
+                    <td>
+                      <div className="flex flex-col gap-1">
+                        <span className={`co-badge-pill ${d.isCustom ? 'co-badge-pill-slate' : 'co-badge-pill-blue'}`}>
+                          {d.isCustom ? 'Libre' : 'Inventario'}
+                        </span>
+                        {cantidadBloqueada && (
+                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 w-fit">
+                            ✓ Recibido
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      {d.isCustom ? (
+                        <input
+                          type="text"
+                          className="co-table-input w-full"
+                          value={d.descripcion}
+                          onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
+                          required
+                        />
+                      ) : (
+                        <span className="font-semibold text-slate-700">{d.descripcion}</span>
+                      )}
+                    </td>
+                    <td>
                       <input
-                        type="text"
-                        className="co-table-input w-full"
-                        value={d.descripcion}
-                        onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
+                        type="number"
+                        className={`co-table-input text-center mx-auto ${cantidadBloqueada ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                        style={{ width: '100px' }}
+                        min="0.01"
+                        step="0.01"
+                        value={d.cantidad}
+                        onChange={e => !cantidadBloqueada && updateDetalle(index, 'cantidad', e.target.value)}
+                        readOnly={cantidadBloqueada}
+                        title={cantidadBloqueada ? 'Cantidad bloqueada: este ítem ya fue recibido en inventario' : undefined}
                         required
+                        onWheel={e => e.target.blur()}
                       />
-                    ) : (
-                      <span className="font-semibold text-slate-700">{d.descripcion}</span>
+                    </td>
+                    {isAdmin && isEdit && (
+                      <td>
+                        <input
+                          type="number"
+                          className="co-table-input text-right mx-auto"
+                          style={{ width: '110px' }}
+                          min="0"
+                          step="0.01"
+                          value={d.precioUnitario ?? ''}
+                          onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
+                          placeholder="0.00"
+                          onWheel={e => e.target.blur()}
+                        />
+                      </td>
                     )}
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      className="co-table-input text-center mx-auto"
-                      style={{ width: '100px' }}
-                      min="0.01"
-                      step="0.01"
-                      value={d.cantidad}
-                      onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
-                      required
-                      onWheel={e => e.target.blur()}
-                    />
-                  </td>
-                  <td className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => removeDetalle(index)}
-                      className="co-table-remove-btn"
-                      title="Eliminar item"
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    {isAdmin && isEdit && (
+                      <td className="text-right font-semibold text-slate-700 pr-3">
+                        ${subtotalFila.toFixed(2)}
+                      </td>
+                    )}
+                    <td className="text-center">
+                      {eliminacionBloqueada ? (
+                        <span 
+                          className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"
+                          title="No se puede eliminar: ítem ya recibido en inventario"
+                        >
+                          🔒
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => removeDetalle(index)}
+                          className="co-table-remove-btn"
+                          title="Eliminar item"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {form.detalles.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center py-16 text-slate-400 font-medium text-sm">
+                  <td colSpan={isAdmin && isEdit ? 7 : 5} className="text-center py-16 text-slate-400 font-medium text-sm">
                     No hay items agregados. Usa la barra superior para agregar items.
                   </td>
+                </tr>
+              )}
+              {isAdmin && isEdit && form.detalles.length > 0 && (
+                <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
+                  <td colSpan={4} />
+                  <td className="text-right text-xs font-bold text-slate-500 uppercase pr-2 py-3">Total orden</td>
+                  <td className="text-right font-bold text-slate-800 text-base pr-3">${totalNuevo.toFixed(2)}</td>
+                  <td />
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Panel de Ajuste Financiero - Solo para admin en modo edición */}
+        {isAdmin && isEdit && ordenOriginal && (
+          <div className="co-card p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
+              Ajuste Financiero
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total anterior</div>
+                <div className="text-lg font-bold text-slate-700">${totalAnterior.toFixed(2)}</div>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Total nuevo</div>
+                <div className="text-lg font-bold text-blue-700">${totalNuevo.toFixed(2)}</div>
+              </div>
+              <div className={`rounded-xl p-3 border ${diferencia > 0 ? 'bg-red-50 border-red-100' : diferencia < 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200'}`}>
+                <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${diferencia > 0 ? 'text-red-400' : diferencia < 0 ? 'text-emerald-400' : 'text-slate-400'}`}>Diferencia</div>
+                <div className={`text-lg font-bold ${diferencia > 0 ? 'text-red-700' : diferencia < 0 ? 'text-emerald-700' : 'text-slate-600'}`}>
+                  {diferencia > 0 ? '+' : ''}{diferencia.toFixed(2)}
+                </div>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">Ya pagado</div>
+                <div className="text-lg font-bold text-amber-700">${montoPagado.toFixed(2)}</div>
+              </div>
+            </div>
+            {montoPagado > 0 && (
+              <div className={`mt-3 p-3 rounded-xl text-sm font-semibold flex items-center gap-2 ${esSaldoAFavor ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                {esSaldoAFavor ? (
+                  <>
+                    <span>✅</span>
+                    <span>Saldo a favor del cliente/proveedor: <strong>${(montoPagado - totalNuevo).toFixed(2)}</strong>. El historial de pagos se preserva; la CxP quedará en $0.00.</span>
+                  </>
+                ) : (
+                  <>
+                    <span>💳</span>
+                    <span>Nuevo saldo pendiente de pago: <strong>${nuevoSaldo.toFixed(2)}</strong>. Los abonos previos de <strong>${montoPagado.toFixed(2)}</strong> se conservan en el historial.</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Notes and Submit */}
         <div className="flex flex-wrap md:flex-nowrap gap-6">
