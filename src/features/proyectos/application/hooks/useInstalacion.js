@@ -1,9 +1,10 @@
 // src/features/proyectos/application/hooks/useInstalacion.js
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getDatosInstalacionMerged, resolveFechaHoraFin } from '../../domain/instalacionRules.js';
 import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
+import { filterEmpleadosParaInstalacion } from '../../../../shared/utils/userRoleHelpers.js';
 
 /**
  * Hook especializado para la fase de INSTALACION.
@@ -23,11 +24,19 @@ export function useInstalacion(proyectoId) {
     horaFin: horaFin || datosInstalacionBase.horaFin,
   };
 
-  const [empleados, setEmpleados] = useState([]);
+  const [empleadosRaw, setEmpleadosRaw] = useState([]);
+  const currentUser = useMemo(
+    () => JSON.parse(localStorage.getItem('user') || 'null'),
+    [],
+  );
+  const empleados = useMemo(
+    () => filterEmpleadosParaInstalacion(empleadosRaw, currentUser),
+    [empleadosRaw, currentUser],
+  );
 
   useEffect(() => {
     if (adapter.getEmpleados) {
-      adapter.getEmpleados().then(setEmpleados).catch(console.error);
+      adapter.getEmpleados().then(setEmpleadosRaw).catch(console.error);
     }
   }, [adapter]);
 

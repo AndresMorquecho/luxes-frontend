@@ -13,6 +13,25 @@ export function isTallerUser(user) {
   return rol === 'taller' || username === 'taller';
 }
 
+/** Normaliza rol para comparaciones (sin tildes, minúsculas). */
+export function normalizeRolKey(rol) {
+  return (rol || '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+export function isTallerRolValue(rol) {
+  return normalizeRolKey(rol) === 'taller';
+}
+
+/** En fase instalación, el rol Taller solo ve personal con usuario de rol Taller. */
+export function filterEmpleadosParaInstalacion(empleados, currentUser) {
+  if (!isTallerUser(currentUser)) return empleados || [];
+  return (empleados || []).filter((emp) => isTallerRolValue(emp.rol));
+}
+
 export function isAdminUser(user) {
   if (!user) return false;
   const rol = (user.rol || '').toLowerCase().trim();

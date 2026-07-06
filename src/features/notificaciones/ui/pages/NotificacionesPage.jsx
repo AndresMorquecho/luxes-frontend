@@ -75,7 +75,10 @@ const getNotificationRoute = (notification) => {
   }
 
   // Herramientas pendientes de devolución tras instalación
-  if (title.includes('herramienta en devolución') || title.includes('herramienta en devolucion')
+  if (title.includes('herramienta en devolución')
+    || title.includes('herramienta por devolver')
+    || title.includes('herramientas por devolver')
+    || message.includes('por devolver')
     || message.includes('debes devolver')) {
     return '/devoluciones';
   }

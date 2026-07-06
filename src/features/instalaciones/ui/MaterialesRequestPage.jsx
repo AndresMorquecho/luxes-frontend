@@ -1,6 +1,6 @@
 // src/features/instalaciones/ui/MaterialesRequestPage.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProyectosContext } from '../../proyectos/application/context/ProyectosContext.jsx';
 import { ACTIONS } from '../../proyectos/application/store/proyectosStore.js';
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { PDFPreviewModal } from '../../../shared/ui/components/PDFPreviewModal.jsx';
 import { useProyecto } from '../../proyectos/application/hooks/useProyecto.js';
-import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService.js';
+import { getMateriales, getPrestamos, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService.js';
 import { getOrdenes } from '../../compras/application/comprasService.js';
 import {
   filterOrdenesPorProyecto,
@@ -34,7 +34,7 @@ import {
 } from '../../proyectos/domain/instalacionRules.js';
 import { getEncuestaSatisfaccion, encuestaFueEnviada } from '../../proyectos/domain/encuestaUtils.js';
 import { EncuestaResultadosView } from '../../proyectos/ui/components/EncuestaResultadosView.jsx';
-import { isTallerUser } from '../../../shared/utils/userRoleHelpers.js';
+import { isTallerUser, filterEmpleadosParaInstalacion } from '../../../shared/utils/userRoleHelpers.js';
 import { uploadEvidenciaInstalacion } from '../../proyectos/application/proyectosService.js';
 import { CameraCaptureModal } from './components/CameraCaptureModal.jsx';
 import { ProjectMediaImage } from '../../../shared/ui/components/ProjectMediaImage.jsx';
@@ -146,6 +146,7 @@ export function MaterialesRequestPage() {
 
   // Estados de control de inventario local
   const [inventarioDb, setInventarioDb] = useState([]);
+  const [prestamosActivos, setPrestamosActivos] = useState([]);
   const [loadingInventario, setLoadingInventario] = useState(true);
   const [materialSearch, setMaterialSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -209,7 +210,13 @@ export function MaterialesRequestPage() {
   const fetchInventario = async () => {
     try {
       setLoadingInventario(true);
-      const data = await getMateriales(buildMaterialesQuery({ categoria: 'Taller' }));
+      const [data, prestamosData] = await Promise.all([
+        getMateriales(buildMaterialesQuery({ categoria: 'Taller' })),
+        getPrestamos({ estado: 'prestado', page: 1, limit: 500 }),
+      ]);
+      const prestamosItems = Array.isArray(prestamosData) ? prestamosData : (prestamosData.items || []);
+      setPrestamosActivos(prestamosItems);
+
       const items = Array.isArray(data) ? data : (data.items || []);
       const mapped = items
         .filter(item => item.categoria === 'Taller')
@@ -218,6 +225,7 @@ export function MaterialesRequestPage() {
           nombre: item.nombre,
           sku: item.codigo || 'SIN-CODIGO',
           stock: item.stockActual || 0,
+          estadoUso: item.estadoUso || 'BODEGA',
           precioUnitario: item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : (item.precioCosto || 0),
           unidad: item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unidad',
           categoria: item.categoria || 'Taller',
@@ -293,10 +301,30 @@ export function MaterialesRequestPage() {
     };
   };
 
+  const empleadosParaInstalacion = useMemo(
+    () => filterEmpleadosParaInstalacion(empleados, user),
+    [empleados, user],
+  );
+    () => new Set(prestamosActivos.map((p) => p.materialId).filter(Boolean)),
+    [prestamosActivos],
+  );
+
+  const esItemSeleccionable = useCallback((item) => {
+    if ((item.stock ?? 0) <= 0) return false;
+    if (item.tipo === 'herramienta') {
+      const estado = String(item.estadoUso || 'BODEGA').toUpperCase();
+      if (estado !== 'BODEGA') return false;
+      if (materialIdsPrestados.has(item.id)) return false;
+    }
+    return true;
+  }, [materialIdsPrestados]);
+
   // Filtrar artículos en inventario (limitado a los primeros 6 para mejorar UX y rendimiento)
-  const matchedInventory = inventarioDb.filter(item => 
-    item.nombre.toLowerCase().includes(materialSearch.toLowerCase()) || 
-    item.sku.toLowerCase().includes(materialSearch.toLowerCase())
+  const matchedInventory = inventarioDb.filter(item =>
+    esItemSeleccionable(item) && (
+      item.nombre.toLowerCase().includes(materialSearch.toLowerCase())
+      || item.sku.toLowerCase().includes(materialSearch.toLowerCase())
+    ),
   ).slice(0, 6);
 
   // --- Manejadores de Guardado Explícito ---
@@ -317,6 +345,10 @@ export function MaterialesRequestPage() {
   // Agregar item al Borrador de Consumo (Tab 2)
   function handleAddToDraft() {
     if (!selectedItem || qty <= 0) return;
+    if (!esItemSeleccionable(selectedItem)) {
+      toast.error('Esta herramienta ya está prestada o en uso; no puede agregarse de nuevo.');
+      return;
+    }
 
     const index = materialesLocales.findIndex(item => item.nombre === selectedItem.nombre);
     if (index > -1) {
@@ -875,12 +907,14 @@ export function MaterialesRequestPage() {
                 Asignación del Equipo Técnico
               </h2>
               <p className="text-xs text-slate-400 -mt-2">
-                Selecciona al personal que realizará los trabajos de instalación. Asegúrate de hacer clic en el botón de guardar.
+                {isTallerUser(user)
+                  ? 'Selecciona personal del equipo de Taller que realizará la instalación. Guarda los cambios al terminar.'
+                  : 'Selecciona al personal que realizará los trabajos de instalación. Asegúrate de hacer clic en el botón de guardar.'}
               </p>
             </div>
 
             <PersonalSelector
-              empleados={empleados}
+              empleados={empleadosParaInstalacion}
               personalAsignado={personalLocal}
               onChange={(nuevasAsignaciones) => setPersonalLocal(nuevasAsignaciones)}
               soloLectura={esSoloLectura}
@@ -957,14 +991,27 @@ export function MaterialesRequestPage() {
                               ))
                             ) : (
                               <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
-                                Sin resultados en inventario. ¿No hay stock?{' '}
-                                <button 
-                                  type="button" 
-                                  onClick={() => setActiveTab('compras')}
-                                  className="text-blue-600 font-bold hover:underline"
-                                >
-                                  Generar Orden de Compra
-                                </button>
+                                {inventarioDb.some((item) =>
+                                  !esItemSeleccionable(item) && (
+                                    item.nombre.toLowerCase().includes(materialSearch.toLowerCase())
+                                    || item.sku.toLowerCase().includes(materialSearch.toLowerCase())
+                                  ),
+                                ) ? (
+                                  <>
+                                    Las herramientas que coinciden ya están prestadas o en uso y no se pueden volver a seleccionar.
+                                  </>
+                                ) : (
+                                  <>
+                                    Sin resultados en inventario. ¿No hay stock?{' '}
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveTab('compras')}
+                                      className="text-blue-600 font-bold hover:underline"
+                                    >
+                                      Generar Orden de Compra
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
