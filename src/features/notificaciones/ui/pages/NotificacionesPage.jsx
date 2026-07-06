@@ -201,16 +201,21 @@ export const NotificacionesPage = () => {
   };
 
   const handleGoToNotification = (notification) => {
-    const route = getNotificationRoute(notification);
+    let route = getNotificationRoute(notification);
     if (route) {
       // Marcar como leída antes de navegar
       if (!notification.isRead) {
         handleMarkRead(notification.id);
       }
-      if (route === '/colas-impresion') {
+      if (route === '/colas-impresion' || route.includes('/proyectos/')) {
         window.dispatchEvent(new Event('print-queue-updated'));
         localStorage.setItem('luxes_print_sync_trigger', Date.now().toString());
       }
+      
+      // Forzar refresco si el usuario ya se encuentra en la ruta
+      const sep = route.includes('?') ? '&' : '?';
+      route = `${route}${sep}refresh=${Date.now()}`;
+      
       navigate(route);
     }
   };
