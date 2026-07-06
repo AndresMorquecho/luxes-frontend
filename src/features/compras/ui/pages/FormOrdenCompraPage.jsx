@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { getOrdenById, createOrden, updateOrden, editarOrden } from '../../application/comprasService';
+import { getOrdenById, createOrden, updateOrden, editarOrden, getMetodosPago } from '../../application/comprasService';
 import { 
   getMateriales, 
   buildMaterialesQuery, 
@@ -33,8 +33,11 @@ export const FormOrdenCompraPage = () => {
   const [saving, setSaving] = useState(false);
   const [proyectos, setProyectos] = useState([]);
   const [unidades, setUnidades] = useState([]);
+  const [metodosPago, setMetodosPago] = useState([]);
   const [creatingMaterial, setCreatingMaterial] = useState(false);
-  const [ordenOriginal, setOrdenOriginal] = useState(null); // Para el panel de ajuste financiero
+  const [ordenOriginal, setOrdenOriginal] = useState(null);
+  // Estado para el pago inicial al editar (admin)
+  const [pagoEdicion, setPagoEdicion] = useState({ metodoPagoId: '', monto: '', referencia: '' });
   const [form, setForm] = useState(() => {
     const defaultState = {
       fecha: new Date().toISOString().split('T')[0],
@@ -90,17 +93,19 @@ export const FormOrdenCompraPage = () => {
       });
 
       if (isEdit) {
-        const [projResult, o, units] = await Promise.all([
+        const [projResult, o, units, metodos] = await Promise.all([
           proyectosPromise,
           getOrdenById(id).catch(err => {
             console.error('Error al cargar la orden:', err);
             return null;
           }),
-          unidadesPromise
+          unidadesPromise,
+          isAdmin ? getMetodosPago().catch(() => []) : Promise.resolve([]),
         ]);
 
         setProyectos(Array.isArray(projResult?.data) ? projResult.data : []);
         setUnidades(units);
+        if (Array.isArray(metodos)) setMetodosPago(metodos);
 
         if (o) {
           setOrdenOriginal(o);
@@ -110,13 +115,13 @@ export const FormOrdenCompraPage = () => {
             notas: o.notas || '',
             detalles: o.detalles && o.detalles.length > 0
               ? o.detalles.map(d => ({
-                  id: d.id, // Preservar ID para reconciliación
+                  id: d.id,
                   descripcion: d.descripcion,
                   cantidad: d.cantidad,
-                  precioUnitario: d.precioUnitario ?? 0, // Cargar precio existente
+                  precioUnitario: d.precioUnitario ?? 0,
                   materialId: d.materialId || null,
                   isCustom: !d.materialId,
-                  cantidadRecibida: d.cantidadRecibida ?? 0, // Para saber si está bloqueado
+                  cantidadRecibida: d.cantidadRecibida ?? 0,
                 }))
               : [],
             proyectoId: o.proyectoId || '',
@@ -286,13 +291,10 @@ export const FormOrdenCompraPage = () => {
     });
   };
 
-  // Calcular totales para el panel de ajuste financiero
-  const totalAnterior = ordenOriginal?.total ?? 0;
-  const montoPagado = ordenOriginal?.cuentaPorPagar?.montoPagado ?? 0;
+  // Calcular totales para el resumen
   const totalNuevo = form.detalles.reduce((sum, d) => sum + (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0), 0);
+  const totalAnterior = ordenOriginal?.total ?? 0;
   const diferencia = totalNuevo - totalAnterior;
-  const nuevoSaldo = Math.max(0, totalNuevo - montoPagado);
-  const esSaldoAFavor = totalNuevo < montoPagado;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -326,8 +328,15 @@ export const FormOrdenCompraPage = () => {
 
       if (isEdit) {
         if (isAdmin) {
-          // Admin: usa el endpoint de reconciliación financiera
-          await editarOrden(id, { ...payload, impuesto: 0 });
+          // Admin: anula la orden anterior y crea una nueva con los datos actualizados
+          const pagoMonto = parseFloat(pagoEdicion.monto) || 0;
+          await editarOrden(id, {
+            ...payload,
+            impuesto: 0,
+            abonoMonto: pagoMonto > 0 ? pagoMonto : undefined,
+            metodoPagoId: pagoMonto > 0 ? (pagoEdicion.metodoPagoId || null) : null,
+            abonoReferencia: pagoEdicion.referencia || undefined,
+          });
         } else {
           // Creador pendiente: actualización simple sin precios
           await updateOrden(id, payload);
@@ -372,7 +381,7 @@ export const FormOrdenCompraPage = () => {
             <p className="co-subtitle">
               {isEdit 
                 ? (isAdmin 
-                  ? 'Modifica ítems, cantidades y precios. Los pagos previos se reconcilian automáticamente.'
+                  ? 'La orden anterior se anulará y se creará una nueva con los datos corregidos.'
                   : 'Modifica los ítems de tu solicitud (aún pendiente de aprobación)')
                 : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
             </p>
@@ -691,47 +700,89 @@ export const FormOrdenCompraPage = () => {
           </table>
         </div>
 
-        {/* Panel de Ajuste Financiero - Solo para admin en modo edición */}
+        {/* Resumen de cambio + Pago Inicial — Solo para admin en modo edición */}
         {isAdmin && isEdit && ordenOriginal && (
           <div className="co-card p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
-              Ajuste Financiero
+              Resumen del Cambio
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+            {/* Resumen numérico */}
+            <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total anterior</div>
-                <div className="text-lg font-bold text-slate-700">${totalAnterior.toFixed(2)}</div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total anterior (anulado)</div>
+                <div className="text-lg font-bold text-slate-500 line-through">${totalAnterior.toFixed(2)}</div>
               </div>
-              <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Total nuevo</div>
+              <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+                <div className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1">Total nueva orden</div>
                 <div className="text-lg font-bold text-blue-700">${totalNuevo.toFixed(2)}</div>
               </div>
-              <div className={`rounded-xl p-3 border ${diferencia > 0 ? 'bg-red-50 border-red-100' : diferencia < 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200'}`}>
-                <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${diferencia > 0 ? 'text-red-400' : diferencia < 0 ? 'text-emerald-400' : 'text-slate-400'}`}>Diferencia</div>
-                <div className={`text-lg font-bold ${diferencia > 0 ? 'text-red-700' : diferencia < 0 ? 'text-emerald-700' : 'text-slate-600'}`}>
+              <div className={`rounded-xl p-3 border ${diferencia > 0 ? 'bg-red-50 border-red-200' : diferencia < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${diferencia > 0 ? 'text-red-500' : diferencia < 0 ? 'text-emerald-500' : 'text-slate-400'}`}>Diferencia</div>
+                <div className={`text-lg font-bold ${diferencia > 0 ? 'text-red-700' : diferencia < 0 ? 'text-emerald-700' : 'text-slate-500'}`}>
                   {diferencia > 0 ? '+' : ''}{diferencia.toFixed(2)}
                 </div>
               </div>
-              <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">Ya pagado</div>
-                <div className="text-lg font-bold text-amber-700">${montoPagado.toFixed(2)}</div>
+            </div>
+
+            {/* Info de la anulación */}
+            <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-start gap-2">
+              <span className="text-base mt-0.5">⚠️</span>
+              <span>
+                La orden anterior <strong>({ordenOriginal.numero})</strong> y todos sus pagos registrados serán anulados. 
+                El dinero pagado anteriormente <strong>regresará automáticamente</strong> a los métodos de pago correspondientes.
+                Se creará una nueva orden con los datos corregidos.
+              </span>
+            </div>
+
+            {/* Selector de pago inicial para la nueva orden */}
+            <div className="border-t border-slate-100 pt-4">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
+                Pago Inicial para la Nueva Orden <span className="text-slate-400 font-normal normal-case">(opcional)</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="co-label">Cuenta / Método de Pago</label>
+                  <select
+                    className="co-input bg-white"
+                    style={{ height: '38px', borderRadius: '10px', padding: '0 10px', fontSize: '13px' }}
+                    value={pagoEdicion.metodoPagoId}
+                    onChange={e => setPagoEdicion(p => ({ ...p, metodoPagoId: e.target.value }))}
+                  >
+                    <option value="">-- Sin pago inicial --</option>
+                    {metodosPago.filter(m => m.activo !== false).map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.nombre}{m.saldoActual != null ? ` — Saldo: $${Number(m.saldoActual).toFixed(2)}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="co-label">Monto a Pagar</label>
+                  <input
+                    type="number"
+                    className="co-input"
+                    min="0"
+                    step="0.01"
+                    max={totalNuevo}
+                    value={pagoEdicion.monto}
+                    onChange={e => setPagoEdicion(p => ({ ...p, monto: e.target.value }))}
+                    placeholder={`Máx. $${totalNuevo.toFixed(2)}`}
+                    onWheel={e => e.target.blur()}
+                  />
+                </div>
+                <div>
+                  <label className="co-label">Referencia / Nota de Pago</label>
+                  <input
+                    type="text"
+                    className="co-input"
+                    value={pagoEdicion.referencia}
+                    onChange={e => setPagoEdicion(p => ({ ...p, referencia: e.target.value }))}
+                    placeholder="Nro. transferencia, voucher..."
+                  />
+                </div>
               </div>
             </div>
-            {montoPagado > 0 && (
-              <div className={`mt-3 p-3 rounded-xl text-sm font-semibold flex items-center gap-2 ${esSaldoAFavor ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
-                {esSaldoAFavor ? (
-                  <>
-                    <span>✅</span>
-                    <span>Saldo a favor del cliente/proveedor: <strong>${(montoPagado - totalNuevo).toFixed(2)}</strong>. El historial de pagos se preserva; la CxP quedará en $0.00.</span>
-                  </>
-                ) : (
-                  <>
-                    <span>💳</span>
-                    <span>Nuevo saldo pendiente de pago: <strong>${nuevoSaldo.toFixed(2)}</strong>. Los abonos previos de <strong>${montoPagado.toFixed(2)}</strong> se conservan en el historial.</span>
-                  </>
-                )}
-              </div>
-            )}
           </div>
         )}
 
