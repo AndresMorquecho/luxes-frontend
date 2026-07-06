@@ -74,6 +74,12 @@ const getNotificationRoute = (notification) => {
     return '/nomina/horas-extras';
   }
 
+  // Herramientas pendientes de devolución tras instalación
+  if (title.includes('herramienta en devolución') || title.includes('herramienta en devolucion')
+    || message.includes('debes devolver')) {
+    return '/devoluciones';
+  }
+
   // Instalación iniciada o completada / Montaje
   if (title.includes('instalación') || title.includes('instalacion')
     || message.includes('instalación') || message.includes('instalacion')
