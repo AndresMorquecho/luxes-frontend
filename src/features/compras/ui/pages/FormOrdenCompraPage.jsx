@@ -127,7 +127,7 @@ export const FormOrdenCompraPage = () => {
       });
 
       if (isEdit) {
-        const metodosPromise = isAdminUser(currentUser)
+        const metodosPromise = isAdmin
           ? getMetodosPago().catch(() => [])
           : Promise.resolve([]);
 
@@ -180,7 +180,7 @@ export const FormOrdenCompraPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, isEdit, currentUser]);
+  }, [id, isEdit, isAdmin]);
 
   useEffect(() => {
     loadData();
