@@ -447,15 +447,8 @@ export const DetalleAprobacionPage = () => {
                     <p>No hay artículos registrados en esta orden.</p>
                     <p className="mt-2 text-xs text-slate-400">
                       Si la orden tenía materiales, es posible que se hayan perdido al aprobar sin cargar los ítems.
+                      Gestiona los ítems desde esta pantalla de aprobación antes de confirmar.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/compras/editar/${id}`)}
-                      className="co-btn-primary mt-4"
-                      style={{ padding: '8px 18px', fontSize: '12px' }}
-                    >
-                      Editar orden y volver a agregar materiales
-                    </button>
                   </td>
                 </tr>
               )}

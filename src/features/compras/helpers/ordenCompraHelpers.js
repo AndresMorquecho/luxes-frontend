@@ -22,6 +22,24 @@ export const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year
 export function isOrdenEditablePorRecepcion(estado) {
   return estado !== 'recibida' && estado !== 'parcialmente_recibida';
 }
+
+/** Solo órdenes aprobadas (y sin recepción) admiten edición administrativa. */
+export function isOrdenEditable(estado) {
+  return estado === 'aprobada';
+}
+
+export function getOrdenNoEditableMensaje(estado) {
+  if (estado === 'pendiente_aprobacion') {
+    return 'Esta orden está pendiente de aprobación y no puede editarse.';
+  }
+  if (estado === 'recibida' || estado === 'parcialmente_recibida') {
+    return `Esta orden está en estado «${estado === 'parcialmente_recibida' ? 'Recepción parcial' : 'Recibida'}» y ya no admite cambios.`;
+  }
+  if (estado === 'cancelada' || estado === 'rechazada') {
+    return 'Esta orden fue cancelada o rechazada y no puede modificarse.';
+  }
+  return 'Esta orden no puede editarse en su estado actual.';
+}
 export const fmtDateTime = (d) => d
   ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '—';

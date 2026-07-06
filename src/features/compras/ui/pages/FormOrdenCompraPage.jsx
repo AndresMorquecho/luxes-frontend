@@ -13,7 +13,7 @@ import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { isAdminUser, isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
 import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
-import { fmtMoney, isOrdenEditablePorRecepcion, mergeOrdenDetalles, mapDetallesToFormRows } from '../../helpers/ordenCompraHelpers.js';
+import { fmtMoney, isOrdenEditable, getOrdenNoEditableMensaje, mergeOrdenDetalles, mapDetallesToFormRows } from '../../helpers/ordenCompraHelpers.js';
 
 const MATERIAL_SEARCH_LIMIT = 5;
 const MIN_FILTER_CHARS = 2;
@@ -84,7 +84,7 @@ export const FormOrdenCompraPage = () => {
     [proyectos, form.proyectoId],
   );
 
-  const editBloqueado = isEdit && !isOrdenEditablePorRecepcion(ordenEstado);
+  const editBloqueado = isEdit && !isOrdenEditable(ordenEstado);
   const adminEditaPrecios = isAdmin && isEdit && !editBloqueado;
   const adminVePrecios = isAdmin && isEdit;
 
@@ -356,7 +356,7 @@ export const FormOrdenCompraPage = () => {
     e.preventDefault();
 
     if (editBloqueado) {
-      toast.error('Esta orden ya fue recibida y no puede modificarse.');
+      toast.error(getOrdenNoEditableMensaje(ordenEstado));
       return;
     }
     
@@ -459,7 +459,7 @@ export const FormOrdenCompraPage = () => {
             </h1>
             <p className="co-subtitle">
               {editBloqueado
-                ? 'Esta orden ya fue recibida y no puede modificarse.'
+                ? getOrdenNoEditableMensaje(ordenEstado)
                 : isEdit && isAdmin
                   ? 'Modifica items, cantidades y precios de la orden.'
                   : isEdit
@@ -481,7 +481,7 @@ export const FormOrdenCompraPage = () => {
             className="co-card p-4 text-sm font-medium"
             style={{ background: '#fef2f2', border: '1.5px solid #fecaca', color: '#b91c1c' }}
           >
-            Esta orden está en estado «{ordenEstado === 'parcialmente_recibida' ? 'Recepción parcial' : 'Recibida'}» y ya no admite cambios.
+            {getOrdenNoEditableMensaje(ordenEstado)}
           </div>
         )}
         
