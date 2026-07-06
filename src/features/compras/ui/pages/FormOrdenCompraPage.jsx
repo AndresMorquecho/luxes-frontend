@@ -36,6 +36,7 @@ export const FormOrdenCompraPage = () => {
   const [metodosPago, setMetodosPago] = useState([]);
   const [creatingMaterial, setCreatingMaterial] = useState(false);
   const [ordenOriginal, setOrdenOriginal] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   // Estado para el pago inicial al editar (admin)
   const [pagoEdicion, setPagoEdicion] = useState({ metodoPagoId: '', monto: '', referencia: '' });
   const [form, setForm] = useState(() => {
@@ -296,7 +297,7 @@ export const FormOrdenCompraPage = () => {
   const totalAnterior = ordenOriginal?.total ?? 0;
   const diferencia = totalNuevo - totalAnterior;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
     if (form.detalles.length === 0) {
@@ -309,6 +310,15 @@ export const FormOrdenCompraPage = () => {
       return;
     }
 
+    if (isEdit && isAdmin) {
+      // Abre el modal para que el administrador decida el nuevo método de pago / abono
+      setShowPaymentModal(true);
+    } else {
+      executeSubmit();
+    }
+  };
+
+  const executeSubmit = async () => {
     setSaving(true);
     try {
       const payload = {
@@ -346,6 +356,7 @@ export const FormOrdenCompraPage = () => {
       }
 
       toast.success(isEdit ? 'Orden de compra actualizada con éxito' : 'Orden de compra creada con éxito');
+      setShowPaymentModal(false);
       navigate('/compras');
     } catch (err) {
       toast.error('Error al guardar la orden: ' + err.message);
@@ -700,91 +711,7 @@ export const FormOrdenCompraPage = () => {
           </table>
         </div>
 
-        {/* Resumen de cambio + Pago Inicial — Solo para admin en modo edición */}
-        {isAdmin && isEdit && ordenOriginal && (
-          <div className="co-card p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
-              Resumen del Cambio
-            </div>
-
-            {/* Resumen numérico */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total anterior (anulado)</div>
-                <div className="text-lg font-bold text-slate-500 line-through">${totalAnterior.toFixed(2)}</div>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
-                <div className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1">Total nueva orden</div>
-                <div className="text-lg font-bold text-blue-700">${totalNuevo.toFixed(2)}</div>
-              </div>
-              <div className={`rounded-xl p-3 border ${diferencia > 0 ? 'bg-red-50 border-red-200' : diferencia < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${diferencia > 0 ? 'text-red-500' : diferencia < 0 ? 'text-emerald-500' : 'text-slate-400'}`}>Diferencia</div>
-                <div className={`text-lg font-bold ${diferencia > 0 ? 'text-red-700' : diferencia < 0 ? 'text-emerald-700' : 'text-slate-500'}`}>
-                  {diferencia > 0 ? '+' : ''}{diferencia.toFixed(2)}
-                </div>
-              </div>
-            </div>
-
-            {/* Info de la anulación */}
-            <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-start gap-2">
-              <span className="text-base mt-0.5">⚠️</span>
-              <span>
-                La orden anterior <strong>({ordenOriginal.numero})</strong> y todos sus pagos registrados serán anulados. 
-                El dinero pagado anteriormente <strong>regresará automáticamente</strong> a los métodos de pago correspondientes.
-                Se creará una nueva orden con los datos corregidos.
-              </span>
-            </div>
-
-            {/* Selector de pago inicial para la nueva orden */}
-            <div className="border-t border-slate-100 pt-4">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
-                Pago Inicial para la Nueva Orden <span className="text-slate-400 font-normal normal-case">(opcional)</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="co-label">Cuenta / Método de Pago</label>
-                  <select
-                    className="co-input bg-white"
-                    style={{ height: '38px', borderRadius: '10px', padding: '0 10px', fontSize: '13px' }}
-                    value={pagoEdicion.metodoPagoId}
-                    onChange={e => setPagoEdicion(p => ({ ...p, metodoPagoId: e.target.value }))}
-                  >
-                    <option value="">-- Sin pago inicial --</option>
-                    {metodosPago.filter(m => m.activo !== false).map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.nombre}{m.saldoActual != null ? ` — Saldo: $${Number(m.saldoActual).toFixed(2)}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="co-label">Monto a Pagar</label>
-                  <input
-                    type="number"
-                    className="co-input"
-                    min="0"
-                    step="0.01"
-                    max={totalNuevo}
-                    value={pagoEdicion.monto}
-                    onChange={e => setPagoEdicion(p => ({ ...p, monto: e.target.value }))}
-                    placeholder={`Máx. $${totalNuevo.toFixed(2)}`}
-                    onWheel={e => e.target.blur()}
-                  />
-                </div>
-                <div>
-                  <label className="co-label">Referencia / Nota de Pago</label>
-                  <input
-                    type="text"
-                    className="co-input"
-                    value={pagoEdicion.referencia}
-                    onChange={e => setPagoEdicion(p => ({ ...p, referencia: e.target.value }))}
-                    placeholder="Nro. transferencia, voucher..."
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Se quitó el panel de ajuste financiero directo de la vista */}
 
         {/* Notes and Submit */}
         <div className="flex flex-wrap md:flex-nowrap gap-6">
@@ -820,6 +747,146 @@ export const FormOrdenCompraPage = () => {
         </div>
 
       </form>
+
+      {/* Modal de Pago / Confirmación de Edición */}
+      {showPaymentModal && (
+        <>
+          <div className="co-overlay" onClick={() => setShowPaymentModal(false)} />
+          <div className="co-modal-wrap">
+            <div className="co-modal-fixed-wide animate-co-modal-in">
+              <div className="co-modal-header">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Confirmar Edición e Inicializar Pago</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">La orden anterior se anulará y se creará una nueva orden</p>
+                </div>
+                <button type="button" onClick={() => setShowPaymentModal(false)} className="co-modal-close">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="co-modal-body">
+                <div className="co-modal-grid-2col">
+                  {/* Left Column: Summary */}
+                  <div className="co-modal-col-left" style={{ justifyContent: 'center' }}>
+                    <div style={{ padding: '1.5rem', borderRadius: '16px', background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.01)' }}>
+                      <p className="text-[10px] font-bold text-slate-400 mb-4" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Resumen de Nueva Orden
+                      </p>
+                      <div className="flex justify-between text-xs mb-2">
+                        <span className="text-slate-500 font-medium">Orden original:</span>
+                        <span className="font-bold text-slate-800 font-mono">{ordenOriginal?.numero}</span>
+                      </div>
+                      <div className="flex justify-between text-xs mb-2">
+                        <span className="text-slate-500 font-medium">Concepto:</span>
+                        <span className="font-semibold text-slate-700 text-right max-w-[60%] truncate">{form.concepto || 'Sin concepto'}</span>
+                      </div>
+                      <div className="flex justify-between text-xs pt-3 border-t border-slate-100">
+                        <span className="text-slate-500 font-bold">Total Nueva Orden:</span>
+                        <span className="font-extrabold text-slate-900" style={{ fontSize: '15px' }}>${totalNuevo.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Inputs */}
+                  <div className="co-modal-col-right">
+                    <div className="p-3 mb-4 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-800">
+                      <div className="font-bold mb-1">ℹ️ Información de Reversión</div>
+                      El dinero pagado anteriormente en esta orden ha sido devuelto a su respectiva cuenta debido a la edición. Puedes volver a registrar el pago para la nueva orden desde aquí.
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="co-label">Cuenta / Método de Pago</label>
+                        <select
+                          className="co-input bg-white w-full"
+                          style={{ height: '38px', borderRadius: '10px', padding: '0 10px', fontSize: '13px' }}
+                          value={pagoEdicion.metodoPagoId}
+                          onChange={e => {
+                            setPagoEdicion(p => ({ ...p, metodoPagoId: e.target.value }));
+                            // Si se selecciona un método de pago y no hay monto, sugerir el total
+                            if (e.target.value && !pagoEdicion.monto) {
+                              setPagoEdicion(p => ({ ...p, monto: totalNuevo.toFixed(2) }));
+                            }
+                          }}
+                        >
+                          <option value="">-- Sin pago inicial --</option>
+                          {metodosPago.filter(m => m.activo !== false).map(m => (
+                            <option key={m.id} value={m.id}>
+                              {m.nombre}{m.saldoActual != null ? ` — Saldo: $${Number(m.saldoActual).toFixed(2)}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="co-label" style={{ margin: 0 }}>Monto a Pagar ($)</label>
+                          {pagoEdicion.metodoPagoId && (
+                            <button
+                              type="button"
+                              onClick={() => setPagoEdicion(p => ({ ...p, monto: totalNuevo.toFixed(2) }))}
+                              className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer"
+                            >
+                              Copiar Total
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="number"
+                          className="co-input w-full"
+                          min="0"
+                          step="0.01"
+                          max={totalNuevo}
+                          value={pagoEdicion.monto}
+                          onChange={e => setPagoEdicion(p => ({ ...p, monto: e.target.value }))}
+                          placeholder={`0.00 (Máx. $${totalNuevo.toFixed(2)})`}
+                          onWheel={e => e.target.blur()}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="co-label">Referencia / Nota de Pago</label>
+                        <input
+                          type="text"
+                          className="co-input w-full"
+                          value={pagoEdicion.referencia}
+                          onChange={e => setPagoEdicion(p => ({ ...p, referencia: e.target.value }))}
+                          placeholder="Nro. transferencia, voucher..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="co-modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="co-btn-ghost"
+                  disabled={saving}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={executeSubmit}
+                  className="co-btn-primary"
+                  style={{
+                    background: saving ? '#94a3b8' : 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
+                    boxShadow: saving ? 'none' : '0 4px 14px rgba(79, 70, 229, 0.3)',
+                    padding: '10px 24px',
+                    borderRadius: '10px'
+                  }}
+                  disabled={saving}
+                >
+                  {saving ? 'Procesando...' : 'Confirmar Guardar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
