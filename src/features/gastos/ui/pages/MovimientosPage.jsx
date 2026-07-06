@@ -9,13 +9,15 @@ const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))
 const ORIGEN_LABELS = {
   proforma: 'Proforma',
   gasto: 'Gasto',
-  orden_compra: 'Orden de Compra',
+  orden_compra: 'Pago en caja',
+  cuenta_por_pagar: 'Saldo OC',
 };
 
 const ORIGEN_COLORS = {
   proforma: { bg: 'rgba(16,185,129,0.08)', color: '#059669', border: 'rgba(16,185,129,0.2)' },
   gasto: { bg: 'rgba(239,68,68,0.08)', color: '#dc2626', border: 'rgba(239,68,68,0.2)' },
   orden_compra: { bg: 'rgba(245,158,11,0.08)', color: '#d97706', border: 'rgba(245,158,11,0.2)' },
+  cuenta_por_pagar: { bg: 'rgba(139,92,246,0.08)', color: '#7c3aed', border: 'rgba(139,92,246,0.2)' },
 };
 
 export const MovimientosPage = () => {
@@ -356,6 +358,12 @@ export const MovimientosPage = () => {
             <div style={{ fontSize: '22px', fontWeight: 800, color: '#1e293b', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '-0.02em', marginTop: '2px' }}>
               {fmt(kpi.totalEgresos)}
             </div>
+            {(kpi.totalCompromisos > 0 || kpi.totalEgresosCaja > 0) && (
+              <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>
+                Caja {fmt(kpi.totalEgresosCaja || 0)}
+                {kpi.totalCompromisos > 0 ? ` · Por pagar ${fmt(kpi.totalCompromisos)}` : ''}
+              </div>
+            )}
           </div>
         </div>
 
@@ -566,7 +574,10 @@ export const MovimientosPage = () => {
                           {m.referencia || '—'}
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <span className={m.tipo === 'ingreso' ? 'mv-monto-ingreso' : 'mv-monto-egreso'}>
+                          <span
+                            className={m.tipo === 'ingreso' ? 'mv-monto-ingreso' : 'mv-monto-egreso'}
+                            style={m.esCompromiso ? { color: '#7c3aed' } : undefined}
+                          >
                             {m.tipo === 'ingreso' ? '+' : '-'}{fmt(m.monto)}
                           </span>
                         </td>

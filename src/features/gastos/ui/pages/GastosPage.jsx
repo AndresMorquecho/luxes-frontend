@@ -617,8 +617,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   // --- FILTRADOS Y PAGINACIÓN DE GASTOS ---
   const q = search.toLowerCase();
   const itemsPorOrigen = items.filter((g) => {
-    if (filtroOrigen === 'gasto') return g.origen !== 'orden_compra';
+    if (filtroOrigen === 'gasto') return g.origen !== 'orden_compra' && g.origen !== 'cuenta_por_pagar';
     if (filtroOrigen === 'orden_compra') return g.origen === 'orden_compra';
+    if (filtroOrigen === 'cuenta_por_pagar') return g.origen === 'cuenta_por_pagar';
     return true;
   });
   const filteredAll = itemsPorOrigen.filter(g =>
@@ -638,8 +639,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   useEffect(() => { setPage(1); }, [search, filtroOrigen]);
 
   // --- TOTALES KPI GASTOS ---
-  const gastosManuales = items.filter((g) => g.origen !== 'orden_compra');
+  const gastosManuales = items.filter((g) => g.origen !== 'orden_compra' && g.origen !== 'cuenta_por_pagar');
   const pagosOC = items.filter((g) => g.origen === 'orden_compra');
+  const saldosOC = items.filter((g) => g.origen === 'cuenta_por_pagar');
   const sumMontos = (list) => list.reduce((s, g) => s + Number(g.monto || 0), 0);
 
   const totalMesManuales = gastosManuales.filter(g => {
@@ -653,6 +655,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     totalMonto: sumMontos(items),
     totalGastosManuales: sumMontos(gastosManuales),
     totalPagosOC: sumMontos(pagosOC),
+    totalSaldosOC: sumMontos(saldosOC),
+    totalComprometidoOC: sumMontos(pagosOC) + sumMontos(saldosOC),
     promedio: gastosManuales.length ? sumMontos(gastosManuales) / gastosManuales.length : 0,
     totalMes: totalMesManuales,
     pagosCompra: pagosOC.length,
@@ -918,7 +922,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               <div>
                 <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pagos OC (caja)</div>
                 <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalPagosOC)}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">{totales.pagosCompra} pago{totales.pagosCompra !== 1 ? 's' : ''} registrado{totales.pagosCompra !== 1 ? 's' : ''}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">
+                  + {fmt(totales.totalSaldosOC)} por pagar = {fmt(totales.totalComprometidoOC)} comprometido
+                </div>
               </div>
             </div>
             <div className="ga-card px-5 py-4 flex items-center gap-4">
@@ -941,7 +947,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             {[
               { id: 'todos', label: 'Todos' },
               { id: 'gasto', label: 'Gastos manuales' },
-              { id: 'orden_compra', label: 'Pagos OC' },
+              { id: 'orden_compra', label: 'Pagos en caja' },
+              { id: 'cuenta_por_pagar', label: 'Saldos OC' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -996,6 +1003,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             <div className="text-[11px] text-slate-500 mt-0.5">
                               Pago en caja · Total orden {fmt(g.ordenTotal)}
                               {g.ordenSaldo > 0.01 ? ` · Saldo pendiente ${fmt(g.ordenSaldo)}` : ' · Pagada'}
+                            </div>
+                          )}
+                          {g.origen === 'cuenta_por_pagar' && g.ordenTotal != null && (
+                            <div className="text-[11px] text-violet-600 mt-0.5 font-medium">
+                              Por pagar · Total orden {fmt(g.ordenTotal)} · Ya pagado {fmt(g.ordenPagado)}
                             </div>
                           )}
                           {g.notas && g.origen !== 'orden_compra' && (
