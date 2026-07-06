@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { getOrdenById, createOrden, updateOrden } from '../../application/comprasService';
+import { getOrdenById, createOrden, updateOrden, getMetodosPago } from '../../application/comprasService';
 import { 
   getMateriales, 
   buildMaterialesQuery, 
@@ -13,6 +13,7 @@ import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { isAdminUser, isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
 import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
+import { fmtMoney, isOrdenEditablePorRecepcion } from '../../helpers/ordenCompraHelpers.js';
 
 const MATERIAL_SEARCH_LIMIT = 5;
 const MIN_FILTER_CHARS = 2;
@@ -34,6 +35,13 @@ export const FormOrdenCompraPage = () => {
   const [proyectos, setProyectos] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [creatingMaterial, setCreatingMaterial] = useState(false);
+  const [ordenEstado, setOrdenEstado] = useState('');
+  const [ordenNumero, setOrdenNumero] = useState('');
+  const [totalAnterior, setTotalAnterior] = useState(0);
+  const [impuestoOrden, setImpuestoOrden] = useState(0);
+  const [montoPagado, setMontoPagado] = useState(0);
+  const [metodosPago, setMetodosPago] = useState([]);
+  const [abonoAjuste, setAbonoAjuste] = useState({ monto: '', metodoPagoId: '', referencia: '' });
   const [form, setForm] = useState(() => {
     const defaultState = {
       fecha: new Date().toISOString().split('T')[0],
@@ -75,6 +83,36 @@ export const FormOrdenCompraPage = () => {
     [proyectos, form.proyectoId],
   );
 
+  const editBloqueado = isEdit && !isOrdenEditablePorRecepcion(ordenEstado);
+  const adminEditaPrecios = isAdmin && isEdit && !editBloqueado;
+  const adminVePrecios = isAdmin && isEdit;
+
+  const subtotalOrden = useMemo(
+    () => form.detalles.reduce(
+      (sum, d) => sum + (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0),
+      0,
+    ),
+    [form.detalles],
+  );
+
+  const totalNuevo = useMemo(
+    () => subtotalOrden + (parseFloat(impuestoOrden) || 0),
+    [subtotalOrden, impuestoOrden],
+  );
+
+  const diferenciaTotal = useMemo(
+    () => totalNuevo - (parseFloat(totalAnterior) || 0),
+    [totalNuevo, totalAnterior],
+  );
+
+  const nuevoSaldoPendiente = useMemo(
+    () => Math.max(0, totalNuevo - (parseFloat(montoPagado) || 0)),
+    [totalNuevo, montoPagado],
+  );
+
+  const abonoAjusteNum = parseFloat(abonoAjuste.monto) || 0;
+  const hayCambioPrecio = Math.abs(diferenciaTotal) > 0.01;
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -89,19 +127,30 @@ export const FormOrdenCompraPage = () => {
       });
 
       if (isEdit) {
-        const [projResult, o, units] = await Promise.all([
+        const metodosPromise = isAdminUser(currentUser)
+          ? getMetodosPago().catch(() => [])
+          : Promise.resolve([]);
+
+        const [projResult, o, units, metodos] = await Promise.all([
           proyectosPromise,
           getOrdenById(id).catch(err => {
             console.error('Error al cargar la orden:', err);
             return null;
           }),
-          unidadesPromise
+          unidadesPromise,
+          metodosPromise,
         ]);
 
         setProyectos(Array.isArray(projResult?.data) ? projResult.data : []);
         setUnidades(units);
+        setMetodosPago(Array.isArray(metodos) ? metodos : []);
 
         if (o) {
+          setOrdenEstado(o.estado || '');
+          setOrdenNumero(o.numero || '');
+          setTotalAnterior(Number(o.total) || 0);
+          setImpuestoOrden(Number(o.impuesto) || 0);
+          setMontoPagado(Number(o.cuentaPorPagar?.montoPagado) || 0);
           setForm({
             fecha: o.fecha ? new Date(o.fecha).toISOString().split('T')[0] : '',
             concepto: o.concepto || '',
@@ -110,6 +159,7 @@ export const FormOrdenCompraPage = () => {
               ? o.detalles.map(d => ({
                   descripcion: d.descripcion,
                   cantidad: d.cantidad,
+                  precioUnitario: d.precioUnitario ?? 0,
                   materialId: d.materialId || null,
                   isCustom: !d.materialId
                 }))
@@ -130,7 +180,7 @@ export const FormOrdenCompraPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, isEdit]);
+  }, [id, isEdit, currentUser]);
 
   useEffect(() => {
     loadData();
@@ -255,6 +305,7 @@ export const FormOrdenCompraPage = () => {
         {
           descripcion: itemInput.descripcion,
           cantidad: itemInput.cantidad,
+          precioUnitario: adminEditaPrecios ? '0' : undefined,
           materialId: itemInput.materialId || null,
           isCustom: !itemInput.materialId
         }
@@ -283,6 +334,11 @@ export const FormOrdenCompraPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (editBloqueado) {
+      toast.error('Esta orden ya fue recibida y no puede modificarse.');
+      return;
+    }
     
     if (form.detalles.length === 0) {
       toast.error('Debe agregar al menos un item a la orden.');
@@ -292,6 +348,22 @@ export const FormOrdenCompraPage = () => {
     if (form.proyectoId && form.detalles.some(d => d.isCustom || !d.materialId)) {
       toast.error('Esta orden está asociada a un proyecto y no puede contener materiales libres. Registra los materiales o remuévelos de la lista.');
       return;
+    }
+
+    if (adminEditaPrecios && form.detalles.some((d) => !parseFloat(d.precioUnitario) || parseFloat(d.precioUnitario) <= 0)) {
+      toast.error('Todos los items deben tener un precio unitario mayor a 0.');
+      return;
+    }
+
+    if (adminEditaPrecios && abonoAjusteNum > 0) {
+      if (!abonoAjuste.metodoPagoId) {
+        toast.error('Selecciona un método de pago para registrar el abono del ajuste.');
+        return;
+      }
+      if (abonoAjusteNum > nuevoSaldoPendiente + 0.01) {
+        toast.error(`El abono no puede exceder el saldo pendiente (${fmtMoney(nuevoSaldoPendiente)}).`);
+        return;
+      }
     }
 
     setSaving(true);
@@ -304,9 +376,22 @@ export const FormOrdenCompraPage = () => {
         detalles: form.detalles.map(d => ({
           descripcion: d.descripcion,
           cantidad: parseFloat(d.cantidad) || 0,
-          materialId: d.materialId || null
+          materialId: d.materialId || null,
+          ...(isEdit
+            ? { precioUnitario: parseFloat(d.precioUnitario) || 0 }
+            : {}),
         })),
       };
+
+      if (isEdit) {
+        payload.impuesto = parseFloat(impuestoOrden) || 0;
+        if (adminEditaPrecios && abonoAjusteNum > 0) {
+          payload.abonoMonto = abonoAjusteNum;
+          payload.metodoPagoId = abonoAjuste.metodoPagoId;
+          payload.abonoReferencia = abonoAjuste.referencia.trim()
+            || `Ajuste por edición de precios - ${ordenNumero}`;
+        }
+      }
 
       if (isEdit) {
         await updateOrden(id, payload);
@@ -348,7 +433,13 @@ export const FormOrdenCompraPage = () => {
               {isEdit ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}
             </h1>
             <p className="co-subtitle">
-              {isEdit ? 'Modifica los items de la orden' : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
+              {editBloqueado
+                ? 'Esta orden ya fue recibida y no puede modificarse.'
+                : isEdit && isAdmin
+                  ? 'Modifica items, cantidades y precios de la orden.'
+                  : isEdit
+                    ? 'Modifica los items de la orden.'
+                    : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
             </p>
           </div>
         </div>
@@ -359,6 +450,15 @@ export const FormOrdenCompraPage = () => {
 
       {/* Main Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
+
+        {editBloqueado && (
+          <div
+            className="co-card p-4 text-sm font-medium"
+            style={{ background: '#fef2f2', border: '1.5px solid #fecaca', color: '#b91c1c' }}
+          >
+            Esta orden está en estado «{ordenEstado === 'parcialmente_recibida' ? 'Recepción parcial' : 'Recibida'}» y ya no admite cambios.
+          </div>
+        )}
         
         {/* Encabezado Card */}
         <div className="co-card p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
@@ -382,6 +482,7 @@ export const FormOrdenCompraPage = () => {
                 value={form.fecha}
                 onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))}
                 required
+                disabled={editBloqueado}
               />
             </div>
             <div>
@@ -391,6 +492,7 @@ export const FormOrdenCompraPage = () => {
                 style={{ height: '38px', borderRadius: '10px', padding: '0 10px', fontSize: '13px' }}
                 value={form.proyectoId || ''}
                 onChange={e => setForm(p => ({ ...p, proyectoId: e.target.value }))}
+                disabled={editBloqueado}
               >
                 <option value="">-- Sin Proyecto (Gasto General) --</option>
                 {proyectosAsociables.map(p => (
@@ -407,11 +509,13 @@ export const FormOrdenCompraPage = () => {
               placeholder="Ej. Materiales para proyecto X, Reposición de stock..."
               value={form.concepto}
               onChange={e => setForm(p => ({ ...p, concepto: e.target.value }))}
+              disabled={editBloqueado}
             />
           </div>
         </div>
 
         {/* Item Entry Bar */}
+        {!editBloqueado && (
         <div className="p-5" style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px' }}>
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
             Agregar Item a la Orden
@@ -534,6 +638,7 @@ export const FormOrdenCompraPage = () => {
             </button>
           </div>
         </div>
+        )}
 
         {/* Items Table */}
         <div className="overflow-x-auto">
@@ -544,11 +649,21 @@ export const FormOrdenCompraPage = () => {
                 <th style={{ width: '130px' }}>Tipo</th>
                 <th>Descripción / Material</th>
                 <th className="text-center" style={{ width: '150px' }}>Cantidad</th>
-                <th className="text-center" style={{ width: '80px' }}>Acciones</th>
+                {adminVePrecios && (
+                  <>
+                    <th className="text-right" style={{ width: '150px' }}>Precio Unit.</th>
+                    <th className="text-right" style={{ width: '130px' }}>Subtotal</th>
+                  </>
+                )}
+                {!editBloqueado && (
+                  <th className="text-center" style={{ width: '80px' }}>Acciones</th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {form.detalles.map((d, index) => (
+              {form.detalles.map((d, index) => {
+                const lineSubtotal = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
+                return (
                 <tr key={index}>
                   <td className="text-center font-bold text-slate-400">{index + 1}</td>
                   <td>
@@ -557,7 +672,7 @@ export const FormOrdenCompraPage = () => {
                     </span>
                   </td>
                   <td>
-                    {d.isCustom ? (
+                    {d.isCustom && !editBloqueado ? (
                       <input
                         type="text"
                         className="co-table-input w-full"
@@ -570,18 +685,46 @@ export const FormOrdenCompraPage = () => {
                     )}
                   </td>
                   <td>
-                    <input
-                      type="number"
-                      className="co-table-input text-center mx-auto"
-                      style={{ width: '100px' }}
-                      min="0.01"
-                      step="0.01"
-                      value={d.cantidad}
-                      onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
-                      required
-                      onWheel={e => e.target.blur()}
-                    />
+                    {editBloqueado ? (
+                      <span className="block text-center font-semibold text-slate-700">{d.cantidad}</span>
+                    ) : (
+                      <input
+                        type="number"
+                        className="co-table-input text-center mx-auto"
+                        style={{ width: '100px' }}
+                        min="0.01"
+                        step="0.01"
+                        value={d.cantidad}
+                        onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
+                        required
+                        onWheel={e => e.target.blur()}
+                      />
+                    )}
                   </td>
+                  {adminVePrecios && (
+                    <>
+                      <td className="text-right">
+                        {adminEditaPrecios ? (
+                          <input
+                            type="number"
+                            className="co-table-input text-right"
+                            style={{ maxWidth: '130px', marginLeft: 'auto' }}
+                            min="0.01"
+                            step="0.01"
+                            value={d.precioUnitario ?? ''}
+                            onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
+                            placeholder="0.00"
+                            required
+                            onWheel={e => e.target.blur()}
+                          />
+                        ) : (
+                          <span className="font-semibold text-slate-700">{fmtMoney(d.precioUnitario)}</span>
+                        )}
+                      </td>
+                      <td className="text-right font-bold text-slate-800">{fmtMoney(lineSubtotal)}</td>
+                    </>
+                  )}
+                  {!editBloqueado && (
                   <td className="text-center">
                     <button
                       type="button"
@@ -592,18 +735,140 @@ export const FormOrdenCompraPage = () => {
                       ×
                     </button>
                   </td>
+                  )}
                 </tr>
-              ))}
+              );})}
               {form.detalles.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center py-16 text-slate-400 font-medium text-sm">
+                  <td colSpan={adminVePrecios ? 7 : (editBloqueado ? 4 : 5)} className="text-center py-16 text-slate-400 font-medium text-sm">
                     No hay items agregados. Usa la barra superior para agregar items.
                   </td>
+                </tr>
+              )}
+              {adminVePrecios && form.detalles.length > 0 && (
+                <tr>
+                  <td colSpan={5} className="text-right font-bold text-slate-500 text-sm pt-4">Total orden</td>
+                  <td className="text-right font-bold text-slate-900 text-base pt-4">{fmtMoney(totalNuevo)}</td>
+                  <td />
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Ajuste financiero al editar precios */}
+        {adminEditaPrecios && form.detalles.length > 0 && (
+          <div className="co-card p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
+              Ajuste financiero
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Total anterior</p>
+                <p className="text-sm font-bold text-slate-700">{fmtMoney(totalAnterior)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Total nuevo</p>
+                <p className="text-sm font-bold text-slate-900">{fmtMoney(totalNuevo)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Diferencia</p>
+                <p className={`text-sm font-bold ${diferenciaTotal > 0 ? 'text-orange-600' : diferenciaTotal < 0 ? 'text-green-600' : 'text-slate-600'}`}>
+                  {diferenciaTotal > 0 ? '+' : ''}{fmtMoney(diferenciaTotal)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Ya pagado</p>
+                <p className="text-sm font-bold text-slate-700">{fmtMoney(montoPagado)}</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl mb-4" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-slate-600">Nuevo saldo pendiente</span>
+                <span className="text-base font-extrabold text-slate-900">{fmtMoney(nuevoSaldoPendiente)}</span>
+              </div>
+              {diferenciaTotal < -0.01 && (
+                <p className="text-[11px] text-green-700 font-medium mt-2">
+                  El total bajó. El saldo se recalcula automáticamente; los pagos anteriores se conservan.
+                </p>
+              )}
+              {hayCambioPrecio && diferenciaTotal > 0.01 && (
+                <p className="text-[11px] text-orange-700 font-medium mt-2">
+                  El total aumentó en {fmtMoney(diferenciaTotal)}. Puedes registrar el pago del ajuste ahora o dejarlo en cuenta por pagar.
+                </p>
+              )}
+            </div>
+
+            {nuevoSaldoPendiente > 0.01 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="co-label" style={{ margin: 0 }}>Abono del ajuste ($)</label>
+                    <button
+                      type="button"
+                      className="text-[10px] font-bold text-blue-600 underline"
+                      onClick={() => setAbonoAjuste((p) => ({
+                        ...p,
+                        monto: nuevoSaldoPendiente.toFixed(2),
+                      }))}
+                    >
+                      Usar saldo
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    className="co-input"
+                    min="0"
+                    step="0.01"
+                    max={nuevoSaldoPendiente}
+                    value={abonoAjuste.monto}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAbonoAjuste((p) => {
+                        const next = { ...p, monto: val };
+                        if (parseFloat(val) > 0 && !p.metodoPagoId && metodosPago.length > 0) {
+                          const activo = metodosPago.find((m) => m.activo);
+                          if (activo) next.metodoPagoId = activo.id;
+                        }
+                        return next;
+                      });
+                    }}
+                    placeholder="0.00 (opcional)"
+                    onWheel={(e) => e.target.blur()}
+                  />
+                </div>
+                <div>
+                  <label className="co-label">Método de pago</label>
+                  <select
+                    className="co-input"
+                    value={abonoAjuste.metodoPagoId}
+                    onChange={(e) => setAbonoAjuste((p) => ({ ...p, metodoPagoId: e.target.value }))}
+                    disabled={!(abonoAjusteNum > 0)}
+                    style={{ background: abonoAjusteNum > 0 ? '#fff' : '#f8fafc' }}
+                  >
+                    <option value="">{abonoAjusteNum > 0 ? 'Selecciona cuenta...' : 'No requiere (sin abono)'}</option>
+                    {metodosPago.filter((m) => m.activo).map((m) => (
+                      <option key={m.id} value={m.id}>{m.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="co-label">Referencia</label>
+                  <input
+                    type="text"
+                    className="co-input"
+                    value={abonoAjuste.referencia}
+                    onChange={(e) => setAbonoAjuste((p) => ({ ...p, referencia: e.target.value }))}
+                    disabled={!(abonoAjusteNum > 0)}
+                    placeholder="No. transferencia, cheque..."
+                    style={{ background: abonoAjusteNum > 0 ? '#fff' : '#f8fafc' }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Notes and Submit */}
         <div className="flex flex-wrap md:flex-nowrap gap-6">
@@ -616,6 +881,7 @@ export const FormOrdenCompraPage = () => {
               placeholder="Notas adicionales sobre la orden..."
               value={form.notas}
               onChange={e => setForm(p => ({ ...p, notas: e.target.value }))}
+              disabled={editBloqueado}
             />
           </div>
           <div className="flex items-center justify-end gap-3 shrink-0 self-end mt-4">
@@ -627,6 +893,7 @@ export const FormOrdenCompraPage = () => {
             >
               Cancelar
             </button>
+            {!editBloqueado && (
             <button
               type="submit"
               disabled={saving}
@@ -635,6 +902,7 @@ export const FormOrdenCompraPage = () => {
             >
               {saving ? 'Guardando...' : 'Guardar Orden'}
             </button>
+            )}
           </div>
         </div>
 

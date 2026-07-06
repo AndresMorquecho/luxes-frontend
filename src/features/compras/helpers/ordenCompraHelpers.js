@@ -17,6 +17,11 @@ export const FILTROS_HISTORIAL = [
 
 export const fmtMoney = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 export const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+/** Órdenes ya recibidas (total o parcial) no deben editarse. */
+export function isOrdenEditablePorRecepcion(estado) {
+  return estado !== 'recibida' && estado !== 'parcialmente_recibida';
+}
 export const fmtDateTime = (d) => d
   ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '—';
