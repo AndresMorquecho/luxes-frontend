@@ -17,6 +17,11 @@ export const FILTROS_HISTORIAL = [
 
 export const fmtMoney = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 export const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+/** Órdenes ya recibidas (total o parcial) no deben editarse. */
+export function isOrdenEditablePorRecepcion(estado) {
+  return estado !== 'recibida' && estado !== 'parcialmente_recibida';
+}
 export const fmtDateTime = (d) => d
   ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '—';
@@ -87,6 +92,29 @@ export const normalizeOrdenDetalles = (ordenOrDetalles) => {
     materialId: d.materialId || null,
   }));
 };
+
+/** Combina detalles de la orden con un fallback (p. ej. endpoint /detalles). */
+export function mergeOrdenDetalles(orden, detallesFallback = []) {
+  if (!orden) return null;
+  const fromOrden = normalizeOrdenDetalles(orden);
+  if (fromOrden.length > 0) {
+    return { ...orden, detalles: fromOrden };
+  }
+  const fromFallback = normalizeOrdenDetalles(detallesFallback);
+  return { ...orden, detalles: fromFallback };
+}
+
+/** Mapea líneas normalizadas al estado del formulario de edición. */
+export function mapDetallesToFormRows(ordenOrDetalles) {
+  return normalizeOrdenDetalles(ordenOrDetalles).map((d) => ({
+    lineId: d.id,
+    descripcion: d.descripcion,
+    cantidad: String(d.cantidad),
+    precioUnitario: d.precioUnitario,
+    materialId: d.materialId || null,
+    isCustom: !d.materialId,
+  }));
+}
 
 export const mapOrdenToPDFFormat = (orden) => {
   if (!orden) return null;
