@@ -28,6 +28,7 @@ const CAT_BADGES = {
   logistica: { bg: 'rgba(16,185,129,0.1)', color: '#10b981', label: 'Logística' },
   vehiculos: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Vehículos' },
   varios: { bg: 'rgba(236,72,153,0.1)', color: '#ec4899', label: 'Varios' },
+  compras: { bg: 'rgba(245,158,11,0.1)', color: '#d97706', label: 'Orden de Compra' },
 };
 
 const fmt = (n) => '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -35,7 +36,7 @@ const fmt = (n) => '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, '
 const PAGE_META = {
   gastos: {
     title: 'Control de Gastos',
-    subtitle: 'Control de egresos, compras y mantenimiento central de la empresa',
+    subtitle: 'Egresos operativos, pagos de órdenes de compra y mantenimiento central',
   },
   vehiculos: {
     title: 'Gestión de Flota',
@@ -615,8 +616,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   // --- FILTRADOS Y PAGINACIÓN DE GASTOS ---
   const q = search.toLowerCase();
   const filteredAll = items.filter(g =>
-    !q || g.concepto.toLowerCase().includes(q) ||
-    g.categoria.includes(q) || g.proveedor?.toLowerCase().includes(q)
+    !q
+    || g.concepto?.toLowerCase().includes(q)
+    || g.categoria?.includes(q)
+    || g.proveedor?.toLowerCase().includes(q)
+    || g.referencia?.toLowerCase().includes(q)
+    || g.notas?.toLowerCase().includes(q)
+    || g.registradoPor?.nombre?.toLowerCase().includes(q)
   );
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
   const safePage = Math.min(page, totalPages);
@@ -629,13 +635,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     const d = new Date(g.fecha);
     const ahora = new Date();
     return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
-  }).reduce((s, g) => s + Number(g.monto), 0);
+  }).reduce((s, g) => s + Number(g.monto || 0), 0);
 
   const totales = {
     total: items.length,
-    totalMonto: items.reduce((s, g) => s + Number(g.monto), 0),
-    promedio: items.length ? (items.reduce((s, g) => s + Number(g.monto), 0) / items.length) : 0,
+    totalMonto: items.reduce((s, g) => s + Number(g.monto || 0), 0),
+    promedio: items.length ? (items.reduce((s, g) => s + Number(g.monto || 0), 0) / items.length) : 0,
     totalMes,
+    pagosCompra: items.filter((g) => g.origen === 'orden_compra').length,
   };
 
   // --- TOTALES KPI VEHÍCULOS ---
@@ -937,6 +944,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Categoría</th>
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Fecha</th>
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Proveedor</th>
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Usuario</th>
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Método</th>
                       <th className="text-right px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Monto</th>
                       <th className="text-center px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-24">Acciones</th>
@@ -944,10 +952,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </thead>
                   <tbody className="divide-y divide-slate-100/40">
                     {paginated.map((g) => (
-                      <tr key={g.id} className="ga-tr">
+                      <tr key={`${g.origen || 'gasto'}-${g.id}`} className="ga-tr">
                         <td className="px-5 py-4">
                           <div className="font-semibold text-slate-800">{g.concepto}</div>
                           {g.notas && <div className="text-[11px] text-slate-400 mt-0.5">{g.notas}</div>}
+                          {g.referencia && g.origen === 'orden_compra' && (
+                            <div className="text-[11px] text-slate-500 mt-0.5">Ref: {g.referencia}</div>
+                          )}
                           {g.id && <div className="text-[10px] text-slate-300 font-mono mt-0.5">{g.id}</div>}
                         </td>
                         <td className="px-5 py-4">
@@ -957,14 +968,20 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-slate-500 text-[12px]">
-                          {g.fecha ? g.fecha.split('T')[0] : '—'}
+                          {g.fecha ? new Date(g.fecha).toLocaleDateString('es-EC') : '—'}
                         </td>
                         <td className="px-5 py-4 text-slate-600">{g.proveedor || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-5 py-4 text-slate-600 text-[12px]">
+                          {g.registradoPor?.nombre || <span className="text-slate-300">—</span>}
+                        </td>
                         <td className="px-5 py-4 text-slate-600 font-medium">
                           {g.metodoPago?.nombre || <span className="text-slate-300">No especificado</span>}
                         </td>
                         <td className="px-5 py-4 text-right font-bold text-slate-800">{fmt(Number(g.monto))}</td>
                         <td className="px-5 py-4">
+                          {g.readonly || g.origen === 'orden_compra' ? (
+                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Solo lectura</span>
+                          ) : (
                           <div className="flex items-center justify-center gap-1">
                             <button 
                               onClick={() => openEditGasto(g)}
@@ -981,11 +998,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                               <Trash2 size={14} />
                             </button>
                           </div>
+                          )}
                         </td>
                       </tr>
                     ))}
                     {paginated.length === 0 && (
-                      <tr><td colSpan={7} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron gastos</td></tr>
+                      <tr><td colSpan={8} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron gastos</td></tr>
                     )}
                   </tbody>
                 </table>
