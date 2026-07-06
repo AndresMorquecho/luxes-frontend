@@ -54,19 +54,20 @@ export async function getOrdenById(id) {
   const orden = data.data;
   if (!orden) return orden;
 
-  if (!Array.isArray(orden.detalles) || orden.detalles.length === 0) {
-    try {
-      const detalles = await getOrdenDetalles(id);
-      if (detalles.length > 0) {
-        orden.detalles = detalles;
-      } else {
-        orden.detalles = [];
+  let detalles = Array.isArray(orden.detalles) ? orden.detalles : [];
+
+  try {
+    const detallesApi = await getOrdenDetalles(id);
+    if (Array.isArray(detallesApi) && detallesApi.length > 0) {
+      if (detallesApi.length > detalles.length || detalles.length === 0) {
+        detalles = detallesApi;
       }
-    } catch {
-      orden.detalles = Array.isArray(orden.detalles) ? orden.detalles : [];
     }
+  } catch {
+    // Mantener detalles embebidos en la orden si el endpoint dedicado falla
   }
 
+  orden.detalles = detalles;
   return orden;
 }
 

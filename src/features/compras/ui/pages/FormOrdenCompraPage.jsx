@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { getOrdenById, createOrden, updateOrden, getMetodosPago } from '../../application/comprasService';
+import { getOrdenById, createOrden, updateOrden, getMetodosPago, getOrdenDetalles } from '../../application/comprasService';
 import { 
   getMateriales, 
   buildMaterialesQuery, 
@@ -13,7 +13,7 @@ import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { isAdminUser, isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
 import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
-import { fmtMoney, isOrdenEditablePorRecepcion } from '../../helpers/ordenCompraHelpers.js';
+import { fmtMoney, isOrdenEditablePorRecepcion, mergeOrdenDetalles, mapDetallesToFormRows } from '../../helpers/ordenCompraHelpers.js';
 
 const MATERIAL_SEARCH_LIMIT = 5;
 const MIN_FILTER_CHARS = 2;
@@ -131,7 +131,7 @@ export const FormOrdenCompraPage = () => {
           ? getMetodosPago().catch(() => [])
           : Promise.resolve([]);
 
-        const [projResult, o, units, metodos] = await Promise.all([
+        const [projResult, o, units, metodos, detallesApi] = await Promise.all([
           proyectosPromise,
           getOrdenById(id).catch(err => {
             console.error('Error al cargar la orden:', err);
@@ -139,33 +139,36 @@ export const FormOrdenCompraPage = () => {
           }),
           unidadesPromise,
           metodosPromise,
+          getOrdenDetalles(id).catch(() => []),
         ]);
 
         setProyectos(Array.isArray(projResult?.data) ? projResult.data : []);
         setUnidades(units);
         setMetodosPago(Array.isArray(metodos) ? metodos : []);
 
-        if (o) {
-          setOrdenEstado(o.estado || '');
-          setOrdenNumero(o.numero || '');
-          setTotalAnterior(Number(o.total) || 0);
-          setImpuestoOrden(Number(o.impuesto) || 0);
-          setMontoPagado(Number(o.cuentaPorPagar?.montoPagado) || 0);
+        const ordenMerged = mergeOrdenDetalles(o, detallesApi);
+
+        if (ordenMerged) {
+          setOrdenEstado(ordenMerged.estado || '');
+          setOrdenNumero(ordenMerged.numero || '');
+          setTotalAnterior(Number(ordenMerged.total) || 0);
+          setImpuestoOrden(Number(ordenMerged.impuesto) || 0);
+          setMontoPagado(Number(ordenMerged.cuentaPorPagar?.montoPagado) || 0);
+
+          const filas = mapDetallesToFormRows(ordenMerged);
           setForm({
-            fecha: o.fecha ? new Date(o.fecha).toISOString().split('T')[0] : '',
-            concepto: o.concepto || '',
-            notas: o.notas || '',
-            detalles: o.detalles && o.detalles.length > 0
-              ? o.detalles.map(d => ({
-                  descripcion: d.descripcion,
-                  cantidad: d.cantidad,
-                  precioUnitario: d.precioUnitario ?? 0,
-                  materialId: d.materialId || null,
-                  isCustom: !d.materialId
-                }))
-              : [],
-            proyectoId: o.proyectoId || '',
+            fecha: ordenMerged.fecha ? new Date(ordenMerged.fecha).toISOString().split('T')[0] : '',
+            concepto: ordenMerged.concepto || '',
+            notas: ordenMerged.notas || '',
+            detalles: filas,
+            proyectoId: ordenMerged.proyectoId || '',
           });
+
+          if (filas.length === 0) {
+            toast.error('Esta orden no tiene ítems cargados. Agrégalos manualmente o revisa en aprobación.');
+          }
+        } else {
+          toast.error('No se pudo cargar la orden de compra.');
         }
       } else {
         const [projResult, units] = await Promise.all([

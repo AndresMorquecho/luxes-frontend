@@ -93,6 +93,28 @@ export const normalizeOrdenDetalles = (ordenOrDetalles) => {
   }));
 };
 
+/** Combina detalles de la orden con un fallback (p. ej. endpoint /detalles). */
+export function mergeOrdenDetalles(orden, detallesFallback = []) {
+  if (!orden) return null;
+  const fromOrden = normalizeOrdenDetalles(orden);
+  if (fromOrden.length > 0) {
+    return { ...orden, detalles: fromOrden };
+  }
+  const fromFallback = normalizeOrdenDetalles(detallesFallback);
+  return { ...orden, detalles: fromFallback };
+}
+
+/** Mapea líneas normalizadas al estado del formulario de edición. */
+export function mapDetallesToFormRows(ordenOrDetalles) {
+  return normalizeOrdenDetalles(ordenOrDetalles).map((d) => ({
+    descripcion: d.descripcion,
+    cantidad: String(d.cantidad),
+    precioUnitario: d.precioUnitario,
+    materialId: d.materialId || null,
+    isCustom: !d.materialId,
+  }));
+}
+
 export const mapOrdenToPDFFormat = (orden) => {
   if (!orden) return null;
   return {
