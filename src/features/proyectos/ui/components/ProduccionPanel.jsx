@@ -88,6 +88,8 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   useEffect(() => {
     if (impresionEnviada) {
       setActiveSubTab('timeline');
+    } else {
+      setActiveSubTab('enviar');
     }
   }, [proyectoId, impresionEnviada]);
 
