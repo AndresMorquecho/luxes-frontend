@@ -6,7 +6,6 @@ import { getPrestamos, devolverPrestamo, sincronizarDevolucionesInstalacion } fr
 import { isAdminUser } from '../../../shared/utils/userRoleHelpers.js';
 import { DateRangePicker } from '../../../shared/ui/components/DateRangePicker.jsx';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
-import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
 import './PrestamosPage.css';
 import { unidadLabel } from './prestamosUtils.js';
 
@@ -30,72 +29,6 @@ function getEncargadoDisplay(prestamo) {
   return prestamo.responsable?.nombre || 'Desconocido';
 }
 
-function DevolucionModal({ prestamo, onClose, onConfirm }) {
-  const [observacion, setObservacion] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await onConfirm(observacion.trim());
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <ModalPortal>
-      <div
-        className="prest-overlay"
-        onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}
-      >
-        <div className="prest-modal" onMouseDown={(e) => e.stopPropagation()}>
-          <div className="prest-modal-header">
-            <div>
-              <h3>Devolución realizada</h3>
-              <p>
-                <strong>{prestamo.material?.nombre}</strong>
-                {' — a cargo de '}
-                {prestamo.responsable?.nombre || '—'}
-              </p>
-            </div>
-            <button type="button" className="prest-modal-close" onClick={() => deferClose(onClose)}>
-              <X size={18} />
-            </button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="prest-modal-body">
-              <label className="prest-label">
-                Observación (opcional)
-                <textarea
-                  rows={3}
-                  placeholder="Ej: Herramienta en buen estado, falta accesorio…"
-                  value={observacion}
-                  onChange={(e) => setObservacion(e.target.value)}
-                />
-              </label>
-              <div className="prest-modal-footer">
-                <button
-                  type="button"
-                  className="prest-btn-ghost"
-                  onClick={() => deferClose(onClose)}
-                  disabled={saving}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="prest-btn-primary" disabled={saving}>
-                  {saving ? 'Registrando…' : 'Confirmar devolución'}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-    </ModalPortal>
-  );
-}
-
 export function DevolucionesPage() {
   const currentUser = useMemo(
     () => JSON.parse(localStorage.getItem('user') || 'null'),
@@ -110,7 +43,7 @@ export function DevolucionesPage() {
   const [filterPersona, setFilterPersona] = useState('');
   const [personas, setPersonas] = useState([]);
   const [filterEstado, setFilterEstado] = useState('prestado');
-  const [selected, setSelected] = useState(null);
+  const [returningId, setReturningId] = useState(null);
   const [fechas, setFechas] = useState({ start: '', end: '' });
   const [stats, setStats] = useState({ pendientes: 0, devueltos: 0 });
 
@@ -209,18 +142,18 @@ export function DevolucionesPage() {
 
   const filtered = items;
 
-  const handleDevolucion = async (observacionDevolucion) => {
-    if (!selected) return;
+  const handleDevolucion = async (prestamo) => {
+    if (!prestamo?.id || returningId) return;
+    setReturningId(prestamo.id);
     try {
-      await devolverPrestamo(selected.id, {
-        observacionDevolucion: observacionDevolucion || undefined,
-      });
-      toast.success(`"${selected.material?.nombre}" devuelta correctamente.`);
-      setSelected(null);
+      await devolverPrestamo(prestamo.id);
+      toast.success(`"${prestamo.material?.nombre}" devuelta correctamente.`);
       loadData();
       loadStats();
     } catch (e) {
       toast.error(e.message);
+    } finally {
+      setReturningId(null);
     }
   };
 
@@ -466,9 +399,10 @@ export function DevolucionesPage() {
                         <button
                           type="button"
                           className="prest-btn-devolver"
-                          onClick={() => setSelected(p)}
+                          disabled={returningId === p.id}
+                          onClick={() => handleDevolucion(p)}
                         >
-                          Devolución realizada
+                          {returningId === p.id ? 'Registrando…' : 'Devolución realizada'}
                         </button>
                       </td>
                     )}
@@ -564,9 +498,10 @@ export function DevolucionesPage() {
                           <button
                             type="button"
                             className="prest-btn-devolver"
-                            onClick={() => setSelected(p)}
+                            disabled={returningId === p.id}
+                            onClick={() => handleDevolucion(p)}
                           >
-                            Devolución realizada
+                            {returningId === p.id ? 'Registrando…' : 'Devolución realizada'}
                           </button>
                         </div>
                       </div>
@@ -607,13 +542,6 @@ export function DevolucionesPage() {
         </>
       )}
 
-      {selected && (
-        <DevolucionModal
-          prestamo={selected}
-          onClose={() => setSelected(null)}
-          onConfirm={handleDevolucion}
-        />
-      )}
     </div>
   );
 }
