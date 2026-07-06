@@ -125,6 +125,7 @@ export default function ProyectoDetallePage() {
 
   const handleAvanzar = () => {
     avanzar();
+    setFaseVista(null);
     setConfirmAvanzar(false);
   };
 
@@ -264,7 +265,7 @@ export default function ProyectoDetallePage() {
                 </h2>
                 {esVistaSoloLectura && (
                   <button 
-                    onClick={() => setFaseVista(proyecto.faseActual)}
+                    onClick={() => setFaseVista(null)}
                     className="text-[10px] font-bold bg-white text-slate-500 px-2 py-1 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors uppercase tracking-wider shrink-0"
                   >
                     Ver actual
@@ -321,7 +322,7 @@ export default function ProyectoDetallePage() {
                     <span className="text-sm font-medium text-slate-600">¿Retroceder fase?</span>
                     <div className="flex gap-2">
                       <button onClick={() => setConfirmRetroceder(false)} className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors font-semibold">No</button>
-                      <button onClick={() => { retroceder(); setConfirmRetroceder(false); }} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm hover:bg-slate-800 transition-colors shadow-sm font-bold">Sí, retroceder</button>
+                      <button onClick={() => { retroceder(); setFaseVista(null); setConfirmRetroceder(false); }} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm hover:bg-slate-800 transition-colors shadow-sm font-bold">Sí, retroceder</button>
                     </div>
                   </div>
                 ) : (
