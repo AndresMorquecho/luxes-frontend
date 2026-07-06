@@ -10,7 +10,6 @@ import {
   fmtDateTime,
   fmtMoney,
   mapOrdenToPDFFormat,
-  isOrdenEditablePorRecepcion,
 } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import './ComprasPage.css';
@@ -84,11 +83,6 @@ export const HistorialOrdenCompraDetallePage = () => {
           <button type="button" onClick={() => setIsPDFOpen(true)} className="co-btn-primary">
             Ver PDF
           </button>
-          {orden.estado === 'pendiente_aprobacion' && isOrdenEditablePorRecepcion(orden.estado) && (
-            <button type="button" onClick={() => navigate(`/compras/editar/${orden.id}`)} className="co-btn-ghost" style={{ border: '1px solid #e2e8f0' }}>
-              Editar
-            </button>
-          )}
         </div>
       </div>
 

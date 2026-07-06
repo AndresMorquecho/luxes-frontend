@@ -10,7 +10,6 @@ import {
   fmtDate,
   fmtDateTime,
   mapOrdenToPDFFormat,
-  isOrdenEditablePorRecepcion,
 } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
@@ -215,13 +214,6 @@ export const HistorialOrdenesCompraPage = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                           </svg>
                         </button>
-                        {o.estado === 'pendiente_aprobacion' && isOrdenEditablePorRecepcion(o.estado) && (
-                          <button type="button" onClick={() => navigate(`/compras/editar/${o.id}`)} className="co-action-btn co-action-blue" title="Editar">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                            </svg>
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -300,16 +292,6 @@ export const HistorialOrdenesCompraPage = () => {
                       >
                         PDF
                       </button>
-                      {o.estado === 'pendiente_aprobacion' && isOrdenEditablePorRecepcion(o.estado) && (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/compras/editar/${o.id}`)}
-                          className="co-action-btn co-action-blue"
-                          style={{ flex: 1.2, height: '32px', justifyContent: 'center' }}
-                        >
-                          Editar
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
