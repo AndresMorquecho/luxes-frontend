@@ -305,6 +305,8 @@ export function MaterialesRequestPage() {
     () => filterEmpleadosParaInstalacion(empleados, user),
     [empleados, user],
   );
+
+  const materialIdsPrestados = useMemo(
     () => new Set(prestamosActivos.map((p) => p.materialId).filter(Boolean)),
     [prestamosActivos],
   );
