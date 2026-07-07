@@ -1306,67 +1306,145 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       )}
       {/* PESTAÑA 3: CIERRE DE CAJA */}
       {activeTab === 'cierre' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Formulario de Cierre y Previsualización */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="ga-card p-6 relative z-[60]">
-                <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
-                  <Calendar size={16} className="text-blue-500" />
-                  Rango de Fecha para Cierre de Caja
-                </h3>
-                <div className="mb-4">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Fecha de Cierre</label>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Panel Lateral: Parámetros y Arqueo (Izquierda) */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="ga-card p-6 space-y-6" style={{ overflow: 'visible' }}>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                    Control de Caja
+                  </h3>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Rango de Fecha</label>
                   <DateRangePicker 
                     value={{ start: cierreDates.desde, end: cierreDates.hasta }} 
                     onChange={val => setCierreDates({ desde: val.start, hasta: val.end })}
-                    placeholder="Seleccionar rango de cierre"
+                    placeholder="Seleccionar rango"
                   />
                 </div>
-              </div>
 
+                {cierrePreview && (() => {
+                  const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
+                    .filter(m => esMetodoEfectivo(m.nombre))
+                    .reduce((sum, m) => sum + Number(m.balance), 0);
+                  
+                  const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
+                  const diferenciaEfectivo = physicalEfectivo - totalEfectivoEsperado;
+
+                  return (
+                    <>
+                      <hr className="border-slate-100" />
+                      
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                          Arqueo de Efectivo
+                        </h3>
+                        <div className="bg-slate-50/60 p-3 rounded-xl flex justify-between items-center mb-3">
+                          <span className="text-[11px] font-semibold text-slate-500">Esperado en Sistema:</span>
+                          <span className="font-extrabold text-slate-800 text-xs font-mono">{fmt(totalEfectivoEsperado)}</span>
+                        </div>
+
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Efectivo Físico Contado</label>
+                        <div className="relative rounded-lg shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-slate-450 font-bold text-xs">$</span>
+                          </div>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={efectivoFisicoContado}
+                            onChange={(e) => setEfectivoFisicoContado(e.target.value)}
+                            placeholder={totalEfectivoEsperado.toFixed(2)}
+                            className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          />
+                        </div>
+
+                        <div className={`p-3 rounded-xl border flex justify-between items-center mt-3 ${diferenciaEfectivo === 0 ? 'bg-emerald-55/35 border-emerald-100/50 text-emerald-800' : 'bg-rose-55/35 border-rose-100/50 text-rose-800'}`}>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] uppercase font-bold tracking-wider opacity-75">Diferencia</span>
+                            <span className="font-extrabold text-xs font-mono mt-0.5">
+                              {diferenciaEfectivo === 0 ? 'Caja cuadrada' : (diferenciaEfectivo < 0 ? `-${fmt(Math.abs(diferenciaEfectivo))}` : `+${fmt(diferenciaEfectivo)}`)}
+                            </span>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${diferenciaEfectivo === 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-rose-100 border-rose-200 text-rose-800'}`}>
+                            {diferenciaEfectivo === 0 ? 'Cuadra' : (diferenciaEfectivo < 0 ? 'Faltante' : 'Sobrante')}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+
+                <hr className="border-slate-100" />
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Notas del Cierre</label>
+                  <textarea 
+                    value={cierreObservaciones} 
+                    onChange={e => setCierreObservaciones(e.target.value)}
+                    rows={3} 
+                    placeholder="Observaciones adicionales, billetes, etc..." 
+                    className="ga-input text-xs resize-none" 
+                  />
+                </div>
+
+                <button 
+                  onClick={handleSaveCierre} 
+                  disabled={!cierrePreview || savingCierre}
+                  className="ga-btn-primary w-full justify-center text-xs py-2.5"
+                >
+                  {savingCierre && (
+                    <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white mr-1.5" aria-hidden="true" />
+                  )}
+                  Guardar Cierre de Caja
+                </button>
+              </div>
+            </div>
+
+            {/* Panel Principal: Resultados (Derecha) */}
+            <div className="lg:col-span-2 space-y-6">
               {loadingPreview ? (
                 <div className="ga-card flex items-center justify-center py-20">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
                 </div>
               ) : cierrePreview ? (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-slide-up">
                   {/* KPI Cards de Previsualización */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="ga-card px-5 py-4 border-l-4 border-emerald-500">
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Totales</div>
                       <div className="text-2xl font-extrabold text-emerald-600 mt-1">{fmt(cierrePreview.totalIngresos)}</div>
-                      <div className="text-[10px] text-slate-400 mt-1">{cierrePreview.ingresosConteo} transacciones</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{cierrePreview.ingresosConteo} transacciones</div>
                     </div>
                     <div className="ga-card px-5 py-4 border-l-4 border-red-500">
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Egresos Totales</div>
                       <div className="text-2xl font-extrabold text-red-600 mt-1">{fmt(cierrePreview.totalEgresos)}</div>
-                      <div className="text-[10px] text-slate-400 mt-1">{cierrePreview.egresosConteo} transacciones</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{cierrePreview.egresosConteo} transacciones</div>
                     </div>
                     <div className={`ga-card px-5 py-4 border-l-4 ${cierrePreview.balance >= 0 ? 'border-blue-500' : 'border-amber-500'}`}>
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Balance Neto</div>
                       <div className={`text-2xl font-extrabold mt-1 ${cierrePreview.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(cierrePreview.balance)}</div>
-                      <div className="text-[10px] text-slate-400 mt-1">Saldo en caja</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Saldo en sistema</div>
                     </div>
                   </div>
 
-                  {/* Tabla por métodos de pago */}
+                  {/* Resumen por Métodos de Pago */}
                   <div className="ga-card p-6">
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">
-                      Resumen por Métodos de Pago
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
+                      <ClipboardCheck size={14} className="text-blue-500" />
+                      Saldos de Métodos de Pago
                     </h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
-                            <th className="py-2.5">Método</th>
-                            <th className="py-2.5">Tipo</th>
-                            <th className="py-2.5 text-right">Ingresos (+)</th>
-                            <th className="py-2.5 text-right">Egresos (-)</th>
-                            <th className="py-2.5 text-right">Balance Esperado</th>
+                            <th className="py-2">Método</th>
+                            <th className="py-2">Tipo</th>
+                            <th className="py-2 text-right">Ingresos (+)</th>
+                            <th className="py-2 text-right">Egresos (-)</th>
+                            <th className="py-2 text-right">Balance Sistema</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100/60">
+                        <tbody className="divide-y divide-slate-150/40">
                           {cierrePreview.metodosDetalle?.map((m) => {
                             const esEfectivo = esMetodoEfectivo(m.nombre);
                             return (
@@ -1396,185 +1474,109 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     </div>
                   </div>
 
-                  {/* Resumen por Secciones */}
+                  {/* Grid de Secciones y Usuarios */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Secciones de Ingresos */}
+                    {/* Operaciones por Sección */}
                     <div className="ga-card p-6">
                       <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        Ingresos por Sección
+                        <BarChart3 size={14} className="text-blue-500" />
+                        Desglose de Operaciones
                       </h4>
-                      <div className="space-y-3 text-xs">
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                          <span className="text-slate-500 font-medium">Abonos Iniciales</span>
+                      <div className="divide-y divide-slate-100/50 text-xs">
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-slate-600 font-medium">Abonos Iniciales</span>
+                          </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosIniciales || 0)}</span>
                         </div>
-                        <div className="flex justify-between items-center py-2">
-                          <span className="text-slate-500 font-medium">Abonos Posteriores</span>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-slate-600 font-medium">Abonos Posteriores</span>
+                          </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosPosteriores || 0)}</span>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Secciones de Egresos */}
-                    <div className="ga-card p-6">
-                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-red-500" />
-                        Egresos por Sección
-                      </h4>
-                      <div className="space-y-3 text-xs">
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                          <span className="text-slate-500 font-medium">Gastos Generales</span>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-slate-600 font-medium">Gastos Generales</span>
+                          </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosGenerales || 0)}</span>
                         </div>
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                          <span className="text-slate-500 font-medium">Gastos por Auto / Vehículo</span>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-slate-600 font-medium">Gastos por Auto / Vehículo</span>
+                          </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosAuto || 0)}</span>
                         </div>
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                          <span className="text-slate-500 font-medium">Órdenes de Compra</span>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-slate-600 font-medium">Órdenes de Compra</span>
+                          </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosCompras || 0)}</span>
                         </div>
-                        <div className="flex justify-between items-center py-2">
-                          <span className="text-slate-500 font-medium">Pagos (Nómina/Personal)</span>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-slate-600 font-medium">Pagos (Nómina/Personal)</span>
+                          </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosPagos || 0)}</span>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Resumen por Usuario */}
-                  <div className="ga-card p-6">
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500" />
-                      Movimientos Consolidados por Usuario
-                    </h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
-                            <th className="py-2">Usuario</th>
-                            <th className="py-2 text-right">Ingresos (+)</th>
-                            <th className="py-2 text-right">Egresos (-)</th>
-                            <th className="py-2 text-right">Balance</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100/60">
-                          {(cierrePreview.usuariosDetalle || []).map((u) => (
-                            <tr key={u.id} className="ga-tr">
-                              <td className="py-2.5 font-semibold text-slate-700">{u.nombre}</td>
-                              <td className="py-2.5 text-right text-emerald-600 font-bold font-mono">{fmt(u.ingresos)}</td>
-                              <td className="py-2.5 text-right text-red-500 font-bold font-mono">{fmt(u.egresos)}</td>
-                              <td className={`py-2.5 text-right font-extrabold font-mono ${u.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                                {fmt(u.balance)}
-                              </td>
+                    {/* Resumen por Usuario */}
+                    <div className="ga-card p-6">
+                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                        <User size={14} className="text-blue-500" />
+                        Movimientos por Usuario
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs animate-fade-in">
+                          <thead>
+                            <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
+                              <th className="py-2">Usuario</th>
+                              <th className="py-2 text-right">Ingresos</th>
+                              <th className="py-2 text-right">Egresos</th>
+                              <th className="py-2 text-right">Balance</th>
                             </tr>
-                          ))}
-                          {(cierrePreview.usuariosDetalle || []).length === 0 && (
-                            <tr>
-                              <td colSpan={4} className="text-center py-4 text-slate-400">
-                                No se registraron movimientos por usuarios en este rango.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-slate-150/40">
+                            {(cierrePreview.usuariosDetalle || []).map((u) => (
+                              <tr key={u.id} className="ga-tr">
+                                <td className="py-2.5 font-semibold text-slate-700">{u.nombre}</td>
+                                <td className="py-2.5 text-right text-emerald-600 font-bold font-mono">{fmt(u.ingresos)}</td>
+                                <td className="py-2.5 text-right text-red-500 font-bold font-mono">{fmt(u.egresos)}</td>
+                                <td className={`py-2.5 text-right font-extrabold font-mono ${u.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                                  {fmt(u.balance)}
+                                </td>
+                              </tr>
+                            ))}
+                            {(cierrePreview.usuariosDetalle || []).length === 0 && (
+                              <tr>
+                                <td colSpan={4} className="text-center py-4 text-slate-400">
+                                  Sin movimientos por usuario en este rango.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 </div>
-              ) : null}
-            </div>
-
-            {/* Observaciones y Guardar Cierre */}
-            <div className="space-y-6">
-              {cierrePreview && (() => {
-                const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
-                  .filter(m => esMetodoEfectivo(m.nombre))
-                  .reduce((sum, m) => sum + Number(m.balance), 0);
-                
-                const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
-                const diferenciaEfectivo = physicalEfectivo - totalEfectivoEsperado;
-
-                return (
-                  <div className="ga-card p-6 border-l-4 border-violet-500">
-                    <h3 className="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-2">
-                      <DollarSign size={16} className="text-violet-500" />
-                      Arqueo de Efectivo Físico
-                    </h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed mb-4">
-                      Ingresa el monto de dinero físico real contado en caja chica/principal. Las cuentas bancarias y virtuales se auto-verifican.
-                    </p>
-
-                    <div className="space-y-4">
-                      <div className="bg-slate-50/50 p-3 rounded-lg flex justify-between items-center">
-                        <span className="text-xs font-semibold text-slate-500">Efectivo Esperado (Sistema):</span>
-                        <span className="font-extrabold text-slate-800 text-sm font-mono">{fmt(totalEfectivoEsperado)}</span>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
-                          Efectivo Físico Contado ($)
-                        </label>
-                        <div className="relative rounded-lg shadow-sm">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-slate-450 font-bold text-sm">$</span>
-                          </div>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={efectivoFisicoContado}
-                            onChange={(e) => setEfectivoFisicoContado(e.target.value)}
-                            placeholder={totalEfectivoEsperado.toFixed(2)}
-                            className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div className={`p-3 rounded-lg border flex justify-between items-center ${diferenciaEfectivo === 0 ? 'bg-emerald-50/40 border-emerald-100 text-emerald-800' : 'bg-rose-50/40 border-rose-100 text-rose-800'}`}>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase font-bold tracking-wider opacity-75">Diferencia de Caja</span>
-                          <span className="font-extrabold text-sm font-mono mt-0.5">
-                            {diferenciaEfectivo === 0 ? 'Sin diferencia' : (diferenciaEfectivo < 0 ? `-${fmt(Math.abs(diferenciaEfectivo))}` : `+${fmt(diferenciaEfectivo)}`)}
-                          </span>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${diferenciaEfectivo === 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-rose-100 border-rose-200 text-rose-800'}`}>
-                          {diferenciaEfectivo === 0 ? 'Cuadra' : (diferenciaEfectivo < 0 ? 'Descuadre / Faltante' : 'Descuadre / Sobrante')}
-                        </span>
-                      </div>
-                    </div>
+              ) : (
+                <div className="ga-card flex flex-col items-center justify-center py-24 px-6 text-center border border-dashed border-slate-200 bg-slate-50/10">
+                  <div className="w-12 h-12 rounded-full bg-blue-50/50 flex items-center justify-center text-blue-500 mb-4 animate-pulse">
+                    <ClipboardCheck size={24} />
                   </div>
-                );
-              })()}
-
-              <div className="ga-card p-6 flex flex-col justify-between h-fit space-y-4">
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-2">
-                    <FileText size={16} className="text-blue-500" />
-                    Registro de Cierre
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Escribe observaciones sobre las transacciones de este rango antes de guardar el cierre de caja oficial.
+                  <h4 className="text-sm font-bold text-slate-700">Previsualización del Cierre de Caja</h4>
+                  <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
+                    Selecciona un rango de fechas en el panel lateral y se cargará el resumen detallado de ingresos, egresos y el balance neto de tu operación.
                   </p>
-                  <textarea 
-                    value={cierreObservaciones} 
-                    onChange={e => setCierreObservaciones(e.target.value)}
-                    rows={4} 
-                    placeholder="Observaciones de arqueo, diferencias, billetes falsos, cheques retenidos, etc..." 
-                    className="ga-input text-xs resize-none" 
-                  />
-                </div>
-                <button 
-                  onClick={handleSaveCierre} 
-                  disabled={!cierrePreview || savingCierre}
-                  className="ga-btn-primary w-full justify-center"
-                >
-                  {savingCierre && (
-                    <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" aria-hidden="true" />
-                  )}
-                  Guardar Cierre de Caja
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* Historial de Cierres */}
