@@ -1037,8 +1037,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 </table>
                 
                 {/* Vista Móvil (Cards) */}
-                <div className="md:hidden flex flex-col gap-3 p-4 bg-slate-50/30">
-                  {paginated.map((g) => {
+                <div className="block md:hidden">
+                  <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
+                    {paginated.map((g) => {
                     const origenStyles = {
                       otros_gastos: { label: 'Otros Gastos', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
                       orden_compra: { label: 'Ordenes de Compra', bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
@@ -1080,6 +1081,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   {paginated.length === 0 && (
                     <div className="text-center py-8 text-slate-400 text-sm font-medium">No se encontraron gastos</div>
                   )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1444,9 +1446,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       </table>
                       
                       {/* Vista Móvil (Cards) */}
-                      <div className="md:hidden flex flex-col gap-3 p-4 bg-slate-50/30">
-                        {(() => {
-                            const allMaints = selectedVehiculo.mantenimientos || [];
+                      <div className="block md:hidden">
+                        <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
+                          {(() => {
+                              const allMaints = selectedVehiculo.mantenimientos || [];
                             const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
                             
                             return (
@@ -1492,6 +1495,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                               </>
                             );
                         })()}
+                        </div>
                       </div>
                     </div>
                     
