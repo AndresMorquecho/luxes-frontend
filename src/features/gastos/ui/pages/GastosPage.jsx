@@ -160,6 +160,9 @@ const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, t
 
 export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'vehiculos' | 'cierre'
+  
+  const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = loggedInUser?.rol?.toLowerCase() === 'admin' || loggedInUser?.rol?.toLowerCase() === 'administrador';
 
   useEffect(() => {
     setActiveTab(defaultTab);
@@ -992,7 +995,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
                       };
                       const style = origenStyles[g.origen] || origenStyles.otros_gastos;
-                      const canEdit = g.origen === 'otros_gastos' && !g.readonly;
+                      const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
 
                       return (
                         <tr 
@@ -1047,7 +1050,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
                     };
                     const style = origenStyles[g.origen] || origenStyles.otros_gastos;
-                    const canEdit = g.origen === 'otros_gastos' && !g.readonly;
+                    const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
 
                     return (
                       <div 
@@ -1241,15 +1244,17 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
                 <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
                   <button 
+                    disabled={!isAdmin}
                     onClick={() => openEditVehiculo(selectedVehiculo)} 
-                    className="ga-btn-secondary"
+                    className="ga-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit size={14} />
                     Editar Info
                   </button>
                   <button 
+                    disabled={!isAdmin}
                     onClick={() => handleDeleteVehiculo(selectedVehiculo.id)} 
-                    className="ga-btn-secondary hover:!text-red-600 hover:!border-red-200"
+                    className="ga-btn-secondary hover:!text-red-600 hover:!border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 size={14} />
                     Eliminar Vehículo
@@ -1264,13 +1269,18 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 </div>
               </div>
 
-              {/* Información Ficha Técnica */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="ga-card p-5 lg:col-span-1 space-y-4">
-                  <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2 flex items-center gap-2">
-                    <Info size={16} className="text-blue-500" />
-                    Ficha del Vehículo
-                  </h3>
+              {/* Diseño Principal del Vehículo */}
+              <div className="flex flex-col gap-6">
+                
+                {/* Cabecera: Ficha y Alertas */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  
+                  {/* Información Ficha Técnica */}
+                  <div className="ga-card p-5 xl:col-span-1 space-y-4">
+                    <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2 flex items-center gap-2">
+                      <Info size={16} className="text-blue-500" />
+                      Ficha del Vehículo
+                    </h3>
                   <div className="space-y-3 text-xs text-slate-500">
                     <div className="flex justify-between">
                       <span className="font-semibold text-slate-400">Marca:</span>
@@ -1303,9 +1313,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </div>
                 </div>
 
-                {/* Tarjetas Alertas de Salud del Vehículo */}
-                <div className="lg:col-span-3 space-y-6">
-                  <div className="ga-card p-5">
+                  {/* Tarjetas Alertas de Salud del Vehículo */}
+                  <div className="ga-card p-5 xl:col-span-2 flex flex-col">
                     <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-2">
                       <Wrench size={16} className="text-blue-500" />
                       Estado de Mantenimientos Preventivos
@@ -1358,9 +1367,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       })()}
                     </div>
                   </div>
+                </div>
 
-                  {/* Historial de Mantenimientos Realizados */}
-                  <div className="ga-card">
+                {/* Historial de Mantenimientos Realizados */}
+                <div className="ga-card w-full">
                     <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
                       <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
                         <Calendar size={16} className="text-blue-500" />
@@ -1395,7 +1405,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                   <tr key={m.id} className="ga-tr">
                                     <td className="px-5 py-3.5">
                                       <div className="font-bold text-slate-800">{m.tipo}</div>
-                                      <div className="text-[11px] text-slate-500 mt-0.5">{m.fechaRealizado.split('T')[0]}</div>
+                                      <div className="text-[11px] font-medium text-slate-700 mt-1 whitespace-nowrap">
+                                        {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
+                                      </div>
+                                      <div className="text-[9px] text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">
+                                        {m.gasto?.registradoPor?.nombre || 'Automático'}
+                                      </div>
                                     </td>
                                     <td className="px-5 py-3.5">
                                       <p className="text-slate-600">{m.descripcion || '—'}</p>
@@ -1415,15 +1430,17 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                     <td className="px-5 py-3.5">
                                       <div className="flex items-center justify-center gap-0.5">
                                         <button 
+                                          disabled={!isAdmin}
                                           onClick={() => openEditMaint(m)}
-                                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" 
+                                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
                                           title="Editar"
                                         >
                                           <Edit size={13} />
                                         </button>
                                         <button 
+                                          disabled={!isAdmin}
                                           onClick={() => handleDeleteMaint(m.id)}
-                                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" 
+                                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
                                           title="Eliminar"
                                         >
                                           <Trash2 size={13} />
@@ -1459,7 +1476,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                     <div className="flex justify-between items-start">
                                       <div>
                                         <div className="font-bold text-slate-800 text-[14px]">{m.tipo}</div>
-                                        <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">{m.fechaRealizado.split('T')[0]}</div>
+                                        <div className="text-[11px] text-slate-600 font-medium mt-0.5">
+                                          {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
+                                        </div>
+                                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                          {m.gasto?.registradoPor?.nombre || 'Automático'}
+                                        </div>
                                       </div>
                                       <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(m.monto))}</span>
                                     </div>
@@ -1474,14 +1496,16 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                       
                                       <div className="flex gap-1">
                                         <button 
+                                          disabled={!isAdmin}
                                           onClick={() => openEditMaint(m)}
-                                          className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors" 
+                                          className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
                                         >
                                           <Edit size={14} />
                                         </button>
                                         <button 
+                                          disabled={!isAdmin}
                                           onClick={() => handleDeleteMaint(m.id)}
-                                          className="p-2 rounded-lg bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors" 
+                                          className="p-2 rounded-lg bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
                                         >
                                           <Trash2 size={14} />
                                         </button>
@@ -1527,7 +1551,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </div>
                 </div>
               </div>
-            </div>
           )}
         </>
       )}
