@@ -198,6 +198,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   // --- ESTADOS MANTENIMIENTOS ---
   const [maintFormOpen, setMaintFormOpen] = useState(false);
   const [editingMaint, setEditingMaint] = useState(null);
+  const [maintPage, setMaintPage] = useState(1);
+  const maintLimit = 25;
   const [maintForm, setMaintForm] = useState(EMPTY_MAINT_FORM);
   const [savingMaint, setSavingMaint] = useState(false);
 
@@ -614,12 +616,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
         .ga-tab-bar {
           display: flex;
+          flex-wrap: wrap;
           gap: 4px;
           background: rgba(241,245,249,0.7);
           padding: 4px;
           border-radius: 12px;
           border: 1px solid rgba(226,232,240,0.8);
-          width: max-content;
+          width: 100%;
+          max-width: max-content;
           margin-bottom: 24px;
         }
 
@@ -955,8 +959,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[13px]">
+              <div className="overflow-x-auto overflow-y-hidden">
+                <table className="hidden md:table w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-32">Fecha Hora</th>
@@ -1018,6 +1022,52 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     )}
                   </tbody>
                 </table>
+                
+                {/* Vista Móvil (Cards) */}
+                <div className="md:hidden flex flex-col gap-3 p-4 bg-slate-50/30">
+                  {paginated.map((g) => {
+                    const origenStyles = {
+                      otros_gastos: { label: 'Otros Gastos', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+                      orden_compra: { label: 'Ordenes de Compra', bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
+                      nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
+                      vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
+                    };
+                    const style = origenStyles[g.origen] || origenStyles.otros_gastos;
+                    const canEdit = g.origen === 'otros_gastos' && !g.readonly;
+
+                    return (
+                      <div 
+                        key={`m-${g.origen || 'gasto'}-${g.id}`} 
+                        className={`bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm ${canEdit ? 'cursor-pointer active:bg-blue-50/50 transition-colors' : ''}`}
+                        onClick={() => { if (canEdit) openEditGasto(g); }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span 
+                            className="font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider"
+                            style={{ backgroundColor: style.bg, color: style.color }}
+                          >
+                            {style.label}
+                          </span>
+                          <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(g.monto))}</span>
+                        </div>
+                        <div className="text-[13px] font-semibold text-slate-800 mt-1">{g.concepto}</div>
+                        {g.notas && g.origen !== 'orden_compra' && (
+                          <div className="text-[11px] text-slate-400 -mt-1 leading-tight">{g.notas}</div>
+                        )}
+                        <div className="flex justify-between items-center text-[10px] text-slate-500 mt-2 border-t border-slate-100/80 pt-2.5">
+                          <div className="flex flex-col gap-0.5">
+                            <span>{g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
+                            <span className="font-bold uppercase tracking-wider text-slate-400">{g.registradoPor?.nombre || 'Automático'}</span>
+                          </div>
+                          <span className="text-right max-w-[120px] truncate bg-slate-50 px-2 py-1 rounded-md">{g.metodoPago?.nombre || 'No especificado'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {paginated.length === 0 && (
+                    <div className="text-center py-8 text-slate-400 text-sm font-medium">No se encontraron gastos</div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1307,7 +1357,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-[13px]">
+                      <table className="hidden md:table w-full text-[13px]">
                         <thead>
                           <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
                             <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Fecha / Tipo</th>
@@ -1319,56 +1369,144 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100/40">
-                          {(selectedVehiculo.mantenimientos || []).map((m) => (
-                            <tr key={m.id} className="ga-tr">
-                              <td className="px-5 py-3.5">
-                                <div className="font-bold text-slate-800">{m.tipo}</div>
-                                <div className="text-[11px] text-slate-500 mt-0.5">{m.fechaRealizado.split('T')[0]}</div>
-                              </td>
-                              <td className="px-5 py-3.5">
-                                <p className="text-slate-600">{m.descripcion || '—'}</p>
-                                {m.notas && <p className="text-[11px] text-slate-400 mt-1 italic">Nota: {m.notas}</p>}
-                                {(m.kmProximo || m.fechaProxima) && (
-                                  <div className="text-[10px] text-blue-500 font-semibold mt-1 flex gap-2">
-                                    {m.kmProximo && <span>Próximo: {m.kmProximo.toLocaleString()} km</span>}
-                                    {m.fechaProxima && <span>Próxima fecha: {m.fechaProxima.split('T')[0]}</span>}
-                                  </div>
+                          {(() => {
+                            const allMaints = selectedVehiculo.mantenimientos || [];
+                            const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
+                            const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
+                            
+                            return (
+                              <>
+                                {paginatedMaints.map((m) => (
+                                  <tr key={m.id} className="ga-tr">
+                                    <td className="px-5 py-3.5">
+                                      <div className="font-bold text-slate-800">{m.tipo}</div>
+                                      <div className="text-[11px] text-slate-500 mt-0.5">{m.fechaRealizado.split('T')[0]}</div>
+                                    </td>
+                                    <td className="px-5 py-3.5">
+                                      <p className="text-slate-600">{m.descripcion || '—'}</p>
+                                      {m.notas && <p className="text-[11px] text-slate-400 mt-1 italic">Nota: {m.notas}</p>}
+                                      {(m.kmProximo || m.fechaProxima) && (
+                                        <div className="text-[10px] text-blue-500 font-semibold mt-1 flex gap-2">
+                                          {m.kmProximo && <span>Próximo: {m.kmProximo.toLocaleString()} km</span>}
+                                          {m.fechaProxima && <span>Próxima fecha: {m.fechaProxima.split('T')[0]}</span>}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-5 py-3.5 text-right font-semibold text-slate-700">
+                                      {m.kilometraje ? `${m.kilometraje.toLocaleString()} km` : '—'}
+                                    </td>
+                                    <td className="px-5 py-3.5 text-slate-600">{m.proveedor || '—'}</td>
+                                    <td className="px-5 py-3.5 text-right font-bold text-slate-800">{fmt(Number(m.monto))}</td>
+                                    <td className="px-5 py-3.5">
+                                      <div className="flex items-center justify-center gap-0.5">
+                                        <button 
+                                          onClick={() => openEditMaint(m)}
+                                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" 
+                                          title="Editar"
+                                        >
+                                          <Edit size={13} />
+                                        </button>
+                                        <button 
+                                          onClick={() => handleDeleteMaint(m.id)}
+                                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" 
+                                          title="Eliminar"
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                                {paginatedMaints.length === 0 && (
+                                  <tr>
+                                    <td colSpan={6} className="text-center py-10 text-slate-400 italic text-xs font-semibold">
+                                      Sin registros de mantenimientos previos.
+                                    </td>
+                                  </tr>
                                 )}
-                              </td>
-                              <td className="px-5 py-3.5 text-right font-semibold text-slate-700">
-                                {m.kilometraje ? `${m.kilometraje.toLocaleString()} km` : '—'}
-                              </td>
-                              <td className="px-5 py-3.5 text-slate-600">{m.proveedor || '—'}</td>
-                              <td className="px-5 py-3.5 text-right font-bold text-slate-800">{fmt(Number(m.monto))}</td>
-                              <td className="px-5 py-3.5">
-                                <div className="flex items-center justify-center gap-0.5">
-                                  <button 
-                                    onClick={() => openEditMaint(m)}
-                                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" 
-                                    title="Editar"
-                                  >
-                                    <Edit size={13} />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteMaint(m.id)}
-                                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" 
-                                    title="Eliminar"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                          {(selectedVehiculo.mantenimientos || []).length === 0 && (
-                            <tr>
-                              <td colSpan={6} className="text-center py-10 text-slate-400 italic text-xs font-semibold">
-                                Sin registros de mantenimientos previos.
-                              </td>
-                            </tr>
-                          )}
+                              </>
+                            );
+                          })()}
                         </tbody>
                       </table>
+                      
+                      {/* Vista Móvil (Cards) */}
+                      <div className="md:hidden flex flex-col gap-3 p-4 bg-slate-50/30">
+                        {(() => {
+                            const allMaints = selectedVehiculo.mantenimientos || [];
+                            const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
+                            
+                            return (
+                              <>
+                                {paginatedMaints.map((m) => (
+                                  <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2.5 shadow-sm relative">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <div className="font-bold text-slate-800 text-[14px]">{m.tipo}</div>
+                                        <div className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">{m.fechaRealizado.split('T')[0]}</div>
+                                      </div>
+                                      <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(m.monto))}</span>
+                                    </div>
+                                    
+                                    <div className="text-[13px] text-slate-600 mt-0.5">{m.descripcion || 'Sin descripción'}</div>
+                                    
+                                    <div className="flex justify-between items-end mt-2 pt-2.5 border-t border-slate-100/80 text-[11px]">
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-slate-500"><span className="font-semibold text-slate-400">KM:</span> {m.kilometraje ? `${m.kilometraje.toLocaleString()}` : '—'}</span>
+                                        <span className="text-slate-500"><span className="font-semibold text-slate-400">Prov:</span> {m.proveedor || '—'}</span>
+                                      </div>
+                                      
+                                      <div className="flex gap-1">
+                                        <button 
+                                          onClick={() => openEditMaint(m)}
+                                          className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors" 
+                                        >
+                                          <Edit size={14} />
+                                        </button>
+                                        <button 
+                                          onClick={() => handleDeleteMaint(m.id)}
+                                          className="p-2 rounded-lg bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors" 
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {paginatedMaints.length === 0 && (
+                                  <div className="text-center py-6 text-slate-400 italic text-xs font-semibold">Sin registros de mantenimientos previos.</div>
+                                )}
+                              </>
+                            );
+                        })()}
+                      </div>
+                    </div>
+                    
+                    {/* Paginación de Mantenimientos */}
+                    {(() => {
+                      const allMaints = selectedVehiculo.mantenimientos || [];
+                      const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
+                      if (totalPagesMaint <= 1) return null;
+                      return (
+                        <div className="px-5 py-3 border-t border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
+                          <span className="text-xs text-slate-500">
+                            Mostrando {(maintPage - 1) * maintLimit + 1} a {Math.min(maintPage * maintLimit, allMaints.length)} de {allMaints.length}
+                          </span>
+                          <div className="flex gap-1">
+                            <button 
+                              disabled={maintPage === 1} 
+                              onClick={() => setMaintPage(p => p - 1)}
+                              className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >Anterior</button>
+                            <button 
+                              disabled={maintPage === totalPagesMaint} 
+                              onClick={() => setMaintPage(p => p + 1)}
+                              className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >Siguiente</button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     </div>
                   </div>
                 </div>
