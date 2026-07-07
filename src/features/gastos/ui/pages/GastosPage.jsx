@@ -525,10 +525,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   useEffect(() => { setPage(1); }, [search, filtroOrigen]);
 
   // --- TOTALES KPI GASTOS ---
-  const gastosManuales = items.filter((g) => g.origen !== 'orden_compra' && g.origen !== 'cuenta_por_pagar');
-  const pagosOC = items.filter((g) => g.origen === 'orden_compra');
-  const saldosOC = items.filter((g) => g.origen === 'cuenta_por_pagar');
   const sumMontos = (list) => list.reduce((s, g) => s + Number(g.monto || 0), 0);
+  const gastosManuales = items.filter((g) => g.origen === 'otros_gastos');
+  const pagosOC = items.filter((g) => g.origen === 'orden_compra');
 
   const totalMesManuales = gastosManuales.filter(g => {
     const d = new Date(g.fecha);
@@ -541,8 +540,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     totalMonto: sumMontos(items),
     totalGastosManuales: sumMontos(gastosManuales),
     totalPagosOC: sumMontos(pagosOC),
-    totalSaldosOC: sumMontos(saldosOC),
-    totalComprometidoOC: sumMontos(pagosOC) + sumMontos(saldosOC),
     promedio: gastosManuales.length ? sumMontos(gastosManuales) / gastosManuales.length : 0,
     totalMes: totalMesManuales,
     pagosCompra: pagosOC.length,
@@ -801,51 +798,22 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalGastosManuales)}</div>
               </div>
             </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.1)' }}>
-                <RefreshCw size={20} style={{ color: '#f59e0b' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pagos OC (caja)</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalPagosOC)}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  + {fmt(totales.totalSaldosOC)} por pagar = {fmt(totales.totalComprometidoOC)} comprometido
-                </div>
-              </div>
-            </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(236,72,153,0.1)' }}>
-                <Calendar size={20} style={{ color: '#ec4899' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gastos del mes</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalMes)}</div>
-              </div>
-            </div>
           </div>
 
-          <div className="mb-4 px-4 py-3 rounded-xl text-[12px] text-slate-600 leading-relaxed" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
-            Los <strong>pagos de órdenes de compra</strong> solo aparecen cuando se registran al aprobar la orden o al marcar explícitamente
-            {' '}<strong>“Registrar pago del ajuste”</strong> al editar precios. Cambiar precios sin pagar no genera egresos nuevos.
-          </div>
 
-          <div className="ga-tab-bar mb-4">
-            {[
-              { id: 'todos', label: 'Todos' },
-              { id: 'gasto', label: 'Gastos manuales' },
-              { id: 'nomina_anticipo', label: 'Nómina y Anticipos' },
-              { id: 'orden_compra', label: 'Pagos en caja' },
-              { id: 'cuenta_por_pagar', label: 'Saldos OC' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setFiltroOrigen(tab.id)}
-                className={`ga-tab-btn ${filtroOrigen === tab.id ? 'active' : ''}`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-3 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-200/60 w-max">
+            <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider ml-2">Filtrar por:</span>
+            <select
+              value={filtroOrigen}
+              onChange={(e) => setFiltroOrigen(e.target.value)}
+              className="ga-input !py-1.5 !px-3 !bg-white !shadow-sm !text-sm !font-semibold !text-slate-700 min-w-[200px]"
+            >
+              <option value="todos">Todos los Gastos</option>
+              <option value="otros_gastos">Otros Gastos</option>
+              <option value="orden_compra">Órdenes de Compra</option>
+              <option value="nomina">Nómina y Anticipos</option>
+              <option value="vehiculo">Vehículos</option>
+            </select>
           </div>
 
           {/* Tabla de Gastos */}
@@ -871,82 +839,58 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <table className="w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-32">Fecha Hora</th>
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-40">Tipo</th>
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Concepto</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Categoría</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Fecha</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Proveedor</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Usuario</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Método</th>
-                      <th className="text-right px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Monto</th>
-                      <th className="text-center px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-24">Acciones</th>
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-48">Método de Pago</th>
+                      <th className="text-right px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-32">Monto</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/40">
-                    {paginated.map((g) => (
-                      <tr key={`${g.origen || 'gasto'}-${g.id}`} className="ga-tr">
-                        <td className="px-5 py-4">
-                          <div className="font-semibold text-slate-800">{g.concepto}</div>
-                          {g.origen === 'orden_compra' && g.ordenTotal != null && (
-                            <div className="text-[11px] text-slate-500 mt-0.5">
-                              Pago en caja · Total orden {fmt(g.ordenTotal)}
-                              {g.ordenSaldo > 0.01 ? ` · Saldo pendiente ${fmt(g.ordenSaldo)}` : ' · Pagada'}
+                    {paginated.map((g) => {
+                      const origenLabels = {
+                        otros_gastos: 'Otros Gastos',
+                        orden_compra: 'Ordenes de Compra',
+                        nomina: 'Nomina',
+                        vehiculo: 'Vehiculo'
+                      };
+                      const canEdit = g.origen === 'otros_gastos' && !g.readonly;
+
+                      return (
+                        <tr 
+                          key={`${g.origen || 'gasto'}-${g.id}`} 
+                          className={`ga-tr ${canEdit ? 'cursor-pointer hover:bg-blue-50/50 transition-colors' : ''}`}
+                          onClick={() => { if (canEdit) openEditGasto(g); }}
+                          title={canEdit ? "Clic para editar" : ""}
+                        >
+                          <td className="px-5 py-4">
+                            <div className="text-[12px] font-medium text-slate-700">
+                              {g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
                             </div>
-                          )}
-                          {g.origen === 'cuenta_por_pagar' && g.ordenTotal != null && (
-                            <div className="text-[11px] text-violet-600 mt-0.5 font-medium">
-                              Por pagar · Total orden {fmt(g.ordenTotal)} · Ya pagado {fmt(g.ordenPagado)}
+                            <div className="text-[11px] text-slate-400 mt-1">
+                              {g.registradoPor?.nombre || 'Automático'}
                             </div>
-                          )}
-                          {g.notas && g.origen !== 'orden_compra' && (
-                            <div className="text-[11px] text-slate-400 mt-0.5">{g.notas}</div>
-                          )}
-                          {g.referencia && g.origen === 'orden_compra' && (
-                            <div className="text-[11px] text-slate-500 mt-0.5">Ref: {g.referencia}</div>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                            style={{ background: CAT_BADGES[g.categoria]?.bg, color: CAT_BADGES[g.categoria]?.color }}>
-                            {CAT_BADGES[g.categoria]?.label ?? g.categoria}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-slate-500 text-[12px]">
-                          {g.fecha ? new Date(g.fecha).toLocaleDateString('es-EC') : '—'}
-                        </td>
-                        <td className="px-5 py-4 text-slate-600">{g.proveedor || <span className="text-slate-300">—</span>}</td>
-                        <td className="px-5 py-4 text-slate-600 text-[12px]">
-                          {g.registradoPor?.nombre || <span className="text-slate-300">—</span>}
-                        </td>
-                        <td className="px-5 py-4 text-slate-600 font-medium">
-                          {g.metodoPago?.nombre || <span className="text-slate-300">No especificado</span>}
-                        </td>
-                        <td className="px-5 py-4 text-right font-bold text-slate-800">{fmt(Number(g.monto))}</td>
-                        <td className="px-5 py-4">
-                          {g.readonly || g.origen === 'orden_compra' ? (
-                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Solo lectura</span>
-                          ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <button 
-                              onClick={() => openEditGasto(g)}
-                              className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" 
-                              title="Editar"
-                            >
-                              <Edit size={14} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteGasto(g.id)}
-                              className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" 
-                              title="Eliminar"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="font-semibold text-[12px] text-slate-600 bg-slate-100 px-2 py-1 rounded-md">
+                              {origenLabels[g.origen] || 'Otros Gastos'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="font-semibold text-slate-800">{g.concepto}</div>
+                            {g.notas && g.origen !== 'orden_compra' && (
+                              <div className="text-[11px] text-slate-400 mt-0.5">{g.notas}</div>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 text-slate-600 font-medium text-[12px]">
+                            {g.metodoPago?.nombre || <span className="text-slate-300">No especificado</span>}
+                          </td>
+                          <td className="px-5 py-4 text-right font-bold text-slate-800">{fmt(Number(g.monto))}</td>
+                        </tr>
+                      );
+                    })}
                     {paginated.length === 0 && (
-                      <tr><td colSpan={8} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron gastos</td></tr>
+                      <tr><td colSpan={5} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron gastos</td></tr>
                     )}
                   </tbody>
                 </table>
