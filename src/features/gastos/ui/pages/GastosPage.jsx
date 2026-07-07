@@ -206,6 +206,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const maintLimit = 25;
   const [maintForm, setMaintForm] = useState(EMPTY_MAINT_FORM);
   const [savingMaint, setSavingMaint] = useState(false);
+  const [maintFiltroTipo, setMaintFiltroTipo] = useState('todos');
+  const [maintFiltroUsuarioId, setMaintFiltroUsuarioId] = useState('');
+  const [maintFiltroMetodoPagoId, setMaintFiltroMetodoPagoId] = useState('');
+  const [maintDateRange, setMaintDateRange] = useState({ desde: '', hasta: '' });
 
   // --- ESTADOS CIERRE DE CAJA ---
   const [cierreHistory, setCierreHistory] = useState([]);
@@ -1369,6 +1373,66 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </div>
                 </div>
 
+                {/* Filtros de Mantenimientos */}
+                <div className="ga-card p-4 relative z-50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Tipo de Mantenimiento</label>
+                      <select 
+                        value={maintFiltroTipo}
+                        onChange={(e) => setMaintFiltroTipo(e.target.value)}
+                        className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                      >
+                        <option value="todos">Todos los Tipos</option>
+                        <option value="Cambio de Aceite">Cambio de Aceite</option>
+                        <option value="Cambio de Llantas">Cambio de Llantas</option>
+                        <option value="Revisión de Frenos">Revisión de Frenos</option>
+                        <option value="Reparación Mecánica">Reparación Mecánica</option>
+                        <option value="ABC Motor">ABC Motor</option>
+                        <option value="Otros (Describir)">Otros (Describir)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Registrado por</label>
+                      <select
+                        value={maintFiltroUsuarioId}
+                        onChange={(e) => setMaintFiltroUsuarioId(e.target.value)}
+                        className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                      >
+                        <option value="">Cualquier Usuario</option>
+                        <option value="auto">Automático</option>
+                        {usuarios.map(u => (
+                          <option key={u.id} value={u.id}>{u.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Método de Pago</label>
+                      <select
+                        value={maintFiltroMetodoPagoId}
+                        onChange={(e) => setMaintFiltroMetodoPagoId(e.target.value)}
+                        className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                      >
+                        <option value="">Cualquier Método de Pago</option>
+                        {metodosPago.map(m => (
+                          <option key={m.id} value={m.id}>{m.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Fechas</label>
+                      <div className="h-10 w-full">
+                        <DateRangePicker 
+                          value={maintDateRange}
+                          onChange={setMaintDateRange}
+                          placeholder="Rango de fechas"
+                          size="sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Historial de Mantenimientos Realizados */}
                 <div className="ga-card w-full">
                     <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
@@ -1395,7 +1459,32 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         </thead>
                         <tbody className="divide-y divide-slate-100/40">
                           {(() => {
-                            const allMaints = selectedVehiculo.mantenimientos || [];
+                            let allMaints = selectedVehiculo.mantenimientos || [];
+                            
+                            if (maintFiltroTipo !== 'todos') {
+                              allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                            }
+                            if (maintFiltroUsuarioId) {
+                              allMaints = allMaints.filter(m => {
+                                const uid = m.gasto?.registradoPor?.id;
+                                if (maintFiltroUsuarioId === 'auto') return !uid;
+                                return uid === maintFiltroUsuarioId;
+                              });
+                            }
+                            if (maintFiltroMetodoPagoId) {
+                              allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                            }
+                            if (maintDateRange.desde && maintDateRange.hasta) {
+                              const start = new Date(maintDateRange.desde);
+                              const end = new Date(maintDateRange.hasta);
+                              end.setHours(23, 59, 59, 999);
+                              allMaints = allMaints.filter(m => {
+                                const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                                const d = new Date(dStr);
+                                return d >= start && d <= end;
+                              });
+                            }
+
                             const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
                             const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
                             
@@ -1466,7 +1555,32 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       <div className="block md:hidden">
                         <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
                           {(() => {
-                              const allMaints = selectedVehiculo.mantenimientos || [];
+                              let allMaints = selectedVehiculo.mantenimientos || [];
+                            
+                            if (maintFiltroTipo !== 'todos') {
+                              allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                            }
+                            if (maintFiltroUsuarioId) {
+                              allMaints = allMaints.filter(m => {
+                                const uid = m.gasto?.registradoPor?.id;
+                                if (maintFiltroUsuarioId === 'auto') return !uid;
+                                return uid === maintFiltroUsuarioId;
+                              });
+                            }
+                            if (maintFiltroMetodoPagoId) {
+                              allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                            }
+                            if (maintDateRange.desde && maintDateRange.hasta) {
+                              const start = new Date(maintDateRange.desde);
+                              const end = new Date(maintDateRange.hasta);
+                              end.setHours(23, 59, 59, 999);
+                              allMaints = allMaints.filter(m => {
+                                const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                                const d = new Date(dStr);
+                                return d >= start && d <= end;
+                              });
+                            }
+
                             const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
                             
                             return (
@@ -1525,7 +1639,32 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     
                     {/* Paginación de Mantenimientos */}
                     {(() => {
-                      const allMaints = selectedVehiculo.mantenimientos || [];
+                      let allMaints = selectedVehiculo.mantenimientos || [];
+                      
+                      if (maintFiltroTipo !== 'todos') {
+                        allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                      }
+                      if (maintFiltroUsuarioId) {
+                        allMaints = allMaints.filter(m => {
+                          const uid = m.gasto?.registradoPor?.id;
+                          if (maintFiltroUsuarioId === 'auto') return !uid;
+                          return uid === maintFiltroUsuarioId;
+                        });
+                      }
+                      if (maintFiltroMetodoPagoId) {
+                        allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                      }
+                      if (maintDateRange.desde && maintDateRange.hasta) {
+                        const start = new Date(maintDateRange.desde);
+                        const end = new Date(maintDateRange.hasta);
+                        end.setHours(23, 59, 59, 999);
+                        allMaints = allMaints.filter(m => {
+                          const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                          const d = new Date(dStr);
+                          return d >= start && d <= end;
+                        });
+                      }
+
                       const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
                       if (totalPagesMaint <= 1) return null;
                       return (
