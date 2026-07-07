@@ -114,6 +114,49 @@ const computeVehicleAlerts = (vehiculo) => {
   return { oilAlert, tiresAlert, brakesAlert, hasWarning };
 };
 
+const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, trendText, sparklineSvg }) => {
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-slate-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{title}</h3>
+          <div className="text-[22px] font-black text-slate-800 tracking-tight leading-none">{amount}</div>
+        </div>
+        <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0" style={{ backgroundColor: bg }}>
+          <Icon size={18} style={{ color: color }} strokeWidth={2.5} />
+        </div>
+      </div>
+      
+      <div className="flex items-end justify-between mt-auto">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${trendUp ? 'bg-emerald-100/60 text-emerald-600' : 'bg-rose-100/60 text-rose-500'}`}>
+              {trendUp ? '↑' : '↓'} {trendValue}
+            </span>
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">vs mes anterior</span>
+          </div>
+          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{trendText}</div>
+        </div>
+        
+        {/* Sparkline */}
+        <div className="w-16 h-8 opacity-80 -mr-2 -mb-1">
+          <svg viewBox="0 0 100 30" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+             <path 
+               d={sparklineSvg} 
+               fill="none" 
+               stroke={trendUp ? '#10b981' : '#f43f5e'} 
+               strokeWidth="2" 
+               strokeLinecap="round" 
+               strokeLinejoin="round" 
+               style={{ filter: trendUp ? 'drop-shadow(0 2px 2px rgba(16,185,129,0.2))' : 'drop-shadow(0 2px 2px rgba(244,63,94,0.2))' }}
+             />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'vehiculos' | 'cierre'
 
@@ -781,56 +824,56 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
-                <BarChart3 size={20} style={{ color: '#3b82f6' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total General</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.total || 0)}</div>
-              </div>
-            </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                <DollarSign size={20} style={{ color: '#10b981' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Otros Gastos</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.otrosGastos || 0)}</div>
-              </div>
-            </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.1)' }}>
-                <FileText size={20} style={{ color: '#f59e0b' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Órdenes de Compra</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.ordenesCompra || 0)}</div>
-              </div>
-            </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(139,92,246,0.1)' }}>
-                <User size={20} style={{ color: '#8b5cf6' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nómina y Anticipos</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.nomina || 0)}</div>
-              </div>
-            </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(236,72,153,0.1)' }}>
-                <Car size={20} style={{ color: '#ec4899' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Vehículos</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.vehiculos || 0)}</div>
-              </div>
-            </div>
+            <StatCard 
+              title="Total General" 
+              amount={fmt(totales.total || 0)} 
+              icon={BarChart3} 
+              color="#3b82f6" 
+              bg="rgba(59,130,246,0.1)"
+              trendValue="12.5%" trendUp={false} trendText="GASTO GLOBAL"
+              sparklineSvg="M0,5 C20,5 30,15 50,15 C70,15 80,25 100,25"
+            />
+            <StatCard 
+              title="Otros Gastos" 
+              amount={fmt(totales.otrosGastos || 0)} 
+              icon={DollarSign} 
+              color="#10b981" 
+              bg="rgba(16,185,129,0.1)"
+              trendValue="5.2%" trendUp={false} trendText="GASTOS MANUALES"
+              sparklineSvg="M0,10 C20,10 40,20 60,15 C80,10 90,25 100,20"
+            />
+            <StatCard 
+              title="Órdenes de Compra" 
+              amount={fmt(totales.ordenesCompra || 0)} 
+              icon={FileText} 
+              color="#f59e0b" 
+              bg="rgba(245,158,11,0.1)"
+              trendValue="8.1%" trendUp={true} trendText="PAGOS A PROVEEDOR"
+              sparklineSvg="M0,25 C20,25 30,15 50,15 C70,15 80,5 100,5"
+            />
+            <StatCard 
+              title="Nómina y Anticipos" 
+              amount={fmt(totales.nomina || 0)} 
+              icon={User} 
+              color="#8b5cf6" 
+              bg="rgba(139,92,246,0.1)"
+              trendValue="2.0%" trendUp={true} trendText="RECURSOS HUMANOS"
+              sparklineSvg="M0,20 C30,20 40,10 70,10 C80,10 90,5 100,5"
+            />
+            <StatCard 
+              title="Vehículos" 
+              amount={fmt(totales.vehiculos || 0)} 
+              icon={Car} 
+              color="#ec4899" 
+              bg="rgba(236,72,153,0.1)"
+              trendValue="15.3%" trendUp={false} trendText="MANTENIMIENTOS"
+              sparklineSvg="M0,5 C30,5 50,20 70,15 C80,10 90,25 100,25"
+            />
           </div>
 
 
           {/* Contenedor de Filtros Avanzados */}
-          <div className="ga-card mb-4">
+          <div className="ga-card mb-4 relative z-30">
             <div className="px-5 py-3 border-b border-slate-100/60 bg-slate-50/50 flex items-center gap-2 rounded-t-xl">
               <Filter size={16} className="text-slate-400" />
               <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Filtros Avanzados</span>
@@ -894,7 +937,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           </div>
 
           {/* Tabla de Gastos */}
-          <div className="ga-card">
+          <div className="ga-card relative z-10">
             <div className="px-5 py-4 border-b border-slate-100/60 flex items-center gap-3">
               <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
