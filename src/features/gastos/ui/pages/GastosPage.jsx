@@ -270,6 +270,20 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   });
   const [cierreObservaciones, setCierreObservaciones] = useState('');
   const [savingCierre, setSavingCierre] = useState(false);
+  const [montoFisicoMap, setMontoFisicoMap] = useState({});
+  const [selectedCierreDetail, setSelectedCierreDetail] = useState(null);
+
+  useEffect(() => {
+    if (cierrePreview && cierrePreview.metodosDetalle) {
+      const initial = {};
+      cierrePreview.metodosDetalle.forEach(m => {
+        initial[m.metodoPagoId] = '';
+      });
+      setMontoFisicoMap(initial);
+    } else {
+      setMontoFisicoMap({});
+    }
+  }, [cierrePreview]);
 
   // --- ESTADOS REPORTES ---
   const [reportData, setReportData] = useState(null);
@@ -358,12 +372,27 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     if (!window.confirm('¿Confirmar registro de cierre de caja para el rango seleccionado?')) return;
     setSavingCierre(true);
     try {
+      const metodosConFisico = (cierrePreview.metodosDetalle || []).map(m => {
+        const physicalStr = montoFisicoMap[m.metodoPagoId];
+        const physical = physicalStr === '' || physicalStr === undefined ? Number(m.balance) : Number(physicalStr);
+        return {
+          ...m,
+          montoFisico: physical,
+          diferencia: physical - Number(m.balance),
+        };
+      });
+
       await saveCierre({
         fechaInicio: cierrePreview.fechaInicio,
         fechaFin: cierrePreview.fechaFin,
         totalIngresos: cierrePreview.totalIngresos,
         totalEgresos: cierrePreview.totalEgresos,
-        metodosDetalle: cierrePreview.metodosDetalle,
+        metodosDetalle: {
+          metodos: metodosConFisico,
+          seccionIngresos: cierrePreview.seccionIngresos || {},
+          seccionEgresos: cierrePreview.seccionEgresos || {},
+          usuariosDetalle: cierrePreview.usuariosDetalle || [],
+        },
         observaciones: cierreObservaciones,
       });
       toast.success('Cierre de caja guardado con éxito');
@@ -1471,7 +1500,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   {/* Tabla por métodos de pago */}
                   <div className="ga-card p-6">
                     <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">
-                      Desglose por Métodos de Pago
+                      Desglose por Métodos de Pago y Arqueo
                     </h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
@@ -1480,20 +1509,131 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             <th className="py-2.5">Método</th>
                             <th className="py-2.5 text-right">Ingresos (+)</th>
                             <th className="py-2.5 text-right">Egresos (-)</th>
-                            <th className="py-2.5 text-right">Balance Neto</th>
+                            <th className="py-2.5 text-right">Balance Esperado</th>
+                            <th className="py-2.5 text-right w-32">Dinero Físico</th>
+                            <th className="py-2.5 text-right w-40">Diferencia</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100/60">
-                          {cierrePreview.metodosDetalle?.map((m) => (
-                            <tr key={m.metodoPagoId} className="ga-tr">
-                              <td className="py-3 font-semibold text-slate-700">{m.nombre}</td>
-                              <td className="py-3 text-right text-emerald-600 font-bold">{fmt(m.ingresos)}</td>
-                              <td className="py-3 text-right text-red-500 font-bold">{fmt(m.egresos)}</td>
-                              <td className={`py-3 text-right font-extrabold ${m.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                                {fmt(m.balance)}
+                          {cierrePreview.metodosDetalle?.map((m) => {
+                            const expected = Number(m.balance) || 0;
+                            const physicalStr = montoFisicoMap[m.metodoPagoId];
+                            const physical = physicalStr === '' || physicalStr === undefined ? expected : Number(physicalStr);
+                            const diff = physical - expected;
+
+                            return (
+                              <tr key={m.metodoPagoId} className="ga-tr">
+                                <td className="py-3 font-semibold text-slate-700">{m.nombre}</td>
+                                <td className="py-3 text-right text-emerald-600 font-bold font-mono">{fmt(m.ingresos)}</td>
+                                <td className="py-3 text-right text-red-500 font-bold font-mono">{fmt(m.egresos)}</td>
+                                <td className={`py-3 text-right font-extrabold font-mono ${m.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                                  {fmt(m.balance)}
+                                </td>
+                                <td className="py-3 text-right">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={montoFisicoMap[m.metodoPagoId] !== undefined ? montoFisicoMap[m.metodoPagoId] : ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setMontoFisicoMap(prev => ({ ...prev, [m.metodoPagoId]: val }));
+                                    }}
+                                    placeholder={expected.toFixed(2)}
+                                    className="w-24 text-right px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono font-semibold"
+                                  />
+                                </td>
+                                <td className={`py-3 text-right font-extrabold font-mono ${diff === 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-amber-600'}`}>
+                                  {diff === 0 ? 'Cuadra' : (diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Resumen por Secciones */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Secciones de Ingresos */}
+                    <div className="ga-card p-6">
+                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        Ingresos por Sección
+                      </h4>
+                      <div className="space-y-3 text-xs">
+                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                          <span className="text-slate-500 font-medium">Abonos Iniciales</span>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosIniciales || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-slate-500 font-medium">Abonos Posteriores</span>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosPosteriores || 0)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Secciones de Egresos */}
+                    <div className="ga-card p-6">
+                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500" />
+                        Egresos por Sección
+                      </h4>
+                      <div className="space-y-3 text-xs">
+                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                          <span className="text-slate-500 font-medium">Gastos Generales</span>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosGenerales || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                          <span className="text-slate-500 font-medium">Gastos por Auto / Vehículo</span>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosAuto || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                          <span className="text-slate-500 font-medium">Órdenes de Compra</span>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosCompras || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-slate-500 font-medium">Pagos (Nómina/Personal)</span>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosPagos || 0)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resumen por Usuario */}
+                  <div className="ga-card p-6">
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      Movimientos Consolidados por Usuario
+                    </h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
+                            <th className="py-2">Usuario</th>
+                            <th className="py-2 text-right">Ingresos (+)</th>
+                            <th className="py-2 text-right">Egresos (-)</th>
+                            <th className="py-2 text-right">Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100/60">
+                          {(cierrePreview.usuariosDetalle || []).map((u) => (
+                            <tr key={u.id} className="ga-tr">
+                              <td className="py-2.5 font-semibold text-slate-700">{u.nombre}</td>
+                              <td className="py-2.5 text-right text-emerald-600 font-bold font-mono">{fmt(u.ingresos)}</td>
+                              <td className="py-2.5 text-right text-red-500 font-bold font-mono">{fmt(u.egresos)}</td>
+                              <td className={`py-2.5 text-right font-extrabold font-mono ${u.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                                {fmt(u.balance)}
                               </td>
                             </tr>
                           ))}
+                          {(cierrePreview.usuariosDetalle || []).length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="text-center py-4 text-slate-400">
+                                No se registraron movimientos por usuarios en este rango.
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1558,6 +1698,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         <th className="px-5 py-3 text-right">Egresos</th>
                         <th className="px-5 py-3 text-right">Balance Neto</th>
                         <th className="px-5 py-3">Observaciones</th>
+                        <th className="px-5 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/40">
@@ -1580,6 +1721,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             </td>
                             <td className="px-5 py-3.5 text-slate-500 italic max-w-xs truncate" title={c.observaciones}>
                               {c.observaciones || <span className="text-slate-300">Sin notas</span>}
+                            </td>
+                            <td className="px-5 py-3.5 text-right">
+                              <button
+                                onClick={() => setSelectedCierreDetail(c)}
+                                className="text-blue-600 hover:text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded transition-colors text-[10px] uppercase tracking-wider"
+                              >
+                                Detalles
+                              </button>
                             </td>
                           </tr>
                         );
@@ -1633,6 +1782,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             {c.observaciones}
                           </div>
                         )}
+                        <div className="mt-2 pt-2 border-t border-slate-50 flex justify-end">
+                          <button
+                            onClick={() => setSelectedCierreDetail(c)}
+                            className="text-blue-600 hover:text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded transition-colors text-[10px] uppercase tracking-wider w-full text-center"
+                          >
+                            Ver Detalles
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -2088,6 +2245,178 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           </div>
         </div>
       </ModalPortal>
+
+      {/* Modal Detalle de Cierre Histórico */}
+      {selectedCierreDetail && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedCierreDetail(null)} />
+          
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-y-auto relative z-[201] p-6 animate-ve-modal-in" style={{ fontFamily: "'Inter', sans-serif" }}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm md:text-base">Detalle de Cierre de Caja</h3>
+                <p className="text-xs text-slate-400">Periodo: {selectedCierreDetail.fechaInicio.split('T')[0]} al {selectedCierreDetail.fechaFin.split('T')[0]}</p>
+              </div>
+              <button onClick={() => setSelectedCierreDetail(null)} className="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+            </div>
+
+            {(() => {
+              let parsed = { metodos: [], seccionIngresos: {}, seccionEgresos: {}, usuariosDetalle: [] };
+              try {
+                const raw = JSON.parse(selectedCierreDetail.metodosDetalle);
+                if (Array.isArray(raw)) {
+                  parsed.metodos = raw;
+                } else if (raw && raw.metodos) {
+                  parsed = { ...parsed, ...raw };
+                }
+              } catch (e) {
+                console.error("Error parsing historical closure details:", e);
+              }
+
+              return (
+                <div className="space-y-6 text-xs">
+                  {/* Info Header */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl text-[11px] md:text-xs">
+                    <div>
+                      <span className="text-slate-400 font-semibold uppercase block text-[9px]">Registrado el</span>
+                      <span className="font-bold text-slate-700">{new Date(selectedCierreDetail.fecha).toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold uppercase block text-[9px]">Usuario</span>
+                      <span className="font-bold text-slate-700">{selectedCierreDetail.usuario?.nombre || 'Administrador'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold uppercase block text-[9px]">Ingresos / Egresos</span>
+                      <span className="font-bold text-slate-700">{fmt(Number(selectedCierreDetail.totalIngresos))} / {fmt(Number(selectedCierreDetail.totalEgresos))}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold uppercase block text-[9px]">Balance Neto</span>
+                      <span className={`font-bold ${Number(selectedCierreDetail.balance) >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(Number(selectedCierreDetail.balance))}</span>
+                    </div>
+                  </div>
+
+                  {/* Payment methods list with discrepancy */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Desglose de Caja y Discrepancias</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                            <th className="py-2">Método</th>
+                            <th className="py-2 text-right">Ingresos</th>
+                            <th className="py-2 text-right">Egresos</th>
+                            <th className="py-2 text-right">Monto Esperado</th>
+                            <th className="py-2 text-right">Dinero Físico</th>
+                            <th className="py-2 text-right">Diferencia</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {parsed.metodos.map((m) => {
+                            const hasFisico = m.montoFisico !== undefined;
+                            const physical = hasFisico ? Number(m.montoFisico) : Number(m.balance);
+                            const diff = hasFisico ? Number(m.diferencia) : 0;
+                            return (
+                              <tr key={m.metodoPagoId}>
+                                <td className="py-2.5 font-semibold text-slate-700">{m.nombre}</td>
+                                <td className="py-2.5 text-right text-emerald-600 font-mono font-semibold">{fmt(Number(m.ingresos))}</td>
+                                <td className="py-2.5 text-right text-red-500 font-mono font-semibold">{fmt(Number(m.egresos))}</td>
+                                <td className="py-2.5 text-right font-mono font-bold text-slate-700">{fmt(Number(m.balance))}</td>
+                                <td className="py-2.5 text-right font-mono font-semibold text-slate-600">{hasFisico ? fmt(physical) : '—'}</td>
+                                <td className={`py-2.5 text-right font-mono font-bold ${diff === 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-amber-600'}`}>
+                                  {hasFisico ? (diff === 0 ? 'Cuadra' : (diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`)) : 'Cuadra'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Section summaries */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border border-slate-100 p-4 rounded-xl">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Ingresos por Sección</h4>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Abonos Iniciales:</span>
+                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionIngresos.abonosIniciales || 0)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Abonos Posteriores:</span>
+                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionIngresos.abonosPosteriores || 0)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border border-slate-100 p-4 rounded-xl">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Egresos por Sección</h4>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Gastos Generales:</span>
+                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos.gastosGenerales || 0)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Gastos por Auto:</span>
+                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos.gastosAuto || 0)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Órdenes de Compra:</span>
+                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos.gastosCompras || 0)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Pagos (Nómina/Personal):</span>
+                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos.gastosPagos || 0)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Users breakdown */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Movimientos por Usuario</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                            <th className="py-1.5">Usuario</th>
+                            <th className="py-1.5 text-right">Ingresos</th>
+                            <th className="py-1.5 text-right">Egresos</th>
+                            <th className="py-1.5 text-right">Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {parsed.usuariosDetalle.map((u) => (
+                            <tr key={u.id}>
+                              <td className="py-2 font-semibold text-slate-700">{u.nombre}</td>
+                              <td className="py-2 text-right text-emerald-600 font-mono">{fmt(Number(u.ingresos))}</td>
+                              <td className="py-2 text-right text-red-500 font-mono">{fmt(Number(u.egresos))}</td>
+                              <td className={`py-2 text-right font-mono font-bold ${Number(u.balance) >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(Number(u.balance))}</td>
+                            </tr>
+                          ))}
+                          {parsed.usuariosDetalle.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="text-center py-2 text-slate-400">No se guardó desglose por usuarios para este periodo.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Observations */}
+                  {selectedCierreDetail.observaciones && (
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">Observaciones</h4>
+                      <p className="text-xs text-slate-600 whitespace-pre-wrap italic">"{selectedCierreDetail.observaciones}"</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
     </div>
   );
