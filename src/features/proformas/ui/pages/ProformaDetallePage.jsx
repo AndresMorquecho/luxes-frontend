@@ -1,13 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getProformaById, aprobarProforma, rechazarProforma, registrarAbonoProforma } from '../../application/proformasService';
+import { getProformaById, aprobarProforma, rechazarProforma, registrarAbonoProforma, editarAbonoProforma, eliminarAbonoProforma } from '../../application/proformasService';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProformaPDF } from '../components/ProformaPDF';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+const formatDateTime = (val) => {
+  if (!val) return '—';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleString('es-EC', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
 
 export const ProformaDetallePage = () => {
   const { id } = useParams();
@@ -21,6 +36,7 @@ export const ProformaDetallePage = () => {
   
   // Modal states
   const [showAbonoModal, setShowAbonoModal] = useState(false);
+  const [editingAbono, setEditingAbono] = useState(null);
   const [abonoForm, setAbonoForm] = useState({
     monto: '',
     metodoPagoId: '',
@@ -82,9 +98,18 @@ export const ProformaDetallePage = () => {
   const total = subtotal * (1 + Number(proforma.iva));
   const totalCobrado = (proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
   const totalPendiente = Math.max(0, total - totalCobrado);
+  
+  const sumOtrosAbonos = editingAbono 
+    ? (proforma.abonos || []).filter(ab => ab.id !== editingAbono.id).reduce((s, ab) => s + Number(ab.monto), 0)
+    : 0;
 
   const handleRechazar = async () => {
-    if (!window.confirm('¿Está seguro de que desea rechazar esta proforma?')) return;
+    const confirmed = await confirmDialog(
+      'Rechazar Proforma',
+      '¿Está seguro de que desea rechazar esta proforma?',
+      { type: 'danger', confirmLabel: 'Rechazar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmed) return;
     try {
       const updated = await rechazarProforma(proforma.id);
       setProforma(updated);
@@ -113,6 +138,46 @@ export const ProformaDetallePage = () => {
     setShowAbonoModal(true);
   };
 
+  const handleCloseModal = () => {
+    setShowAbonoModal(false);
+    setEditingAbono(null);
+    setAbonoForm({
+      monto: '',
+      metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
+      referencia: '',
+    });
+  };
+
+  const handleOpenEditarAbono = (abono) => {
+    setEditingAbono(abono);
+    setAbonoForm({
+      monto: abono.monto.toString(),
+      metodoPagoId: abono.metodoPago?.id || '',
+      referencia: abono.referencia || '',
+    });
+    setShowAbonoModal(true);
+  };
+
+  const handleEliminarAbono = async (abonoId) => {
+    const confirmed = await confirmDialog(
+      'Eliminar Abono',
+      '¿Está seguro de que desea eliminar este abono?',
+      { type: 'danger', confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmed) return;
+    try {
+      setLoading(true);
+      const updated = await eliminarAbonoProforma(proforma.id, abonoId);
+      setProforma(updated);
+      toast.success('Abono eliminado correctamente');
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar el abono');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveAbono = async (e) => {
     e.preventDefault();
     const numericMonto = parseFloat(abonoForm.monto);
@@ -122,40 +187,52 @@ export const ProformaDetallePage = () => {
       return;
     }
 
-    const maxPermitted = proforma.estado === 'Pendiente' ? total : totalPendiente;
+    const maxPermitted = proforma.estado === 'Pendiente' 
+      ? total 
+      : (editingAbono ? total - sumOtrosAbonos : totalPendiente);
+
     if (numericMonto > (maxPermitted + 0.01)) {
       toast.error(`El abono no puede superar el valor restante de ${formatUSD(maxPermitted)}`);
       return;
     }
 
     setSubmittingAbono(true);
-      try {
-        let updated;
-        if (proforma.estado === 'Pendiente') {
-          updated = await aprobarProforma(proforma.id, {
-            monto: numericMonto,
-            metodoPagoId: abonoForm.metodoPagoId,
-            referencia: abonoForm.referencia,
-          });
-          toast.success('Proforma aprobada y abono registrado correctamente');
-        } else {
-          updated = await registrarAbonoProforma(proforma.id, {
-            monto: numericMonto,
-            metodoPagoId: abonoForm.metodoPagoId,
-            referencia: abonoForm.referencia,
-          });
-          toast.success('Abono registrado correctamente');
-        }
-        setProforma(updated);
-        setShowAbonoModal(false);
-        setAbonoForm(prev => ({ ...prev, referencia: '' }));
-        navigate('/proformas');
-      } catch (err) {
-        console.error(err);
-        toast.error(err instanceof Error ? err.message : 'Error al registrar la transacción');
-      } finally {
-        setSubmittingAbono(false);
+    try {
+      let updated;
+      if (editingAbono) {
+        updated = await editarAbonoProforma(proforma.id, editingAbono.id, {
+          monto: numericMonto,
+          metodoPagoId: abonoForm.metodoPagoId,
+          referencia: abonoForm.referencia,
+        });
+        toast.success('Abono editado correctamente');
+      } else if (proforma.estado === 'Pendiente') {
+        updated = await aprobarProforma(proforma.id, {
+          monto: numericMonto,
+          metodoPagoId: abonoForm.metodoPagoId,
+          referencia: abonoForm.referencia,
+        });
+        toast.success('Proforma aprobada y abono registrado correctamente');
+      } else {
+        updated = await registrarAbonoProforma(proforma.id, {
+          monto: numericMonto,
+          metodoPagoId: abonoForm.metodoPagoId,
+          referencia: abonoForm.referencia,
+        });
+        toast.success('Abono registrado correctamente');
       }
+      setProforma(updated);
+      handleCloseModal();
+      
+      if (proforma.estado === 'Pendiente') {
+        navigate('/proformas');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Error al registrar la transacción');
+    } finally {
+      setSubmittingAbono(false);
+    }
   };
 
   const badgeStyle = (estado) => {
@@ -379,19 +456,38 @@ export const ProformaDetallePage = () => {
           {(proforma.abonos && proforma.abonos.length > 0) ? (
             isMobileSm ? (
               <div className="divide-y divide-slate-100">
-                {proforma.abonos.map((ab) => (
+                {proforma.abonos.map((ab, idx) => (
                   <div key={ab.id} className="px-4 py-3 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col min-w-0">
                         <span className="text-xs font-bold text-slate-700">{ab.metodoPago?.nombre || 'Caja General'}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">{ab.fecha}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{formatDateTime(ab.fecha)}</span>
                       </div>
                       <span className="text-sm font-extrabold text-slate-800 font-mono">{formatUSD(ab.monto)}</span>
                     </div>
-                    {ab.referencia && (
-                      <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded px-2 py-1">
-                        Ref: {ab.referencia}
-                      </span>
+                    <div className="flex flex-col gap-1 text-[10px] text-slate-400 bg-slate-50 border border-slate-100/50 rounded-lg p-2">
+                      {ab.referencia && (
+                        <span><strong className="text-slate-500">Ref:</strong> {ab.referencia}</span>
+                      )}
+                      <span><strong className="text-slate-500">Registrado por:</strong> {ab.registradoPor?.nombre || 'N/A'}</span>
+                    </div>
+                    {isAdmin && idx === proforma.abonos.length - 1 && (
+                      <div className="flex justify-end gap-3 mt-1 pt-2 border-t border-dashed border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditarAbono(ab)}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-800"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEliminarAbono(ab.id)}
+                          className="text-xs font-bold text-red-600 hover:text-red-800"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -401,21 +497,48 @@ export const ProformaDetallePage = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
-                      <th className="text-left px-5 py-3">ID</th>
-                      <th className="text-left px-5 py-3">Fecha</th>
+                      <th className="text-left px-5 py-3">Fecha y Hora</th>
                       <th className="text-left px-5 py-3">Caja / Cuenta</th>
                       <th className="text-left px-5 py-3">Referencia</th>
+                      <th className="text-left px-5 py-3">Usuario</th>
                       <th className="text-right px-5 py-3">Monto</th>
+                      <th className="text-right px-5 py-3 w-40">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {proforma.abonos.map((ab) => (
-                      <tr key={ab.id}>
-                        <td className="px-5 py-3 font-mono text-xs text-slate-500">{ab.id.split('-')[0]}...</td>
-                        <td className="px-5 py-3 text-slate-600">{ab.fecha}</td>
+                    {proforma.abonos.map((ab, idx) => (
+                      <tr key={ab.id} className="hover:bg-slate-50/20 transition-colors">
+                        <td className="px-5 py-3 text-slate-600 font-mono text-xs">{formatDateTime(ab.fecha)}</td>
                         <td className="px-5 py-3 font-semibold text-slate-700">{ab.metodoPago?.nombre || 'General'}</td>
                         <td className="px-5 py-3 text-slate-500 text-xs">{ab.referencia || 'N/A'}</td>
+                        <td className="px-5 py-3 text-slate-500 text-xs">{ab.registradoPor?.nombre || 'N/A'}</td>
                         <td className="px-5 py-3 text-right font-bold text-slate-800 font-mono">{formatUSD(ab.monto)}</td>
+                        <td className="px-5 py-3 text-right">
+                          {isAdmin && idx === proforma.abonos.length - 1 && (
+                            <div className="flex justify-end gap-3">
+                              <button
+                                onClick={() => handleOpenEditarAbono(ab)}
+                                className="text-blue-600 hover:text-blue-800 font-semibold text-xs flex items-center gap-1"
+                                title="Editar Abono"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                </svg>
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleEliminarAbono(ab.id)}
+                                className="text-red-600 hover:text-red-800 font-semibold text-xs flex items-center gap-1"
+                                title="Eliminar Abono"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                                Eliminar
+                              </button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -430,19 +553,20 @@ export const ProformaDetallePage = () => {
         </div>
       )}
 
-      {/* Abono Modal */}
       {showAbonoModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           {/* Backdrop */}
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowAbonoModal(false)} />
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={handleCloseModal} />
           
           {/* Box (Wider max-w-3xl) */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl w-full max-w-3xl overflow-hidden relative z-[201] animate-ve-modal-in" style={{ fontFamily: "'Inter', sans-serif" }}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="font-bold text-slate-800 text-base">
-                {proforma.estado === 'Pendiente' ? 'Aprobación y Registro de Abono' : 'Registrar Abono'}
+                {editingAbono 
+                  ? 'Editar Abono' 
+                  : (proforma.estado === 'Pendiente' ? 'Aprobación y Registro de Abono' : 'Registrar Abono')}
               </h3>
-              <button onClick={() => setShowAbonoModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
             
             <form onSubmit={handleSaveAbono} className="p-6 space-y-4">
@@ -450,7 +574,9 @@ export const ProformaDetallePage = () => {
                 {/* Columna Izquierda: Información Financiera y Monto */}
                 <div className="space-y-4">
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.
+                    {editingAbono 
+                      ? 'Modifica los valores del abono. El total del abono no debe superar el saldo pendiente.'
+                      : 'Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.'}
                   </p>
                   
                   <div className="grid grid-cols-2 gap-3">
@@ -462,7 +588,9 @@ export const ProformaDetallePage = () => {
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
                       <span className="text-slate-400 font-medium text-[10px] uppercase">Saldo Pendiente</span>
                       <span className="font-bold text-amber-700 font-mono text-base mt-1">
-                        {proforma.estado === 'Pendiente' ? formatUSD(total) : formatUSD(totalPendiente)}
+                        {proforma.estado === 'Pendiente' 
+                          ? formatUSD(total) 
+                          : formatUSD(editingAbono ? total - sumOtrosAbonos : totalPendiente)}
                       </span>
                     </div>
                   </div>
@@ -545,7 +673,7 @@ export const ProformaDetallePage = () => {
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowAbonoModal(false)}
+                  onClick={handleCloseModal}
                   className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"
                 >
                   Cancelar
@@ -561,7 +689,7 @@ export const ProformaDetallePage = () => {
                       aria-hidden="true"
                     />
                   )}
-                  {submittingAbono ? 'Registrando...' : 'Confirmar Registro'}
+                  {submittingAbono ? (editingAbono ? 'Guardando...' : 'Registrando...') : (editingAbono ? 'Guardar Cambios' : 'Confirmar Registro')}
                 </button>
               </div>
             </form>
