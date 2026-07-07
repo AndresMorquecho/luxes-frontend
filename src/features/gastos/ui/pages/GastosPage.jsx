@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { 
   getGastos, saveGasto, deleteGasto, CATEGORIAS,
@@ -285,6 +286,18 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     try {
       const data = await getCierres();
       setCierreHistory(data || []);
+
+      if (data && data.length > 0) {
+        const latestCierre = data[0];
+        if (latestCierre.fechaFin) {
+          const nextDay = new Date(latestCierre.fechaFin);
+          nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+          setCierreDates(prev => ({
+            ...prev,
+            desde: nextDay.toISOString().split('T')[0]
+          }));
+        }
+      }
     } catch (err) {
       toast.error('Error al cargar historial de cierres: ' + err.message);
     } finally {
@@ -799,7 +812,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       `}</style>
 
       {/* Título Principal */}
-      <div className="ga-card px-6 py-5 flex items-center justify-between gap-4 flex-wrap mb-6">
+      <div className="ga-card px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2.5">
             {PAGE_META[activeTab]?.title || 'Finanzas'}
@@ -808,14 +821,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             {PAGE_META[activeTab]?.subtitle || ''}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           {activeTab === 'gastos' ? (
-            <button onClick={openNewGasto} className="ga-btn-primary">
+            <button onClick={openNewGasto} className="ga-btn-primary whitespace-nowrap">
               <Plus size={16} />
               Registrar Gasto
             </button>
           ) : activeTab === 'vehiculos' && !selectedVehiculo ? (
-            <button onClick={openNewVehiculo} className="ga-btn-primary">
+            <button onClick={openNewVehiculo} className="ga-btn-primary whitespace-nowrap">
               <Plus size={16} />
               Registrar Vehículo
             </button>
@@ -980,7 +993,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
             ) : (
               <div className="overflow-x-auto overflow-y-hidden">
-                <table className="hidden md:table w-full text-[13px]">
+                <table className="cc-desktop-table w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-32">Fecha Hora</th>
@@ -1044,7 +1057,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 </table>
                 
                 {/* Vista Móvil (Cards) */}
-                <div className="block md:hidden">
+                <div className="cc-mobile-cards">
                   <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
                     {paginated.map((g) => {
                     const origenStyles = {
@@ -1246,11 +1259,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
+                <div className="flex flex-wrap gap-2 mt-2 w-full md:w-auto md:mt-0">
                   <button 
                     disabled={!isAdmin}
                     onClick={() => openEditVehiculo(selectedVehiculo)} 
-                    className="ga-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ga-btn-secondary whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit size={14} />
                     Editar Info
@@ -1258,14 +1271,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   <button 
                     disabled={!isAdmin}
                     onClick={() => handleDeleteVehiculo(selectedVehiculo.id)} 
-                    className="ga-btn-secondary hover:!text-red-600 hover:!border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ga-btn-secondary whitespace-nowrap hover:!text-red-600 hover:!border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 size={14} />
                     Eliminar Vehículo
                   </button>
                   <button 
                     onClick={openNewMaint} 
-                    className="ga-btn-primary"
+                    className="ga-btn-primary whitespace-nowrap"
                   >
                     <Plus size={16} />
                     Registrar Mantenimiento
@@ -1276,101 +1289,69 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               {/* Diseño Principal del Vehículo */}
               <div className="flex flex-col gap-6">
                 
-                {/* Cabecera: Ficha y Alertas */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {/* Cabecera: Ficha y Alertas apiladas para mejor distribución */}
+                <div className="flex flex-col gap-4">
                   
-                  {/* Información Ficha Técnica */}
-                  <div className="ga-card p-5 xl:col-span-1 space-y-4">
-                    <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2 flex items-center gap-2">
-                      <Info size={16} className="text-blue-500" />
-                      Ficha del Vehículo
-                    </h3>
-                  <div className="space-y-3 text-xs text-slate-500">
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Marca:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.marca}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Modelo:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.modelo}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Año:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.anio || 'N/D'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Color:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.color || 'N/D'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Kilometraje:</span>
-                      <span className="font-bold text-blue-600">{(selectedVehiculo.kilometraje || 0).toLocaleString()} km</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Estado:</span>
-                      <span className="font-bold text-slate-800 capitalize">{selectedVehiculo.estado}</span>
-                    </div>
-                    <div className="flex flex-col gap-1 border-t border-slate-100 pt-2.5">
-                      <span className="font-semibold text-slate-400">Observaciones / Notas:</span>
-                      <p className="text-slate-600 italic leading-relaxed">{selectedVehiculo.notas || 'Sin observaciones adicionales.'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                  {/* Tarjetas Alertas de Salud del Vehículo */}
-                  <div className="ga-card p-5 xl:col-span-2 flex flex-col">
-                    <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-2">
+                  {/* Tarjetas Alertas de Salud del Vehículo (Minimalista) */}
+                  <div className="ga-card p-4">
+                    <h3 className="font-extrabold text-slate-800 text-sm mb-3 flex items-center gap-2">
                       <Wrench size={16} className="text-blue-500" />
-                      Estado de Mantenimientos Preventivos
+                      Estado Preventivo
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {(() => {
                         const { oilAlert, tiresAlert, brakesAlert } = computeVehicleAlerts(selectedVehiculo);
+                        const renderMinimalAlert = (title, alert) => (
+                          <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${alert.status === 'ok' ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800' : alert.status === 'warning' ? 'bg-amber-50/50 border-amber-100 text-amber-800' : 'bg-red-50/50 border-red-100 text-red-800'}`}>
+                            <div className="flex flex-col">
+                              <span className="font-extrabold text-xs">{title}</span>
+                              <span className="text-[10px] font-medium opacity-80 mt-0.5">{alert.message}</span>
+                            </div>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${alert.status === 'ok' ? 'border-emerald-200 bg-emerald-100/50' : alert.status === 'warning' ? 'border-amber-200 bg-amber-100/50' : 'border-red-200 bg-red-100/50'}`}>
+                              {alert.status === 'ok' ? 'Al día' : 'Revisar'}
+                            </span>
+                          </div>
+                        );
                         return (
                           <>
-                            {/* Aceite */}
-                            <div className={`maint-alert-card ${oilAlert.status}`}>
-                              <div>
-                                <span className={`maint-badge ${oilAlert.status}`}>{oilAlert.status === 'ok' ? 'Al día' : 'Atención'}</span>
-                                <h4 className="font-extrabold text-sm mt-2">Cambio de Aceite</h4>
-                                <p className="text-[11px] mt-1.5 leading-relaxed opacity-90">{oilAlert.message}</p>
-                              </div>
-                              <div className="mt-4 pt-2.5 border-t border-current/10 text-[10px] flex justify-between">
-                                <span className="opacity-60">Último cambio:</span>
-                                <strong className="font-extrabold">{oilAlert.lastInfo}</strong>
-                              </div>
-                            </div>
-
-                            {/* Llantas */}
-                            <div className={`maint-alert-card ${tiresAlert.status}`}>
-                              <div>
-                                <span className={`maint-badge ${tiresAlert.status}`}>{tiresAlert.status === 'ok' ? 'Al día' : 'Atención'}</span>
-                                <h4 className="font-extrabold text-sm mt-2">Cambio de Llantas</h4>
-                                <p className="text-[11px] mt-1.5 leading-relaxed opacity-90">{tiresAlert.message}</p>
-                              </div>
-                              <div className="mt-4 pt-2.5 border-t border-current/10 text-[10px] flex justify-between">
-                                <span className="opacity-60">Último cambio:</span>
-                                <strong className="font-extrabold">{tiresAlert.lastInfo}</strong>
-                              </div>
-                            </div>
-
-                            {/* Frenos */}
-                            <div className={`maint-alert-card ${brakesAlert.status}`}>
-                              <div>
-                                <span className={`maint-badge ${brakesAlert.status}`}>{brakesAlert.status === 'ok' ? 'Al día' : 'Atención'}</span>
-                                <h4 className="font-extrabold text-sm mt-2">Revisión de Frenos</h4>
-                                <p className="text-[11px] mt-1.5 leading-relaxed opacity-90">{brakesAlert.message}</p>
-                              </div>
-                              <div className="mt-4 pt-2.5 border-t border-current/10 text-[10px] flex justify-between">
-                                <span className="opacity-60">Última revisión:</span>
-                                <strong className="font-extrabold">{brakesAlert.lastInfo}</strong>
-                              </div>
-                            </div>
+                            {renderMinimalAlert("Aceite", oilAlert)}
+                            {renderMinimalAlert("Llantas", tiresAlert)}
+                            {renderMinimalAlert("Frenos", brakesAlert)}
                           </>
                         );
                       })()}
                     </div>
                   </div>
+                  
+                  {/* Información Ficha Técnica */}
+                  <div className="ga-card p-5">
+                    <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <Info size={16} className="text-blue-500" />
+                      Detalles del Vehículo
+                    </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs text-slate-500">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-400">Marca / Modelo:</span>
+                      <span className="font-bold text-slate-800">{selectedVehiculo.marca} {selectedVehiculo.modelo}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-400">Año / Color:</span>
+                      <span className="font-bold text-slate-800">{selectedVehiculo.anio || 'N/D'} • {selectedVehiculo.color || 'N/D'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-400">Kilometraje:</span>
+                      <span className="font-bold text-blue-600">{(selectedVehiculo.kilometraje || 0).toLocaleString()} km</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-400">Estado:</span>
+                      <span className="font-bold text-slate-800 capitalize">{selectedVehiculo.estado}</span>
+                    </div>
+                    <div className="col-span-full pt-2 border-t border-slate-100">
+                      <span className="font-semibold text-slate-400 block mb-1">Observaciones / Notas:</span>
+                      <p className="text-slate-600 italic leading-relaxed">{selectedVehiculo.notas || 'Sin observaciones adicionales.'}</p>
+                    </div>
+                  </div>
+                </div>
                 </div>
 
                 {/* Filtros de Mantenimientos */}
@@ -1434,7 +1415,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 </div>
 
                 {/* Historial de Mantenimientos Realizados */}
-                <div className="ga-card w-full">
+                <div className="ga-card w-full mb-6">
                     <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
                       <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
                         <Calendar size={16} className="text-blue-500" />
@@ -1446,7 +1427,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="hidden md:table w-full text-[13px]">
+                      <table className="cc-desktop-table hidden md:table w-full text-[13px]">
                         <thead>
                           <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
                             <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Fecha / Tipo</th>
@@ -1494,10 +1475,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                   <tr key={m.id} className="ga-tr">
                                     <td className="px-5 py-3.5">
                                       <div className="font-bold text-slate-800">{m.tipo}</div>
-                                      <div className="text-[11px] font-medium text-slate-700 mt-1 whitespace-nowrap">
+                                      <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                                         {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
                                       </div>
-                                      <div className="text-[9px] text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">
+                                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                                         {m.gasto?.registradoPor?.nombre || 'Automático'}
                                       </div>
                                     </td>
@@ -1552,7 +1533,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       </table>
                       
                       {/* Vista Móvil (Cards) */}
-                      <div className="block md:hidden">
+                      <div className="cc-mobile-cards">
                         <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
                           {(() => {
                               let allMaints = selectedVehiculo.mantenimientos || [];
@@ -1695,7 +1676,24 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       )}
       {/* PESTAÑA 3: CIERRE DE CAJA */}
       {activeTab === 'cierre' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="space-y-6">
+          {/* Header Cierre de Caja */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/80 p-5 rounded-2xl shadow-sm border border-slate-100">
+            <div>
+              <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <ClipboardCheck size={20} className="text-blue-600" />
+                Control y Cierre de Caja
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Calculando saldos y balances desde el último cierre.
+              </p>
+            </div>
+            <Link to="/cierre-caja/historial" className="ga-btn-secondary text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 shadow-sm w-full md:w-auto justify-center">
+              <Clock size={16} /> Historial de Cierres
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             {/* Panel Lateral: Parámetros y Arqueo (Izquierda) */}
             <div className="lg:col-span-1 space-y-6">
               <div className="ga-card p-6 space-y-6 relative z-[60]" style={{ overflow: 'visible' }}>
@@ -1968,137 +1966,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </p>
                 </div>
               )}
-
-              {/* Historial de Cierres */}
-          <div className="ga-card">
-            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/20">
-              <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                <Clock size={16} className="text-blue-500" />
-                Historial de Cierres de Caja
-              </h3>
             </div>
-            {loadingCierreHistory ? (
-              <div className="flex items-center justify-center py-10">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-blue-600" />
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto cc-desktop-table">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 bg-slate-50/10 text-left font-bold uppercase tracking-wider">
-                        <th className="px-5 py-3">Rango de Cierre</th>
-                        <th className="px-5 py-3">Fecha Cierre</th>
-                        <th className="px-5 py-3">Registrado Por</th>
-                        <th className="px-5 py-3 text-right">Ingresos</th>
-                        <th className="px-5 py-3 text-right">Egresos</th>
-                        <th className="px-5 py-3 text-right">Balance Neto</th>
-                        <th className="px-5 py-3">Observaciones</th>
-                        <th className="px-5 py-3 text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/40">
-                      {cierreHistory.map((c) => {
-                        return (
-                          <tr key={c.id} className="ga-tr">
-                            <td className="px-5 py-3.5 font-semibold text-slate-700">
-                              {c.fechaInicio.split('T')[0]} al {c.fechaFin.split('T')[0]}
-                            </td>
-                            <td className="px-5 py-3.5 text-slate-500">
-                              {new Date(c.fecha).toLocaleString()}
-                            </td>
-                            <td className="px-5 py-3.5 font-medium text-slate-600">
-                              {c.usuario?.nombre || 'Administrador'}
-                            </td>
-                            <td className="px-5 py-3.5 text-right font-bold text-emerald-600">{fmt(c.totalIngresos)}</td>
-                            <td className="px-5 py-3.5 text-right font-bold text-red-500">{fmt(c.totalEgresos)}</td>
-                            <td className={`px-5 py-3.5 text-right font-extrabold ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                              {fmt(c.balance)}
-                            </td>
-                            <td className="px-5 py-3.5 text-slate-500 italic max-w-xs truncate" title={c.observaciones}>
-                              {c.observaciones || <span className="text-slate-300">Sin notas</span>}
-                            </td>
-                            <td className="px-5 py-3.5 text-right">
-                              <button
-                                onClick={() => setSelectedCierreDetail(c)}
-                                className="text-blue-600 hover:text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded transition-colors text-[10px] uppercase tracking-wider"
-                              >
-                                Detalles
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {cierreHistory.length === 0 && (
-                        <tr>
-                          <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
-                            No se han registrado cierres de caja todavía.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="cc-mobile-cards">
-                  {cierreHistory.map((c) => {
-                    return (
-                      <div key={c.id} className="cc-mobile-card">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-slate-800">
-                            {c.fechaInicio.split('T')[0]} al {c.fechaFin.split('T')[0]}
-                          </span>
-                          <span className="text-[10px] text-slate-450 font-medium">
-                            {new Date(c.fecha).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-y-2 text-xs pt-1">
-                          <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Registrado Por</span>
-                            <span className="font-semibold text-slate-700">{c.usuario?.nombre || 'Administrador'}</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Balance Neto</span>
-                            <span className={`font-extrabold ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                              {fmt(c.balance)}
-                            </span>
-                          </div>
-                          <div className="text-emerald-600">
-                            <span className="text-[9px] text-emerald-400 font-bold uppercase block">Ingresos</span>
-                            <span className="font-bold">{fmt(c.totalIngresos)}</span>
-                          </div>
-                          <div className="text-red-500">
-                            <span className="text-[9px] text-red-400 font-bold uppercase block">Egresos</span>
-                            <span className="font-bold">{fmt(c.totalEgresos)}</span>
-                          </div>
-                        </div>
-                        {c.observaciones && (
-                          <div className="mt-1 pt-1.5 border-t border-slate-50 text-[11px] text-slate-500 italic">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase not-italic block mb-0.5">Observaciones</span>
-                            {c.observaciones}
-                          </div>
-                        )}
-                        <div className="mt-2 pt-2 border-t border-slate-50 flex justify-end">
-                          <button
-                            onClick={() => setSelectedCierreDetail(c)}
-                            className="text-blue-600 hover:text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded transition-colors text-[10px] uppercase tracking-wider w-full text-center"
-                          >
-                            Ver Detalles
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {cierreHistory.length === 0 && (
-                    <div className="text-center py-10 text-slate-400 font-medium text-xs">
-                      No se han registrado cierres de caja todavía.
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
           </div>
-            </div>
         </div>
       )}
 
@@ -2349,218 +2218,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           </div>
         </div>
       </ModalPortal>
-
-      {/* Modal Detalle de Cierre Histórico */}
-      {selectedCierreDetail && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedCierreDetail(null)} />
-          
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-y-auto relative z-[201] p-6 animate-ve-modal-in" style={{ fontFamily: "'Inter', sans-serif" }}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <div>
-                <h3 className="font-extrabold text-slate-800 text-sm md:text-base">Detalle de Cierre de Caja</h3>
-                <p className="text-xs text-slate-400">Periodo: {selectedCierreDetail.fechaInicio.split('T')[0]} al {selectedCierreDetail.fechaFin.split('T')[0]}</p>
-              </div>
-              <button onClick={() => setSelectedCierreDetail(null)} className="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
-            </div>
-
-            {(() => {
-              let parsed = { metodos: [], seccionIngresos: {}, seccionEgresos: {}, usuariosDetalle: [], efectivoFisicoContado: undefined, diferenciaEfectivo: undefined };
-              try {
-                const raw = JSON.parse(selectedCierreDetail.metodosDetalle);
-                if (Array.isArray(raw)) {
-                  parsed.metodos = raw;
-                } else if (raw && raw.metodos) {
-                  parsed = { ...parsed, ...raw };
-                }
-              } catch (e) {
-                console.error("Error parsing historical closure details:", e);
-              }
-
-              const totalEfectivoEsperado = parsed.metodos
-                .filter(m => esMetodoEfectivo(m.nombre))
-                .reduce((sum, m) => sum + (Number(m.balance) || 0), 0);
-
-              const hasGlobalCash = parsed.efectivoFisicoContado !== undefined;
-
-              return (
-                <div className="space-y-6 text-xs">
-                  {/* Info Header */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl text-[11px] md:text-xs">
-                    <div>
-                      <span className="text-slate-400 font-semibold uppercase block text-[9px]">Registrado el</span>
-                      <span className="font-bold text-slate-700">{new Date(selectedCierreDetail.fecha).toLocaleString()}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 font-semibold uppercase block text-[9px]">Usuario</span>
-                      <span className="font-bold text-slate-700">{selectedCierreDetail.usuario?.nombre || 'Administrador'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 font-semibold uppercase block text-[9px]">Ingresos / Egresos</span>
-                      <span className="font-bold text-slate-700">{fmt(Number(selectedCierreDetail.totalIngresos))} / {fmt(Number(selectedCierreDetail.totalEgresos))}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 font-semibold uppercase block text-[9px]">Balance Neto</span>
-                      <span className={`font-bold ${Number(selectedCierreDetail.balance) >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(Number(selectedCierreDetail.balance))}</span>
-                    </div>
-                  </div>
-
-                  {/* Arqueo de Efectivo Físico Global */}
-                  {hasGlobalCash && (
-                    <div className="bg-violet-50/40 border border-violet-100 p-4 rounded-xl flex justify-between items-center text-xs">
-                      <div>
-                        <span className="text-violet-600 font-bold uppercase tracking-wider block text-[9px]">Arqueo de Efectivo Físico</span>
-                        <div className="flex gap-4 mt-1 font-semibold text-slate-700">
-                          <span>Esperado: <strong className="font-mono text-slate-800">{fmt(totalEfectivoEsperado)}</strong></span>
-                          <span>Físico Contado: <strong className="font-mono text-slate-800">{fmt(Number(parsed.efectivoFisicoContado))}</strong></span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-slate-400 font-semibold block text-[9px] uppercase">Diferencia</span>
-                        <span className={`font-mono font-extrabold text-sm ${Number(parsed.diferenciaEfectivo) === 0 ? 'text-emerald-600' : Number(parsed.diferenciaEfectivo) < 0 ? 'text-red-500' : 'text-amber-600'}`}>
-                          {Number(parsed.diferenciaEfectivo) === 0 ? 'Cuadra' : (Number(parsed.diferenciaEfectivo) < 0 ? `Faltante: ${fmt(Math.abs(Number(parsed.diferenciaEfectivo)))}` : `Sobrante: ${fmt(Number(parsed.diferenciaEfectivo))}`)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Payment methods list with discrepancy */}
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Resumen por Métodos de Pago</h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs text-left">
-                        <thead>
-                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
-                            <th className="py-2">Método</th>
-                            <th className="py-2">Tipo</th>
-                            <th className="py-2 text-right">Ingresos</th>
-                            <th className="py-2 text-right">Egresos</th>
-                            <th className="py-2 text-right">Monto Esperado</th>
-                            <th className="py-2 text-right">Dinero Físico</th>
-                            <th className="py-2 text-right">Diferencia</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {parsed.metodos.map((m) => {
-                            const esEfectivo = esMetodoEfectivo(m.nombre);
-                            const hasFisico = m.montoFisico !== undefined;
-                            const physical = hasFisico ? Number(m.montoFisico) : Number(m.balance);
-                            const diff = hasFisico ? Number(m.diferencia) : 0;
-                            return (
-                              <tr key={m.metodoPagoId}>
-                                <td className="py-2.5 font-semibold text-slate-700">{m.nombre}</td>
-                                <td className="py-2.5">
-                                  {esEfectivo ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
-                                      Efectivo
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase">
-                                      Banco
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-2.5 text-right text-emerald-600 font-mono font-semibold">{fmt(Number(m.ingresos))}</td>
-                                <td className="py-2.5 text-right text-red-500 font-mono font-semibold">{fmt(Number(m.egresos))}</td>
-                                <td className="py-2.5 text-right font-mono font-bold text-slate-700">{fmt(Number(m.balance))}</td>
-                                <td className="py-2.5 text-right font-mono font-semibold text-slate-600">
-                                  {esEfectivo ? (hasGlobalCash ? '—' : fmt(physical)) : fmt(Number(m.balance))}
-                                </td>
-                                <td className={`py-2.5 text-right font-mono font-bold ${esEfectivo && hasGlobalCash ? 'text-slate-400' : diff === 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-amber-500'}`}>
-                                  {esEfectivo ? (hasGlobalCash ? 'Arqueo Global' : (diff === 0 ? 'Cuadra' : (diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`))) : 'Cuadra'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Section summaries */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border border-slate-100 p-4 rounded-xl">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Ingresos por Sección</h4>
-                      <div className="space-y-2 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Abonos Iniciales:</span>
-                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionIngresos.abonosIniciales || 0)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Abonos Posteriores:</span>
-                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionIngresos.abonosPosteriores || 0)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="border border-slate-100 p-4 rounded-xl">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Egresos por Sección</h4>
-                      <div className="space-y-2 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Gastos Generales:</span>
-                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos.gastosGenerales || 0)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Gastos por Auto:</span>
-                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos.gastosAuto || 0)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Órdenes de Compra:</span>
-                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos.gastosCompras || 0)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Pagos (Nómina/Personal):</span>
-                          <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos.gastosPagos || 0)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Users breakdown */}
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Movimientos por Usuario</h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs text-left">
-                        <thead>
-                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
-                            <th className="py-1.5">Usuario</th>
-                            <th className="py-1.5 text-right">Ingresos</th>
-                            <th className="py-1.5 text-right">Egresos</th>
-                            <th className="py-1.5 text-right">Balance</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {parsed.usuariosDetalle.map((u) => (
-                            <tr key={u.id}>
-                              <td className="py-2 font-semibold text-slate-700">{u.nombre}</td>
-                              <td className="py-2 text-right text-emerald-600 font-mono">{fmt(Number(u.ingresos))}</td>
-                              <td className="py-2 text-right text-red-500 font-mono">{fmt(Number(u.egresos))}</td>
-                              <td className={`py-2 text-right font-mono font-bold ${Number(u.balance) >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(Number(u.balance))}</td>
-                            </tr>
-                          ))}
-                          {parsed.usuariosDetalle.length === 0 && (
-                            <tr>
-                              <td colSpan={4} className="text-center py-2 text-slate-400">No se guardó desglose por usuarios para este periodo.</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Observations */}
-                  {selectedCierreDetail.observaciones && (
-                    <div className="bg-slate-50 p-4 rounded-xl">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">Observaciones</h4>
-                      <p className="text-xs text-slate-600 whitespace-pre-wrap italic">"{selectedCierreDetail.observaciones}"</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
 
     </div>
   );
