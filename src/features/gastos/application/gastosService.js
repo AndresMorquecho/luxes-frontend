@@ -155,17 +155,6 @@ export async function getCierres() {
   return data.data;
 }
 
-export async function getFinancialDashboard(desde = '', hasta = '') {
-  let url = '/api/gastos/reportes/dashboard';
-  if (desde || hasta) {
-    url += `?desde=${desde}&hasta=${hasta}`;
-  }
-  const res = await fetch(url, { headers: getHeaders() });
-  const data = await res.json();
-  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener reportes financieros');
-  return data.data;
-}
-
 export async function getDashboardSummary(desde = '', hasta = '') {
   let url = '/api/gastos/reportes/dashboard-summary';
   const params = [];

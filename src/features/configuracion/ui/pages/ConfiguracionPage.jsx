@@ -56,9 +56,9 @@ export const ConfiguracionPage = () => {
           ? JSON.parse(loggedInUser.sidebarConfig)
           : loggedInUser.sidebarConfig;
         if (configObj && Array.isArray(configObj.hiddenModules)) {
-          hidden = configObj.hiddenModules;
-          if (hidden.includes('cierreCaja') || hidden.includes('reportesFinancieros')) {
-            hidden = hidden.filter((k) => k !== 'cierreCaja' && k !== 'reportesFinancieros');
+          hidden = configObj.hiddenModules.filter((k) => k !== 'reportesFinancieros');
+          if (hidden.includes('cierreCaja')) {
+            hidden = hidden.filter((k) => k !== 'cierreCaja');
             if (!hidden.includes('finanzas')) {
               hidden.push('finanzas');
             }

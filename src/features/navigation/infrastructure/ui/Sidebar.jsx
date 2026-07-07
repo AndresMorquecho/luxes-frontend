@@ -29,9 +29,9 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
         ? JSON.parse(user.sidebarConfig)
         : user.sidebarConfig;
       if (configObj && Array.isArray(configObj.hiddenModules)) {
-        hiddenModules = configObj.hiddenModules;
-        if (hiddenModules.includes('cierreCaja') || hiddenModules.includes('reportesFinancieros')) {
-          hiddenModules = hiddenModules.filter(h => h !== 'cierreCaja' && h !== 'reportesFinancieros');
+        hiddenModules = configObj.hiddenModules.filter((h) => h !== 'reportesFinancieros');
+        if (hiddenModules.includes('cierreCaja')) {
+          hiddenModules = hiddenModules.filter(h => h !== 'cierreCaja');
           if (!hiddenModules.includes('finanzas')) {
             hiddenModules.push('finanzas');
           }
@@ -50,8 +50,8 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const canViewImpresionesList = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
   const canViewGastos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
   const canViewCierreCaja = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
-  const canViewReportesFinancieros = isAdmin;
-  const canViewFinanzas = canViewReportesFinancieros || canViewCierreCaja || (!isImpresion && !isTaller);
+  const canViewMovimientos = isAdmin;
+  const canViewFinanzas = canViewMovimientos || canViewCierreCaja || (!isImpresion && !isTaller);
   const canViewTareas = true;
   const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
   const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller);
@@ -94,7 +94,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
     if (currentPath.startsWith('/inventario')) {
       setIsInventarioOpen(true);
     }
-    if (currentPath === '/compras/metodos-pago' || currentPath.startsWith('/reportes-financieros') || currentPath.startsWith('/cierre-caja')) {
+    if (currentPath === '/compras/metodos-pago' || currentPath.startsWith('/cierre-caja') || currentPath.startsWith('/movimientos')) {
       setIsFinanzasOpen(true);
     } else if (currentPath.startsWith('/compras')) {
       setIsComprasOpen(true);
@@ -462,7 +462,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
             )}
 
             {shouldShowModule('finanzas', canViewFinanzas) && (
-              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/reportes-financieros') || currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos')) ? 'active' : ''}`}>
+              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos')) ? 'active' : ''}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -499,17 +499,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
                 {!isCollapsed && isFinanzasOpen && (
                   <ul className="sidebar-submenu">
-                    {canViewReportesFinancieros && (
-                      <li className={currentPath.startsWith('/reportes-financieros') ? 'submenu-active' : ''}>
-                        <Link to="/reportes-financieros" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Reportes Financieros</span>
-                        </Link>
-                      </li>
-                    )}
-                    {canViewReportesFinancieros && (
+                    {canViewMovimientos && (
                       <li className={currentPath.startsWith('/movimientos') ? 'submenu-active' : ''}>
                         <Link to="/movimientos" className="sidebar-submenu-link">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
