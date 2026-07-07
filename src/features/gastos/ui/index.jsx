@@ -6,7 +6,7 @@ export default function GastosFeature({ defaultTab }) {
   return (
     <Routes>
       <Route index element={<GastosPage defaultTab={defaultTab} />} />
-      <Route path="*" element={<Navigate to={defaultTab === 'cierre' ? '/cierre-caja' : defaultTab === 'reportes' ? '/reportes-financieros' : '/gastos'} replace />} />
+      <Route path="*" element={<Navigate to={defaultTab === 'cierre' ? '/cierre-caja' : '/gastos'} replace />} />
     </Routes>
   );
 }

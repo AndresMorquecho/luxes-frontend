@@ -264,8 +264,8 @@ function App() {
               {!isImpresion && <Route path="/ventas/*" element={<VentasFeature />} />}
               {!isImpresion && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
               {!isImpresion && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
-              {!isImpresion && <Route path="/reportes-financieros/*" element={<GastosFeature defaultTab="reportes" />} />}
               {!isImpresion && <Route path="/movimientos/*" element={<MovimientosPage />} />}
+              <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
               <Route path="/tareas/*" element={<TareasFeature />} />
               {/* Redirección por defecto */}
               <Route path="*" element={<Navigate to="/" replace />} />

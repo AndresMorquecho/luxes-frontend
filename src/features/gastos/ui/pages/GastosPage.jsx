@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { 
   getGastos, saveGasto, deleteGasto, CATEGORIAS,
-  getMetodosPago, getCierrePreview, saveCierre, getCierres, getFinancialDashboard,
+  getMetodosPago, getCierrePreview, saveCierre, getCierres,
   getVehiculos, getVehiculoDetails, saveVehiculo, deleteVehiculo,
   addMantenimiento, updateMantenimiento, deleteMantenimiento 
 } from '../../application/gastosService';
@@ -12,7 +12,7 @@ import {
   Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus, 
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
-  ClipboardCheck, BarChart3, TrendingUp, Percent, PieChart
+  ClipboardCheck
 } from 'lucide-react';
 
 const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
@@ -45,10 +45,6 @@ const PAGE_META = {
   cierre: {
     title: 'Cierre de Caja',
     subtitle: 'Arqueo de caja, ingresos, egresos y cierres históricos',
-  },
-  reportes: {
-    title: 'Reportes Financieros',
-    subtitle: 'Análisis de rentabilidad, margen y flujos monetarios',
   },
 };
 
@@ -111,119 +107,8 @@ const computeVehicleAlerts = (vehiculo) => {
   return { oilAlert, tiresAlert, brakesAlert, hasWarning };
 };
 
-const RenderEvolucionChart = ({ data }) => {
-  if (!data || data.length === 0) return <div className="text-xs text-slate-400 italic py-6 text-center">Sin datos históricos suficientes.</div>;
-  const height = 180;
-  const width = 600;
-  const paddingLeft = 60;
-  const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 30;
-  
-  const maxVal = Math.max(...data.map(d => Math.max(d.ingresos, d.egresos)), 1000);
-  const chartHeight = height - paddingTop - paddingBottom;
-  const chartWidth = width - paddingLeft - paddingRight;
-  
-  const colCount = data.length;
-  const colGroupWidth = chartWidth / colCount;
-  const barWidth = colGroupWidth * 0.35;
-  const gap = colGroupWidth * 0.08;
-  
-  return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible select-none">
-      {[0, 0.25, 0.5, 0.75, 1].map((p, i) => {
-        const y = paddingTop + chartHeight * (1 - p);
-        const valLabel = '$' + Number(maxVal * p).toLocaleString(undefined, { maximumFractionDigits: 0 });
-        return (
-          <g key={i}>
-            <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#f1f5f9" strokeWidth={1} strokeDasharray="4 4" />
-            <text x={paddingLeft - 8} y={y} textAnchor="end" dominantBaseline="central" fontSize={9} fontWeight={600} fill="#94a3b8">{valLabel}</text>
-          </g>
-        );
-      })}
-      
-      {data.map((d, i) => {
-        const groupX = paddingLeft + i * colGroupWidth;
-        const ingBarHeight = (d.ingresos / maxVal) * chartHeight;
-        const egrBarHeight = (d.egresos / maxVal) * chartHeight;
-        
-        const ingY = paddingTop + chartHeight - ingBarHeight;
-        const egrY = paddingTop + chartHeight - egrBarHeight;
-        
-        const ingX = groupX + gap;
-        const egrX = groupX + gap + barWidth;
-        
-        return (
-          <g key={i}>
-            <rect 
-              x={ingX} 
-              y={ingY} 
-              width={barWidth} 
-              height={Math.max(2, ingBarHeight)} 
-              rx={3} 
-              fill="#10b981" 
-              className="transition-all duration-300 hover:opacity-80 cursor-pointer" 
-            />
-            <rect 
-              x={egrX} 
-              y={egrY} 
-              width={barWidth} 
-              height={Math.max(2, egrBarHeight)} 
-              rx={3} 
-              fill="#ef4444" 
-              className="transition-all duration-300 hover:opacity-80 cursor-pointer" 
-            />
-            <text 
-              x={groupX + colGroupWidth / 2} 
-              y={height - 10} 
-              textAnchor="middle" 
-              fontSize={10} 
-              fontWeight={700} 
-              fill="#64748b"
-            >
-              {d.label}
-            </text>
-          </g>
-        );
-      })}
-      
-      <line x1={paddingLeft} y1={paddingTop + chartHeight} x2={width - paddingRight} y2={paddingTop + chartHeight} stroke="#e2e8f0" strokeWidth={1.5} />
-    </svg>
-  );
-};
-
-const RenderCategoriasChart = ({ data }) => {
-  if (!data || data.length === 0) return <div className="text-xs text-slate-400 italic py-6 text-center">Sin gastos registrados en el periodo.</div>;
-  const max = Math.max(...data.map(d => d.value), 1);
-  return (
-    <div className="space-y-3">
-      {data.map((d, i) => {
-        const pct = Math.max(3, (d.value / max) * 100);
-        const catConfig = CAT_BADGES[d.label] || { bg: 'rgba(100,116,139,0.1)', color: '#64748b', label: d.label.charAt(0).toUpperCase() + d.label.slice(1) };
-        return (
-          <div key={d.label} className="space-y-1">
-            <div className="flex justify-between text-xs font-semibold">
-              <span className="text-slate-600 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: catConfig.color }} />
-                {catConfig.label}
-              </span>
-              <span className="text-slate-800 font-bold">{fmt(d.value)}</span>
-            </div>
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div 
-                className="h-full rounded-full transition-all duration-500" 
-                style={{ width: `${pct}%`, backgroundColor: catConfig.color }} 
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
 export const GastosPage = ({ defaultTab = 'gastos' }) => {
-  const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'vehiculos' | 'cierre' | 'reportes'
+  const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'vehiculos' | 'cierre'
 
   useEffect(() => {
     setActiveTab(defaultTab);
@@ -285,20 +170,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     }
   }, [cierrePreview]);
 
-  // --- ESTADOS REPORTES ---
-  const [reportData, setReportData] = useState(null);
-  const [loadingReport, setLoadingReport] = useState(false);
-  const [metodosReport, setMetodosReport] = useState([]);
-  const [loadingMetodosReport, setLoadingMetodosReport] = useState(false);
-  const [reportDates, setReportDates] = useState({
-    desde: (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 30);
-      return d.toISOString().split('T')[0];
-    })(),
-    hasta: new Date().toISOString().split('T')[0]
-  });
-
   // --- CARGA DE DATOS ---
   const loadGastosData = async () => {
     setLoading(true);
@@ -333,24 +204,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       toast.error('Error al cargar historial de cierres: ' + err.message);
     } finally {
       setLoadingCierreHistory(false);
-    }
-  };
-
-  const loadFinancialReport = async () => {
-    setLoadingReport(true);
-    setLoadingMetodosReport(true);
-    try {
-      const [data, metodos] = await Promise.all([
-        getFinancialDashboard(reportDates.desde, reportDates.hasta),
-        getMetodosPago(reportDates.desde, reportDates.hasta)
-      ]);
-      setReportData(data);
-      setMetodosReport(metodos || []);
-    } catch (err) {
-      toast.error('Error al cargar reportes financieros: ' + err.message);
-    } finally {
-      setLoadingReport(false);
-      setLoadingMetodosReport(false);
     }
   };
 
@@ -434,13 +287,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       handlePreviewCierre();
     }
   }, [cierreDates, activeTab]);
-
-  // Recarga de reportes al cambiar fechas
-  useEffect(() => {
-    if (activeTab === 'reportes' && reportDates.desde && reportDates.hasta) {
-      loadFinancialReport();
-    }
-  }, [reportDates, activeTab]);
 
   // Si hay un vehículo seleccionado, recargar sus detalles cuando se requiera
   const refreshSelectedVehiculo = async (id) => {
@@ -1802,199 +1648,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </>
             )}
           </div>
-        </div>
-      )}
-
-      {/* PESTAÑA 4: REPORTES FINANCIEROS */}
-      {activeTab === 'reportes' && (
-        <div className="space-y-6 animate-slide-up">
-          {/* Selector de Rango de Fechas */}
-          <div className="ga-card p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                Reportes Financieros y Métricas
-              </h3>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">Analiza el rendimiento, rentabilidad y egresos por canal</p>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap" style={{ minWidth: '240px' }}>
-              <DateRangePicker 
-                value={{ start: reportDates.desde, end: reportDates.hasta }} 
-                onChange={val => setReportDates({ desde: val.start, hasta: val.end })}
-                placeholder="Rango de reporte"
-              />
-            </div>
-          </div>
-
-          {loadingReport ? (
-            <div className="ga-card flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
-            </div>
-          ) : reportData ? (
-            <>
-              {/* KPIs de Reportes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="ga-card px-5 py-4 flex items-center gap-4 border-l-4 border-emerald-500">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-50 shrink-0">
-                    <DollarSign size={20} className="text-emerald-600" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Totales</div>
-                    <div className="text-xl font-black text-slate-800 mt-0.5">{fmt(reportData.kpi.ingresos)}</div>
-                    <div className="text-[10px] text-slate-400">{reportData.kpi.conteoVentas} ventas aprobadas</div>
-                  </div>
-                </div>
-
-                <div className="ga-card px-5 py-4 flex items-center gap-4 border-l-4 border-red-500">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-red-50 shrink-0">
-                    <DollarSign size={20} className="text-red-500" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Egresos Totales</div>
-                    <div className="text-xl font-black text-slate-800 mt-0.5">{fmt(reportData.kpi.egresos)}</div>
-                    <div className="text-[10px] text-slate-400">{reportData.kpi.conteoEgresos} egresos / compras</div>
-                  </div>
-                </div>
-
-                <div className={`ga-card px-5 py-4 flex items-center gap-4 border-l-4 ${reportData.kpi.balance >= 0 ? 'border-blue-500' : 'border-amber-500'}`}>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-blue-50 shrink-0">
-                    <TrendingUp size={20} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Balance de Periodo</div>
-                    <div className={`text-xl font-black mt-0.5 ${reportData.kpi.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(reportData.kpi.balance)}</div>
-                    <div className="text-[10px] text-slate-400">Balance neto</div>
-                  </div>
-                </div>
-
-                <div className="ga-card px-5 py-4 flex items-center gap-4 border-l-4 border-indigo-500">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-indigo-50 shrink-0">
-                    <Percent size={20} className="text-indigo-600" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rentabilidad</div>
-                    <div className="text-xl font-black text-slate-800 mt-0.5">
-                      {reportData.kpi.ingresos > 0 
-                        ? ((reportData.kpi.balance / reportData.kpi.ingresos) * 100).toFixed(1) + '%' 
-                        : '0.0%'
-                      }
-                    </div>
-                    <div className="text-[10px] text-slate-400">Margen neto de caja</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Fila de Gráficos */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Gráfico 6 meses */}
-                <div className="ga-card p-6 lg:col-span-2 space-y-4">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                    <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                      <BarChart3 size={16} className="text-blue-500" />
-                      Histórico Ingresos vs Egresos (6 meses)
-                    </h3>
-                    <div className="flex items-center gap-3 text-[10px] font-bold">
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />Ingresos</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />Egresos</span>
-                    </div>
-                  </div>
-                  <div className="py-4">
-                    <RenderEvolucionChart data={reportData.evolucionMensual} />
-                  </div>
-                </div>
-
-                {/* Categorías de Gastos */}
-                <div className="ga-card p-6 space-y-4">
-                  <h3 className="text-sm font-extrabold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                    <PieChart size={16} className="text-blue-500" />
-                    Distribución de Egresos
-                  </h3>
-                  <div className="py-2">
-                    <RenderCategoriasChart data={reportData.breakdownCategorias} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Detalle de Cuentas */}
-              <div className="ga-card p-6 space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                    <TrendingUp size={16} className="text-blue-500" />
-                    Detalle de Cuentas (Métodos de Pago)
-                  </h3>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Resumen consolidado por periodo
-                  </span>
-                </div>
-
-                {loadingMetodosReport ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-blue-600" />
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-xl border border-slate-100">
-                    <table className="w-full text-xs text-left text-slate-500 border-collapse">
-                      <thead className="text-[10px] uppercase tracking-wider text-slate-400 bg-slate-50/75 border-b border-slate-100 font-bold font-mono">
-                        <tr>
-                          <th className="px-5 py-3">Nombre</th>
-                          <th className="px-5 py-3">Tipo</th>
-                          <th className="px-5 py-3 text-right">Saldo Actual</th>
-                          <th className="px-5 py-3 text-right text-emerald-600">Ingresos (P)</th>
-                          <th className="px-5 py-3 text-right text-red-500">Egresos (P)</th>
-                          <th className="px-5 py-3 text-right">Neto (P)</th>
-                          <th className="px-5 py-3 text-center">Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {metodosReport.map(m => {
-                          const isEfectivo = m.tipo === 'EFECTIVO';
-                          return (
-                            <tr key={m.id} className="ga-tr">
-                              <td className="px-5 py-3.5 font-semibold text-slate-700">{m.nombre}</td>
-                              <td className="px-5 py-3.5">
-                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase border ${
-                                  isEfectivo 
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                                }`}>
-                                  {m.tipo || 'EFECTIVO'}
-                                </span>
-                              </td>
-                              <td className="px-5 py-3.5 text-right font-medium text-slate-800">{fmt(m.saldoActual || 0)}</td>
-                              <td className="px-5 py-3.5 text-right font-bold text-emerald-600">
-                                {m.ingresosPeriod > 0 ? `+${fmt(m.ingresosPeriod)}` : '—'}
-                              </td>
-                              <td className="px-5 py-3.5 text-right font-bold text-red-500">
-                                {m.egresosPeriod > 0 ? `-${fmt(m.egresosPeriod)}` : '—'}
-                              </td>
-                              <td className={`px-5 py-3.5 text-right font-extrabold ${m.netoPeriod >= 0 ? 'text-slate-800' : 'text-amber-700'}`}>
-                                {fmt(m.netoPeriod || 0)}
-                              </td>
-                              <td className="px-5 py-3.5 text-center">
-                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold ${
-                                  m.activo 
-                                    ? 'bg-green-50 text-green-700' 
-                                    : 'bg-slate-100 text-slate-500'
-                                }`}>
-                                  {m.activo ? 'ACTIVA' : 'INACTIVA'}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {metodosReport.length === 0 && (
-                          <tr>
-                            <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
-                              No hay cuentas o métodos de pago registrados en el sistema.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </>
-          ) : null}
         </div>
       )}
 
