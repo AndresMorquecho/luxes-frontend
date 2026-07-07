@@ -1577,9 +1577,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
                     Selecciona un rango de fechas en el panel lateral y se cargará el resumen detallado de ingresos, egresos y el balance neto de tu operación.
                   </p>
-          </div>
+                </div>
+              )}
 
-          {/* Historial de Cierres */}
+              {/* Historial de Cierres */}
           <div className="ga-card">
             <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/20">
               <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
@@ -1708,6 +1709,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </>
             )}
           </div>
+            </div>
         </div>
       )}
 
