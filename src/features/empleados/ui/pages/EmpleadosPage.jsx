@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { getAvatarPalette, getPersonInitials, AVATAR_PALETTES } from '../../../../shared/utils/personInitials.js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { sueldoMensualEfectivo, sueldoQuincenaBase } from '../../../../shared/utils/sueldoHelpers.js';
+import { CredencialesPanel } from '../components/CredencialesPanel';
 import {
   getEmpleados,
   deleteEmpleado,
@@ -108,6 +109,8 @@ const EmpleadoBankCell = ({ banco, cuentaBanco }) => {
 
 export const EmpleadosPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const vista = searchParams.get('vista') === 'credenciales' ? 'credenciales' : 'empleados';
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -132,8 +135,20 @@ export const EmpleadosPage = () => {
   };
 
   useEffect(() => {
-    load();
-  }, []);
+    if (vista === 'empleados') {
+      load();
+    }
+  }, [vista]);
+
+  const setVista = (next) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'credenciales') {
+      params.set('vista', 'credenciales');
+    } else {
+      params.delete('vista');
+    }
+    setSearchParams(params, { replace: true });
+  };
 
   const openNew = () => {
     navigate('/nomina/empleados/nuevo');
@@ -239,27 +254,71 @@ export const EmpleadosPage = () => {
         }
       `}</style>
 
-      <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-            </svg>
+      <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-4 flex flex-col gap-4 mb-4 sm:mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${vista === 'credenciales' ? 'bg-violet-50 border-violet-100' : 'bg-blue-50 border-blue-100'}`}>
+              {vista === 'credenciales' ? (
+                <svg className="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                </svg>
+              )}
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">
+                {vista === 'credenciales' ? 'Credenciales' : 'Colaboradores'}
+              </h1>
+              <p className="text-sm text-slate-500">
+                {vista === 'credenciales'
+                  ? 'Carnets con QR para asistencia e identificación'
+                  : 'Registro y gestión de colaboradores'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">Colaboradores</h1>
-            <p className="text-sm text-slate-500">Registro y gestión de colaboradores</p>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setVista('empleados')}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition-all ${vista === 'empleados' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Ver empleados
+              </button>
+              <button
+                type="button"
+                onClick={() => setVista('credenciales')}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition-all ${vista === 'credenciales' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Ver credenciales
+              </button>
+            </div>
+            {vista === 'empleados' && (
+              <button
+                onClick={openNew}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm w-full sm:w-auto shrink-0"
+                style={{ backgroundColor: '#1d4ed8' }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Nuevo colaborador
+              </button>
+            )}
           </div>
         </div>
-        <button onClick={openNew} className="flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm w-full sm:w-auto shrink-0"
-          style={{ backgroundColor: '#1d4ed8' }}>
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nuevo Colaborador
-        </button>
       </div>
 
+      {vista === 'credenciales' ? (
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden p-4 sm:p-6">
+          <CredencialesPanel />
+        </div>
+      ) : (
+      <>
       {/* Table Card */}
       <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
@@ -501,6 +560,8 @@ export const EmpleadosPage = () => {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Modal de Detalle de Colaborador */}
       <ModalPortal open={!!viewingEmpleado}>

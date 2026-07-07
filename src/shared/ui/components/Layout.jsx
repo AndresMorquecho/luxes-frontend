@@ -17,7 +17,7 @@ export const Layout = ({ children, user, onLogout }) => {
   const modules = [
     { name: 'Dashboard / Inicio', path: '/' },
     { name: 'Nómina: Empleados', path: '/nomina/empleados' },
-    { name: 'Nómina: Credenciales', path: '/nomina/credenciales' },
+    { name: 'Nómina: Credenciales', path: '/nomina/empleados?vista=credenciales' },
     { name: 'Nómina: Registro Asistencia', path: '/nomina/registro-asistencia' },
     { name: 'Nómina: Horas Extras', path: '/nomina/horas-extras' },
     { name: 'Nómina: Vacaciones', path: '/nomina/vacaciones' },
