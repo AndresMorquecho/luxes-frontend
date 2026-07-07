@@ -9,6 +9,7 @@ import {
 import { getUsuarios } from '../../../usuarios/application/usuariosService';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal.jsx';
 import { 
   Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus, 
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
@@ -437,7 +438,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleDeleteGasto = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este gasto? Si está asociado a un mantenimiento, se eliminará el registro de mantenimiento correspondiente.')) return;
+    const confirmed = await confirmDialog(
+      'Eliminar Gasto',
+      '¿Estás seguro de eliminar este gasto? Si está asociado a un mantenimiento, se eliminará el registro de mantenimiento correspondiente.'
+    );
+    if (!confirmed) return;
     try {
       await deleteGasto(id);
       toast.success('Gasto eliminado');
@@ -506,7 +511,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleDeleteVehiculo = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este vehículo? Esto eliminará todos sus mantenimientos y sus gastos asociados en la contabilidad.')) return;
+    const confirmed = await confirmDialog(
+      'Eliminar Vehículo',
+      '¿Estás seguro de eliminar este vehículo? Esto eliminará todos sus mantenimientos y sus gastos asociados en la contabilidad.'
+    );
+    if (!confirmed) return;
     try {
       await deleteVehiculo(id);
       toast.success('Vehículo eliminado con éxito');
@@ -574,7 +583,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleDeleteMaint = async (maintId) => {
-    if (!window.confirm('¿Eliminar este mantenimiento? Esto también eliminará su entrada asociada en la lista de gastos generales.')) return;
+    const confirmed = await confirmDialog(
+      'Eliminar Mantenimiento',
+      '¿Eliminar este mantenimiento? Esto también eliminará su entrada asociada en la lista de gastos generales.'
+    );
+    if (!confirmed) return;
     try {
       await deleteMantenimiento(maintId);
       toast.success('Registro de mantenimiento eliminado');
@@ -1224,7 +1237,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
                   <button 
                     onClick={() => openEditVehiculo(selectedVehiculo)} 
                     className="ga-btn-secondary"
