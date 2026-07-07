@@ -19,6 +19,11 @@ const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISO
 
 const EMPTY_VEHICULO_FORM = { placa: '', marca: '', modelo: '', anio: '', color: '', kilometraje: '', responsable: '', notas: '', estado: 'activo' };
 
+const esMetodoEfectivo = (nombre) => {
+  const name = (nombre || '').toLowerCase();
+  return name.includes('efectivo') || name.includes('caja') || name.includes('chica') || name.includes('principal') || name.includes('cash');
+};
+
 const EMPTY_MAINT_FORM = { tipo: 'Cambio de Aceite', descripcion: '', fechaRealizado: new Date().toISOString().split('T')[0], fechaProxima: '', kilometraje: '', kmProximo: '', monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
 const CAT_BADGES = {
@@ -155,19 +160,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   });
   const [cierreObservaciones, setCierreObservaciones] = useState('');
   const [savingCierre, setSavingCierre] = useState(false);
-  const [montoFisicoMap, setMontoFisicoMap] = useState({});
+  const [efectivoFisicoContado, setEfectivoFisicoContado] = useState('');
   const [selectedCierreDetail, setSelectedCierreDetail] = useState(null);
 
   useEffect(() => {
-    if (cierrePreview && cierrePreview.metodosDetalle) {
-      const initial = {};
-      cierrePreview.metodosDetalle.forEach(m => {
-        initial[m.metodoPagoId] = '';
-      });
-      setMontoFisicoMap(initial);
-    } else {
-      setMontoFisicoMap({});
-    }
+    setEfectivoFisicoContado('');
   }, [cierrePreview]);
 
   // --- CARGA DE DATOS ---
@@ -225,9 +222,16 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     if (!window.confirm('¿Confirmar registro de cierre de caja para el rango seleccionado?')) return;
     setSavingCierre(true);
     try {
+      const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
+        .filter(m => esMetodoEfectivo(m.nombre))
+        .reduce((sum, m) => sum + Number(m.balance), 0);
+
+      const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
+      const ratio = totalEfectivoEsperado > 0 ? (physicalEfectivo / totalEfectivoEsperado) : 1;
+
       const metodosConFisico = (cierrePreview.metodosDetalle || []).map(m => {
-        const physicalStr = montoFisicoMap[m.metodoPagoId];
-        const physical = physicalStr === '' || physicalStr === undefined ? Number(m.balance) : Number(physicalStr);
+        const esEfectivo = esMetodoEfectivo(m.nombre);
+        const physical = esEfectivo ? (Number(m.balance) * ratio) : Number(m.balance);
         return {
           ...m,
           montoFisico: physical,
@@ -242,6 +246,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         totalEgresos: cierrePreview.totalEgresos,
         metodosDetalle: {
           metodos: metodosConFisico,
+          efectivoFisicoContado: physicalEfectivo,
+          diferenciaEfectivo: physicalEfectivo - totalEfectivoEsperado,
           seccionIngresos: cierrePreview.seccionIngresos || {},
           seccionEgresos: cierrePreview.seccionEgresos || {},
           usuariosDetalle: cierrePreview.usuariosDetalle || [],
@@ -250,6 +256,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       });
       toast.success('Cierre de caja guardado con éxito');
       setCierreObservaciones('');
+      setEfectivoFisicoContado('');
       setCierrePreview(null);
       loadCierreHistory();
     } catch (err) {
@@ -1303,7 +1310,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Formulario de Cierre y Previsualización */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="ga-card p-6">
+              <div className="ga-card p-6 relative z-[60]">
                 <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
                   <Calendar size={16} className="text-blue-500" />
                   Rango de Fecha para Cierre de Caja
@@ -1346,50 +1353,40 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   {/* Tabla por métodos de pago */}
                   <div className="ga-card p-6">
                     <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">
-                      Desglose por Métodos de Pago y Arqueo
+                      Resumen por Métodos de Pago
                     </h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
                             <th className="py-2.5">Método</th>
+                            <th className="py-2.5">Tipo</th>
                             <th className="py-2.5 text-right">Ingresos (+)</th>
                             <th className="py-2.5 text-right">Egresos (-)</th>
                             <th className="py-2.5 text-right">Balance Esperado</th>
-                            <th className="py-2.5 text-right w-32">Dinero Físico</th>
-                            <th className="py-2.5 text-right w-40">Diferencia</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100/60">
                           {cierrePreview.metodosDetalle?.map((m) => {
-                            const expected = Number(m.balance) || 0;
-                            const physicalStr = montoFisicoMap[m.metodoPagoId];
-                            const physical = physicalStr === '' || physicalStr === undefined ? expected : Number(physicalStr);
-                            const diff = physical - expected;
-
+                            const esEfectivo = esMetodoEfectivo(m.nombre);
                             return (
                               <tr key={m.metodoPagoId} className="ga-tr">
                                 <td className="py-3 font-semibold text-slate-700">{m.nombre}</td>
+                                <td className="py-3">
+                                  {esEfectivo ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
+                                      Efectivo / Caja
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase">
+                                      Banco / Digital
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="py-3 text-right text-emerald-600 font-bold font-mono">{fmt(m.ingresos)}</td>
                                 <td className="py-3 text-right text-red-500 font-bold font-mono">{fmt(m.egresos)}</td>
                                 <td className={`py-3 text-right font-extrabold font-mono ${m.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
                                   {fmt(m.balance)}
-                                </td>
-                                <td className="py-3 text-right">
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={montoFisicoMap[m.metodoPagoId] !== undefined ? montoFisicoMap[m.metodoPagoId] : ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setMontoFisicoMap(prev => ({ ...prev, [m.metodoPagoId]: val }));
-                                    }}
-                                    placeholder={expected.toFixed(2)}
-                                    className="w-24 text-right px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono font-semibold"
-                                  />
-                                </td>
-                                <td className={`py-3 text-right font-extrabold font-mono ${diff === 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-amber-600'}`}>
-                                  {diff === 0 ? 'Cuadra' : (diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`)}
                                 </td>
                               </tr>
                             );
@@ -1489,33 +1486,94 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             </div>
 
             {/* Observaciones y Guardar Cierre */}
-            <div className="ga-card p-6 flex flex-col justify-between h-fit space-y-4">
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-2">
-                  <FileText size={16} className="text-blue-500" />
-                  Registro de Cierre
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                  Escribe observaciones sobre las transacciones de este rango antes de guardar el cierre de caja oficial.
-                </p>
-                <textarea 
-                  value={cierreObservaciones} 
-                  onChange={e => setCierreObservaciones(e.target.value)}
-                  rows={4} 
-                  placeholder="Observaciones de arqueo, diferencias, billetes falsos, cheques retenidos, etc..." 
-                  className="ga-input text-xs resize-none" 
-                />
+            <div className="space-y-6">
+              {cierrePreview && (() => {
+                const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
+                  .filter(m => esMetodoEfectivo(m.nombre))
+                  .reduce((sum, m) => sum + Number(m.balance), 0);
+                
+                const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
+                const diferenciaEfectivo = physicalEfectivo - totalEfectivoEsperado;
+
+                return (
+                  <div className="ga-card p-6 border-l-4 border-violet-500">
+                    <h3 className="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-2">
+                      <DollarSign size={16} className="text-violet-500" />
+                      Arqueo de Efectivo Físico
+                    </h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed mb-4">
+                      Ingresa el monto de dinero físico real contado en caja chica/principal. Las cuentas bancarias y virtuales se auto-verifican.
+                    </p>
+
+                    <div className="space-y-4">
+                      <div className="bg-slate-50/50 p-3 rounded-lg flex justify-between items-center">
+                        <span className="text-xs font-semibold text-slate-500">Efectivo Esperado (Sistema):</span>
+                        <span className="font-extrabold text-slate-800 text-sm font-mono">{fmt(totalEfectivoEsperado)}</span>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                          Efectivo Físico Contado ($)
+                        </label>
+                        <div className="relative rounded-lg shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-slate-450 font-bold text-sm">$</span>
+                          </div>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={efectivoFisicoContado}
+                            onChange={(e) => setEfectivoFisicoContado(e.target.value)}
+                            placeholder={totalEfectivoEsperado.toFixed(2)}
+                            className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className={`p-3 rounded-lg border flex justify-between items-center ${diferenciaEfectivo === 0 ? 'bg-emerald-50/40 border-emerald-100 text-emerald-800' : 'bg-rose-50/40 border-rose-100 text-rose-800'}`}>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase font-bold tracking-wider opacity-75">Diferencia de Caja</span>
+                          <span className="font-extrabold text-sm font-mono mt-0.5">
+                            {diferenciaEfectivo === 0 ? 'Sin diferencia' : (diferenciaEfectivo < 0 ? `-${fmt(Math.abs(diferenciaEfectivo))}` : `+${fmt(diferenciaEfectivo)}`)}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${diferenciaEfectivo === 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-rose-100 border-rose-200 text-rose-800'}`}>
+                          {diferenciaEfectivo === 0 ? 'Cuadra' : (diferenciaEfectivo < 0 ? 'Descuadre / Faltante' : 'Descuadre / Sobrante')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="ga-card p-6 flex flex-col justify-between h-fit space-y-4">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-2">
+                    <FileText size={16} className="text-blue-500" />
+                    Registro de Cierre
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                    Escribe observaciones sobre las transacciones de este rango antes de guardar el cierre de caja oficial.
+                  </p>
+                  <textarea 
+                    value={cierreObservaciones} 
+                    onChange={e => setCierreObservaciones(e.target.value)}
+                    rows={4} 
+                    placeholder="Observaciones de arqueo, diferencias, billetes falsos, cheques retenidos, etc..." 
+                    className="ga-input text-xs resize-none" 
+                  />
+                </div>
+                <button 
+                  onClick={handleSaveCierre} 
+                  disabled={!cierrePreview || savingCierre}
+                  className="ga-btn-primary w-full justify-center"
+                >
+                  {savingCierre && (
+                    <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" aria-hidden="true" />
+                  )}
+                  Guardar Cierre de Caja
+                </button>
               </div>
-              <button 
-                onClick={handleSaveCierre} 
-                disabled={!cierrePreview || savingCierre}
-                className="ga-btn-primary w-full justify-center"
-              >
-                {savingCierre && (
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" aria-hidden="true" />
-                )}
-                Guardar Cierre de Caja
-              </button>
             </div>
           </div>
 
@@ -1914,7 +1972,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             </div>
 
             {(() => {
-              let parsed = { metodos: [], seccionIngresos: {}, seccionEgresos: {}, usuariosDetalle: [] };
+              let parsed = { metodos: [], seccionIngresos: {}, seccionEgresos: {}, usuariosDetalle: [], efectivoFisicoContado: undefined, diferenciaEfectivo: undefined };
               try {
                 const raw = JSON.parse(selectedCierreDetail.metodosDetalle);
                 if (Array.isArray(raw)) {
@@ -1925,6 +1983,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               } catch (e) {
                 console.error("Error parsing historical closure details:", e);
               }
+
+              const totalEfectivoEsperado = parsed.metodos
+                .filter(m => esMetodoEfectivo(m.nombre))
+                .reduce((sum, m) => sum + (Number(m.balance) || 0), 0);
+
+              const hasGlobalCash = parsed.efectivoFisicoContado !== undefined;
 
               return (
                 <div className="space-y-6 text-xs">
@@ -1948,14 +2012,34 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     </div>
                   </div>
 
+                  {/* Arqueo de Efectivo Físico Global */}
+                  {hasGlobalCash && (
+                    <div className="bg-violet-50/40 border border-violet-100 p-4 rounded-xl flex justify-between items-center text-xs">
+                      <div>
+                        <span className="text-violet-600 font-bold uppercase tracking-wider block text-[9px]">Arqueo de Efectivo Físico</span>
+                        <div className="flex gap-4 mt-1 font-semibold text-slate-700">
+                          <span>Esperado: <strong className="font-mono text-slate-800">{fmt(totalEfectivoEsperado)}</strong></span>
+                          <span>Físico Contado: <strong className="font-mono text-slate-800">{fmt(Number(parsed.efectivoFisicoContado))}</strong></span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-400 font-semibold block text-[9px] uppercase">Diferencia</span>
+                        <span className={`font-mono font-extrabold text-sm ${Number(parsed.diferenciaEfectivo) === 0 ? 'text-emerald-600' : Number(parsed.diferenciaEfectivo) < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                          {Number(parsed.diferenciaEfectivo) === 0 ? 'Cuadra' : (Number(parsed.diferenciaEfectivo) < 0 ? `Faltante: ${fmt(Math.abs(Number(parsed.diferenciaEfectivo)))}` : `Sobrante: ${fmt(Number(parsed.diferenciaEfectivo))}`)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Payment methods list with discrepancy */}
                   <div>
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Desglose de Caja y Discrepancias</h4>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Resumen por Métodos de Pago</h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs text-left">
                         <thead>
                           <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
                             <th className="py-2">Método</th>
+                            <th className="py-2">Tipo</th>
                             <th className="py-2 text-right">Ingresos</th>
                             <th className="py-2 text-right">Egresos</th>
                             <th className="py-2 text-right">Monto Esperado</th>
@@ -1965,18 +2049,32 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                           {parsed.metodos.map((m) => {
+                            const esEfectivo = esMetodoEfectivo(m.nombre);
                             const hasFisico = m.montoFisico !== undefined;
                             const physical = hasFisico ? Number(m.montoFisico) : Number(m.balance);
                             const diff = hasFisico ? Number(m.diferencia) : 0;
                             return (
                               <tr key={m.metodoPagoId}>
                                 <td className="py-2.5 font-semibold text-slate-700">{m.nombre}</td>
+                                <td className="py-2.5">
+                                  {esEfectivo ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
+                                      Efectivo
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase">
+                                      Banco
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="py-2.5 text-right text-emerald-600 font-mono font-semibold">{fmt(Number(m.ingresos))}</td>
                                 <td className="py-2.5 text-right text-red-500 font-mono font-semibold">{fmt(Number(m.egresos))}</td>
                                 <td className="py-2.5 text-right font-mono font-bold text-slate-700">{fmt(Number(m.balance))}</td>
-                                <td className="py-2.5 text-right font-mono font-semibold text-slate-600">{hasFisico ? fmt(physical) : '—'}</td>
-                                <td className={`py-2.5 text-right font-mono font-bold ${diff === 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-amber-600'}`}>
-                                  {hasFisico ? (diff === 0 ? 'Cuadra' : (diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`)) : 'Cuadra'}
+                                <td className="py-2.5 text-right font-mono font-semibold text-slate-600">
+                                  {esEfectivo ? (hasGlobalCash ? '—' : fmt(physical)) : fmt(Number(m.balance))}
+                                </td>
+                                <td className={`py-2.5 text-right font-mono font-bold ${esEfectivo && hasGlobalCash ? 'text-slate-400' : diff === 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-amber-500'}`}>
+                                  {esEfectivo ? (hasGlobalCash ? 'Arqueo Global' : (diff === 0 ? 'Cuadra' : (diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`))) : 'Cuadra'}
                                 </td>
                               </tr>
                             );
