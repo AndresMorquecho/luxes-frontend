@@ -3,6 +3,7 @@ import { getCierres } from '../../application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { Clock, User, ClipboardCheck, BarChart3, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 
 const fmt = (num) => {
   return Number(num).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -67,34 +68,12 @@ export const CierresHistoryPage = () => {
         </div>
         
         {/* Simple Date Filter */}
-        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-400 uppercase ml-2">Desde</span>
-            <input 
-              type="date" 
-              value={dateRange.desde}
-              onChange={(e) => setDateRange(prev => ({...prev, desde: e.target.value}))}
-              className="text-xs font-semibold px-2 py-1 outline-none text-slate-700 bg-transparent"
-            />
-          </div>
-          <div className="w-px h-8 bg-slate-200"></div>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-400 uppercase ml-2">Hasta</span>
-            <input 
-              type="date" 
-              value={dateRange.hasta}
-              onChange={(e) => setDateRange(prev => ({...prev, hasta: e.target.value}))}
-              className="text-xs font-semibold px-2 py-1 outline-none text-slate-700 bg-transparent"
-            />
-          </div>
-          {(dateRange.desde || dateRange.hasta) && (
-            <button 
-              onClick={() => setDateRange({ desde: '', hasta: '' })}
-              className="ml-2 text-xs text-rose-500 font-bold hover:bg-rose-50 px-2 py-1 rounded-lg"
-            >
-              Limpiar
-            </button>
-          )}
+        <div className="flex items-center">
+          <DateRangePicker 
+            value={{ start: dateRange.desde, end: dateRange.hasta }} 
+            onChange={val => setDateRange({ desde: val.start, hasta: val.end })}
+            placeholder="Seleccionar rango"
+          />
         </div>
       </div>
 

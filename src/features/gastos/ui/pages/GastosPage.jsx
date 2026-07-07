@@ -832,6 +832,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               <Plus size={16} />
               Registrar Vehículo
             </button>
+          ) : activeTab === 'cierre' ? (
+            <Link to="/cierre-caja/historial" className="ga-btn-secondary text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 shadow-sm whitespace-nowrap">
+              <Clock size={15} /> Historial
+            </Link>
           ) : null}
         </div>
       </div>
@@ -1676,27 +1680,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       )}
       {/* PESTAÑA 3: CIERRE DE CAJA */}
       {activeTab === 'cierre' && (
-        <div className="space-y-6">
-          {/* Header Cierre de Caja */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/80 p-5 rounded-2xl shadow-sm border border-slate-100">
-            <div>
-              <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
-                <ClipboardCheck size={20} className="text-blue-600" />
-                Control y Cierre de Caja
-              </h2>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Calculando saldos y balances desde el último cierre.
-              </p>
-            </div>
-            <Link to="/cierre-caja/historial" className="ga-btn-secondary text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 shadow-sm w-full md:w-auto justify-center">
-              <Clock size={16} /> Historial de Cierres
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             {/* Panel Lateral: Parámetros y Arqueo (Izquierda) */}
-            <div className="lg:col-span-1 space-y-6">
-              <div className="ga-card p-6 space-y-6 relative z-[60]" style={{ overflow: 'visible' }}>
+            <div className="lg:col-span-1 space-y-4">
+              <div className="ga-card p-5 space-y-4 relative z-[60]" style={{ overflow: 'visible' }}>
                 <div>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                     Control de Caja
@@ -1788,13 +1776,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             </div>
 
             {/* Panel Principal: Resultados (Derecha) */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4">
               {loadingPreview ? (
-                <div className="ga-card flex items-center justify-center py-20">
+                <div className="ga-card flex items-center justify-center py-10">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
                 </div>
               ) : cierrePreview ? (
-                <div className="space-y-6 animate-slide-up">
+                <div className="space-y-4 animate-slide-up">
                   {/* KPI Cards de Previsualización */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="ga-card px-5 py-4 border-l-4 border-emerald-500">
@@ -1862,7 +1850,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </div>
 
                   {/* Grid de Secciones y Usuarios */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Operaciones por Sección */}
                     <div className="ga-card p-6">
                       <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
