@@ -472,6 +472,15 @@
   box-shadow: none;
 }
 
+.sidebar-submenu-link.is-secondary .sidebar-submenu-text {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.sidebar-submenu li.submenu-active .sidebar-submenu-link.is-secondary .sidebar-submenu-text {
+  color: var(--color-primary-blue, #02188e);
+}
+
 /* Reset: la clase active en el li padre no debe estilizar los links del submenú */
 .sidebar-has-submenu.active .sidebar-submenu .sidebar-submenu-link {
   background-color: transparent;
