@@ -5,11 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { resolveMediaUrl } from '../../../shared/utils/mediaUrl.js';
 import { ProjectMediaImage } from '../../../shared/ui/components/ProjectMediaImage.jsx';
 import './ColasImpresionPage.css';
-import { usePrintQueue } from '../context/PrintQueueContext';
 import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService';
 import { createOrden } from '../../compras/application/comprasService';
 import { toast } from '../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../shared/ui/components/ConfirmModal';
+import { isAdminUser } from '../../../shared/utils/userRoleHelpers.js';
 
 const renderPriorityBadge = (urgency) => {
   let bgColor = '#f1f5f9';
@@ -150,17 +150,20 @@ export const ColasImpresionPage = () => {
   // Shopping Cart state
   const [cartItems, setCartItems] = useState([]);
 
-  const [isTvMode, setIsTvMode] = useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = isAdminUser(user);
+
+  const [isTvMode, setIsTvMode] = useState(isAdmin);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !isAdmin) {
         setIsTvMode(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isAdmin]);
 
   // Smart calculations for roll width consumption
   const calculateSuggestedQuantity = (material, width, height, copies) => {
@@ -519,8 +522,10 @@ export const ColasImpresionPage = () => {
 
   return (
     <div className="colas-impresion-container">
-      {/* Header section */}
-      <div className="colas-header-row">
+      {!isAdmin && (
+        <>
+          {/* Header section */}
+          <div className="colas-header-row">
         <div className="colas-header-left">
           <div className="colas-header-icon-box">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" className="colas-header-icon">
@@ -2006,27 +2011,30 @@ export const ColasImpresionPage = () => {
           </div>
         </div>
       )}
+        </>
+      )}
 
       {/* TV / Fullscreen Mode Overlay */}
-      {isTvMode && activeJob && (
+      {isTvMode && (
         <div 
           className="colas-tv-overlay"
           style={{
-            position: 'fixed',
+            position: isAdmin ? 'relative' : 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
             backgroundColor: '#f1f5f9',
             color: '#0f172a',
-            zIndex: 99999,
+            zIndex: isAdmin ? 1 : 99999,
             display: 'flex',
             flexDirection: 'column',
-            padding: '2rem',
+            padding: isAdmin ? '0' : '2rem',
             boxSizing: 'border-box',
-            height: '100vh',
-            width: '100vw',
-            overflow: 'hidden',
+            height: isAdmin ? '100%' : '100vh',
+            width: isAdmin ? '100%' : '100vw',
+            minHeight: isAdmin ? '80vh' : 'auto',
+            overflow: 'auto',
             fontFamily: 'system-ui, -apple-system, sans-serif'
           }}
         >
@@ -2050,8 +2058,8 @@ export const ColasImpresionPage = () => {
                   width: '14px',
                   height: '14px',
                   borderRadius: '50%',
-                  backgroundColor: activeJob.status === 'Imprimiendo' ? '#10b981' : '#f59e0b',
-                  boxShadow: activeJob.status === 'Imprimiendo' ? '0 0 10px rgba(16,185,129,0.4)' : '0 0 10px rgba(245,158,11,0.4)',
+                  backgroundColor: activeJob?.status === 'Imprimiendo' ? '#10b981' : (activeJob ? '#f59e0b' : '#cbd5e1'),
+                  boxShadow: activeJob?.status === 'Imprimiendo' ? '0 0 10px rgba(16,185,129,0.4)' : (activeJob ? '0 0 10px rgba(245,158,11,0.4)' : 'none'),
                 }} 
               />
               <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.05em', color: '#0f172a' }}>
@@ -2059,110 +2067,126 @@ export const ColasImpresionPage = () => {
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-              <span style={{ fontSize: '0.95rem', color: '#64748b' }}>
-                Presiona <strong style={{ color: '#0f172a', backgroundColor: '#e2e8f0', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>ESC</strong> para salir
-              </span>
-              <button 
-                type="button" 
-                onClick={() => setIsTvMode(false)}
-                style={{
-                  padding: '0.45rem 1rem',
-                  backgroundColor: '#ffffff',
-                  color: '#0f172a',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}
-                onMouseOver={e => e.currentTarget.style.backgroundColor = '#ef4444'}
-                onMouseOut={e => e.currentTarget.style.backgroundColor = '#ffffff'}
-              >
-                Salir
-              </button>
+              {!isAdmin && (
+                <>
+                  <span style={{ fontSize: '0.95rem', color: '#64748b' }}>
+                    Presiona <strong style={{ color: '#0f172a', backgroundColor: '#e2e8f0', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>ESC</strong> para salir
+                  </span>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsTvMode(false)}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      backgroundColor: '#ffffff',
+                      color: '#0f172a',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      transition: 'all 0.15s ease',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#ef4444'}
+                    onMouseOut={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+                  >
+                    Salir
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Main Grid Workspace */}
-          <div style={{ display: 'flex', flex: 1, gap: '2rem', marginTop: '1.5rem', minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', flex: 1, gap: '2rem', marginTop: isAdmin ? '0.5rem' : '1.5rem', minHeight: 0, overflow: 'visible' }}>
             
             {/* Column 1: Active Job */}
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1.2, justifyContent: 'space-between', backgroundColor: '#ffffff', borderRadius: '16px', padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
-              
-              {/* Header Info */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary-blue)' }}>
-                    TRABAJO ACTIVO
-                  </span>
-                  <span style={{ padding: '0.25rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', backgroundColor: activeJob.status === 'Imprimiendo' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: activeJob.status === 'Imprimiendo' ? '#0f766e' : '#b45309', border: activeJob.status === 'Imprimiendo' ? '1px solid rgba(16,185,129,0.2)' : '1px solid rgba(245,158,11,0.2)' }}>
-                    {activeJob.status}
-                  </span>
-                </div>
-
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.15, color: '#0f172a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }} title={activeJob.name}>
-                  {activeJob.name}
-                </h1>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <div style={{ fontSize: '1.35rem', color: '#334155' }}>
-                    Cliente: <strong style={{ color: '#0f172a' }}>{activeJob.client || 'Sin cliente'}</strong>
-                  </div>
-                  {activeJob.proyectoNombre && (
-                    <div style={{ fontSize: '1.15rem', color: '#64748b' }}>
-                      Proyecto: <strong style={{ color: '#334155' }}>{activeJob.proyectoNombre}</strong>
+            <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 350px', justifyContent: 'space-between', backgroundColor: '#ffffff', borderRadius: '16px', padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, boxSizing: 'border-box' }}>
+              {activeJob ? (
+                <>
+                  {/* Header Info */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary-blue)' }}>
+                        TRABAJO ACTIVO
+                      </span>
+                      <span style={{ padding: '0.25rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', backgroundColor: activeJob.status === 'Imprimiendo' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: activeJob.status === 'Imprimiendo' ? '#0f766e' : '#b45309', border: activeJob.status === 'Imprimiendo' ? '1px solid rgba(16,185,129,0.2)' : '1px solid rgba(245,158,11,0.2)' }}>
+                        {activeJob.status}
+                      </span>
                     </div>
-                  )}
+
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.15, color: '#0f172a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }} title={activeJob.name}>
+                      {activeJob.name}
+                    </h1>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <div style={{ fontSize: '1.35rem', color: '#334155' }}>
+                        Cliente: <strong style={{ color: '#0f172a' }}>{activeJob.client || 'Sin cliente'}</strong>
+                      </div>
+                      {activeJob.proyectoNombre && (
+                        <div style={{ fontSize: '1.15rem', color: '#64748b' }}>
+                          Proyecto: <strong style={{ color: '#334155' }}>{activeJob.proyectoNombre}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Specs Grid */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                    <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontWeight: 700 }}>Especificaciones</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                      
+                      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Material</span>
+                        <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={activeJob.format}>{activeJob.format}</span>
+                      </div>
+
+                      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Medidas</span>
+                        <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem' }}>{activeJob.width || 1.0}m x {activeJob.height || 1.0}m</span>
+                      </div>
+
+                      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Cantidad</span>
+                        <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem' }}>{activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'}</span>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  {/* Operator and Timing */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {(activeJob.responsible || 'OP').substring(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Operador</span>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f172a' }}>{activeJob.responsible || 'Sin asignar'}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Hora de Inicio</span>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f766e' }}>{activeJob.startTime || 'Sin iniciar'}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#94a3b8', textAlign: 'center', gap: '1rem' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '64px', height: '64px' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.82l-.24 2.24H4.5a2.25 2.25 0 00-2.25 2.25v2.25c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-2.25a2.25 2.25 0 00-2.25-2.25h-1.98l-.24-2.24m-11.28 0H18.72m-12 0h12m-12 0l1.24-11.13A2.25 2.25 0 018.21 2.25h7.58a2.25 2.25 0 012.23 1.99L19.28 13.82m-12 0h12" />
+                  </svg>
+                  <div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#334155', margin: 0 }}>Sin trabajo activo</h2>
+                    <p style={{ fontSize: '1rem', marginTop: '0.25rem' }}>Esperando a que el operador inicie una impresión...</p>
+                  </div>
                 </div>
-              </div>
-
-              {/* Specs Grid */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-                <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontWeight: 700 }}>Especificaciones</span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                  
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Material</span>
-                    <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={activeJob.format}>{activeJob.format}</span>
-                  </div>
-
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Medidas</span>
-                    <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem' }}>{activeJob.width || 1.0}m x {activeJob.height || 1.0}m</span>
-                  </div>
-
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Cantidad</span>
-                    <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem' }}>{activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'}</span>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Operator and Timing */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {(activeJob.responsible || 'OP').substring(0, 2).toUpperCase()}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Operador</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f172a' }}>{activeJob.responsible || 'Sin asignar'}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Hora de Inicio</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f766e' }}>{activeJob.startTime || 'Sin iniciar'}</span>
-                </div>
-              </div>
-
+              )}
             </div>
 
             {/* Column 2: Siguientes en Cola */}
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 0.8, backgroundColor: '#ffffff', borderRadius: '16px', padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 300px', backgroundColor: '#ffffff', borderRadius: '16px', padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, boxSizing: 'border-box' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary-blue)', marginBottom: '1.25rem', display: 'block' }}>
                 SIGUIENTES EN COLA
               </span>
@@ -2208,12 +2232,13 @@ export const ColasImpresionPage = () => {
 
             {/* Column 3: Vista Previa */}
             {(() => {
+              if (!activeJob) return null;
               const files = parseJobFiles(activeJob);
               const firstImage = files.find(f => isImageFile(f.name, f.url));
               
               if (firstImage) {
                 return (
-                  <div style={{ display: 'flex', flex: 0.9, flexDirection: 'column', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', flex: '1 1 300px', flexDirection: 'column', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, boxSizing: 'border-box', minHeight: '300px' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary-blue)', marginBottom: '1.25rem', display: 'block' }}>
                       VISTA PREVIA DEL ARTE
                     </span>
