@@ -128,3 +128,28 @@ export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referenc
   }
   return data.data;
 };
+
+export const editarAbonoProforma = async (id, abonoId, { monto, metodoPagoId, referencia }) => {
+  const res = await fetch(`/api/proformas/${id}/abonos/${abonoId}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify({ monto, metodoPagoId, referencia }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al editar abono');
+  }
+  return data.data;
+};
+
+export const eliminarAbonoProforma = async (id, abonoId) => {
+  const res = await fetch(`/api/proformas/${id}/abonos/${abonoId}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al eliminar abono');
+  }
+  return data.data;
+};
