@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getCierres } from '../../application/gastosService';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../../../shared/ui/components/Toast';
 import { Clock, User, ClipboardCheck, BarChart3, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
