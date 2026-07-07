@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { resolveMediaUrl } from '../../../shared/utils/mediaUrl.js';
 import { ProjectMediaImage } from '../../../shared/ui/components/ProjectMediaImage.jsx';
 import './ColasImpresionPage.css';
+import { usePrintQueue } from '../context/PrintQueueContext';
 import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService';
 import { createOrden } from '../../compras/application/comprasService';
 import { toast } from '../../../shared/ui/components/Toast';
