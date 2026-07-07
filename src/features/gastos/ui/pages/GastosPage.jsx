@@ -6,6 +6,7 @@ import {
   getVehiculos, getVehiculoDetails, saveVehiculo, deleteVehiculo,
   addMantenimiento, updateMantenimiento, deleteMantenimiento 
 } from '../../application/gastosService';
+import { getUsuarios } from '../../../usuarios/application/usuariosService';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { 
@@ -132,10 +133,15 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filtroOrigen, setFiltroOrigen] = useState('todos');
+  const [filtroUsuarioId, setFiltroUsuarioId] = useState('');
+  const [filtroMetodoPagoId, setFiltroMetodoPagoId] = useState('');
+  const [dateRange, setDateRange] = useState({ desde: '', hasta: '' });
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [totales, setTotales] = useState({ total: 0, otrosGastos: 0, nomina: 0, vehiculos: 0, ordenesCompra: 0 });
+  const [usuarios, setUsuarios] = useState([]);
 
   // --- ESTADOS VEHÍCULOS ---
   const [vehiculos, setVehiculos] = useState([]);
@@ -174,9 +180,18 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const loadGastosData = async () => {
     setLoading(true);
     try {
-      const response = await getGastos(page, limit, search, filtroOrigen);
+      const filters = {
+        usuarioId: filtroUsuarioId,
+        metodoPagoId: filtroMetodoPagoId,
+        startDate: dateRange.desde,
+        endDate: dateRange.hasta,
+      };
+      const response = await getGastos(page, limit, search, filtroOrigen, filters);
       if (response && response.data) {
         setItems(response.data);
+        if (response.totales) {
+          setTotales(response.totales);
+        }
         if (response.pagination) {
           setTotalPages(response.pagination.totalPages);
           setTotalCount(response.pagination.totalCount);
@@ -198,7 +213,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       }, 300); // debounce search
       return () => clearTimeout(timeout);
     }
-  }, [page, limit, search, filtroOrigen, activeTab]);
+  }, [page, limit, search, filtroOrigen, filtroUsuarioId, filtroMetodoPagoId, dateRange, activeTab]);
 
   const loadVehiculosData = async () => {
     setLoadingVehiculos(true);
@@ -286,7 +301,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     }
   };
 
-  // Carga inicial de métodos de pago
+  // Carga inicial de métodos de pago y usuarios
   useEffect(() => {
     getMetodosPago()
       .then(data => {
@@ -294,6 +309,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       })
       .catch(err => {
         console.error('Error al cargar métodos de pago:', err);
+      });
+      
+    getUsuarios()
+      .then(data => {
+        setUsuarios(data || []);
+      })
+      .catch(err => {
+        console.error('Error al cargar usuarios:', err);
       });
   }, []);
 
@@ -520,31 +543,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const paginated = items;
   
   // Resetea a la página 1 cuando el filtro o la búsqueda cambian
-  useEffect(() => { setPage(1); }, [search, filtroOrigen]);
+  useEffect(() => { setPage(1); }, [search, filtroOrigen, filtroUsuarioId, filtroMetodoPagoId, dateRange]);
 
-  useEffect(() => { setPage(1); }, [search, filtroOrigen]);
-
-  // --- TOTALES KPI GASTOS ---
-  const sumMontos = (list) => list.reduce((s, g) => s + Number(g.monto || 0), 0);
-  const gastosManuales = items.filter((g) => g.origen === 'otros_gastos');
-  const pagosOC = items.filter((g) => g.origen === 'orden_compra');
-
-  const totalMesManuales = gastosManuales.filter(g => {
-    const d = new Date(g.fecha);
-    const ahora = new Date();
-    return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
-  }).reduce((s, g) => s + Number(g.monto || 0), 0);
-
-  const totales = {
-    total: items.length,
-    totalMonto: sumMontos(items),
-    totalGastosManuales: sumMontos(gastosManuales),
-    totalPagosOC: sumMontos(pagosOC),
-    promedio: gastosManuales.length ? sumMontos(gastosManuales) / gastosManuales.length : 0,
-    totalMes: totalMesManuales,
-    pagosCompra: pagosOC.length,
-    gastosManuales: gastosManuales.length,
-  };
+  // Totales ahora provienen del estado `totales` cargado desde el backend
 
   // --- TOTALES KPI VEHÍCULOS ---
   const vehiculosConAlertas = vehiculos.filter(v => computeVehicleAlerts(v).hasWarning).length;
@@ -779,14 +780,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {activeTab === 'gastos' && (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <div className="ga-card px-5 py-4 flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
-                <FileText size={20} style={{ color: '#3b82f6' }} />
+                <BarChart3 size={20} style={{ color: '#3b82f6' }} />
               </div>
               <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gastos manuales</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{totales.gastosManuales}</div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total General</div>
+                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.total || 0)}</div>
               </div>
             </div>
             <div className="ga-card px-5 py-4 flex items-center gap-4">
@@ -794,26 +795,81 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <DollarSign size={20} style={{ color: '#10b981' }} />
               </div>
               <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Egresos manuales</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalGastosManuales)}</div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Otros Gastos</div>
+                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.otrosGastos || 0)}</div>
+              </div>
+            </div>
+            <div className="ga-card px-5 py-4 flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.1)' }}>
+                <FileText size={20} style={{ color: '#f59e0b' }} />
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Órdenes de Compra</div>
+                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.ordenesCompra || 0)}</div>
+              </div>
+            </div>
+            <div className="ga-card px-5 py-4 flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                <User size={20} style={{ color: '#8b5cf6' }} />
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nómina y Anticipos</div>
+                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.nomina || 0)}</div>
+              </div>
+            </div>
+            <div className="ga-card px-5 py-4 flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(236,72,153,0.1)' }}>
+                <Car size={20} style={{ color: '#ec4899' }} />
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Vehículos</div>
+                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.vehiculos || 0)}</div>
               </div>
             </div>
           </div>
 
 
-          <div className="flex items-center gap-3 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-200/60 w-max">
-            <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider ml-2">Filtrar por:</span>
+          <div className="flex flex-wrap items-center gap-3 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-200/60 w-max">
+            <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider ml-2">Filtros:</span>
             <select
               value={filtroOrigen}
               onChange={(e) => setFiltroOrigen(e.target.value)}
-              className="ga-input !py-1.5 !px-3 !bg-white !shadow-sm !text-sm !font-semibold !text-slate-700 min-w-[200px]"
+              className="ga-input !py-1.5 !px-3 !bg-white !shadow-sm !text-sm !font-semibold !text-slate-700 min-w-[180px]"
             >
-              <option value="todos">Todos los Gastos</option>
+              <option value="todos">Todos los Tipos</option>
               <option value="otros_gastos">Otros Gastos</option>
               <option value="orden_compra">Órdenes de Compra</option>
               <option value="nomina">Nómina y Anticipos</option>
               <option value="vehiculo">Vehículos</option>
             </select>
+            <select
+              value={filtroUsuarioId}
+              onChange={(e) => setFiltroUsuarioId(e.target.value)}
+              className="ga-input !py-1.5 !px-3 !bg-white !shadow-sm !text-sm !font-semibold !text-slate-700 min-w-[180px]"
+            >
+              <option value="">Cualquier Usuario</option>
+              {usuarios.map(u => (
+                <option key={u.id} value={u.id}>{u.nombre}</option>
+              ))}
+            </select>
+            <select
+              value={filtroMetodoPagoId}
+              onChange={(e) => setFiltroMetodoPagoId(e.target.value)}
+              className="ga-input !py-1.5 !px-3 !bg-white !shadow-sm !text-sm !font-semibold !text-slate-700 min-w-[180px]"
+            >
+              <option value="">Cualquier Método de Pago</option>
+              {metodosPago.map(m => (
+                <option key={m.id} value={m.id}>{m.nombre}</option>
+              ))}
+            </select>
+            <div className="h-8">
+              <DateRangePicker 
+                value={dateRange}
+                onChange={setDateRange}
+                placeholder="Rango de fechas"
+                size="sm"
+              />
+            </div>
           </div>
 
           {/* Tabla de Gastos */}
@@ -848,12 +904,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </thead>
                   <tbody className="divide-y divide-slate-100/40">
                     {paginated.map((g) => {
-                      const origenLabels = {
-                        otros_gastos: 'Otros Gastos',
-                        orden_compra: 'Ordenes de Compra',
-                        nomina: 'Nomina',
-                        vehiculo: 'Vehiculo'
+                      const origenStyles = {
+                        otros_gastos: { label: 'Otros Gastos', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+                        orden_compra: { label: 'Ordenes de Compra', bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
+                        nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
+                        vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
                       };
+                      const style = origenStyles[g.origen] || origenStyles.otros_gastos;
                       const canEdit = g.origen === 'otros_gastos' && !g.readonly;
 
                       return (
@@ -864,16 +921,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                           title={canEdit ? "Clic para editar" : ""}
                         >
                           <td className="px-5 py-4">
-                            <div className="text-[12px] font-medium text-slate-700">
+                            <div className="text-[12px] font-medium text-slate-700 whitespace-nowrap">
                               {g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-1">
+                            <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">
                               {g.registradoPor?.nombre || 'Automático'}
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="font-semibold text-[12px] text-slate-600 bg-slate-100 px-2 py-1 rounded-md">
-                              {origenLabels[g.origen] || 'Otros Gastos'}
+                            <span 
+                              className="font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider whitespace-nowrap"
+                              style={{ backgroundColor: style.bg, color: style.color }}
+                            >
+                              {style.label}
                             </span>
                           </td>
                           <td className="px-5 py-4">
