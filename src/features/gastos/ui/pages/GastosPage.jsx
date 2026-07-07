@@ -13,7 +13,7 @@ import {
   Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus, 
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
-  ClipboardCheck, BarChart3
+  ClipboardCheck, BarChart3, Filter
 } from 'lucide-react';
 
 const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
@@ -829,46 +829,67 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           </div>
 
 
-          <div className="flex flex-wrap items-center gap-3 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-200/60 w-max">
-            <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider ml-2">Filtros:</span>
-            <select
-              value={filtroOrigen}
-              onChange={(e) => setFiltroOrigen(e.target.value)}
-              className="ga-input !py-1.5 !px-3 !bg-white !shadow-sm !text-sm !font-semibold !text-slate-700 min-w-[180px]"
-            >
-              <option value="todos">Todos los Tipos</option>
-              <option value="otros_gastos">Otros Gastos</option>
-              <option value="orden_compra">Órdenes de Compra</option>
-              <option value="nomina">Nómina y Anticipos</option>
-              <option value="vehiculo">Vehículos</option>
-            </select>
-            <select
-              value={filtroUsuarioId}
-              onChange={(e) => setFiltroUsuarioId(e.target.value)}
-              className="ga-input !py-1.5 !px-3 !bg-white !shadow-sm !text-sm !font-semibold !text-slate-700 min-w-[180px]"
-            >
-              <option value="">Cualquier Usuario</option>
-              {usuarios.map(u => (
-                <option key={u.id} value={u.id}>{u.nombre}</option>
-              ))}
-            </select>
-            <select
-              value={filtroMetodoPagoId}
-              onChange={(e) => setFiltroMetodoPagoId(e.target.value)}
-              className="ga-input !py-1.5 !px-3 !bg-white !shadow-sm !text-sm !font-semibold !text-slate-700 min-w-[180px]"
-            >
-              <option value="">Cualquier Método de Pago</option>
-              {metodosPago.map(m => (
-                <option key={m.id} value={m.id}>{m.nombre}</option>
-              ))}
-            </select>
-            <div className="h-8">
-              <DateRangePicker 
-                value={dateRange}
-                onChange={setDateRange}
-                placeholder="Rango de fechas"
-                size="sm"
-              />
+          {/* Contenedor de Filtros Avanzados */}
+          <div className="ga-card mb-4">
+            <div className="px-5 py-3 border-b border-slate-100/60 bg-slate-50/50 flex items-center gap-2 rounded-t-xl">
+              <Filter size={16} className="text-slate-400" />
+              <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Filtros Avanzados</span>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Tipo de Gasto</label>
+                <select
+                  value={filtroOrigen}
+                  onChange={(e) => setFiltroOrigen(e.target.value)}
+                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                >
+                  <option value="todos">Todos los Tipos</option>
+                  <option value="otros_gastos">Otros Gastos</option>
+                  <option value="orden_compra">Órdenes de Compra</option>
+                  <option value="nomina">Nómina y Anticipos</option>
+                  <option value="vehiculo">Vehículos</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Usuario</label>
+                <select
+                  value={filtroUsuarioId}
+                  onChange={(e) => setFiltroUsuarioId(e.target.value)}
+                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                >
+                  <option value="">Cualquier Usuario</option>
+                  {usuarios.map(u => (
+                    <option key={u.id} value={u.id}>{u.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Método de Pago</label>
+                <select
+                  value={filtroMetodoPagoId}
+                  onChange={(e) => setFiltroMetodoPagoId(e.target.value)}
+                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                >
+                  <option value="">Cualquier Método de Pago</option>
+                  {metodosPago.map(m => (
+                    <option key={m.id} value={m.id}>{m.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Fechas</label>
+                <div className="h-10 w-full">
+                  <DateRangePicker 
+                    value={dateRange}
+                    onChange={setDateRange}
+                    placeholder="Rango de fechas"
+                    size="sm"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
