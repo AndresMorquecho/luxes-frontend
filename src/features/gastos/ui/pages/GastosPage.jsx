@@ -1507,7 +1507,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         </div>
                       );
                     })()}
-                    </div>
                   </div>
                 </div>
               </div>
