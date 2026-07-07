@@ -1309,7 +1309,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             {/* Panel Lateral: Parámetros y Arqueo (Izquierda) */}
             <div className="lg:col-span-1 space-y-6">
-              <div className="ga-card p-6 space-y-6" style={{ overflow: 'visible' }}>
+              <div className="ga-card p-6 space-y-6 relative z-[60]" style={{ overflow: 'visible' }}>
                 <div>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                     Control de Caja
