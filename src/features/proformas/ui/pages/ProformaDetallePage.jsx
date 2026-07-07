@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getProformaById, aprobarProforma, rechazarProforma, registrarAbonoProforma, editarAbonoProforma, eliminarAbonoProforma } from '../../application/proformasService';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProformaPDF } from '../components/ProformaPDF';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
@@ -103,7 +104,12 @@ export const ProformaDetallePage = () => {
     : 0;
 
   const handleRechazar = async () => {
-    if (!window.confirm('¿Está seguro de que desea rechazar esta proforma?')) return;
+    const confirmed = await confirmDialog(
+      'Rechazar Proforma',
+      '¿Está seguro de que desea rechazar esta proforma?',
+      { type: 'danger', confirmLabel: 'Rechazar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmed) return;
     try {
       const updated = await rechazarProforma(proforma.id);
       setProforma(updated);
@@ -153,7 +159,12 @@ export const ProformaDetallePage = () => {
   };
 
   const handleEliminarAbono = async (abonoId) => {
-    if (!window.confirm('¿Está seguro de que desea eliminar este abono?')) return;
+    const confirmed = await confirmDialog(
+      'Eliminar Abono',
+      '¿Está seguro de que desea eliminar este abono?',
+      { type: 'danger', confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmed) return;
     try {
       setLoading(true);
       const updated = await eliminarAbonoProforma(proforma.id, abonoId);
