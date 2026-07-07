@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { getOrdenById, createOrden, updateOrden, editarOrden, getMetodosPago } from '../../application/comprasService';
+import { getOrdenById, createOrden, updateOrden, editarOrden, getMetodosPago, getOrdenDetalles } from '../../application/comprasService';
 import { 
   getMateriales, 
   buildMaterialesQuery, 
@@ -13,6 +13,7 @@ import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { isAdminUser, isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
 import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
+import { fmtMoney, isOrdenEditable, getOrdenNoEditableMensaje, mergeOrdenDetalles, mapDetallesToFormRows } from '../../helpers/ordenCompraHelpers.js';
 
 const MATERIAL_SEARCH_LIMIT = 5;
 const MIN_FILTER_CHARS = 2;
@@ -33,12 +34,15 @@ export const FormOrdenCompraPage = () => {
   const [saving, setSaving] = useState(false);
   const [proyectos, setProyectos] = useState([]);
   const [unidades, setUnidades] = useState([]);
-  const [metodosPago, setMetodosPago] = useState([]);
   const [creatingMaterial, setCreatingMaterial] = useState(false);
-  const [ordenOriginal, setOrdenOriginal] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  // Estado para el pago inicial al editar (admin)
-  const [pagoEdicion, setPagoEdicion] = useState({ metodoPagoId: '', monto: '', referencia: '' });
+  const [ordenEstado, setOrdenEstado] = useState('');
+  const [ordenNumero, setOrdenNumero] = useState('');
+  const [totalAnterior, setTotalAnterior] = useState(0);
+  const [impuestoOrden, setImpuestoOrden] = useState(0);
+  const [montoPagado, setMontoPagado] = useState(0);
+  const [metodosPago, setMetodosPago] = useState([]);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [confirmPago, setConfirmPago] = useState({ monto: '', metodoPagoId: '', referencia: '' });
   const [form, setForm] = useState(() => {
     const defaultState = {
       fecha: new Date().toISOString().split('T')[0],
@@ -80,6 +84,50 @@ export const FormOrdenCompraPage = () => {
     [proyectos, form.proyectoId],
   );
 
+  const editBloqueado = isEdit && !isOrdenEditable(ordenEstado);
+  const adminEditaPrecios = isAdmin && isEdit && !editBloqueado;
+  const adminVePrecios = isAdmin && isEdit;
+  const usaEdicionReconciliada = isEdit && isAdmin && !editBloqueado;
+
+  const proyectoLabel = useMemo(() => {
+    if (!form.proyectoId) return null;
+    const p = proyectos.find((pr) => pr.id === form.proyectoId);
+    return p ? (p.nombre ? `${p.id} - ${p.nombre}` : p.id) : form.proyectoId;
+  }, [form.proyectoId, proyectos]);
+
+  const subtotalOrden = useMemo(
+    () => form.detalles.reduce(
+      (sum, d) => sum + (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0),
+      0,
+    ),
+    [form.detalles],
+  );
+
+  const totalNuevo = useMemo(
+    () => subtotalOrden + (parseFloat(impuestoOrden) || 0),
+    [subtotalOrden, impuestoOrden],
+  );
+
+  const diferenciaTotal = useMemo(
+    () => totalNuevo - (parseFloat(totalAnterior) || 0),
+    [totalNuevo, totalAnterior],
+  );
+
+  const nuevoSaldoPendiente = useMemo(
+    () => Math.max(0, totalNuevo - (parseFloat(montoPagado) || 0)),
+    [totalNuevo, montoPagado],
+  );
+
+  const abonoConfirmNum = parseFloat(confirmPago.monto) || 0;
+  const hayCambioPrecio = Math.abs(diferenciaTotal) > 0.01;
+
+  const tableColCount = useMemo(() => {
+    let cols = 4;
+    if (adminVePrecios) cols += 2;
+    if (!editBloqueado) cols += 1;
+    return cols;
+  }, [adminVePrecios, editBloqueado]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -94,39 +142,50 @@ export const FormOrdenCompraPage = () => {
       });
 
       if (isEdit) {
-        const [projResult, o, units, metodos] = await Promise.all([
+        const metodosPromise = isAdmin
+          ? getMetodosPago().catch(() => [])
+          : Promise.resolve([]);
+
+        const [projResult, o, units, metodos, detallesApi] = await Promise.all([
           proyectosPromise,
           getOrdenById(id).catch(err => {
             console.error('Error al cargar la orden:', err);
             return null;
           }),
           unidadesPromise,
-          isAdmin ? getMetodosPago().catch(() => []) : Promise.resolve([]),
+          metodosPromise,
+          getOrdenDetalles(id).catch(() => []),
         ]);
 
         setProyectos(Array.isArray(projResult?.data) ? projResult.data : []);
         setUnidades(units);
-        if (Array.isArray(metodos)) setMetodosPago(metodos);
+        setMetodosPago(Array.isArray(metodos) ? metodos : []);
 
-        if (o) {
-          setOrdenOriginal(o);
+        const ordenMerged = mergeOrdenDetalles(o, detallesApi);
+
+        if (ordenMerged) {
+          setOrdenEstado(ordenMerged.estado || '');
+          setOrdenNumero(ordenMerged.numero || '');
+          setTotalAnterior(Number(ordenMerged.total) || 0);
+          setImpuestoOrden(Number(ordenMerged.impuesto) || 0);
+          setMontoPagado(Number(ordenMerged.cuentaPorPagar?.montoPagado) || 0);
+
+          const filas = mapDetallesToFormRows(ordenMerged);
           setForm({
-            fecha: o.fecha ? new Date(o.fecha).toISOString().split('T')[0] : '',
-            concepto: o.concepto || '',
-            notas: o.notas || '',
-            detalles: o.detalles && o.detalles.length > 0
-              ? o.detalles.map(d => ({
-                  id: d.id,
-                  descripcion: d.descripcion,
-                  cantidad: d.cantidad,
-                  precioUnitario: d.precioUnitario ?? 0,
-                  materialId: d.materialId || null,
-                  isCustom: !d.materialId,
-                  cantidadRecibida: d.cantidadRecibida ?? 0,
-                }))
-              : [],
-            proyectoId: o.proyectoId || '',
+            fecha: ordenMerged.fecha ? new Date(ordenMerged.fecha).toISOString().split('T')[0] : '',
+            concepto: ordenMerged.concepto || '',
+            notas: ordenMerged.notas || '',
+            detalles: filas,
+            proyectoId: ordenMerged.proyectoId || '',
           });
+
+          if (filas.length === 0) {
+            window.setTimeout(() => {
+              toast.error('Esta orden no tiene ítems cargados. Agrégalos manualmente o revisa en aprobación.');
+            }, 0);
+          }
+        } else {
+          toast.error('No se pudo cargar la orden de compra.');
         }
       } else {
         const [projResult, units] = await Promise.all([
@@ -141,7 +200,7 @@ export const FormOrdenCompraPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, isEdit]);
+  }, [id, isEdit, isAdmin]);
 
   useEffect(() => {
     loadData();
@@ -264,8 +323,10 @@ export const FormOrdenCompraPage = () => {
       detalles: [
         ...prev.detalles,
         {
+          lineId: `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           descripcion: itemInput.descripcion,
           cantidad: itemInput.cantidad,
+          precioUnitario: adminEditaPrecios ? '0' : undefined,
           materialId: itemInput.materialId || null,
           isCustom: !itemInput.materialId
         }
@@ -292,71 +353,111 @@ export const FormOrdenCompraPage = () => {
     });
   };
 
-  // Calcular totales para el resumen
-  const totalNuevo = form.detalles.reduce((sum, d) => sum + (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0), 0);
-  const totalAnterior = ordenOriginal?.total ?? 0;
-  const diferencia = totalNuevo - totalAnterior;
+  const handlePrecioChange = (index, rawValue) => {
+    const val = String(rawValue ?? '');
+    if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
+    updateDetalle(index, 'precioUnitario', val);
+  };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
+  const buildPayload = () => ({
+    fecha: form.fecha,
+    concepto: form.concepto,
+    notas: form.notas,
+    proyectoId: form.proyectoId || null,
+    detalles: form.detalles.map((d) => ({
+      descripcion: d.descripcion,
+      cantidad: parseFloat(d.cantidad) || 0,
+      materialId: d.materialId || null,
+      ...(isEdit
+        ? {
+            precioUnitario: parseFloat(d.precioUnitario) || 0,
+            ...(d.lineId && !String(d.lineId).startsWith('det-') ? { id: d.lineId } : {}),
+            isCustom: !!d.isCustom,
+          }
+        : {}),
+    })),
+    ...(isEdit ? { impuesto: parseFloat(impuestoOrden) || 0 } : {}),
+  });
+
+  const validateForm = () => {
+    if (editBloqueado) {
+      toast.error(getOrdenNoEditableMensaje(ordenEstado));
+      return false;
+    }
     if (form.detalles.length === 0) {
       toast.error('Debe agregar al menos un item a la orden.');
-      return;
+      return false;
     }
-
-    if (form.proyectoId && form.detalles.some(d => d.isCustom || !d.materialId)) {
+    if (form.proyectoId && form.detalles.some((d) => d.isCustom || !d.materialId)) {
       toast.error('Esta orden está asociada a un proyecto y no puede contener materiales libres. Registra los materiales o remuévelos de la lista.');
+      return false;
+    }
+    if (adminEditaPrecios && form.detalles.some((d) => !parseFloat(d.precioUnitario) || parseFloat(d.precioUnitario) <= 0)) {
+      toast.error('Todos los items deben tener un precio unitario mayor a 0.');
+      return false;
+    }
+    return true;
+  };
+
+  const openSaveConfirm = () => {
+    const activeMethod = metodosPago.find((m) => m.activo);
+    setConfirmPago({
+      monto: totalNuevo > 0 ? totalNuevo.toFixed(2) : '',
+      metodoPagoId: activeMethod?.id || '',
+      referencia: '',
+    });
+    setShowSaveConfirm(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (abonoConfirmNum > 0 && !confirmPago.metodoPagoId) {
+      toast.error('Selecciona un método de pago para registrar el abono.');
+      return;
+    }
+    if (abonoConfirmNum > totalNuevo + 0.01) {
+      toast.error(`El abono no puede exceder el total de la orden (${fmtMoney(totalNuevo)}).`);
       return;
     }
 
-    if (isEdit && isAdmin) {
-      // Abre el modal para que el administrador decida el nuevo método de pago / abono
-      setShowPaymentModal(true);
-    } else {
-      executeSubmit();
+    setSaving(true);
+    try {
+      const payload = buildPayload();
+      if (abonoConfirmNum > 0) {
+        payload.abonoMonto = abonoConfirmNum;
+        payload.metodoPagoId = confirmPago.metodoPagoId;
+        payload.abonoReferencia = confirmPago.referencia.trim()
+          || `Pago inicial - edición ${ordenNumero}`;
+      }
+
+      await editarOrden(id, payload);
+      toast.success('Orden de compra actualizada con éxito');
+      setShowSaveConfirm(false);
+      navigate('/compras');
+    } catch (err) {
+      toast.error('Error al guardar la orden: ' + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const executeSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    if (usaEdicionReconciliada) {
+      openSaveConfirm();
+      return;
+    }
+
     setSaving(true);
     try {
-      const payload = {
-        fecha: form.fecha,
-        concepto: form.concepto,
-        notas: form.notas,
-        proyectoId: form.proyectoId || null,
-        detalles: form.detalles.map(d => ({
-          id: d.id || undefined,
-          descripcion: d.descripcion,
-          cantidad: parseFloat(d.cantidad) || 0,
-          precioUnitario: isAdmin && isEdit ? (parseFloat(d.precioUnitario) || 0) : 0,
-          materialId: d.materialId || null,
-          isCustom: d.isCustom,
-        })),
-      };
-
+      const payload = buildPayload();
       if (isEdit) {
-        if (isAdmin) {
-          // Admin: anula la orden anterior y crea una nueva con los datos actualizados
-          const pagoMonto = parseFloat(pagoEdicion.monto) || 0;
-          await editarOrden(id, {
-            ...payload,
-            impuesto: 0,
-            abonoMonto: pagoMonto > 0 ? pagoMonto : undefined,
-            metodoPagoId: pagoMonto > 0 ? (pagoEdicion.metodoPagoId || null) : null,
-            abonoReferencia: pagoEdicion.referencia || undefined,
-          });
-        } else {
-          // Creador pendiente: actualización simple sin precios
-          await updateOrden(id, payload);
-        }
+        await updateOrden(id, payload);
       } else {
         await createOrden(payload);
       }
-
       toast.success(isEdit ? 'Orden de compra actualizada con éxito' : 'Orden de compra creada con éxito');
-      setShowPaymentModal(false);
       navigate('/compras');
     } catch (err) {
       toast.error('Error al guardar la orden: ' + err.message);
@@ -387,14 +488,16 @@ export const FormOrdenCompraPage = () => {
           </div>
           <div>
             <h1 className="co-title" style={{ color: '#1e293b', fontWeight: 800 }}>
-              {isEdit ? (isAdmin ? 'Editar Orden de Compra' : 'Modificar mi Solicitud') : 'Nueva Orden de Compra'}
+              {isEdit ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}
             </h1>
             <p className="co-subtitle">
-              {isEdit 
-                ? (isAdmin 
-                  ? 'La orden anterior se anulará y se creará una nueva con los datos corregidos.'
-                  : 'Modifica los ítems de tu solicitud (aún pendiente de aprobación)')
-                : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
+              {editBloqueado
+                ? getOrdenNoEditableMensaje(ordenEstado)
+                : isEdit && isAdmin
+                  ? 'Modifica items, cantidades y precios de la orden.'
+                  : isEdit
+                    ? 'Modifica los items de la orden.'
+                    : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
             </p>
           </div>
         </div>
@@ -405,6 +508,15 @@ export const FormOrdenCompraPage = () => {
 
       {/* Main Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
+
+        {editBloqueado && (
+          <div
+            className="co-card p-4 text-sm font-medium"
+            style={{ background: '#fef2f2', border: '1.5px solid #fecaca', color: '#b91c1c' }}
+          >
+            {getOrdenNoEditableMensaje(ordenEstado)}
+          </div>
+        )}
         
         {/* Encabezado Card */}
         <div className="co-card p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
@@ -428,6 +540,7 @@ export const FormOrdenCompraPage = () => {
                 value={form.fecha}
                 onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))}
                 required
+                disabled={editBloqueado}
               />
             </div>
             <div>
@@ -437,6 +550,7 @@ export const FormOrdenCompraPage = () => {
                 style={{ height: '38px', borderRadius: '10px', padding: '0 10px', fontSize: '13px' }}
                 value={form.proyectoId || ''}
                 onChange={e => setForm(p => ({ ...p, proyectoId: e.target.value }))}
+                disabled={editBloqueado}
               >
                 <option value="">-- Sin Proyecto (Gasto General) --</option>
                 {proyectosAsociables.map(p => (
@@ -453,11 +567,13 @@ export const FormOrdenCompraPage = () => {
               placeholder="Ej. Materiales para proyecto X, Reposición de stock..."
               value={form.concepto}
               onChange={e => setForm(p => ({ ...p, concepto: e.target.value }))}
+              disabled={editBloqueado}
             />
           </div>
         </div>
 
         {/* Item Entry Bar */}
+        {!editBloqueado && (
         <div className="p-5" style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px' }}>
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
             Agregar Item a la Orden
@@ -580,6 +696,7 @@ export const FormOrdenCompraPage = () => {
             </button>
           </div>
         </div>
+        )}
 
         {/* Items Table */}
         <div className="overflow-x-auto">
@@ -590,128 +707,165 @@ export const FormOrdenCompraPage = () => {
                 <th style={{ width: '130px' }}>Tipo</th>
                 <th>Descripción / Material</th>
                 <th className="text-center" style={{ width: '150px' }}>Cantidad</th>
-                {isAdmin && isEdit && (
-                  <th className="text-right" style={{ width: '130px' }}>Precio Unit.</th>
+                {adminVePrecios && (
+                  <>
+                    <th className="text-right" style={{ width: '150px' }}>Precio Unit.</th>
+                    <th className="text-right" style={{ width: '130px' }}>Subtotal</th>
+                  </>
                 )}
-                {isAdmin && isEdit && (
-                  <th className="text-right" style={{ width: '110px' }}>Subtotal</th>
+                {!editBloqueado && (
+                  <th className="text-center" style={{ width: '80px' }}>Acciones</th>
                 )}
-                <th className="text-center" style={{ width: '80px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {form.detalles.map((d, index) => {
-                const fueRecepcionado = (d.cantidadRecibida ?? 0) > 0;
-                const esInventario = !!d.materialId;
-                const cantidadBloqueada = isEdit && fueRecepcionado && esInventario;
-                const eliminacionBloqueada = isEdit && fueRecepcionado && esInventario;
-                const subtotalFila = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
-
+                const lineSubtotal = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
+                const rowKey = d.lineId || `${d.materialId || 'custom'}-${d.descripcion}-${index}`;
                 return (
-                  <tr key={index} style={cantidadBloqueada ? { background: '#f8fafc' } : {}}>
-                    <td className="text-center font-bold text-slate-400">{index + 1}</td>
-                    <td>
-                      <div className="flex flex-col gap-1">
-                        <span className={`co-badge-pill ${d.isCustom ? 'co-badge-pill-slate' : 'co-badge-pill-blue'}`}>
-                          {d.isCustom ? 'Libre' : 'Inventario'}
-                        </span>
-                        {cantidadBloqueada && (
-                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 w-fit">
-                            ✓ Recibido
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      {d.isCustom ? (
-                        <input
-                          type="text"
-                          className="co-table-input w-full"
-                          value={d.descripcion}
-                          onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
-                          required
-                        />
-                      ) : (
-                        <span className="font-semibold text-slate-700">{d.descripcion}</span>
-                      )}
-                    </td>
-                    <td>
+                <tr key={rowKey}>
+                  <td className="text-center font-bold text-slate-400">{index + 1}</td>
+                  <td>
+                    <span className={`co-badge-pill ${d.isCustom ? 'co-badge-pill-slate' : 'co-badge-pill-blue'}`}>
+                      {d.isCustom ? 'Libre' : 'Inventario'}
+                    </span>
+                  </td>
+                  <td>
+                    {d.isCustom && !editBloqueado ? (
+                      <input
+                        type="text"
+                        className="co-table-input w-full"
+                        value={d.descripcion}
+                        onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
+                        required
+                      />
+                    ) : (
+                      <span className="font-semibold text-slate-700">{d.descripcion}</span>
+                    )}
+                  </td>
+                  <td>
+                    {editBloqueado ? (
+                      <span className="block text-center font-semibold text-slate-700">{d.cantidad}</span>
+                    ) : (
                       <input
                         type="number"
-                        className={`co-table-input text-center mx-auto ${cantidadBloqueada ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                        className="co-table-input text-center mx-auto"
                         style={{ width: '100px' }}
                         min="0.01"
                         step="0.01"
                         value={d.cantidad}
-                        onChange={e => !cantidadBloqueada && updateDetalle(index, 'cantidad', e.target.value)}
-                        readOnly={cantidadBloqueada}
-                        title={cantidadBloqueada ? 'Cantidad bloqueada: este ítem ya fue recibido en inventario' : undefined}
+                        onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
                         required
                         onWheel={e => e.target.blur()}
                       />
-                    </td>
-                    {isAdmin && isEdit && (
-                      <td>
-                        <input
-                          type="number"
-                          className="co-table-input text-right mx-auto"
-                          style={{ width: '110px' }}
-                          min="0"
-                          step="0.01"
-                          value={d.precioUnitario ?? ''}
-                          onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
-                          placeholder="0.00"
-                          onWheel={e => e.target.blur()}
-                        />
-                      </td>
                     )}
-                    {isAdmin && isEdit && (
-                      <td className="text-right font-semibold text-slate-700 pr-3">
-                        ${subtotalFila.toFixed(2)}
+                  </td>
+                  {adminVePrecios && (
+                    <>
+                      <td className="text-right">
+                        {adminEditaPrecios ? (
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="co-table-input text-right"
+                            style={{ maxWidth: '130px', marginLeft: 'auto' }}
+                            value={d.precioUnitario ?? ''}
+                            onChange={(e) => handlePrecioChange(index, e.target.value)}
+                            placeholder="0.00"
+                            required
+                            autoComplete="off"
+                          />
+                        ) : (
+                          <span className="font-semibold text-slate-700">{fmtMoney(d.precioUnitario)}</span>
+                        )}
                       </td>
-                    )}
-                    <td className="text-center">
-                      {eliminacionBloqueada ? (
-                        <span 
-                          className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"
-                          title="No se puede eliminar: ítem ya recibido en inventario"
-                        >
-                          🔒
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => removeDetalle(index)}
-                          className="co-table-remove-btn"
-                          title="Eliminar item"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                      <td className="text-right font-bold text-slate-800">{fmtMoney(lineSubtotal)}</td>
+                    </>
+                  )}
+                  {!editBloqueado && (
+                  <td className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => removeDetalle(index)}
+                      className="co-table-remove-btn"
+                      title="Eliminar item"
+                    >
+                      ×
+                    </button>
+                  </td>
+                  )}
+                </tr>
+              );})}
               {form.detalles.length === 0 && (
                 <tr>
-                  <td colSpan={isAdmin && isEdit ? 7 : 5} className="text-center py-16 text-slate-400 font-medium text-sm">
+                  <td colSpan={tableColCount} className="text-center py-16 text-slate-400 font-medium text-sm">
                     No hay items agregados. Usa la barra superior para agregar items.
                   </td>
                 </tr>
               )}
-              {isAdmin && isEdit && form.detalles.length > 0 && (
-                <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
-                  <td colSpan={4} />
-                  <td className="text-right text-xs font-bold text-slate-500 uppercase pr-2 py-3">Total orden</td>
-                  <td className="text-right font-bold text-slate-800 text-base pr-3">${totalNuevo.toFixed(2)}</td>
-                  <td />
+              {adminVePrecios && form.detalles.length > 0 && (
+                <tr>
+                  <td colSpan={5} className="text-right font-bold text-slate-500 text-sm pt-4">Total orden</td>
+                  <td className="text-right font-bold text-slate-900 text-base pt-4">{fmtMoney(totalNuevo)}</td>
+                  {!editBloqueado && <td className="pt-4" />}
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Se quitó el panel de ajuste financiero directo de la vista */}
+        {/* Ajuste financiero al editar precios */}
+        {adminEditaPrecios && form.detalles.length > 0 && (
+          <div className="co-card p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
+              Ajuste financiero
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Total anterior</p>
+                <p className="text-sm font-bold text-slate-700">{fmtMoney(totalAnterior)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Total nuevo</p>
+                <p className="text-sm font-bold text-slate-900">{fmtMoney(totalNuevo)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Diferencia</p>
+                <p className={`text-sm font-bold ${diferenciaTotal > 0 ? 'text-orange-600' : diferenciaTotal < 0 ? 'text-green-600' : 'text-slate-600'}`}>
+                  {diferenciaTotal > 0 ? '+' : ''}{fmtMoney(diferenciaTotal)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Ya pagado</p>
+                <p className="text-sm font-bold text-slate-700">{fmtMoney(montoPagado)}</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl mb-4" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-slate-600">Nuevo saldo pendiente</span>
+                <span className="text-base font-extrabold text-slate-900">{fmtMoney(nuevoSaldoPendiente)}</span>
+              </div>
+              <p className="text-[11px] font-medium mt-2 min-h-[16px]">
+                {diferenciaTotal < -0.01 ? (
+                  <span className="text-green-700">
+                    El total bajó. Al guardar se creará una nueva orden y los pagos anteriores se revertirán automáticamente.
+                  </span>
+                ) : hayCambioPrecio && diferenciaTotal > 0.01 ? (
+                  <span className="text-orange-700">
+                    El total aumentó en {fmtMoney(diferenciaTotal)}. Al confirmar podrás registrar el pago de la nueva orden.
+                  </span>
+                ) : montoPagado > 0 ? (
+                  <span className="text-slate-600">
+                    Esta orden tiene pagos registrados. Al guardar se anulará la orden actual y podrás registrar el pago de la nueva.
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Revisa los totales antes de guardar los cambios.</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Notes and Submit */}
         <div className="flex flex-wrap md:flex-nowrap gap-6">
@@ -724,6 +878,7 @@ export const FormOrdenCompraPage = () => {
               placeholder="Notas adicionales sobre la orden..."
               value={form.notas}
               onChange={e => setForm(p => ({ ...p, notas: e.target.value }))}
+              disabled={editBloqueado}
             />
           </div>
           <div className="flex items-center justify-end gap-3 shrink-0 self-end mt-4">
@@ -735,6 +890,7 @@ export const FormOrdenCompraPage = () => {
             >
               Cancelar
             </button>
+            {!editBloqueado && (
             <button
               type="submit"
               disabled={saving}
@@ -743,77 +899,100 @@ export const FormOrdenCompraPage = () => {
             >
               {saving ? 'Guardando...' : 'Guardar Orden'}
             </button>
+            )}
           </div>
         </div>
 
       </form>
 
-      {/* Modal de Pago / Confirmación de Edición */}
-      {showPaymentModal && (
+      {showSaveConfirm && (
         <>
-          <div className="co-overlay" onClick={() => setShowPaymentModal(false)} />
+          <div className="co-overlay" onClick={() => !saving && setShowSaveConfirm(false)} />
           <div className="co-modal-wrap">
-            <div className="co-modal-fixed-wide animate-co-modal-in">
+            <div className="co-modal-fixed-wide co-modal-edit-save animate-co-modal-in">
               <div className="co-modal-header">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Confirmar Edición e Inicializar Pago</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">La orden anterior se anulará y se creará una nueva orden</p>
+                  <h3 className="text-sm font-bold text-slate-800">Confirmar edición e inicializar pago</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    La orden anterior se anulará y se creará una nueva con los cambios aplicados
+                  </p>
                 </div>
-                <button type="button" onClick={() => setShowPaymentModal(false)} className="co-modal-close">
+                <button
+                  type="button"
+                  onClick={() => !saving && setShowSaveConfirm(false)}
+                  className="co-modal-close"
+                  disabled={saving}
+                >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
+
               <div className="co-modal-body">
-                <div className="co-modal-grid-2col">
-                  {/* Left Column: Summary */}
-                  <div className="co-modal-col-left" style={{ justifyContent: 'center' }}>
-                    <div style={{ padding: '1.5rem', borderRadius: '16px', background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.01)' }}>
-                      <p className="text-[10px] font-bold text-slate-400 mb-4" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Resumen de Nueva Orden
+                {montoPagado > 0 && (
+                  <div className="co-modal-edit-alert">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="font-semibold mb-0.5">Información de reversión</p>
+                      <p className="font-medium">
+                        Se devolvieron {fmtMoney(montoPagado)} a las cuentas de origen al anular la orden anterior.
+                        Puedes registrar aquí el pago de la nueva orden o dejar el saldo en cuenta por pagar.
                       </p>
-                      <div className="flex justify-between text-xs mb-2">
-                        <span className="text-slate-500 font-medium">Orden original:</span>
-                        <span className="font-bold text-slate-800 font-mono">{ordenOriginal?.numero}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="co-modal-grid-2col">
+                  <div className="co-modal-col-left">
+                    <div className="co-modal-summary-card">
+                      <p className="co-modal-summary-card__title">Resumen de nueva orden</p>
+                      <div className="co-modal-summary-row">
+                        <span>Orden original</span>
+                        <span className="font-mono">{ordenNumero || '—'}</span>
                       </div>
-                      <div className="flex justify-between text-xs mb-2">
-                        <span className="text-slate-500 font-medium">Concepto:</span>
-                        <span className="font-semibold text-slate-700 text-right max-w-[60%] truncate">{form.concepto || 'Sin concepto'}</span>
+                      <div className="co-modal-summary-row">
+                        <span>Concepto</span>
+                        <span>{form.concepto?.trim() || 'Sin concepto'}</span>
                       </div>
-                      <div className="flex justify-between text-xs pt-3 border-t border-slate-100">
-                        <span className="text-slate-500 font-bold">Total Nueva Orden:</span>
-                        <span className="font-extrabold text-slate-900" style={{ fontSize: '15px' }}>${totalNuevo.toFixed(2)}</span>
+                      {proyectoLabel && (
+                        <div className="co-modal-summary-row">
+                          <span>Proyecto</span>
+                          <span>{proyectoLabel}</span>
+                        </div>
+                      )}
+                      {Math.abs(diferenciaTotal) > 0.01 && (
+                        <div className="co-modal-summary-row">
+                          <span>Total anterior</span>
+                          <span>{fmtMoney(totalAnterior)}</span>
+                        </div>
+                      )}
+                      <div className="co-modal-summary-row co-modal-summary-total">
+                        <span>Total nueva orden</span>
+                        <span>{fmtMoney(totalNuevo)}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right Column: Inputs */}
                   <div className="co-modal-col-right">
-                    <div className="p-3 mb-4 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-800">
-                      <div className="font-bold mb-1">ℹ️ Información de Reversión</div>
-                      El dinero pagado anteriormente en esta orden ha sido devuelto a su respectiva cuenta debido a la edición. Puedes volver a registrar el pago para la nueva orden desde aquí.
-                    </div>
-
-                    <div className="space-y-4">
+                    <div className="co-modal-payment-stack">
                       <div>
-                        <label className="co-label">Cuenta / Método de Pago</label>
+                        <label className="co-label" style={{ fontSize: '10px' }}>Cuenta / método de pago</label>
                         <select
-                          className="co-input bg-white w-full"
-                          style={{ height: '38px', borderRadius: '10px', padding: '0 10px', fontSize: '13px' }}
-                          value={pagoEdicion.metodoPagoId}
-                          onChange={e => {
-                            setPagoEdicion(p => ({ ...p, metodoPagoId: e.target.value }));
-                            // Si se selecciona un método de pago y no hay monto, sugerir el total
-                            if (e.target.value && !pagoEdicion.monto) {
-                              setPagoEdicion(p => ({ ...p, monto: totalNuevo.toFixed(2) }));
-                            }
-                          }}
+                          className="co-input"
+                          value={confirmPago.metodoPagoId}
+                          onChange={(e) => setConfirmPago((p) => ({ ...p, metodoPagoId: e.target.value }))}
+                          disabled={!(abonoConfirmNum > 0) || saving}
+                          style={{ background: abonoConfirmNum > 0 ? '#fff' : '#f8fafc' }}
                         >
-                          <option value="">-- Sin pago inicial --</option>
-                          {metodosPago.filter(m => m.activo !== false).map(m => (
+                          <option value="">
+                            {abonoConfirmNum > 0 ? 'Selecciona cuenta...' : 'No requiere (sin abono)'}
+                          </option>
+                          {metodosPago.filter((m) => m.activo).map((m) => (
                             <option key={m.id} value={m.id}>
-                              {m.nombre}{m.saldoActual != null ? ` — Saldo: $${Number(m.saldoActual).toFixed(2)}` : ''}
+                              {m.nombre} — Saldo: {fmtMoney(m.saldoActual || 0)}
                             </option>
                           ))}
                         </select>
@@ -821,48 +1000,71 @@ export const FormOrdenCompraPage = () => {
 
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <label className="co-label" style={{ margin: 0 }}>Monto a Pagar ($)</label>
-                          {pagoEdicion.metodoPagoId && (
-                            <button
-                              type="button"
-                              onClick={() => setPagoEdicion(p => ({ ...p, monto: totalNuevo.toFixed(2) }))}
-                              className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer"
-                            >
-                              Copiar Total
-                            </button>
-                          )}
+                          <label className="co-label" style={{ margin: 0, fontSize: '10px' }}>Monto a pagar ($)</label>
+                          <button
+                            type="button"
+                            className="co-label-action"
+                            onClick={() => setConfirmPago((p) => ({
+                              ...p,
+                              monto: totalNuevo.toFixed(2),
+                              metodoPagoId: p.metodoPagoId || metodosPago.find((m) => m.activo)?.id || '',
+                            }))}
+                          >
+                            Copiar total
+                          </button>
                         </div>
                         <input
-                          type="number"
-                          className="co-input w-full"
-                          min="0"
-                          step="0.01"
-                          max={totalNuevo}
-                          value={pagoEdicion.monto}
-                          onChange={e => setPagoEdicion(p => ({ ...p, monto: e.target.value }))}
-                          placeholder={`0.00 (Máx. $${totalNuevo.toFixed(2)})`}
-                          onWheel={e => e.target.blur()}
+                          type="text"
+                          inputMode="decimal"
+                          className="co-input"
+                          value={confirmPago.monto}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
+                            setConfirmPago((p) => ({ ...p, monto: val }));
+                          }}
+                          placeholder="0.00 (opcional)"
+                          disabled={saving}
+                          autoComplete="off"
                         />
+                        {abonoConfirmNum > totalNuevo + 0.01 && (
+                          <p className="text-[10.5px] font-semibold text-red-600 mt-1">
+                            El abono no puede exceder {fmtMoney(totalNuevo)}.
+                          </p>
+                        )}
+                        {abonoConfirmNum <= 0 && (
+                          <p className="text-[10.5px] font-medium text-slate-500 mt-1">
+                            Deja en 0 para registrar la orden como cuenta por pagar.
+                          </p>
+                        )}
+                        {abonoConfirmNum > 0 && abonoConfirmNum < totalNuevo - 0.01 && (
+                          <p className="text-[10.5px] font-medium text-blue-600 mt-1">
+                            Abono parcial. Saldo de {fmtMoney(totalNuevo - abonoConfirmNum)} quedará pendiente.
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <label className="co-label">Referencia / Nota de Pago</label>
+                        <label className="co-label" style={{ fontSize: '10px' }}>Referencia / nota de pago</label>
                         <input
                           type="text"
-                          className="co-input w-full"
-                          value={pagoEdicion.referencia}
-                          onChange={e => setPagoEdicion(p => ({ ...p, referencia: e.target.value }))}
-                          placeholder="Nro. transferencia, voucher..."
+                          className="co-input"
+                          value={confirmPago.referencia}
+                          onChange={(e) => setConfirmPago((p) => ({ ...p, referencia: e.target.value }))}
+                          placeholder="No. transferencia, cheque..."
+                          disabled={!(abonoConfirmNum > 0) || saving}
+                          style={{ background: abonoConfirmNum > 0 ? '#fff' : '#f8fafc' }}
                         />
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="co-modal-footer">
+
+              <div className="co-modal-fixed-footer">
                 <button
                   type="button"
-                  onClick={() => setShowPaymentModal(false)}
+                  onClick={() => setShowSaveConfirm(false)}
                   className="co-btn-ghost"
                   disabled={saving}
                 >
@@ -870,17 +1072,12 @@ export const FormOrdenCompraPage = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={executeSubmit}
+                  onClick={handleConfirmSave}
+                  disabled={saving || abonoConfirmNum > totalNuevo + 0.01}
                   className="co-btn-primary"
-                  style={{
-                    background: saving ? '#94a3b8' : 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
-                    boxShadow: saving ? 'none' : '0 4px 14px rgba(79, 70, 229, 0.3)',
-                    padding: '10px 24px',
-                    borderRadius: '10px'
-                  }}
-                  disabled={saving}
+                  style={{ minWidth: '160px' }}
                 >
-                  {saving ? 'Procesando...' : 'Confirmar Guardar'}
+                  {saving ? 'Guardando...' : 'Confirmar guardar'}
                 </button>
               </div>
             </div>

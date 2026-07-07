@@ -152,6 +152,30 @@ export const mapOrdenToPDFFormat = (orden) => {
   };
 };
 
+export function getAbonoSaldoPendiente(ordenOrCuenta, cuentaExtra) {
+  const cuenta = cuentaExtra
+    || (ordenOrCuenta?.saldo != null && ordenOrCuenta?.montoTotal != null ? ordenOrCuenta : null)
+    || ordenOrCuenta?.cuentaPorPagar;
+  if (cuenta?.saldo != null) return Number(cuenta.saldo) || 0;
+  return Number(ordenOrCuenta?.total) || 0;
+}
+
+export function buildOrdenParaAbono(cuenta) {
+  const orden = cuenta?.ordenCompra;
+  if (!orden) return null;
+  return {
+    ...orden,
+    total: cuenta.montoTotal ?? orden.total,
+    cuentaPorPagar: {
+      id: cuenta.id,
+      saldo: cuenta.saldo,
+      montoPagado: cuenta.montoPagado,
+      montoTotal: cuenta.montoTotal,
+      estado: cuenta.estado,
+    },
+  };
+}
+
 export function buildOrdenTimeline(orden) {
   if (!orden) return [];
   const steps = [
