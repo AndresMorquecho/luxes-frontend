@@ -21,11 +21,14 @@ export async function getMetodosPago(desde, hasta) {
 
 // ── Gastos Generales ─────────────────────────────────────────────────────────
 
-export async function getGastos() {
-  const res = await fetch('/api/gastos', { headers: getHeaders() });
+export async function getGastos(page = 1, limit = 25, search = '', origen = 'todos') {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search) params.append('search', search);
+  if (origen && origen !== 'todos') params.append('origen', origen);
+  const res = await fetch(`/api/gastos?${params.toString()}`, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener gastos');
-  return data.data;
+  return data;
 }
 
 export async function saveGasto(gasto) {

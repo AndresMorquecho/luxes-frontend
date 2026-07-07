@@ -34,6 +34,7 @@ const CAT_BADGES = {
   vehiculos: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Vehículos' },
   varios: { bg: 'rgba(236,72,153,0.1)', color: '#ec4899', label: 'Varios' },
   compras: { bg: 'rgba(245,158,11,0.1)', color: '#d97706', label: 'Orden de Compra' },
+  recursos_humanos: { bg: 'rgba(16,185,129,0.1)', color: '#059669', label: 'Nómina y Anticipos' }
 };
 
 const fmt = (n) => '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -132,7 +133,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [search, setSearch] = useState('');
   const [filtroOrigen, setFiltroOrigen] = useState('todos');
   const [page, setPage] = useState(1);
-  const perPage = 8;
+  const [limit, setLimit] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // --- ESTADOS VEHÍCULOS ---
   const [vehiculos, setVehiculos] = useState([]);
@@ -171,14 +174,31 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const loadGastosData = async () => {
     setLoading(true);
     try {
-      const data = await getGastos();
-      setItems(data);
+      const response = await getGastos(page, limit, search, filtroOrigen);
+      if (response && response.data) {
+        setItems(response.data);
+        if (response.pagination) {
+          setTotalPages(response.pagination.totalPages);
+          setTotalCount(response.pagination.totalCount);
+        }
+      } else {
+        setItems([]);
+      }
     } catch (err) {
       toast.error('Error al cargar gastos: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'gastos') {
+      const timeout = setTimeout(() => {
+        loadGastosData();
+      }, 300); // debounce search
+      return () => clearTimeout(timeout);
+    }
+  }, [page, limit, search, filtroOrigen, activeTab]);
 
   const loadVehiculosData = async () => {
     setLoadingVehiculos(true);
@@ -496,27 +516,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     }
   };
 
-  // --- FILTRADOS Y PAGINACIÓN DE GASTOS ---
-  const q = search.toLowerCase();
-  const itemsPorOrigen = items.filter((g) => {
-    if (filtroOrigen === 'gasto') return g.origen !== 'orden_compra' && g.origen !== 'cuenta_por_pagar';
-    if (filtroOrigen === 'orden_compra') return g.origen === 'orden_compra';
-    if (filtroOrigen === 'cuenta_por_pagar') return g.origen === 'cuenta_por_pagar';
-    return true;
-  });
-  const filteredAll = itemsPorOrigen.filter(g =>
-    !q
-    || g.concepto?.toLowerCase().includes(q)
-    || g.categoria?.includes(q)
-    || g.proveedor?.toLowerCase().includes(q)
-    || g.referencia?.toLowerCase().includes(q)
-    || g.notas?.toLowerCase().includes(q)
-    || g.registradoPor?.nombre?.toLowerCase().includes(q)
-    || g.ordenNumero?.toLowerCase?.().includes(q)
-  );
-  const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
-  const safePage = Math.min(page, totalPages);
-  const paginated = filteredAll.slice((safePage - 1) * perPage, safePage * perPage);
+  // El filtrado y paginación ahora se hacen en el backend
+  const paginated = items;
+  
+  // Resetea a la página 1 cuando el filtro o la búsqueda cambian
+  useEffect(() => { setPage(1); }, [search, filtroOrigen]);
 
   useEffect(() => { setPage(1); }, [search, filtroOrigen]);
 
@@ -829,6 +833,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             {[
               { id: 'todos', label: 'Todos' },
               { id: 'gasto', label: 'Gastos manuales' },
+              { id: 'nomina_anticipo', label: 'Nómina y Anticipos' },
               { id: 'orden_compra', label: 'Pagos en caja' },
               { id: 'cuenta_por_pagar', label: 'Saldos OC' },
             ].map((tab) => (
@@ -950,12 +955,12 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100/60 bg-slate-50/30">
-                <span className="text-[12px] font-medium text-slate-400">{filteredAll.length} gasto{filteredAll.length !== 1 ? 's' : ''}</span>
+                <span className="text-[12px] font-medium text-slate-400">{totalCount} registro{totalCount !== 1 ? 's' : ''}</span>
                 <div className="flex items-center gap-1">
-                  <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}
+                  <button disabled={page <= 1} onClick={() => setPage(Math.max(1, page - 1))}
                     className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold">‹</button>
-                  <span className="text-[12px] font-semibold text-slate-500 px-2">{safePage} / {totalPages}</span>
-                  <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}
+                  <span className="text-[12px] font-semibold text-slate-500 px-2">{page} / {totalPages}</span>
+                  <button disabled={page >= totalPages} onClick={() => setPage(Math.min(totalPages, page + 1))}
                     className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold">›</button>
                 </div>
               </div>
