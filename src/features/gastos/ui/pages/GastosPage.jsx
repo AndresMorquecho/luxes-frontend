@@ -320,7 +320,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   const handleSaveCierre = async () => {
     if (!cierrePreview) return;
-    if (!window.confirm('¿Confirmar registro de cierre de caja para el rango seleccionado?')) return;
+    const confirmed = await confirmDialog(
+      'Confirmar Cierre de Caja',
+      '¿Confirmar registro de cierre de caja para el rango seleccionado?'
+    );
+    if (!confirmed) return;
     setSavingCierre(true);
     try {
       const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
