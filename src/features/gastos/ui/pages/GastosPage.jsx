@@ -1685,10 +1685,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* PESTAÑA 3: CIERRE DE CAJA */}
       {activeTab === 'cierre' && (
         <div className="">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
             {/* Panel Lateral: Parámetros y Arqueo (Izquierda) */}
-            <div className="lg:col-span-1 space-y-4">
-              <div className="ga-card p-5 space-y-4 relative z-[60]" style={{ overflow: 'visible' }}>
+            <div className="lg:col-span-1 flex flex-col">
+              <div className="ga-card p-5 relative z-[60] flex flex-col h-full" style={{ overflow: 'visible' }}>
+                <div className="space-y-4 flex-1">
                 <div>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                     Control de Caja
@@ -1765,17 +1766,20 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     className="ga-input text-xs resize-none" 
                   />
                 </div>
+                </div>
 
-                <button 
-                  onClick={handleSaveCierre} 
-                  disabled={!cierrePreview || savingCierre}
-                  className="ga-btn-primary w-full justify-center text-xs py-2.5"
-                >
-                  {savingCierre && (
-                    <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white mr-1.5" aria-hidden="true" />
-                  )}
-                  Guardar Cierre de Caja
-                </button>
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={handleSaveCierre} 
+                    disabled={!cierrePreview || savingCierre}
+                    className="ga-btn-primary w-full justify-center text-xs py-2.5"
+                  >
+                    {savingCierre && (
+                      <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white mr-1.5" aria-hidden="true" />
+                    )}
+                    Guardar Cierre de Caja
+                  </button>
+                </div>
               </div>
             </div>
 
