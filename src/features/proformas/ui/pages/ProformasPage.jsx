@@ -29,6 +29,7 @@ export const ProformasPage = () => {
   // Filtros
   const [search, setSearch] = useState('');
   const [estado, setEstado] = useState('');
+  const [usuarioFilter, setUsuarioFilter] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   
   // Paginación
@@ -54,6 +55,7 @@ export const ProformasPage = () => {
         limit: 20,
         search: search.trim(),
         estado: estado,
+        usuario: usuarioFilter.trim(),
         fechaDesde: dateRange.start,
         fechaHasta: dateRange.end,
       };
@@ -72,7 +74,7 @@ export const ProformasPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, search, estado, dateRange]);
+  }, [page, search, estado, usuarioFilter, dateRange]);
 
   useEffect(() => {
     load();
@@ -81,7 +83,7 @@ export const ProformasPage = () => {
   // Reset page cuando cambian los filtros
   useEffect(() => {
     setPage(1);
-  }, [search, estado, dateRange]);
+  }, [search, estado, usuarioFilter, dateRange]);
 
   const openNew = () => {
     navigate('/proformas/nueva');
@@ -154,11 +156,12 @@ export const ProformasPage = () => {
   const limpiarFiltros = () => {
     setSearch('');
     setEstado('');
+    setUsuarioFilter('');
     setDateRange({ start: '', end: '' });
     setPage(1);
   };
 
-  const hayFiltrosActivos = search || estado || dateRange.start || dateRange.end;
+  const hayFiltrosActivos = search || estado || usuarioFilter || dateRange.start || dateRange.end;
 
   return (
     <div className="pb-10" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -177,23 +180,35 @@ export const ProformasPage = () => {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Búsqueda */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Buscar</label>
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              <svg className="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input 
                 type="text" 
                 value={search} 
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Cliente, N° proforma, teléfono..."
+                placeholder="Cliente, N° proforma..."
                 className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
               />
             </div>
+          </div>
+
+          {/* Usuario */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Usuario</label>
+            <input 
+              type="text" 
+              value={usuarioFilter} 
+              onChange={e => setUsuarioFilter(e.target.value)}
+              placeholder="Ej: ivette, jefferson..."
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+            />
           </div>
 
           {/* Estado */}
@@ -204,7 +219,7 @@ export const ProformasPage = () => {
               onChange={e => setEstado(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">Todos (sin rechazadas)</option>
+              <option value="">Todos</option>
               {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
             </select>
           </div>
@@ -221,7 +236,7 @@ export const ProformasPage = () => {
 
           {/* Botón limpiar filtros */}
           {hayFiltrosActivos && (
-            <div className="md:col-span-3 flex justify-end">
+            <div className="md:col-span-4 flex justify-end mt-2">
               <button 
                 onClick={limpiarFiltros}
                 className="text-xs font-semibold text-slate-600 hover:text-slate-800 underline"
@@ -274,9 +289,8 @@ export const ProformasPage = () => {
                   <thead>
                     <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
                       <th className="text-left px-5 py-3">N° Proforma</th>
+                      <th className="text-left px-5 py-3">Fecha y Hora</th>
                       <th className="text-left px-5 py-3">Cliente</th>
-                      <th className="text-left px-5 py-3">Teléfono</th>
-                      <th className="text-left px-5 py-3">Fecha</th>
                       <th className="text-right px-5 py-3">Total</th>
                       <th className="text-center px-5 py-3">Estado</th>
                       <th className="text-right px-5 py-3">Acciones</th>
@@ -289,11 +303,13 @@ export const ProformasPage = () => {
                           <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{p.id}</span>
                         </td>
                         <td className="px-5 py-3">
-                          <p className="font-semibold text-slate-800">{p.cliente}</p>
-                          {p.email && <span className="text-xs text-slate-400">{p.email}</span>}
+                          <p className="font-semibold text-slate-800">{p.fecha}</p>
+                          <p className="text-[10px] text-slate-500 uppercase font-semibold mt-0.5 tracking-wider">{p.atiende}</p>
                         </td>
-                        <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.telefono}</td>
-                        <td className="px-5 py-3 text-slate-600">{p.fecha}</td>
+                        <td className="px-5 py-3">
+                          <p className="font-semibold text-slate-800">{p.cliente}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{p.telefono}</p>
+                        </td>
                         <td className="px-5 py-3 text-right font-bold text-slate-800">{formatUSD(calcularTotal(p.items, p.iva))}</td>
                         <td className="px-5 py-3 text-center">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${badgeStyle(p.estado === 'Pagada' ? 'Aprobada' : p.estado)}`}>
@@ -307,12 +323,13 @@ export const ProformasPage = () => {
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <button 
-                              onClick={() => navigate(`/proformas/detalle/${p.id}`)} 
+                              onClick={() => setPreview(p)}
                               className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" 
-                              title="Ver Detalles"
+                              title="Ver / Imprimir PDF"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                               </svg>
                             </button>
                             <button 
@@ -367,8 +384,8 @@ export const ProformasPage = () => {
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="font-bold text-slate-800 text-sm">{p.cliente}</span>
-                      {p.email && <span className="text-xs text-slate-400">{p.email}</span>}
                       {p.telefono && <span className="text-xs text-slate-500 font-mono">Tel: {p.telefono}</span>}
+                      <span className="text-[10px] text-slate-500 uppercase font-semibold mt-1">Gst: {p.atiende}</span>
                     </div>
                     <div className="flex justify-between items-center mt-1">
                       <div className="flex flex-col">
@@ -387,12 +404,13 @@ export const ProformasPage = () => {
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-slate-100">
                       <button 
-                        onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                        onClick={() => setPreview(p)}
                         className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors" 
-                        title="Ver Detalles"
+                        title="Ver / Imprimir PDF"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                         </svg>
                       </button>
                       <button 
