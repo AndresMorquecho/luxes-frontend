@@ -906,7 +906,7 @@ const QuincenaTable = ({
   return (
     <div className="flex flex-col w-full">
       <div className="bg-slate-700 text-white text-center py-2.5 font-bold text-xs tracking-wider uppercase shrink-0">
-        {label}
+        <span>{label}</span>
       </div>
       <div className="hidden md:block overflow-auto max-h-[520px] relative border-t border-slate-200">
         <table className="min-w-full text-xs border-collapse">
@@ -992,8 +992,12 @@ const QuincenaTable = ({
 
               return (
                 <tr key={emp.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'} hover:bg-slate-100/30 transition-colors group`}>
-                  <td className={`border border-slate-200 text-center font-bold text-slate-400 px-1.5 py-2 w-[40px] min-w-[40px] max-w-[40px] sticky left-0 z-10 ${stickyBg} group-hover:bg-slate-100`}>{idx + 1}</td>
-                  <td className={`border border-slate-200 px-2.5 py-2 font-bold text-slate-800 uppercase text-xs w-[190px] min-w-[190px] max-w-[190px] sticky left-[40px] z-10 ${stickyBg} group-hover:bg-slate-100 truncate`} title={emp.nombre}>{emp.nombre}</td>
+                  <td className={`border border-slate-200 text-center font-bold text-slate-400 px-1.5 py-2 w-[40px] min-w-[40px] max-w-[40px] sticky left-0 z-10 ${stickyBg} group-hover:bg-slate-100`}>
+                    <span>{idx + 1}</span>
+                  </td>
+                  <td className={`border border-slate-200 px-2.5 py-2 font-bold text-slate-800 uppercase text-xs w-[190px] min-w-[190px] max-w-[190px] sticky left-[40px] z-10 ${stickyBg} group-hover:bg-slate-100 truncate`} title={emp.nombre}>
+                    <span className="block truncate">{emp.nombre}</span>
+                  </td>
                   <td className={`border border-slate-200 text-center px-1.5 py-2 w-[90px] min-w-[90px] max-w-[90px] sticky left-[230px] z-10 ${stickyBg} group-hover:bg-slate-100 border-r-2 border-r-slate-300`}>
                     {hasContract ? (
                       <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-emerald-100">Contrato</span>
@@ -1147,7 +1151,9 @@ const QuincenaTable = ({
 
           <tfoot className="font-black text-[11px] uppercase shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             <tr className="bg-slate-100 border-t-2 border-slate-350">
-              <td colSpan={3} className="border border-slate-200 px-3 py-2.5 text-slate-700 uppercase tracking-widest sticky left-0 z-40 bg-slate-100 border-r-2 border-r-slate-300 w-[320px] min-w-[320px] max-w-[320px]">TOTALES</td>
+              <td colSpan={3} className="border border-slate-200 px-3 py-2.5 text-slate-700 uppercase tracking-widest sticky left-0 z-40 bg-slate-100 border-r-2 border-r-slate-300 w-[320px] min-w-[320px] max-w-[320px]">
+                <span>TOTALES</span>
+              </td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalSueldoDiario)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-400 bg-slate-100">—</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalBruto)}</td>
@@ -1806,42 +1812,33 @@ export const NominaMesTab = () => {
         </button>
       </div>
 
-      {/* Table Container — ambas quincenas montadas; evita desmontaje brusco con sticky (React 19) */}
+      {/* Una sola tabla activa: evita doble montaje con sticky + React 19 */}
       <div className="bg-white rounded-b-xl border-x border-b border-slate-200 shadow-xs overflow-hidden min-h-[250px] transition-all">
-        <div className={activeTab === 'q1' ? '' : 'hidden'} aria-hidden={activeTab !== 'q1'}>
-          <QuincenaTable
-            key={`q1-${year}-${month}`}
-            label={`PRIMERA QUINCENA — ${mesLabel} ${year} (01 AL 15)`}
-            quincenaNum={1}
-            rows={q1Rows}
-            crossPendientes={Object.values(crossPendientes).filter(p => p.quincenaOrigen === 2)}
-            pendingOvertime={pendingOvertime}
-            fechaInicio={fechas1.fechaInicio}
-            fechaFin={fechas1.fechaFin}
-            onPagar={(emp, cp, sub, restante) => handlePagar(emp, cp, sub, restante, 1)}
-            onPagarCross={(emp, cross) => handlePagarCross(emp, cross)}
-            onCellChange={handleCellChange}
-            onOpenEgresos={handleOpenEgresos}
-            onOpenIngresos={handleOpenIngresos}
-          />
-        </div>
-        <div className={activeTab === 'q2' ? '' : 'hidden'} aria-hidden={activeTab !== 'q2'}>
-          <QuincenaTable
-            key={`q2-${year}-${month}`}
-            label={`SEGUNDA QUINCENA — ${mesLabel} ${year} (16 AL ${new Date(year, month, 0).getDate()})`}
-            quincenaNum={2}
-            rows={q2Rows}
-            crossPendientes={Object.values(crossPendientes).filter(p => p.quincenaOrigen === 1)}
-            pendingOvertime={pendingOvertime}
-            fechaInicio={fechas2.fechaInicio}
-            fechaFin={fechas2.fechaFin}
-            onPagar={(emp, cp, sub, restante) => handlePagar(emp, cp, sub, restante, 2)}
-            onPagarCross={(emp, cross) => handlePagarCross(emp, cross)}
-            onCellChange={handleCellChange}
-            onOpenEgresos={handleOpenEgresos}
-            onOpenIngresos={handleOpenIngresos}
-          />
-        </div>
+        <QuincenaTable
+          key={`${year}-${month}`}
+          label={
+            activeTab === 'q1'
+              ? `PRIMERA QUINCENA — ${mesLabel} ${year} (01 AL 15)`
+              : `SEGUNDA QUINCENA — ${mesLabel} ${year} (16 AL ${new Date(year, month, 0).getDate()})`
+          }
+          quincenaNum={activeTab === 'q1' ? 1 : 2}
+          rows={activeTab === 'q1' ? q1Rows : q2Rows}
+          crossPendientes={
+            activeTab === 'q1'
+              ? Object.values(crossPendientes).filter((p) => p.quincenaOrigen === 2)
+              : Object.values(crossPendientes).filter((p) => p.quincenaOrigen === 1)
+          }
+          pendingOvertime={pendingOvertime}
+          fechaInicio={activeTab === 'q1' ? fechas1.fechaInicio : fechas2.fechaInicio}
+          fechaFin={activeTab === 'q1' ? fechas1.fechaFin : fechas2.fechaFin}
+          onPagar={(emp, cp, sub, restante) =>
+            handlePagar(emp, cp, sub, restante, activeTab === 'q1' ? 1 : 2)
+          }
+          onPagarCross={(emp, cross) => handlePagarCross(emp, cross)}
+          onCellChange={handleCellChange}
+          onOpenEgresos={handleOpenEgresos}
+          onOpenIngresos={handleOpenIngresos}
+        />
       </div>
 
       <ModalPortal open={Boolean(payTarget)}>

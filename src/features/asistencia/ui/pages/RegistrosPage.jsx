@@ -1115,88 +1115,102 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         ))}
       </div>
 
-      {/* Selector de Semana / Fecha en forma de Cards Navigables */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-5 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handlePrevWeek} 
-              className="w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 font-bold transition-all cursor-pointer"
-              title="Semana Anterior"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-              </svg>
-            </button>
-            
-            <button 
-              onClick={() => setFechaFiltro(new Date().toISOString().split('T')[0])} 
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
-            >
-              Hoy
-            </button>
+      {/* Selector de Semana / Fecha */}
+      <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 mb-4 shadow-sm">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3">
+          {/* Controles de semana */}
+          <div className="flex items-center justify-between gap-2 lg:justify-start lg:shrink-0">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePrevWeek}
+                className="w-7 h-7 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600 transition-all cursor-pointer"
+                title="Semana anterior"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+              </button>
 
-            <button 
-              onClick={handleNextWeek} 
-              className="w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 font-bold transition-all cursor-pointer"
-              title="Semana Siguiente"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
+              <button
+                onClick={() => setFechaFiltro(new Date().toISOString().split('T')[0])}
+                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
+              >
+                Hoy
+              </button>
 
-            <span className="text-sm font-bold text-slate-700 ml-2">
-              Semana del {weekDays[0] && formatFecha(weekDays[0])} al {weekDays[6] && formatFecha(weekDays[6])}
-            </span>
-          </div>
+              <button
+                onClick={handleNextWeek}
+                className="w-7 h-7 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600 transition-all cursor-pointer"
+                title="Semana siguiente"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ir a fecha / cambiar mes o año:</span>
+              <span className="text-[11px] font-semibold text-slate-500 ml-1 hidden sm:inline whitespace-nowrap">
+                {weekDays[0] && formatFecha(weekDays[0])} – {weekDays[6] && formatFecha(weekDays[6])}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 lg:hidden">
+              <label htmlFor="fecha-filtro-mobile" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Fecha</label>
               <input
+                id="fecha-filtro-mobile"
                 type="date"
                 value={fechaFiltro}
                 onChange={e => setFechaFiltro(e.target.value)}
-                className="px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white cursor-pointer"
+                className="px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all bg-white cursor-pointer"
               />
             </div>
           </div>
-        </div>
 
-        {/* Tarjetas de Días de la Semana */}
-        <div className="flex justify-start md:justify-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {weekDays.map((d, i) => {
-            const iso = toISODate(d);
-            const isSelected = iso === fechaFiltro;
-            const isToday = iso === new Date().toISOString().split('T')[0];
-            
-            return (
-              <button 
-                key={i} 
-                onClick={() => setFechaFiltro(iso)}
-                className={`flex flex-col items-center p-3 rounded-2xl text-[10px] font-bold transition-all min-w-[70px] shrink-0 border cursor-pointer ${
-                  isSelected 
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-md transform scale-[1.02]' 
-                    : isToday
-                    ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
-                    : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <span className={`uppercase tracking-wider text-[9px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                  {DIAS_LABEL[d.getDay() === 0 ? 6 : d.getDay() - 1]}
-                </span>
-                <span className="text-lg font-black mt-1 leading-none">
-                  {d.getDate()}
-                </span>
-                {isToday && (
-                  <span className={`text-[7px] font-bold mt-1 px-1 rounded-sm ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-200/50 text-blue-700'}`}>
-                    HOY
+          {/* Días de la semana */}
+          <div className="flex gap-1 overflow-x-auto no-scrollbar flex-1 lg:justify-center min-w-0">
+            {weekDays.map((d, i) => {
+              const iso = toISODate(d);
+              const isSelected = iso === fechaFiltro;
+              const isToday = iso === new Date().toISOString().split('T')[0];
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => setFechaFiltro(iso)}
+                  className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-lg text-[9px] font-bold transition-all min-w-[44px] shrink-0 border cursor-pointer ${
+                    isSelected
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                      : isToday
+                      ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                      : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className={`uppercase tracking-wide leading-none ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                    {DIAS_LABEL[d.getDay() === 0 ? 6 : d.getDay() - 1]}
                   </span>
-                )}
-              </button>
-            );
-          })}
+                  <span className="text-sm font-black mt-0.5 leading-none">
+                    {d.getDate()}
+                  </span>
+                  {isToday && (
+                    <span className={`text-[6px] font-bold mt-0.5 leading-none ${isSelected ? 'text-slate-300' : 'text-blue-500'}`}>
+                      hoy
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selector de fecha (escritorio) */}
+          <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+            <label htmlFor="fecha-filtro-desktop" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Ir a fecha</label>
+            <input
+              id="fecha-filtro-desktop"
+              type="date"
+              value={fechaFiltro}
+              onChange={e => setFechaFiltro(e.target.value)}
+              className="px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all bg-white cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 

@@ -33,9 +33,7 @@ function usePortalContainer(rootId) {
     setReady(true);
 
     return () => {
-      if (el.parentNode === root) {
-        root.removeChild(el);
-      }
+      el.remove();
       containerRef.current = null;
     };
   }, [rootId]);

@@ -9,6 +9,10 @@ const MESES_NOMBRES = [
   'ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
   'JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'
 ];
+const MESES_TITULO = [
+  'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+];
 const DIAS_ABREV = ['DO','LU','MA','MI','JU','VI','SA'];
 
 /** Retorna los días del mes (1-based). Cada elemento: { dia: number, label: string } */
@@ -28,30 +32,31 @@ function esVacacion(diasTomados, year, month, dia) {
   return diasTomados.includes(fechaStr);
 }
 
+function contarDiasTomadosEnAno(empleadoId, year, vacaciones) {
+  const prefijo = `${year}-`;
+  const registro = vacaciones.find(
+    (v) => String(v.empleadoId) === String(empleadoId) && Number(v.año) === year
+  );
+  if (registro?.diasTomados?.length) {
+    return registro.diasTomados.filter((fecha) => fecha.startsWith(prefijo)).length;
+  }
+  return vacaciones
+    .filter((v) => String(v.empleadoId) === String(empleadoId))
+    .flatMap((v) => v.diasTomados || [])
+    .filter((fecha) => fecha.startsWith(prefijo)).length;
+}
+
 function buildResumenRows(year, empleados, vacaciones) {
-  return empleados.map(emp => {
-    const vacEmp = vacaciones.find(v => v.empleadoId === emp.id && v.año === year);
-    const tomadosAno = vacEmp?.diasTomados.length || 0;
+  return empleados.map((emp) => {
+    const tomadosAno = contarDiasTomadosEnAno(emp.id, year, vacaciones);
     const pendientes = Math.max(0, DIAS_VACACIONES_POR_ANO - tomadosAno);
     return { emp, tomadosAno, pendientes };
   });
 }
 
-function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
-    const handler = (e) => setIsMobile(e.matches);
-    setIsMobile(mq.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [breakpoint]);
-
-  return isMobile;
-}
+const COLORES_RESUMEN_AÑO = ['bg-green-600', 'bg-orange-400'];
+const AÑO_MAXIMO_VACACIONES = 2026;
+const AÑOS_HISTORICO = 10;
 
 // ─── Sub-componente: tabla de un mes (desktop) ───────────────────────────────
 const TablaVacMesDesktop = ({ year, month, empleados, vacaciones, onToggleDia }) => {
@@ -71,7 +76,7 @@ const TablaVacMesDesktop = ({ year, month, empleados, vacaciones, onToggleDia })
           <table className="min-w-full text-[10px] border-collapse">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-blue-900 text-white font-bold px-4 py-2.5 min-w-[160px] text-left uppercase tracking-wider border-r border-blue-700">
+                <th className="sticky left-0 z-20 bg-blue-900 text-white font-bold px-3 py-2.5 min-w-[200px] w-[200px] text-left uppercase tracking-wider border-r border-blue-700">
                   Nombre
                 </th>
                 {dias.map(({ dia }) => (
@@ -82,12 +87,12 @@ const TablaVacMesDesktop = ({ year, month, empleados, vacaciones, onToggleDia })
                 ))}
               </tr>
               <tr>
-                <th className="sticky left-0 z-10 bg-blue-800 text-blue-100 font-semibold px-4 py-1.5 text-left text-[9px] border-r border-blue-700" />
+                <th className="sticky left-0 z-20 bg-blue-800 text-blue-100 font-semibold px-3 py-1.5 min-w-[200px] w-[200px] text-left text-[9px] border-r border-blue-700" />
                 {dias.map(({ dia, label }) => {
                   const esFinde = label === 'SA' || label === 'DO';
                   return (
                     <th key={dia}
-                      className={`text-center px-1 py-1.5 text-[9px] font-semibold border-l border-blue-700 ${
+                      className={`text-center px-1 py-1.5 min-w-[26px] text-[9px] font-semibold border-l border-blue-700 ${
                         esFinde ? 'bg-blue-700 text-blue-200' : 'bg-blue-800 text-blue-100'
                       }`}>
                       {label}
@@ -98,12 +103,20 @@ const TablaVacMesDesktop = ({ year, month, empleados, vacaciones, onToggleDia })
             </thead>
             <tbody className="divide-y divide-gray-100">
               {empleados.map((emp, idx) => {
-                const vacEmp = vacaciones.find(v => v.empleadoId === emp.id);
+                const vacEmp = vacaciones.find(
+                  (v) => String(v.empleadoId) === String(emp.id)
+                );
                 const diasTomados = vacEmp?.diasTomados || [];
+                const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60';
                 return (
-                  <tr key={emp.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
-                    <td className="sticky left-0 z-10 bg-inherit px-4 py-2 font-semibold text-gray-800 uppercase text-[10px] border-r border-gray-200 min-w-[160px]">
-                      {emp.nombre}
+                  <tr key={emp.id} className={rowBg}>
+                    <td className={`sticky left-0 z-10 ${rowBg} px-3 py-2 min-w-[200px] w-[200px] border-r border-gray-200`}>
+                      <span
+                        className="block font-semibold text-gray-800 text-[10px] leading-snug truncate normal-case"
+                        title={emp.nombre}
+                      >
+                        {emp.nombre}
+                      </span>
                     </td>
                     {dias.map(({ dia, label }) => {
                       const esFinde = label === 'SA' || label === 'DO';
@@ -111,7 +124,7 @@ const TablaVacMesDesktop = ({ year, month, empleados, vacaciones, onToggleDia })
                       return (
                         <td key={dia}
                           onClick={() => !esFinde && onToggleDia?.(emp.id, year, month, dia)}
-                          className={`text-center py-1.5 border-l border-gray-100 ${
+                          className={`text-center py-1.5 min-w-[26px] border-l border-gray-100 ${
                             esFinde ? 'bg-gray-100/60' :
                             tieneVac ? 'bg-blue-100 cursor-pointer hover:bg-blue-200' : 'cursor-pointer hover:bg-gray-50'
                           }`}>
@@ -207,7 +220,9 @@ const VacacionesMesMobile = ({ year, month, empleados, vacaciones, onToggleDia }
     </div>
     <div className="space-y-3">
       {empleados.map((emp) => {
-        const vacEmp = vacaciones.find(v => v.empleadoId === emp.id);
+        const vacEmp = vacaciones.find(
+          (v) => String(v.empleadoId) === String(emp.id)
+        );
         const diasTomados = vacEmp?.diasTomados || [];
         return (
           <CalendarioEmpleadoMobile
@@ -225,11 +240,11 @@ const VacacionesMesMobile = ({ year, month, empleados, vacaciones, onToggleDia }
 );
 
 // ─── Sub-componente: panel resumen por año ───────────────────────────────────
-const ResumenAñoDesktop = ({ year, empleados, vacaciones, titulo, color }) => {
+const ResumenAñoDesktop = ({ year, empleados, vacaciones, titulo, color, embedded = false, highlight = false }) => {
   const rows = buildResumenRows(year, empleados, vacaciones);
 
   return (
-    <div className="hidden md:block rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className={`hidden md:block border overflow-hidden shadow-sm transition-all ${embedded ? 'rounded-b-xl border-t-0' : 'rounded-xl'} ${highlight ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'}`}>
       <div className={`${color} text-white text-center py-2 text-[10px] font-extrabold uppercase tracking-widest px-3`}>
         {titulo}
       </div>
@@ -244,7 +259,9 @@ const ResumenAñoDesktop = ({ year, empleados, vacaciones, titulo, color }) => {
         <tbody className="divide-y divide-gray-100">
           {rows.map(({ emp, tomadosAno, pendientes }, idx) => (
             <tr key={emp.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-              <td className="px-3 py-2 font-semibold text-gray-800 uppercase text-[9px]">{emp.nombre}</td>
+              <td className="px-3 py-2 font-semibold text-gray-800 text-[9px]">
+                <span className="block truncate normal-case leading-snug" title={emp.nombre}>{emp.nombre}</span>
+              </td>
               <td className="px-2 py-2 text-center font-bold text-blue-700">{tomadosAno}</td>
               <td className={`px-2 py-2 text-center font-bold ${pendientes > 0 ? 'text-red-600' : 'text-green-700'}`}>
                 {pendientes}
@@ -257,11 +274,11 @@ const ResumenAñoDesktop = ({ year, empleados, vacaciones, titulo, color }) => {
   );
 };
 
-const ResumenAñoMobile = ({ year, empleados, vacaciones, titulo, color }) => {
+const ResumenAñoMobile = ({ year, empleados, vacaciones, titulo, color, embedded = false, highlight = false }) => {
   const rows = buildResumenRows(year, empleados, vacaciones);
 
   return (
-    <div className="md:hidden rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className={`md:hidden border overflow-hidden shadow-sm transition-all ${embedded ? 'rounded-b-xl border-t-0' : 'rounded-xl'} ${highlight ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'}`}>
       <div className={`${color} text-white text-center py-2 text-[10px] font-extrabold uppercase tracking-wider px-3`}>
         {titulo}
       </div>
@@ -300,12 +317,12 @@ const ResumenAño = (props) => (
 // ─── Componente Principal ─────────────────────────────────────────────────────
 export const VacacionesTab = () => {
   const hoy = new Date();
-  const [año, setAño] = useState(hoy.getFullYear());
+  const [añoFiltro, setAñoFiltro] = useState(hoy.getFullYear());
+  const [mesFiltro, setMesFiltro] = useState(hoy.getMonth());
   const [empleados, setEmpleados] = useState([]);
   const [vacaciones, setVacaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const { adapter } = useContext(NominaContext);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     const load = async () => {
@@ -326,28 +343,47 @@ export const VacacionesTab = () => {
     load();
   }, [adapter]);
 
-  const [mesInicio, setMesInicio] = useState(hoy.getMonth());
-  const mesesVisibles = isMobile ? 1 : 3;
-  const pasoMeses = isMobile ? 1 : 3;
-
-  const mesesActuales = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < mesesVisibles; i++) {
-      const m = (mesInicio + i) % 12;
-      arr.push(m);
-    }
-    return arr;
-  }, [mesInicio, mesesVisibles]);
-
   const vacacionesAño = useMemo(
-    () => vacaciones.filter(v => v.año === año),
-    [vacaciones, año]
+    () => vacaciones.filter((v) => Number(v.año) === añoFiltro),
+    [vacaciones, añoFiltro]
   );
+
+  const esAñoActual = añoFiltro === hoy.getFullYear();
+
+  const esMesActual = añoFiltro === hoy.getFullYear() && mesFiltro === hoy.getMonth();
+
+  const añoActual = hoy.getFullYear();
+  const añoMaxFiltro = Math.min(añoActual + 1, AÑO_MAXIMO_VACACIONES);
+  const añoMinFiltro = añoMaxFiltro - AÑOS_HISTORICO;
+  const añosDisponibles = Array.from(
+    { length: AÑOS_HISTORICO + 1 },
+    (_, i) => añoMinFiltro + i
+  );
+
+  useEffect(() => {
+    if (añoFiltro > añoMaxFiltro) setAñoFiltro(añoMaxFiltro);
+    else if (añoFiltro < añoMinFiltro) setAñoFiltro(añoMinFiltro);
+  }, [añoFiltro, añoMaxFiltro, añoMinFiltro]);
+
+  const irHoy = () => {
+    setAñoFiltro(hoy.getFullYear());
+    setMesFiltro(hoy.getMonth());
+  };
+
+  const handleAñoChange = (e) => {
+    setAñoFiltro(Number(e.target.value));
+  };
+
+  const handleMesChange = (e) => {
+    setMesFiltro(Number(e.target.value));
+  };
 
   const handleToggleDia = async (empleadoId, year, month, dia) => {
     const fechaStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
     
-    const vacEmp = vacaciones.find(v => v.empleadoId === empleadoId && v.año === year);
+    const vacEmp = vacaciones.find(
+      (v) => String(v.empleadoId) === String(empleadoId) && Number(v.año) === year
+    );
     const diasTomadosActuales = vacEmp ? vacEmp.diasTomados : [];
     
     const esVacacionYa = diasTomadosActuales.includes(fechaStr);
@@ -357,7 +393,9 @@ export const VacacionesTab = () => {
 
     setVacaciones(prev => {
       let next = [...prev];
-      const idx = next.findIndex(v => v.empleadoId === empleadoId && v.año === year);
+      const idx = next.findIndex(
+        (v) => String(v.empleadoId) === String(empleadoId) && Number(v.año) === year
+      );
       if (idx === -1) {
         next.push({ empleadoId, año: year, diasTomados: nuevosDiasTomados });
       } else {
@@ -381,10 +419,14 @@ export const VacacionesTab = () => {
       
       setVacaciones(prev => {
         let next = [...prev];
-        const idx = next.findIndex(v => v.empleadoId === empleadoId && v.año === year);
+        const idx = next.findIndex(
+        (v) => String(v.empleadoId) === String(empleadoId) && Number(v.año) === year
+      );
         if (idx !== -1) {
           if (diasTomadosActuales.length === 0) {
-            next = next.filter(v => !(v.empleadoId === empleadoId && v.año === year));
+            next = next.filter(
+              (v) => !(String(v.empleadoId) === String(empleadoId) && Number(v.año) === year)
+            );
           } else {
             next[idx] = { ...next[idx], diasTomados: diasTomadosActuales };
           }
@@ -394,12 +436,24 @@ export const VacacionesTab = () => {
     }
   };
 
-  const avanzarMeses = () => setMesInicio(m => (m + pasoMeses) % 12);
-  const retrocederMeses = () => setMesInicio(m => (m - pasoMeses + 12) % 12);
-
-  const rangoMesesLabel = isMobile
-    ? `${MESES_NOMBRES[mesesActuales[0]]} ${año}`
-    : `${MESES_NOMBRES[mesesActuales[0]]} – ${MESES_NOMBRES[mesesActuales[mesesActuales.length - 1]]} ${año}`;
+  const renderMesActual = () => (
+    <>
+      <TablaVacMesDesktop
+        year={añoFiltro}
+        month={mesFiltro}
+        empleados={empleados}
+        vacaciones={vacacionesAño}
+        onToggleDia={handleToggleDia}
+      />
+      <VacacionesMesMobile
+        year={añoFiltro}
+        month={mesFiltro}
+        empleados={empleados}
+        vacaciones={vacacionesAño}
+        onToggleDia={handleToggleDia}
+      />
+    </>
+  );
 
   if (loading) {
     return (
@@ -411,100 +465,94 @@ export const VacacionesTab = () => {
 
   return (
     <div className="animate-slide-up pb-6 md:pb-0">
-      <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="min-w-0">
-          <h1 className="text-base sm:text-xl font-bold text-slate-800">
-            Vacaciones {año}
-          </h1>
-          <p className="text-[11px] sm:text-sm text-slate-500 mt-0.5 sm:mt-1 leading-snug">
-            <span className="sm:hidden">{DIAS_VACACIONES_POR_ANO} días por año · toca un día laboral para marcar vacación</span>
-            <span className="hidden sm:inline">Registro de días de vacaciones tomados por cada colaborador. Cada año corresponden {DIAS_VACACIONES_POR_ANO} días.</span>
-          </p>
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-4 sm:mb-6">
+        <div className="px-4 sm:px-5 py-4 flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-800">Vacaciones</h1>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                {MESES_NOMBRES[mesFiltro]} {añoFiltro}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Registro de días tomados · {DIAS_VACACIONES_POR_ANO} días por colaborador al año
+            </p>
+          </div>
         </div>
-        <div className="flex items-center justify-center sm:justify-end gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setAño(a => a - 1)}
-            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg hover:bg-gray-50 text-slate-600 font-bold shadow-sm transition-all"
-            aria-label="Año anterior"
-          >
-            ‹
-          </button>
-          <span className="text-sm font-bold text-slate-700 min-w-[52px] text-center">{año}</span>
-          <button
-            type="button"
-            onClick={() => setAño(a => a + 1)}
-            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center bg-white border border-slate-200 rounded-lg hover:bg-gray-50 text-slate-600 font-bold shadow-sm transition-all"
-            aria-label="Año siguiente"
-          >
-            ›
-          </button>
+
+        <div className="px-4 sm:px-5 py-3 border-t border-slate-100 bg-slate-50/50">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs font-semibold text-slate-500 shrink-0">Filtrar período</p>
+
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 sm:justify-end" translate="no">
+              <label className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide shrink-0">
+                  Año
+                </span>
+                <select
+                  id="vacaciones-filtro-anio"
+                  value={añoFiltro}
+                  onChange={handleAñoChange}
+                  className="h-9 w-[92px] px-2.5 pr-7 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 cursor-pointer shadow-sm"
+                  aria-label="Filtrar por año"
+                >
+                  {añosDisponibles.map((año) => (
+                    <option key={año} value={año}>{año}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide shrink-0">
+                  Mes
+                </span>
+                <select
+                  id="vacaciones-filtro-mes"
+                  value={mesFiltro}
+                  onChange={handleMesChange}
+                  className="h-9 w-[132px] max-w-full px-2.5 pr-7 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 cursor-pointer shadow-sm"
+                  aria-label="Filtrar por mes"
+                >
+                  {MESES_TITULO.map((nombre, idx) => (
+                    <option key={nombre} value={idx}>{nombre}</option>
+                  ))}
+                </select>
+              </label>
+
+              <button
+                type="button"
+                onClick={irHoy}
+                disabled={esMesActual}
+                className="h-9 px-4 whitespace-nowrap bg-blue-600 border border-blue-700 rounded-lg text-xs font-bold text-white hover:bg-blue-700 shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:border-slate-200 disabled:text-slate-500"
+              >
+                Hoy
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 items-start">
-        <div className="flex-1 min-w-0 w-full order-2 xl:order-1">
-          <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-            <button
-              type="button"
-              onClick={retrocederMeses}
-              className="flex items-center gap-1 px-3 py-2 sm:py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 shadow-sm transition-all shrink-0"
-            >
-              <span className="hidden sm:inline">‹ Meses anteriores</span>
-              <span className="sm:hidden">‹ Anterior</span>
-            </button>
-            <span className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider text-center px-1">
-              {rangoMesesLabel}
-            </span>
-            <button
-              type="button"
-              onClick={avanzarMeses}
-              className="flex items-center gap-1 px-3 py-2 sm:py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 shadow-sm transition-all shrink-0"
-            >
-              <span className="hidden sm:inline">Meses siguientes ›</span>
-              <span className="sm:hidden">Siguiente ›</span>
-            </button>
+        <div className="flex-1 min-w-0 w-full">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden px-3 py-3 sm:px-4 sm:py-4">
+            {renderMesActual()}
           </div>
-
-          {mesesActuales.map(m => (
-            <React.Fragment key={m}>
-              <TablaVacMesDesktop
-                year={año}
-                month={m}
-                empleados={empleados}
-                vacaciones={vacacionesAño}
-                onToggleDia={handleToggleDia}
-              />
-              <VacacionesMesMobile
-                year={año}
-                month={m}
-                empleados={empleados}
-                vacaciones={vacacionesAño}
-                onToggleDia={handleToggleDia}
-              />
-            </React.Fragment>
-          ))}
         </div>
 
-        <div className="w-full xl:w-[320px] flex-shrink-0 space-y-3 sm:space-y-4 xl:sticky xl:top-4 order-1 xl:order-2">
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
-            Resumen por año
-          </div>
-
+        <div className="w-full xl:w-[300px] flex-shrink-0 space-y-3 sm:space-y-4 xl:sticky xl:top-4">
           <ResumenAño
-            year={año - 1}
+            key={`resumen-${añoFiltro}`}
+            year={añoFiltro}
             empleados={empleados}
             vacaciones={vacaciones}
-            titulo={`Vacaciones ${año - 1}`}
-            color="bg-orange-400"
-          />
-
-          <ResumenAño
-            year={año}
-            empleados={empleados}
-            vacaciones={vacaciones}
-            titulo={`Vacaciones ${año}`}
-            color="bg-green-600"
+            titulo={`Vacaciones ${añoFiltro}`}
+            color={esAñoActual ? COLORES_RESUMEN_AÑO[0] : COLORES_RESUMEN_AÑO[1]}
+            highlight
           />
 
           <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
