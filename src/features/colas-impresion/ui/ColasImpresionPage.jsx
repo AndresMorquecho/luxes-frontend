@@ -645,21 +645,6 @@ export const ColasImpresionPage = () => {
 
           {activeTab === 'cola' ? (
             <>
-              {/* KPI Cards section */}
-              <div className="colas-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
-                <div className="colas-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)', display: 'flex', flexDirection: 'column' }}>
-                  <span className="colas-kpi-title" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Documentos en Espera</span>
-                  <span className="colas-kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>{queue.length}</span>
-                  <span className="colas-kpi-desc" style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>Pendientes en cola</span>
-                </div>
-
-                <div className="colas-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)', display: 'flex', flexDirection: 'column' }}>
-                  <span className="colas-kpi-title" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Trabajos Procesados</span>
-                  <span className="colas-kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0d9488' }}>{completedJobs.length}</span>
-                  <span className="colas-kpi-desc" style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>Completados / Cancelados</span>
-                </div>
-              </div>
-
               {/* Active Job (Full Width) */}
               <div className="active-job-section-full" style={{ marginBottom: '1.25rem' }}>
                 {activeJob ? (
