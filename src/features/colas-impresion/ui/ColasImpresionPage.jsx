@@ -149,21 +149,10 @@ function TvElapsedTimer({ activeJob }) {
   }, [activeJob]);
 
   return (
-    <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#ca8a04', fontFamily: 'monospace', lineHeight: 1 }}>
+    <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#1d4ed8', fontFamily: 'monospace', lineHeight: 1 }}>
       {elapsedStr}
     </span>
   );
-}
-
-function getEstimatedTimeStr(activeJob) {
-  if (!activeJob) return '00:00:00';
-  const area = (Number(activeJob.width) || 1.0) * (Number(activeJob.height) || 1.0);
-  const copies = Number(activeJob.copies) || 1;
-  const totalMinutes = Math.max(5, Math.round(area * copies * 6)); // roughly 6 min per unit area-copy
-  const hrs = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  const pad = (num) => String(num).padStart(2, '0');
-  return `${pad(hrs)}:${pad(mins)}:00`;
 }
 
 const parseJobFiles = (job) => {
@@ -2143,7 +2132,7 @@ export const ColasImpresionPage = () => {
                 <span 
                   onClick={() => setIsTvMode(false)}
                   style={{ 
-                    backgroundColor: '#ca8a04', 
+                    backgroundColor: '#1d4ed8', 
                     color: '#ffffff', 
                     fontSize: '0.75rem', 
                     fontWeight: 800, 
@@ -2166,13 +2155,13 @@ export const ColasImpresionPage = () => {
           </div>
 
           {/* Main Grid Workspace */}
-          <div style={{ display: 'flex', gap: '2.5rem', flex: 1, minHeight: 0, overflow: 'hidden', paddingBottom: '90px' }}>
+          <div style={{ display: 'flex', gap: '2.5rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
             
             {/* Column 1: Active Job */}
             <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)', flex: '1.3 1 0px', minHeight: 0, boxSizing: 'border-box' }}>
               {activeJob ? (
                 <>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ca8a04', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
                     TRABAJO ACTUAL
                   </span>
                   <h2 style={{ fontSize: '2.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 1.5rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={activeJob.name}>
@@ -2233,7 +2222,7 @@ export const ColasImpresionPage = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                     {/* Operator */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#fef9c3', color: '#854d0e', border: '1px solid #fef08a', fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {(activeJob.responsible || 'OP').substring(0, 2).toUpperCase()}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -2264,7 +2253,7 @@ export const ColasImpresionPage = () => {
 
             {/* Column 2: Siguientes en Cola */}
             <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)', flex: 0.85, minHeight: 0, boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ca8a04', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '1.5rem', display: 'block' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '1.5rem', display: 'block' }}>
                 SIGUIENTES EN COLA
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', flex: 1, overflowY: 'auto', paddingRight: '0.25rem' }}>
@@ -2282,7 +2271,7 @@ export const ColasImpresionPage = () => {
                       minWidth: 0
                     }}
                   >
-                    <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#fef9c3', color: '#854d0e', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {idx + 2}
                     </div>
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -2311,17 +2300,6 @@ export const ColasImpresionPage = () => {
               </div>
             </div>
 
-          </div>
-
-          {/* Bottom Bar: Estimated time */}
-          <div style={{ position: isAdmin ? 'absolute' : 'fixed', bottom: 0, left: 0, right: 0, height: '80px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', padding: '0 3rem', zIndex: 100000 }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '8px', backgroundColor: '#ca8a04', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem' }}>
-              <Clock size={22} strokeWidth={2.5} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>TIEMPO ESTIMADO DEL TRABAJO ACTUAL</span>
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginTop: '0.1rem' }}>{getEstimatedTimeStr(activeJob)}</span>
-            </div>
           </div>
         </div>
       )}
