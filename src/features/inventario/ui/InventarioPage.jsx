@@ -35,13 +35,25 @@ const TABS = [
   { id: 'Taller',     label: 'Inv. Taller',    Icon: Wrench },
   { id: 'Impresión',  label: 'Inv. Impresión', Icon: Printer },
 ];
+const FIXED_BADGE_STYLE = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100px',
+  height: '24px',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  borderRadius: '0.375rem',
+  whiteSpace: 'nowrap',
+  boxSizing: 'border-box'
+};
 
 const usoBadge = (estado) => {
   const est = (estado || 'BODEGA').toUpperCase();
-  if (est === 'EN USO') return <span className="inv-badge warning">En Uso</span>;
-  if (est === 'NO SIRVE') return <span className="inv-badge danger">Dañado</span>;
-  if (est === 'EN REPARACION') return <span className="inv-badge info">Reparación</span>;
-  return <span className="inv-badge success">Bodega</span>;
+  if (est === 'EN USO') return <span className="inv-badge warning" style={FIXED_BADGE_STYLE}>En Uso</span>;
+  if (est === 'NO SIRVE') return <span className="inv-badge danger" style={FIXED_BADGE_STYLE}>Dañado</span>;
+  if (est === 'EN REPARACION') return <span className="inv-badge info" style={FIXED_BADGE_STYLE}>Reparación</span>;
+  return <span className="inv-badge success" style={FIXED_BADGE_STYLE}>Bodega</span>;
 };
 
 // MaterialModal removed — replaced by ProductoFormModal
@@ -309,10 +321,10 @@ export function InventarioPage() {
   const stockBadge = (item) => {
     // Use descargaStock to determine if stock tracking applies (falls back to old category logic for unmigrated data)
     const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
-    if (!tracksStock) return <span className="inv-badge success" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>Solo registro</span>;
-    if (item.stockActual === 0) return <span className="inv-badge empty">Agotado</span>;
-    if (item.stockActual <= item.stockMinimo) return <span className="inv-badge low">Stock Bajo</span>;
-    return <span className="inv-badge ok">En Stock</span>;
+    if (!tracksStock) return <span className="inv-badge success" style={{ ...FIXED_BADGE_STYLE, background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>Solo registro</span>;
+    if (item.stockActual === 0) return <span className="inv-badge empty" style={FIXED_BADGE_STYLE}>Agotado</span>;
+    if (item.stockActual <= item.stockMinimo) return <span className="inv-badge low" style={FIXED_BADGE_STYLE}>Stock Bajo</span>;
+    return <span className="inv-badge ok" style={FIXED_BADGE_STYLE}>En Stock</span>;
   };
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
@@ -460,10 +472,10 @@ export function InventarioPage() {
                 <thead>
                   <tr>
                     <th>Producto / Equipo</th>
-                    {activeTab === 'all' && <th>Sección</th>}
+                    {activeTab === 'all' && <th style={{ textAlign: 'center' }}>Sección</th>}
                     <th>Stock / Disp.</th>
                     <th>Mínimo</th>
-                    <th>Estado</th>
+                    <th style={{ textAlign: 'center' }}>Estado</th>
                     <th>Costo Unit.</th>
                     <th>CPP</th>
                     <th>Acciones</th>
@@ -508,9 +520,9 @@ export function InventarioPage() {
                           </div>
                         </td>
                         {activeTab === 'all' && (
-                          <td style={{ fontSize: '0.875rem' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: 600, color: catColor, backgroundColor: catBg, border: `1px solid ${catColor}30` }}>
-                              <CatIcon size={14} />
+                          <td style={{ fontSize: '0.875rem', textAlign: 'center' }}>
+                            <span style={{ ...FIXED_BADGE_STYLE, gap: '0.3rem', color: catColor, backgroundColor: catBg, border: `1px solid ${catColor}30` }}>
+                              <CatIcon size={12} />
                               {item.categoria || 'Taller'}
                             </span>
                           </td>
@@ -523,7 +535,7 @@ export function InventarioPage() {
                         <td className="inv-td-min" style={{ fontSize: '0.875rem', color: !tracksStock ? '#94a3b8' : 'inherit' }}>
                           {tracksStock ? item.stockMinimo : '—'}
                         </td>
-                        <td style={{ fontSize: '0.875rem' }}>
+                        <td style={{ fontSize: '0.875rem', textAlign: 'center' }}>
                           {isTool ? (
                             usoBadge(item.estadoUso)
                           ) : (
@@ -586,7 +598,7 @@ export function InventarioPage() {
                         {activeTab === 'all' && (
                           <div className="inv-card-row">
                             <span className="inv-card-label">Sección</span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.5rem', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 600, color: catColor, backgroundColor: catBg, border: `1px solid ${catColor}30`, width: 'max-content' }}>
+                            <span style={{ ...FIXED_BADGE_STYLE, gap: '0.3rem', color: catColor, backgroundColor: catBg, border: `1px solid ${catColor}30` }}>
                               <CatIcon size={12} />
                               {item.categoria || 'Taller'}
                             </span>
