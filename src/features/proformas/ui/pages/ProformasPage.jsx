@@ -319,6 +319,7 @@ export const ProformasPage = () => {
                             }`} />
                             {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
                           </span>
+                        </td>
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <button 
