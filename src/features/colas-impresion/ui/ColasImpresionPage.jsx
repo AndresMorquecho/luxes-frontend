@@ -608,13 +608,10 @@ export const ColasImpresionPage = () => {
   const paginatedQueue = queue.slice((queuePage - 1) * queueItemsPerPage, queuePage * queueItemsPerPage);
 
   return (
-    <div className="colas-impresion-container">
-      {!isAdmin && (
-        <>
-          {/* Header section */}
-          <div className="colas-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+    <div className="colas-impresion-contai          {/* Header section */}
+          <div className="colas-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#fef9c3', border: '1px solid #fef08a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ca8a04', flexShrink: 0 }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1d4ed8', flexShrink: 0 }}>
                 <Printer size={24} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -626,9 +623,9 @@ export const ColasImpresionPage = () => {
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <button 
                 onClick={() => setIsTvMode(true)} 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#ca8a04', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
-                onMouseOver={e => e.currentTarget.style.backgroundColor = '#a16207'}
-                onMouseOut={e => e.currentTarget.style.backgroundColor = '#ca8a04'}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.backgroundColor = '#1e40af'}
+                onMouseOut={e => e.currentTarget.style.backgroundColor = '#1d4ed8'}
               >
                 <Monitor size={16} /> VISTA TV
               </button>
@@ -646,17 +643,7 @@ export const ColasImpresionPage = () => {
           {activeTab === 'cola' ? (
             <>
               {/* KPI Cards section */}
-              <div className="colas-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                <div className="colas-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)', display: 'flex', flexDirection: 'column' }}>
-                  <span className="colas-kpi-title" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Trabajo Seleccionado</span>
-                  <span className="colas-kpi-value" style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {activeJob ? activeJob.name : "Ninguno"}
-                  </span>
-                  <span className="colas-kpi-desc" style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {activeJob ? `Cliente: ${activeJob.client || 'Sin cliente'} (${activeJob.status})` : "Elige un nuevo documento"}
-                  </span>
-                </div>
-
+              <div className="colas-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
                 <div className="colas-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)', display: 'flex', flexDirection: 'column' }}>
                   <span className="colas-kpi-title" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Documentos en Espera</span>
                   <span className="colas-kpi-value" style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>{queue.length}</span>
@@ -671,13 +658,13 @@ export const ColasImpresionPage = () => {
               </div>
 
               {/* Active Job (Full Width) */}
-              <div className="active-job-section-full" style={{ marginBottom: '2.5rem' }}>
+              <div className="active-job-section-full" style={{ marginBottom: '1.25rem' }}>
                 {activeJob ? (
                   <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)' }}>
                     {/* Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ca8a04', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
                           TRABAJO EN PROCESO
                         </span>
                         <h3 style={{ fontSize: '2rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>{activeJob.name}</h3>
@@ -694,8 +681,8 @@ export const ColasImpresionPage = () => {
                           <Monitor size={14} /> Modo TV
                         </button>
                         {renderPriorityBadge(activeJob.urgency || 'Media')}
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', border: '1px solid rgba(202, 138, 4, 0.2)', backgroundColor: 'rgba(254, 240, 138, 0.2)', color: '#a16207' }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ca8a04', display: 'inline-block' }}></span>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', border: '1px solid rgba(29, 78, 216, 0.2)', backgroundColor: 'rgba(239, 246, 255, 0.9)', color: '#1e40af' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#1d4ed8', display: 'inline-block' }}></span>
                           <span>{activeJob.status}</span>
                         </div>
                       </div>
@@ -868,7 +855,7 @@ export const ColasImpresionPage = () => {
                             <button 
                               type="button" 
                               onClick={handleStartActiveJob}
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', border: '1px solid #ca8a04', color: '#ca8a04', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', border: '1px solid #1d4ed8', color: '#1d4ed8', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
                             >
                               <Play size={14} /> Iniciar Impresión
                             </button>
@@ -886,7 +873,7 @@ export const ColasImpresionPage = () => {
                             <button 
                               type="button" 
                               onClick={handleTogglePause}
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', border: '1px solid #ca8a04', color: '#ca8a04', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', border: '1px solid #1d4ed8', color: '#1d4ed8', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
                             >
                               {activeJob.status === "Imprimiendo" ? (
                                 <>
