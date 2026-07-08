@@ -2104,7 +2104,7 @@ export const ColasImpresionPage = () => {
       {/* TV / Fullscreen Mode Overlay */}
       {isTvMode && (
         <div 
-          className="colas-tv-overlay"
+          className={`colas-tv-overlay ${isAdmin ? 'tv-admin' : ''}`}
           style={{
             position: isAdmin ? 'relative' : 'fixed',
             top: 0,
@@ -2124,8 +2124,116 @@ export const ColasImpresionPage = () => {
             fontFamily: '"Outfit", "Inter", system-ui, -apple-system, sans-serif'
           }}
         >
+          <style>{`
+            .colas-tv-overlay {
+              box-sizing: border-box;
+            }
+            .colas-tv-overlay.tv-admin {
+              height: calc(100vh - 120px) !important;
+              max-height: calc(100vh - 120px) !important;
+            }
+            .tv-grid-workspace {
+              display: flex;
+              gap: 2.5rem;
+              flex: 1;
+              min-height: 0;
+              overflow: hidden;
+            }
+            .tv-col-1 {
+              flex: 1.3 1 0px;
+              display: flex;
+              flex-direction: column;
+              min-height: 0;
+              box-sizing: border-box;
+            }
+            .tv-col-2 {
+              flex: 0.85 1 0px;
+              display: flex;
+              flex-direction: column;
+              min-height: 0;
+              box-sizing: border-box;
+            }
+            .tv-active-details {
+              display: flex;
+              gap: 2.5rem;
+              flex: 1;
+              min-height: 0;
+              align-items: stretch;
+            }
+            .tv-active-preview {
+              width: 48%;
+              border-radius: 12px;
+              overflow: hidden;
+              border: 1px solid #f1f5f9;
+              background-color: #f8fafc;
+              position: relative;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .tv-active-info {
+              width: 52%;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              gap: 0.75rem;
+            }
+            @media (max-width: 1024px) {
+              .colas-tv-overlay {
+                padding: 1.5rem !important;
+                overflow-y: auto !important;
+              }
+              .colas-tv-overlay.tv-admin {
+                height: auto !important;
+                max-height: none !important;
+              }
+              .tv-header-row {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1rem !important;
+                margin-bottom: 1.5rem !important;
+              }
+              .tv-grid-workspace {
+                flex-direction: column !important;
+                overflow: visible !important;
+                height: auto !important;
+                gap: 1.5rem !important;
+              }
+              .tv-col-1, .tv-col-2 {
+                flex: none !important;
+                width: 100% !important;
+                height: auto !important;
+              }
+              .tv-active-details {
+                flex-direction: column !important;
+                gap: 1.5rem !important;
+                height: auto !important;
+              }
+              .tv-active-preview {
+                width: 100% !important;
+                height: 250px !important;
+                aspect-ratio: auto !important;
+              }
+              .tv-active-info {
+                width: 100% !important;
+                gap: 1rem !important;
+              }
+              .tv-footer-row {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1rem !important;
+              }
+              .tv-footer-elapsed {
+                align-items: flex-start !important;
+              }
+              .tv-clock-divider {
+                display: none !important;
+              }
+            }
+          `}</style>
+
           {/* Top Header Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0, marginBottom: '2rem' }}>
+          <div className="tv-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0, marginBottom: '2rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <h1 style={{ fontSize: '2.25rem', fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.025em' }}>COLAS DE IMPRESIÓN</h1>
@@ -2155,10 +2263,10 @@ export const ColasImpresionPage = () => {
           </div>
 
           {/* Main Grid Workspace */}
-          <div style={{ display: 'flex', gap: '2.5rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <div className="tv-grid-workspace">
             
             {/* Column 1: Active Job */}
-            <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)', flex: '1.3 1 0px', minHeight: 0, boxSizing: 'border-box' }}>
+            <div className="tv-col-1" style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)' }}>
               {activeJob ? (
                 <>
                   <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
@@ -2168,9 +2276,9 @@ export const ColasImpresionPage = () => {
                     {activeJob.name}
                   </h2>
 
-                  <div style={{ display: 'flex', gap: '2.5rem', flex: 1, minHeight: 0, alignItems: 'stretch' }}>
+                  <div className="tv-active-details">
                     {/* Left part: Preview Image */}
-                    <div style={{ width: '48%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="tv-active-preview">
                       {(() => {
                         const files = parseJobFiles(activeJob);
                         const firstImage = files.find(f => isImageFile(f.name, f.url));
@@ -2193,7 +2301,7 @@ export const ColasImpresionPage = () => {
                     </div>
 
                     {/* Right part: Details List */}
-                    <div style={{ width: '52%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.75rem' }}>
+                    <div className="tv-active-info">
                       {(() => {
                         const details = [
                           { label: 'Cliente', value: activeJob.client || 'Sin cliente', Icon: User },
@@ -2219,7 +2327,7 @@ export const ColasImpresionPage = () => {
 
                   <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '1.5rem 0 1.25rem 0' }} />
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                  <div className="tv-footer-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                     {/* Operator */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -2232,7 +2340,7 @@ export const ColasImpresionPage = () => {
                     </div>
 
                     {/* Time elapsed */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <div className="tv-footer-elapsed" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>TIEMPO TRANSCURRIDO</span>
                       <TvElapsedTimer activeJob={activeJob} />
                     </div>
@@ -2252,7 +2360,7 @@ export const ColasImpresionPage = () => {
             </div>
 
             {/* Column 2: Siguientes en Cola */}
-            <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)', flex: 0.85, minHeight: 0, boxSizing: 'border-box' }}>
+            <div className="tv-col-2" style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)' }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '1.5rem', display: 'block' }}>
                 SIGUIENTES EN COLA
               </span>
