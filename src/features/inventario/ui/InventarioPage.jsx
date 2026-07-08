@@ -460,14 +460,12 @@ export function InventarioPage() {
                 <thead>
                   <tr>
                     <th>Producto / Equipo</th>
-                    <th>Clasificación</th>
                     {activeTab === 'all' && <th>Sección</th>}
                     <th>Stock / Disp.</th>
                     <th>Mínimo</th>
                     <th>Estado</th>
                     <th>Costo Unit.</th>
                     <th>CPP</th>
-                    <th>A Cargo</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -489,52 +487,52 @@ export function InventarioPage() {
                       return item.tipo === 'herramienta' ? 'Herramienta' : 'Consumible';
                     };
 
+                    const catLower = String(item.categoria || 'Taller').toLowerCase();
+                    const CatIcon = catLower === 'oficina' ? Monitor : catLower === 'impresión' ? Printer : Wrench;
+                    const catColor = catLower === 'oficina' ? '#9333ea' : catLower === 'impresión' ? '#0284c7' : '#475569';
+                    const catBg = catLower === 'oficina' ? '#faf5ff' : catLower === 'impresión' ? '#f0f9ff' : '#f1f5f9';
+
                     return (
-                      <tr key={item.id} className={isWarn ? 'inv-row-warn' : ''}>
-                        <td className="inv-td-name">
+                      <tr key={item.id}>
+                        <td className="inv-td-name" style={{ fontSize: '0.875rem' }}>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              {isTool ? <Wrench size={13} style={{ color: '#64748b' }} /> : <Package size={13} style={{ color: '#64748b' }} />}
+                              {isTool ? <Wrench size={14} style={{ color: '#64748b' }} /> : <Package size={14} style={{ color: '#64748b' }} />}
                               <strong style={{ color: '#0f172a' }}>{item.nombre}</strong>
                             </div>
                             {item.codigo && (
-                              <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.15rem' }}>
+                              <span style={{ color: '#64748b', marginTop: '0.15rem' }}>
                                 Cod: {item.codigo}
                               </span>
                             )}
                           </div>
                         </td>
-                        <td style={{ fontSize: '0.78rem', color: '#475569' }}>
-                          {getClassificationLabel(item.subtipo)}
-                        </td>
                         {activeTab === 'all' && (
-                          <td>
-                            <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>
+                          <td style={{ fontSize: '0.875rem' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: 600, color: catColor, backgroundColor: catBg, border: `1px solid ${catColor}30` }}>
+                              <CatIcon size={14} />
                               {item.categoria || 'Taller'}
                             </span>
                           </td>
                         )}
-                        <td className="inv-td-stock">
+                        <td className="inv-td-stock" style={{ fontSize: '0.875rem' }}>
                           <strong style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>
                             {item.stockActual} {item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unid'}
                           </strong>
                         </td>
-                        <td className="inv-td-min" style={!tracksStock ? { color: '#94a3b8' } : {}}>
+                        <td className="inv-td-min" style={{ fontSize: '0.875rem', color: !tracksStock ? '#94a3b8' : 'inherit' }}>
                           {tracksStock ? item.stockMinimo : '—'}
                         </td>
-                        <td>
+                        <td style={{ fontSize: '0.875rem' }}>
                           {isTool ? (
                             usoBadge(item.estadoUso)
                           ) : (
                             stockBadge(item)
                           )}
                         </td>
-                        <td>{fmt(item.precioCosto)}</td>
-                        <td style={{ fontWeight: 600, color: '#1e40af' }}>
+                        <td style={{ fontSize: '0.875rem' }}>{fmt(item.precioCosto)}</td>
+                        <td style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1e40af' }}>
                           {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
-                        </td>
-                        <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
-                          {isTool && item.estadoUso === 'EN USO' ? (item.aCargoEmpleado?.nombre || item.aCargo || 'Asignado') : '—'}
                         </td>
                         <td className="inv-td-actions">
                           <button className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)} style={{ background: '#f8fafc', color: '#6366f1', borderColor: '#e0e7ff' }}>
@@ -570,8 +568,13 @@ export function InventarioPage() {
                   const isTool = item.tipo === 'herramienta';
                   const unidad = item.unidadMedida?.nombre || item.unidadMedida?.abreviacion || 'unid';
                   
+                  const catLower = String(item.categoria || 'Taller').toLowerCase();
+                  const CatIcon = catLower === 'oficina' ? Monitor : catLower === 'impresión' ? Printer : Wrench;
+                  const catColor = catLower === 'oficina' ? '#9333ea' : catLower === 'impresión' ? '#0284c7' : '#475569';
+                  const catBg = catLower === 'oficina' ? '#faf5ff' : catLower === 'impresión' ? '#f0f9ff' : '#f1f5f9';
+
                   return (
-                    <div key={item.id} className={`inv-mobile-card ${isWarn ? 'warn' : ''}`}>
+                    <div key={item.id} className="inv-mobile-card">
                       <div className="inv-card-header">
                         <div className="inv-card-title-group">
                           {item.codigo && <span className="inv-card-code">{item.codigo}</span>}
@@ -580,14 +583,13 @@ export function InventarioPage() {
                         {isTool ? usoBadge(item.estadoUso) : stockBadge(item)}
                       </div>
                       <div className="inv-card-body">
-                        <div className="inv-card-row">
-                          <span className="inv-card-label">Clasificación</span>
-                          <span className="inv-card-value">{item.subtipo || (isTool ? 'Herramienta' : 'Consumible')}</span>
-                        </div>
                         {activeTab === 'all' && (
                           <div className="inv-card-row">
                             <span className="inv-card-label">Sección</span>
-                            <span className={`inv-cat-badge ${String(item.categoria || 'Taller').toLowerCase()}`}>{item.categoria}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.5rem', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 600, color: catColor, backgroundColor: catBg, border: `1px solid ${catColor}30`, width: 'max-content' }}>
+                              <CatIcon size={12} />
+                              {item.categoria || 'Taller'}
+                            </span>
                           </div>
                         )}
                         <div className="inv-card-row">
@@ -606,12 +608,6 @@ export function InventarioPage() {
                           <span className="inv-card-label">CPP</span>
                           <span className="inv-card-value cpp">{fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}</span>
                         </div>
-                        {isTool && item.estadoUso === 'EN USO' && (
-                          <div className="inv-card-row">
-                            <span className="inv-card-label">A cargo</span>
-                            <span className="inv-card-value">{item.aCargoEmpleado?.nombre || item.aCargo || 'Asignado'}</span>
-                          </div>
-                        )}
                       </div>
                       <div className="inv-card-actions">
                         <button type="button" className="inv-act-btn history" title="Historial" onClick={() => navigate(`/inventario/historial/${item.codigo || item.id}`)}>
