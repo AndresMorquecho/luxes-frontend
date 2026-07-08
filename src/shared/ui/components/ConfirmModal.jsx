@@ -34,7 +34,7 @@ export const ConfirmDialogContainer = () => {
   const resolveRef = useRef(null);
 
   useEffect(() => {
-    window.__confirmListener = (next) => {
+    const listener = (next) => {
       resolveRef.current = next.resolve;
       setState({
         isOpen: true,
@@ -46,9 +46,12 @@ export const ConfirmDialogContainer = () => {
         type: next.type,
       });
     };
+    window.__confirmListener = listener;
 
     return () => {
-      window.__confirmListener = null;
+      if (window.__confirmListener === listener) {
+        window.__confirmListener = null;
+      }
     };
   }, []);
 

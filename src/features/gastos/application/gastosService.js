@@ -162,6 +162,16 @@ export async function getCierres() {
   return data.data;
 }
 
+export async function deleteCierre(id) {
+  const res = await fetch(`/api/gastos/cierre/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar cierre de caja');
+  return data.data;
+}
+
 export async function getDashboardSummary(desde = '', hasta = '') {
   let url = '/api/gastos/reportes/dashboard-summary';
   const params = [];
