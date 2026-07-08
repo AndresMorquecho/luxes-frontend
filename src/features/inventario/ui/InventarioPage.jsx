@@ -384,55 +384,47 @@ export function InventarioPage() {
         </div>
       )}
 
-      <div className="inv-toolbar">
-        <div className="inv-tab-bar" role="tablist" aria-label="Tipo de inventario">
-          {visibleTabs.map(t => (
-            <button key={t.id} type="button" role="tab" aria-selected={activeTab===t.id}
-              className={`inv-tab ${activeTab===t.id?'active':''}`}
-              onClick={() => { setActiveTab(t.id); setSearch(''); }}>
-              <t.Icon size={15}/>
-              <span>{t.label}</span>
-            </button>
-          ))}
-          {!isImpresion && !isTaller && (
-            <button type="button" className="inv-tab inv-tab--external" onClick={() => navigate('/inventario/prestamos')}>
-              <ArrowRightLeft size={15}/>
-              <span>Préstamos</span>
-              <ExternalLink size={11} className="inv-tab-ext-icon"/>
-            </button>
-          )}
-        </div>
-        <div className="inv-toolbar-filters">
-          <div className="inv-segment-control">
-            <button 
-              type="button" 
-              className={`inv-segment-btn ${subTipoFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setSubTipoFilter('all')}
+      <div className="inv-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end', background: '#fff', padding: '1.25rem', borderRadius: '1rem', border: '1px solid #e2e8f0', marginBottom: '1.5rem', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
+        <div style={{ display: 'flex', gap: '1rem', flex: 1, minWidth: '300px' }}>
+          {/* Sección Dropdown */}
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sección</label>
+            <select 
+              value={activeTab} 
+              onChange={e => { setActiveTab(e.target.value); setSearch(''); }}
+              style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', outline: 'none', backgroundColor: '#f8fafc', color: '#1e293b', fontWeight: 600, cursor: 'pointer' }}
             >
-              Todos
-            </button>
-            <button 
-              type="button" 
-              className={`inv-segment-btn ${subTipoFilter === 'consumible' ? 'active' : ''}`}
-              onClick={() => setSubTipoFilter('consumible')}
-            >
-              Consumibles
-            </button>
-            <button 
-              type="button" 
-              className={`inv-segment-btn ${subTipoFilter === 'herramienta' ? 'active' : ''}`}
-              onClick={() => setSubTipoFilter('herramienta')}
-            >
-              Herramientas
-            </button>
+              {visibleTabs.map(t => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
           </div>
-          <div className="inv-search-box">
+
+          {/* Clasificación Dropdown */}
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clasificación</label>
+            <select 
+              value={subTipoFilter} 
+              onChange={e => setSubTipoFilter(e.target.value)}
+              style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', outline: 'none', backgroundColor: '#f8fafc', color: '#1e293b', fontWeight: 600, cursor: 'pointer' }}
+            >
+              <option value="all">Todos</option>
+              <option value="consumible">Consumibles</option>
+              <option value="herramienta">Herramientas</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ flex: 2, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', minWidth: '300px' }}>
+          <div className="inv-search-box" style={{ flex: 1, maxWidth: '400px', margin: 0 }}>
             <Search size={15} className="inv-search-icon"/>
             <input className="inv-search-inp" placeholder="Buscar material…" value={search}
-              onChange={e=>setSearch(e.target.value)} aria-label="Buscar en inventario"/>
+              onChange={e=>setSearch(e.target.value)} aria-label="Buscar en inventario"
+              style={{ padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+            />
           </div>
           {isAdmin && (
-            <button type="button" className="inv-btn-primary inv-btn-primary--compact" onClick={() => setMatModal('new')}>
+            <button type="button" className="inv-btn-primary inv-btn-primary--compact" onClick={() => setMatModal('new')} style={{ padding: '0.6rem 1rem' }}>
               <Plus size={16}/> <span className="inv-btn-text">Nuevo producto</span>
             </button>
           )}
@@ -491,7 +483,7 @@ export function InventarioPage() {
                               <strong style={{ color: '#0f172a' }}>{item.nombre}</strong>
                             </div>
                             {item.codigo && (
-                              <span style={{ fontSize: '0.72rem', color: '#64748b', fontFamily: 'DM Mono, monospace', marginTop: '0.15rem' }}>
+                              <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.15rem' }}>
                                 Cod: {item.codigo}
                               </span>
                             )}
@@ -523,7 +515,7 @@ export function InventarioPage() {
                           )}
                         </td>
                         <td>{fmt(item.precioCosto)}</td>
-                        <td style={{ fontWeight: 600, color: '#1e40af', fontFamily: 'DM Mono, monospace' }}>
+                        <td style={{ fontWeight: 600, color: '#1e40af' }}>
                           {fmt(item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto)}
                         </td>
                         <td style={{ fontSize: '0.8rem', fontWeight: 500, color: '#334155' }}>
