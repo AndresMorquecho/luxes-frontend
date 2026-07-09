@@ -878,43 +878,24 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
   return (
     <div className="space-y-6 animate-slide-up">
       {/* Barra de Filtros y Acciones */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 bg-white text-xs font-semibold text-slate-700 shadow-sm">
-            <Calendar size={14} className="text-slate-400" />
-            <span>Filtro de Fechas Activo</span>
-          </div>
+      <div className="flex flex-wrap items-center gap-2.5 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer bg-white"
+        >
+          <FileText size={14} className="text-slate-400" />
+          Exportar
+        </button>
 
-          <select
-            value={filtroTipo}
-            onChange={(e) => setFiltroTipo(e.target.value)}
-            className="border border-slate-200 rounded-xl px-3 py-2 bg-white text-xs font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          >
-            <option value="todos">Todos los tipos</option>
-            <option value="manual">Gastos Directos</option>
-            <option value="oc">Compras (OC)</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
+        {isAdmin && (
           <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
+            onClick={() => setIsAddGastoModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors cursor-pointer"
           >
-            <FileText size={14} />
-            Exportar
+            <Plus size={14} />
+            Registrar Gasto
           </button>
-
-          {isAdmin && (
-            <button
-              onClick={() => setIsAddGastoModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors cursor-pointer"
-            >
-              <Plus size={14} />
-              Registrar Gasto
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       {/* 1. Tarjetas KPI de Rentabilidad y Utilidad Real */}
