@@ -15,7 +15,7 @@ import {
   Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus, 
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
-  ClipboardCheck, BarChart3, Filter
+  ClipboardCheck, BarChart3, Filter, ArrowUp, ArrowDown, Scale, Wallet
 } from 'lucide-react';
 
 const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
@@ -838,7 +838,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             </button>
           ) : activeTab === 'cierre' ? (
             <Link to="/cierre-caja/historial" className="ga-btn-secondary text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 shadow-sm whitespace-nowrap">
-              <Clock size={15} /> Historial
+              <Clock size={15} /> Historial de cierres
             </Link>
           ) : null}
         </div>
@@ -1684,88 +1684,158 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       )}
       {/* PESTAÑA 3: CIERRE DE CAJA */}
       {activeTab === 'cierre' && (
-        <div className="">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+        <div className="space-y-6">
+          {/* Row 1: KPI Cards (full-width) */}
+          {cierrePreview && !loadingPreview && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
+              {/* Card 1: Ingresos */}
+              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-blue-50/70 flex items-center justify-center text-blue-600 shrink-0">
+                  <ArrowUp size={18} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Ingresos Totales</div>
+                  <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(cierrePreview.totalIngresos)}</div>
+                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">{cierrePreview.ingresosConteo} transacción{cierrePreview.ingresosConteo === 1 ? '' : 'es'}</div>
+                </div>
+              </div>
+
+              {/* Card 2: Egresos */}
+              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-rose-50/70 flex items-center justify-center text-rose-500 shrink-0">
+                  <ArrowDown size={18} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Egresos Totales</div>
+                  <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(cierrePreview.totalEgresos)}</div>
+                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">{cierrePreview.egresosConteo} transacción{cierrePreview.egresosConteo === 1 ? '' : 'es'}</div>
+                </div>
+              </div>
+
+              {/* Card 3: Balance */}
+              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-indigo-50/70 flex items-center justify-center text-indigo-600 shrink-0">
+                  <Scale size={18} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Balance Neto</div>
+                  <div className={`text-xl font-extrabold mt-0.5 ${cierrePreview.balance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
+                    {cierrePreview.balance < 0 ? '-' : ''}{fmt(Math.abs(cierrePreview.balance))}
+                  </div>
+                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">Saldo en sistema</div>
+                </div>
+              </div>
+
+              {/* Card 4: Efectivo Esperado */}
+              {(() => {
+                const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
+                  .filter(m => esMetodoEfectivo(m.nombre))
+                  .reduce((sum, m) => sum + Number(m.balance), 0);
+                return (
+                  <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50/70 flex items-center justify-center text-emerald-600 shrink-0">
+                      <Wallet size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">Efectivo en Sistema</div>
+                      <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totalEfectivoEsperado)}</div>
+                      <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">Esperado</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Row 2: Columns Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             {/* Panel Lateral: Parámetros y Arqueo (Izquierda) */}
             <div className="lg:col-span-1 flex flex-col">
               <div className="ga-card p-5 relative z-[60] flex flex-col h-full" style={{ overflow: 'visible' }}>
                 <div className="space-y-4 flex-1">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    Control de Caja
-                  </h3>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Rango de Fecha</label>
-                  <DateRangePicker 
-                    value={{ start: cierreDates.desde, end: cierreDates.hasta }} 
-                    onChange={val => setCierreDates({ desde: val.start, hasta: val.end })}
-                    placeholder="Seleccionar rango"
-                  />
-                </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      Control de Caja
+                    </h3>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Rango de Fecha</label>
+                    <DateRangePicker 
+                      value={{ start: cierreDates.desde, end: cierreDates.hasta }} 
+                      onChange={val => setCierreDates({ desde: val.start, hasta: val.end })}
+                      placeholder="Seleccionar rango"
+                    />
+                  </div>
 
-                {cierrePreview && (() => {
-                  const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
-                    .filter(m => esMetodoEfectivo(m.nombre))
-                    .reduce((sum, m) => sum + Number(m.balance), 0);
-                  
-                  const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
-                  const diferenciaEfectivo = physicalEfectivo - totalEfectivoEsperado;
+                  {cierrePreview && (() => {
+                    const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
+                      .filter(m => esMetodoEfectivo(m.nombre))
+                      .reduce((sum, m) => sum + Number(m.balance), 0);
+                    
+                    const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
+                    const diferenciaEfectivo = physicalEfectivo - totalEfectivoEsperado;
 
-                  return (
-                    <>
-                      <hr className="border-slate-100" />
-                      
-                      <div>
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                          Arqueo de Efectivo
-                        </h3>
-                        <div className="bg-slate-50/60 p-3 rounded-xl flex justify-between items-center mb-3">
-                          <span className="text-[11px] font-semibold text-slate-500">Esperado en Sistema:</span>
-                          <span className="font-extrabold text-slate-800 text-xs font-mono">{fmt(totalEfectivoEsperado)}</span>
-                        </div>
-
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Efectivo Físico Contado</label>
-                        <div className="relative rounded-lg shadow-sm">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-slate-450 font-bold text-xs">$</span>
+                    return (
+                      <>
+                        <hr className="border-slate-100" />
+                        
+                        <div>
+                          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                            Arqueo de Efectivo
+                          </h3>
+                          <div className="bg-slate-50/60 p-3 rounded-xl flex justify-between items-center mb-3">
+                            <span className="text-[11px] font-semibold text-slate-500">Esperado en Sistema:</span>
+                            <span className="font-extrabold text-slate-800 text-xs font-mono">{fmt(totalEfectivoEsperado)}</span>
                           </div>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={efectivoFisicoContado}
-                            onChange={(e) => setEfectivoFisicoContado(e.target.value)}
-                            placeholder={totalEfectivoEsperado.toFixed(2)}
-                            className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                          />
-                        </div>
 
-                        <div className={`p-3 rounded-xl border flex justify-between items-center mt-3 ${diferenciaEfectivo === 0 ? 'bg-emerald-55/35 border-emerald-100/50 text-emerald-800' : 'bg-rose-55/35 border-rose-100/50 text-rose-800'}`}>
-                          <div className="flex flex-col">
-                            <span className="text-[9px] uppercase font-bold tracking-wider opacity-75">Diferencia</span>
-                            <span className="font-extrabold text-xs font-mono mt-0.5">
-                              {diferenciaEfectivo === 0 ? 'Caja cuadrada' : (diferenciaEfectivo < 0 ? `-${fmt(Math.abs(diferenciaEfectivo))}` : `+${fmt(diferenciaEfectivo)}`)}
-                            </span>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Efectivo Físico Contado</label>
+                          <div className="relative rounded-lg shadow-sm">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <span className="text-slate-450 font-bold text-xs">$</span>
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={efectivoFisicoContado}
+                              onChange={(e) => setEfectivoFisicoContado(e.target.value)}
+                              placeholder={totalEfectivoEsperado.toFixed(2)}
+                              className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            />
                           </div>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${diferenciaEfectivo === 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-rose-100 border-rose-200 text-rose-800'}`}>
-                            {diferenciaEfectivo === 0 ? 'Cuadra' : (diferenciaEfectivo < 0 ? 'Faltante' : 'Sobrante')}
-                          </span>
+
+                          <div className={`p-3 rounded-xl border flex justify-between items-center mt-3 ${diferenciaEfectivo === 0 ? 'bg-emerald-55/35 border-emerald-100/50 text-emerald-800' : 'bg-rose-55/35 border-rose-100/50 text-rose-800'}`}>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] uppercase font-bold tracking-wider opacity-75">Diferencia</span>
+                              <span className="font-extrabold text-xs font-mono mt-0.5">
+                                {diferenciaEfectivo === 0 ? 'Caja cuadrada' : (diferenciaEfectivo < 0 ? `-${fmt(Math.abs(diferenciaEfectivo))}` : `+${fmt(diferenciaEfectivo)}`)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {diferenciaEfectivo === 0 && (
+                                <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${diferenciaEfectivo === 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-rose-100 border-rose-200 text-rose-800'}`}>
+                                {diferenciaEfectivo === 0 ? 'Cuadra' : (diferenciaEfectivo < 0 ? 'Faltante' : 'Sobrante')}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </>
-                  );
-                })()}
+                      </>
+                    );
+                  })()}
 
-                <hr className="border-slate-100" />
+                  <hr className="border-slate-100" />
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Notas del Cierre</label>
-                  <textarea 
-                    value={cierreObservaciones} 
-                    onChange={e => setCierreObservaciones(e.target.value)}
-                    rows={3} 
-                    placeholder="Observaciones adicionales, billetes, etc..." 
-                    className="ga-input text-xs resize-none" 
-                  />
-                </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Notas del Cierre</label>
+                    <textarea 
+                      value={cierreObservaciones} 
+                      onChange={e => setCierreObservaciones(e.target.value)}
+                      rows={3} 
+                      placeholder="Observaciones adicionales, billetes, etc..." 
+                      className="ga-input text-xs resize-none" 
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-slate-100">
@@ -1784,35 +1854,16 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             </div>
 
             {/* Panel Principal: Resultados (Derecha) */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-6">
               {loadingPreview ? (
-                <div className="ga-card flex items-center justify-center py-10">
+                <div className="ga-card flex items-center justify-center py-20">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
                 </div>
               ) : cierrePreview ? (
-                <div className="space-y-4 animate-slide-up">
-                  {/* KPI Cards de Previsualización */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="ga-card px-5 py-4 border-l-4 border-emerald-500">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Totales</div>
-                      <div className="text-2xl font-extrabold text-emerald-600 mt-1">{fmt(cierrePreview.totalIngresos)}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{cierrePreview.ingresosConteo} transacciones</div>
-                    </div>
-                    <div className="ga-card px-5 py-4 border-l-4 border-red-500">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Egresos Totales</div>
-                      <div className="text-2xl font-extrabold text-red-600 mt-1">{fmt(cierrePreview.totalEgresos)}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{cierrePreview.egresosConteo} transacciones</div>
-                    </div>
-                    <div className={`ga-card px-5 py-4 border-l-4 ${cierrePreview.balance >= 0 ? 'border-blue-500' : 'border-amber-500'}`}>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Balance Neto</div>
-                      <div className={`text-2xl font-extrabold mt-1 ${cierrePreview.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(cierrePreview.balance)}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Saldo en sistema</div>
-                    </div>
-                  </div>
-
+                <div className="space-y-6 animate-slide-up">
                   {/* Resumen por Métodos de Pago */}
                   <div className="ga-card p-6">
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
                       <ClipboardCheck size={14} className="text-blue-500" />
                       Saldos de Métodos de Pago
                     </h4>
@@ -1820,11 +1871,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
-                            <th className="py-2">Método</th>
-                            <th className="py-2">Tipo</th>
-                            <th className="py-2 text-right">Ingresos (+)</th>
-                            <th className="py-2 text-right">Egresos (-)</th>
-                            <th className="py-2 text-right">Balance Sistema</th>
+                            <th className="py-2.5">Método</th>
+                            <th className="py-2.5">Tipo</th>
+                            <th className="py-2.5 text-right">Ingresos (+)</th>
+                            <th className="py-2.5 text-right">Egresos (-)</th>
+                            <th className="py-2.5 text-right">Balance Sistema</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-150/40">
@@ -1847,7 +1898,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                 <td className="py-3 text-right text-emerald-600 font-bold font-mono">{fmt(m.ingresos)}</td>
                                 <td className="py-3 text-right text-red-500 font-bold font-mono">{fmt(m.egresos)}</td>
                                 <td className={`py-3 text-right font-extrabold font-mono ${m.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                                  {fmt(m.balance)}
+                                  {m.balance < 0 ? '-' : ''}{fmt(Math.abs(m.balance))}
                                 </td>
                               </tr>
                             );
@@ -1858,7 +1909,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </div>
 
                   {/* Grid de Secciones y Usuarios */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Operaciones por Sección */}
                     <div className="ga-card p-6">
                       <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
@@ -1869,42 +1920,42 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         <div className="flex justify-between items-center py-2.5">
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-slate-600 font-medium">Abonos Iniciales</span>
+                            <span className="text-slate-600 font-medium font-semibold">Abonos Iniciales</span>
                           </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosIniciales || 0)}</span>
                         </div>
                         <div className="flex justify-between items-center py-2.5">
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-slate-600 font-medium">Abonos Posteriores</span>
+                            <span className="text-slate-600 font-medium font-semibold">Abonos Posteriores</span>
                           </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosPosteriores || 0)}</span>
                         </div>
                         <div className="flex justify-between items-center py-2.5">
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-slate-600 font-medium">Gastos Generales</span>
+                            <span className="text-slate-600 font-medium font-semibold">Gastos Generales</span>
                           </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosGenerales || 0)}</span>
                         </div>
                         <div className="flex justify-between items-center py-2.5">
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-slate-600 font-medium">Gastos por Auto / Vehículo</span>
+                            <span className="text-slate-600 font-medium font-semibold">Gastos por Auto / Vehículo</span>
                           </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosAuto || 0)}</span>
                         </div>
                         <div className="flex justify-between items-center py-2.5">
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-slate-600 font-medium">Órdenes de Compra</span>
+                            <span className="text-slate-600 font-medium font-semibold">Órdenes de Compra</span>
                           </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosCompras || 0)}</span>
                         </div>
                         <div className="flex justify-between items-center py-2.5">
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-slate-600 font-medium">Pagos (Nómina/Personal)</span>
+                            <span className="text-slate-600 font-medium font-semibold">Pagos (Nómina/Personal)</span>
                           </div>
                           <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosPagos || 0)}</span>
                         </div>
@@ -1921,20 +1972,20 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         <table className="w-full text-xs animate-fade-in">
                           <thead>
                             <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
-                              <th className="py-2">Usuario</th>
-                              <th className="py-2 text-right">Ingresos</th>
-                              <th className="py-2 text-right">Egresos</th>
-                              <th className="py-2 text-right">Balance</th>
+                              <th className="py-2.5">Usuario</th>
+                              <th className="py-2.5 text-right">Ingresos</th>
+                              <th className="py-2.5 text-right">Egresos</th>
+                              <th className="py-2.5 text-right">Balance</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-150/40">
                             {(cierrePreview.usuariosDetalle || []).map((u) => (
                               <tr key={u.id} className="ga-tr">
-                                <td className="py-2.5 font-semibold text-slate-700">{u.nombre}</td>
-                                <td className="py-2.5 text-right text-emerald-600 font-bold font-mono">{fmt(u.ingresos)}</td>
-                                <td className="py-2.5 text-right text-red-500 font-bold font-mono">{fmt(u.egresos)}</td>
-                                <td className={`py-2.5 text-right font-extrabold font-mono ${u.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                                  {fmt(u.balance)}
+                                <td className="py-3 font-semibold text-slate-700">{u.nombre?.toUpperCase()}</td>
+                                <td className="py-3 text-right text-emerald-600 font-bold font-mono">{fmt(u.ingresos)}</td>
+                                <td className="py-3 text-right text-red-500 font-bold font-mono">{fmt(u.egresos)}</td>
+                                <td className={`py-3 text-right font-extrabold font-mono ${u.balance >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                  {u.balance < 0 ? '-' : ''}{fmt(Math.abs(u.balance))}
                                 </td>
                               </tr>
                             ))}
