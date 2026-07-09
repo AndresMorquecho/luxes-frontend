@@ -13,6 +13,34 @@ import { useProyectosContext } from '../../application/context/ProyectosContext.
 import { updateOrden } from '../../../compras/application/comprasService.js';
 import { getMetodosPago } from '../../../gastos/application/gastosService.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+
+const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+const formatDateTime = (val) => {
+  if (!val) return '—';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleString('es-EC', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
+const formatGastoDateTime = (gasto) => {
+  if (gasto.createdAt) {
+    return formatDateTime(gasto.createdAt);
+  }
+  if (gasto.fecha) {
+    const parts = gasto.fecha.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]} 09:00`;
+    return `${gasto.fecha} 09:00`;
+  }
+  return '—';
+};
 import { FaseTimeline } from '../components/FaseTimeline.jsx';
 import { FaseBadge } from '../components/FaseBadge.jsx';
 import { ProgressBar } from '../components/ProgressBar.jsx';
@@ -707,13 +735,14 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
   const handleDeleteGasto = (gasto) => {
     showModal(
       'Confirmar Eliminación',
-      `¿Estás seguro de que deseas eliminar el gasto "${gasto.concepto}" por $${gasto.monto.toFixed(2)}?`,
+      `¿Estás seguro de que deseas eliminar el gasto "${gasto.concepto}" por $${gasto.monto.toFixed(2)}? El dinero será devuelto a la cuenta "${gasto.metodoPago?.nombre || 'correspondiente'}".`,
       'confirm',
       async () => {
         const nuevosGastos = (proyecto.gastos || []).filter(g => g.id !== gasto.id);
         try {
           await updateProyecto({ gastos: nuevosGastos });
-          showModal('Gasto Eliminado', 'El gasto ha sido eliminado con éxito.', 'success');
+          if (reloadProyectos) reloadProyectos();
+          showModal('Gasto Eliminado', 'El gasto ha sido eliminado y el monto fue devuelto a la cuenta de pago.', 'success');
         } catch (err) {
           showModal('Error', 'No se pudo eliminar el gasto: ' + err.message, 'error');
         }
@@ -1006,7 +1035,9 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       >
                         <option value="">Seleccione una cuenta...</option>
                         {metodosPago.map(m => (
-                          <option key={m.id} value={m.id}>{m.nombre}</option>
+                          <option key={m.id} value={m.id}>
+                            {m.nombre} ({formatUSD(m.saldoActual || 0)})
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1044,7 +1075,8 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                         <th className="p-3 font-bold uppercase tracking-wider">Concepto</th>
                         <th className="p-3 font-bold uppercase tracking-wider">Proveedor</th>
                         <th className="p-3 font-bold uppercase tracking-wider">Caja / Cuenta</th>
-                        <th className="p-3 font-bold uppercase tracking-wider">Fecha</th>
+                        <th className="p-3 font-bold uppercase tracking-wider">Registrado Por</th>
+                        <th className="p-3 font-bold uppercase tracking-wider">Fecha / Hora</th>
                         <th className="p-3 font-bold uppercase tracking-wider text-right">Monto</th>
                         {isAdmin && <th className="p-3 w-16 text-center">Acciones</th>}
                       </tr>
@@ -1076,10 +1108,24 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                               )}
                             </div>
                           </td>
-                          <td className="p-3">{gasto.proveedor || '—'}</td>
-                          <td className="p-3 font-semibold text-slate-600">{gasto.metodoPago?.nombre || 'No especificado'}</td>
-                          <td className="p-3 text-slate-400">{gasto.fecha}</td>
-                          <td className="p-3 text-right font-extrabold text-red-655">${gasto.monto.toFixed(2)}</td>
+                          <td className="p-3 text-slate-600">{gasto.proveedor || '—'}</td>
+                          <td className="p-3">
+                            <span className="font-semibold text-slate-700">{gasto.metodoPago?.nombre || '—'}</span>
+                          </td>
+                          <td className="p-3">
+                            {gasto.registradoPor?.nombre ? (
+                              <span className="inline-flex items-center gap-1 text-slate-600">
+                                <User size={10} className="text-slate-400" />
+                                {gasto.registradoPor.nombre}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-slate-400 whitespace-nowrap font-mono text-[10px]">
+                            {formatGastoDateTime(gasto)}
+                          </td>
+                          <td className="p-3 text-right font-extrabold text-red-600">${gasto.monto.toFixed(2)}</td>
                           {isAdmin && (
                             <td className="p-3 text-center">
                               {gasto.id && gasto.id.startsWith('G-OC-') ? (
@@ -1101,7 +1147,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50/80 font-bold text-slate-800 border-t border-slate-200">
-                        <td colSpan="4" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Directos y Compras:</td>
+                        <td colSpan="5" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Directos y Compras:</td>
                         <td className="p-3 text-right text-sm font-extrabold text-red-700">
                           ${(totalGastosManuales + totalGastosOC).toFixed(2)}
                         </td>
