@@ -656,14 +656,6 @@ export const UsuariosPage = () => {
               Nuevo Usuario
             </button>
           )}
-          {activeTab === 'roles' && (
-            <button onClick={handleOpenNewRole} className="us-btn-primary-purple">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Nuevo Rol
-            </button>
-          )}
         </div>
       </div>
 
@@ -677,15 +669,6 @@ export const UsuariosPage = () => {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0Zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0Z" />
           </svg>
           Usuarios
-        </button>
-        <button
-          onClick={() => setActiveTab('roles')}
-          className={`us-tab-button ${activeTab === 'roles' ? 'active' : ''}`}
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.746 3.746 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12Z" />
-          </svg>
-          Roles y Permisos
         </button>
         <button
           onClick={() => setActiveTab('auditoria')}
@@ -872,62 +855,7 @@ export const UsuariosPage = () => {
             </div>
           )}
 
-          {/* TAB 2: ROLES Y PERMISOS */}
-          {activeTab === 'roles' && (
-            <div className="space-y-6">
-              <div className="roles-grid">
-                {roles.map((r) => {
-                  return (
-                    <div key={r.id} className="role-card">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-base font-bold text-slate-800">{r.name}</h3>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleOpenEditRole(r)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                            </svg>
-                          </button>
-                          {r.name !== 'Administrador' && (
-                            <button
-                              onClick={() => handleDeleteRole(r.id)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-400 font-medium mb-4">{r.description || 'Sin descripción'}</p>
-                      
-                      <div className="mb-2">
-                        <span className="inline-block text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded mb-2">
-                          {r.permissions?.length || 0} permisos
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap mt-1 max-h-40 overflow-y-auto pr-1">
-                        {r.permissions?.map((pKey) => {
-                          const displayLabel = permissions.find(p => p.key === pKey)?.name || pKey;
-                          return (
-                            <span key={pKey} className="permission-badge">
-                              {displayLabel}
-                            </span>
-                          );
-                        })}
-                        {(!r.permissions || r.permissions.length === 0) && (
-                          <span className="text-xs text-slate-400 italic font-medium">Ningún permiso asignado</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+
 
           {/* TAB 3: AUDITORÍA */}
           {activeTab === 'auditoria' && (
