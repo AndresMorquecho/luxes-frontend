@@ -75,6 +75,7 @@ export function mapOrdenCompraParaInstalacion(oc) {
     estado,
     comentarios: oc.comentarios || oc.notas || '',
     proyectoId: oc.proyectoId ?? oc.proyecto?.id ?? null,
+    usuario: oc.usuario ?? null,
     items: detalles.map((d) => ({
       nombre: d.descripcion || d.nombre,
       cantidadSolicitada: Number(d.cantidadSolicitada ?? d.cantidad) || 0,
