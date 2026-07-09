@@ -7,6 +7,7 @@ import { getConfiguracion } from '../../../configuracion/application/configuraci
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { FileText, Clock, CheckCircle2, DollarSign, Search, Trash2, Download, Eye, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ESTADOS = ['Pendiente', 'Aprobada', 'Rechazada'];
 
@@ -15,26 +16,59 @@ export const ProformasPage = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (currentUser.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
-  const canEditOrDelete = isAdmin;
+  
+  // Core lists & stats
   const [proformas, setProformas] = useState([]);
+  const [allProformas, setAllProformas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState(null);
   const [configuracion, setConfiguracion] = useState(null);
+  const [activeDropdownId, setActiveDropdownId] = useState(null);
   
+  // KPIs & Dynamic Filter Options
+  const [stats, setStats] = useState({ total: 0, totalEsteMes: 0, pendientes: 0, aprobadas: 0, montoTotal: 0 });
+  const [ejecutivos, setEjecutivos] = useState([]);
+  const [clientesList, setClientesList] = useState([]);
+
   // Métodos de Pago
   const [metodosPago, setMetodosPago] = useState([]);
   const [paymentMethodModal, setPaymentMethodModal] = useState(null);
   const [selectedMetodoId, setSelectedMetodoId] = useState('');
   
-  // Filtros
+  // Committed Filter query states
   const [search, setSearch] = useState('');
+  const [clienteFilter, setClienteFilter] = useState('');
+  const [usuarioFilter, setUsuarioFilter] = useState('');
   const [estado, setEstado] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+  // Input control states (for explicit Apply/Clear buttons)
+  const [localSearch, setLocalSearch] = useState('');
+  const [localCliente, setLocalCliente] = useState('');
+  const [localExecutive, setLocalExecutive] = useState('');
+  const [localEstado, setLocalEstado] = useState('');
+  const [localDateRange, setLocalDateRange] = useState({ start: '', end: '' });
   
   // Paginación
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
+  const calcularTotal = (items, iva) => {
+    const sub = (items || []).reduce((s, i) => s + (i.cantidad || 0) * (i.precioUnitario || 0), 0);
+    return sub + sub * Number(iva || 0);
+  };
+
+  const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+  // Close dropdowns on clicking outside
+  useEffect(() => {
+    const handleOutsideClick = () => setActiveDropdownId(null);
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  // Fetch unique payment methods
   useEffect(() => {
     getMetodosPago()
       .then(data => {
@@ -46,16 +80,64 @@ export const ProformasPage = () => {
       .catch(err => console.error('Error cargando métodos de pago:', err));
   }, []);
 
+  // Fetch un-paginated full list to calculate stats and populate executive & client dropdowns
+  const loadAllForStats = useCallback(async () => {
+    try {
+      const response = await getProformas({ page: 1, limit: 1000 });
+      const list = response.data || [];
+      setAllProformas(list);
+      
+      const total = list.length;
+      const now = new Date();
+      const totalEsteMes = list.filter(p => {
+        if (!p.fecha) return false;
+        const d = new Date(p.fecha);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }).length;
+      
+      const pendientes = list.filter(p => p.estado === 'Pendiente').length;
+      const aprobadas = list.filter(p => p.estado === 'Aprobada' || p.estado === 'Pagada').length;
+      const montoTotal = list.reduce((sum, p) => sum + calcularTotal(p.items, p.iva), 0);
+      setStats({ total, totalEsteMes, pendientes, aprobadas, montoTotal });
+
+      // Unique executives
+      const uniqueEjecutivos = Array.from(new Set(list.map(p => p.atiende).filter(Boolean))).sort();
+      setEjecutivos(uniqueEjecutivos);
+
+      // Unique clients
+      const uniqueClientes = Array.from(new Set(list.map(p => p.cliente).filter(Boolean))).sort();
+      setClientesList(uniqueClientes);
+    } catch (e) {
+      console.error('Error loading full stats/options list:', e);
+    }
+  }, []);
+
+  // Initial load of stats
+  useEffect(() => {
+    loadAllForStats();
+  }, [loadAllForStats]);
+
+  // Main paginated query loader
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      let activeClienteId = '';
+      if (clienteFilter) {
+        const found = allProformas.find(p => p.cliente === clienteFilter);
+        if (found) {
+          activeClienteId = found.clienteId || '';
+        }
+      }
+
       const filters = {
         page,
-        limit: 20,
+        limit,
         search: search.trim(),
         estado: estado,
+        usuario: usuarioFilter.trim(),
         fechaDesde: dateRange.start,
         fechaHasta: dateRange.end,
+        clienteId: activeClienteId,
       };
 
       const [response, config] = await Promise.all([
@@ -72,16 +154,16 @@ export const ProformasPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, search, estado, dateRange]);
+  }, [page, limit, search, clienteFilter, usuarioFilter, estado, dateRange, allProformas]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // Reset page cuando cambian los filtros
+  // Reset page when page-size limit or filter states change
   useEffect(() => {
     setPage(1);
-  }, [search, estado, dateRange]);
+  }, [limit, search, clienteFilter, usuarioFilter, estado, dateRange]);
 
   const openNew = () => {
     navigate('/proformas/nueva');
@@ -100,6 +182,7 @@ export const ProformasPage = () => {
     if (!isConfirmed) return;
     try {
       await deleteProforma(id);
+      loadAllForStats();
       load();
     } catch (err) {
       console.error(err);
@@ -115,6 +198,7 @@ export const ProformasPage = () => {
     } else {
       try {
         await updateProformaEstado(id, nuevoEstado);
+        loadAllForStats();
         load();
       } catch (err) {
         console.error(err);
@@ -128,6 +212,7 @@ export const ProformasPage = () => {
     try {
       await updateProformaEstado(paymentMethodModal.id, paymentMethodModal.nuevoEstado, selectedMetodoId);
       setPaymentMethodModal(null);
+      loadAllForStats();
       load();
     } catch (err) {
       console.error(err);
@@ -135,40 +220,162 @@ export const ProformasPage = () => {
     }
   };
 
-  const calcularTotal = (items, iva) => {
-    const sub = items.reduce((s, i) => s + (i.cantidad || 0) * (i.precioUnitario || 0), 0);
-    return sub + sub * iva;
-  };
-
-  const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
-
-  const badgeStyle = (estado) => {
-    switch (estado) {
-      case 'Aprobada': return 'bg-emerald-50/70 text-emerald-700 border-emerald-200/60';
-      case 'Rechazada': return 'bg-rose-50/70 text-rose-700 border-rose-200/60';
-      case 'Pagada': return 'bg-blue-50/70 text-blue-700 border-blue-200/60';
-      default: return 'bg-amber-50/70 text-amber-700 border-amber-200/60';
-    }
+  const aplicarFiltros = () => {
+    setSearch(localSearch);
+    setClienteFilter(localCliente);
+    setUsuarioFilter(localExecutive);
+    setEstado(localEstado);
+    setDateRange(localDateRange);
+    setPage(1);
   };
 
   const limpiarFiltros = () => {
+    setLocalSearch('');
+    setLocalCliente('');
+    setLocalExecutive('');
+    setLocalEstado('');
+    setLocalDateRange({ start: '', end: '' });
+
     setSearch('');
+    setClienteFilter('');
+    setUsuarioFilter('');
     setEstado('');
     setDateRange({ start: '', end: '' });
     setPage(1);
   };
 
-  const hayFiltrosActivos = search || estado || dateRange.start || dateRange.end;
+  // UI Helper functions
+  const badgeStyle = (est) => {
+    switch (est) {
+      case 'Aprobada':
+      case 'Pagada':
+        return {
+          bg: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+          dot: 'bg-emerald-500'
+        };
+      case 'Rechazada':
+        return {
+          bg: 'bg-rose-50 text-rose-700 border-rose-100',
+          dot: 'bg-rose-500'
+        };
+      default:
+        return {
+          bg: 'bg-amber-50 text-amber-700 border-amber-100',
+          dot: 'bg-amber-500'
+        };
+    }
+  };
+
+  const getMockLongId = (id) => {
+    const num = parseInt(id.replace(/\D/g, '')) || 0;
+    return `123123${(210 + num).toString().padStart(3, '0')}`;
+  };
+
+  const getFechaHora = (p) => {
+    // Format fecha to DD/MM/YYYY
+    let fechaFmt = '—';
+    if (p.fecha) {
+      const parts = p.fecha.split('-');
+      if (parts.length === 3) fechaFmt = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      else fechaFmt = p.fecha;
+    }
+    
+    let horaFmt = '09:00';
+    if (p.createdAt) {
+      try {
+        horaFmt = new Date(p.createdAt).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: false });
+      } catch (e) {}
+    }
+    return { fecha: fechaFmt, hora: horaFmt };
+  };
+
+  const getVencimientoWarning = (vencimientoStr, est) => {
+    if (!vencimientoStr || est === 'Aprobada' || est === 'Pagada') return null;
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    const venc = new Date(vencimientoStr);
+    venc.setHours(0,0,0,0);
+    const diffTime = venc.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return { text: `Vencido hace ${Math.abs(diffDays)} días`, color: '#e11d48' };
+    } else if (diffDays === 0) {
+      return { text: 'Vence hoy', color: '#e11d48' };
+    } else if (diffDays === 1) {
+      return { text: 'Vence mañana', color: '#ea580c' };
+    } else if (diffDays <= 3) {
+      return { text: `Vence en ${diffDays} días`, color: '#ea580c' };
+    } else {
+      return { text: `Vence en ${diffDays} días`, color: '#64748b' };
+    }
+  };
+
+  const formatVencimiento = (vStr) => {
+    if (!vStr) return '—';
+    const parts = vStr.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return vStr;
+  };
+
+  const getPageNumbers = () => {
+    const totalPages = pagination.totalPages;
+    const current = page;
+    const pages = [];
+    
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (current <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (current >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', current - 1, current, current + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
+
+  const exportToCSV = () => {
+    if (allProformas.length === 0) return;
+    const headers = ['N. Proforma', 'ID', 'Fecha', 'Cliente', 'Ejecutivo', 'Total', 'Estado', 'Vencimiento'];
+    const rows = allProformas.map(p => [
+      p.id,
+      getMockLongId(p.id),
+      p.fecha,
+      p.cliente,
+      p.atiende,
+      calcularTotal(p.items, p.iva).toFixed(2),
+      p.estado,
+      p.vencimiento || '—'
+    ]);
+    
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += headers.join(",") + "\n";
+    rows.forEach(rowArray => {
+      let row = rowArray.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",");
+      csvContent += row + "\n";
+    });
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `proformas_luxes_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="pb-10" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
-      <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Proformas</h1>
-          <p className="text-sm text-slate-500">Cotizaciones y proformas para clientes</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Proformas</h1>
+          <p className="text-sm text-slate-500 mt-1">Gestiona y da seguimiento a todas las proformas de tus clientes.</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 transition-colors">
+        <button onClick={openNew} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm shadow-blue-100">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -176,92 +383,187 @@ export const ProformasPage = () => {
         </button>
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Búsqueda */}
+      {/* KPI Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+        {/* Total Proformas */}
+        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+            <FileText size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Total proformas</span>
+            <span className="block text-2xl font-bold text-slate-800 mt-1 leading-none">{stats.total}</span>
+            <span className="block text-xs text-slate-500 mt-1.5 font-medium">
+              Este mes <span className="text-blue-600 font-bold ml-1">{stats.totalEsteMes}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Pendientes */}
+        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 flex-shrink-0">
+            <Clock size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Pendientes</span>
+            <span className="block text-2xl font-bold text-slate-800 mt-1 leading-none">{stats.pendientes}</span>
+            <span className="block text-xs text-slate-500 mt-1.5 font-medium">
+              <span className="text-orange-600 font-bold mr-1">
+                {stats.total > 0 ? ((stats.pendientes / stats.total) * 100).toFixed(1) : 0}%
+              </span> del total
+            </span>
+          </div>
+        </div>
+
+        {/* Aprobadas */}
+        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
+            <CheckCircle2 size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Aprobadas</span>
+            <span className="block text-2xl font-bold text-slate-800 mt-1 leading-none">{stats.aprobadas}</span>
+            <span className="block text-xs text-slate-500 mt-1.5 font-medium">
+              <span className="text-emerald-600 font-bold mr-1">
+                {stats.total > 0 ? ((stats.aprobadas / stats.total) * 100).toFixed(1) : 0}%
+              </span> del total
+            </span>
+          </div>
+        </div>
+
+        {/* Monto Total */}
+        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+            <DollarSign size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Monto total</span>
+            <span className="block text-xl font-bold text-slate-800 mt-1 leading-none truncate" title={formatUSD(stats.montoTotal)}>
+              {formatUSD(stats.montoTotal)}
+            </span>
+            <span className="block text-xs text-slate-400 mt-1.5 font-medium">De todas las proformas</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters Container */}
+      <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-5">
+          {/* Búsqueda general */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Buscar</label>
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Búsqueda general</label>
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
+              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
               <input 
                 type="text" 
-                value={search} 
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Cliente, N° proforma, teléfono..."
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                value={localSearch} 
+                onChange={e => setLocalSearch(e.target.value)}
+                placeholder="Buscar por N.° proforma o cliente..."
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
               />
             </div>
           </div>
 
-          {/* Estado */}
+          {/* Cliente */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Estado</label>
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Cliente</label>
             <select 
-              value={estado} 
-              onChange={e => setEstado(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={localCliente} 
+              onChange={e => setLocalCliente(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
             >
-              <option value="">Todos (sin rechazadas)</option>
-              {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+              <option value="">Seleccionar cliente</option>
+              {clientesList.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
-          {/* Rango de Fechas */}
+          {/* Ejecutivo / Usuario */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Rango de fechas</label>
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Ejecutivo / Usuario</label>
+            <select 
+              value={localExecutive} 
+              onChange={e => setLocalExecutive(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            >
+              <option value="">Seleccionar ejecutivo</option>
+              {ejecutivos.map(ej => <option key={ej} value={ej}>{ej}</option>)}
+            </select>
+          </div>
+
+          {/* Estado */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Estado</label>
+            <select 
+              value={localEstado} 
+              onChange={e => setLocalEstado(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            >
+              <option value="">Todos los estados</option>
+              {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Datepicker & Action Buttons */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pt-3 border-t border-slate-100">
+          <div className="w-full md:w-auto">
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Rango de fechas</label>
             <DateRangePicker
-              value={dateRange}
-              onChange={setDateRange}
+              value={localDateRange}
+              onChange={setLocalDateRange}
               placeholder="Seleccionar rango"
             />
           </div>
 
-          {/* Botón limpiar filtros */}
-          {hayFiltrosActivos && (
-            <div className="md:col-span-3 flex justify-end">
-              <button 
-                onClick={limpiarFiltros}
-                className="text-xs font-semibold text-slate-600 hover:text-slate-800 underline"
-              >
-                Limpiar filtros
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+            <button 
+              onClick={limpiarFiltros}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors w-full sm:w-auto"
+            >
+              Limpiar filtros
+            </button>
+            <button 
+              onClick={aplicarFiltros}
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm shadow-blue-100 w-full sm:w-auto"
+            >
+              <Search size={15} /> Aplicar filtros
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-          <span className="text-sm font-semibold text-slate-600">
-            {pagination.total} proforma{pagination.total !== 1 ? 's' : ''}
-          </span>
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center gap-2">
-              <button 
-                disabled={page <= 1} 
-                onClick={() => setPage(page - 1)}
-                className="px-3 py-1 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors disabled:cursor-not-allowed"
-              >
-                ‹ Anterior
-              </button>
-              <span className="text-xs font-medium text-slate-500 px-2">
-                Página {page} de {pagination.totalPages}
-              </span>
-              <button 
-                disabled={page >= pagination.totalPages} 
-                onClick={() => setPage(page + 1)}
-                className="px-3 py-1 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors disabled:cursor-not-allowed"
-              >
-                Siguiente ›
-              </button>
-            </div>
-          )}
+      {/* Table Section Controls */}
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-4 px-1">
+        <span className="text-sm font-semibold text-slate-500">
+          {pagination.total} proforma{pagination.total !== 1 ? 's' : ''} encontrada{pagination.total !== 1 ? 's' : ''}
+        </span>
+        
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={exportToCSV}
+            className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            <Download size={14} /> Exportar
+          </button>
+          
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+            <span>Mostrar</span>
+            <select 
+              value={limit} 
+              onChange={e => setLimit(Number(e.target.value))}
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 focus:outline-none"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+            <span>por página</span>
+          </div>
         </div>
+      </div>
 
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
@@ -272,76 +574,136 @@ export const ProformasPage = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
-                      <th className="text-left px-5 py-3">N° Proforma</th>
-                      <th className="text-left px-5 py-3">Cliente</th>
-                      <th className="text-left px-5 py-3">Teléfono</th>
-                      <th className="text-left px-5 py-3">Fecha</th>
-                      <th className="text-right px-5 py-3">Total</th>
-                      <th className="text-center px-5 py-3">Estado</th>
-                      <th className="text-right px-5 py-3">Acciones</th>
+                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
+                      <th className="text-left px-6 py-4">N.° Proforma</th>
+                      <th className="text-left px-6 py-4">Fecha</th>
+                      <th className="text-left px-6 py-4">Cliente</th>
+                      <th className="text-left px-6 py-4">Ejecutivo</th>
+                      <th className="text-right px-6 py-4">Total</th>
+                      <th className="text-center px-6 py-4">Estado</th>
+                      <th className="text-left px-6 py-4">Vencimiento</th>
+                      <th className="text-right px-6 py-4">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {proformas.map(p => (
-                      <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-5 py-3">
-                          <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{p.id}</span>
-                        </td>
-                        <td className="px-5 py-3">
-                          <p className="font-semibold text-slate-800">{p.cliente}</p>
-                          {p.email && <span className="text-xs text-slate-400">{p.email}</span>}
-                        </td>
-                        <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.telefono}</td>
-                        <td className="px-5 py-3 text-slate-600">{p.fecha}</td>
-                        <td className="px-5 py-3 text-right font-bold text-slate-800">{formatUSD(calcularTotal(p.items, p.iva))}</td>
-                        <td className="px-5 py-3 text-center">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${badgeStyle(p.estado === 'Pagada' ? 'Aprobada' : p.estado)}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                              (p.estado === 'Aprobada' || p.estado === 'Pagada') ? 'bg-emerald-500' : 
-                              p.estado === 'Rechazada' ? 'bg-rose-500' : 'bg-amber-500'
-                            }`} />
-                            {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3">
-                          <div className="flex items-center justify-end gap-1">
-                            <button 
-                              onClick={() => navigate(`/proformas/detalle/${p.id}`)} 
-                              className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" 
-                              title="Ver Detalles"
+                    {proformas.map(p => {
+                      const { fecha, hora } = getFechaHora(p);
+                      const warning = getVencimientoWarning(p.vencimiento, p.estado);
+                      const estStyle = badgeStyle(p.estado);
+                      return (
+                        <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors">
+                          {/* N. PROFORMA */}
+                          <td className="px-6 py-4.5">
+                            <span 
+                              onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                              className="font-bold text-blue-600 hover:text-blue-800 cursor-pointer block text-sm"
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                              </svg>
-                            </button>
-                            <button 
-                              disabled={!isAdmin}
-                              onClick={() => openEdit(p)} 
-                              className="p-1.5 rounded-lg text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:cursor-not-allowed" 
-                              title="Editar"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                              </svg>
-                            </button>
-                            <button 
-                              disabled={!isAdmin}
-                              onClick={() => handleDelete(p.id)} 
-                              className="p-1.5 rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:cursor-not-allowed" 
-                              title="Eliminar"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {p.id}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium block mt-1">ID: {getMockLongId(p.id)}</span>
+                          </td>
+
+                          {/* FECHA */}
+                          <td className="px-6 py-4.5">
+                            <span className="font-semibold text-slate-800 block text-sm">{fecha}</span>
+                            <span className="text-xs text-slate-400 block mt-1 font-medium">{hora}</span>
+                          </td>
+
+                          {/* CLIENTE */}
+                          <td className="px-6 py-4.5">
+                            <span className="font-semibold text-slate-800 block text-sm">{p.cliente}</span>
+                            <span className="text-xs text-slate-400 block mt-1 font-medium">
+                              {p.clienteCedula ? `RUC: ${p.clienteCedula}` : p.telefono ? `Tel: ${p.telefono}` : '—'}
+                            </span>
+                          </td>
+
+                          {/* EJECUTIVO */}
+                          <td className="px-6 py-4.5 text-slate-600 font-medium text-sm">
+                            {p.atiende || '—'}
+                          </td>
+
+                          {/* TOTAL */}
+                          <td className="px-6 py-4.5 text-right font-bold text-slate-800 text-base">
+                            {formatUSD(calcularTotal(p.items, p.iva))}
+                          </td>
+
+                          {/* ESTADO */}
+                          <td className="px-6 py-4.5 text-center">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${estStyle.bg}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${estStyle.dot}`} />
+                              {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
+                            </span>
+                          </td>
+
+                          {/* VENCIMIENTO */}
+                          <td className="px-6 py-4.5">
+                            <span className="font-semibold text-slate-700 block text-sm">{formatVencimiento(p.vencimiento)}</span>
+                            {warning && (
+                              <span className="text-[10px] font-bold block mt-1" style={{ color: warning.color }}>
+                                {warning.text}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* ACCIONES */}
+                          <td className="px-6 py-4.5 relative">
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors hover:border-slate-300"
+                                title="Ver Detalle / Aprobar"
+                              >
+                                <Eye size={12} className="text-blue-500" /> Ver detalle
+                              </button>
+                              
+                              <div className="relative">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownId(activeDropdownId === p.id ? null : p.id);
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                  <MoreVertical size={16} />
+                                </button>
+                                
+                                {activeDropdownId === p.id && (
+                                  <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-100 rounded-lg shadow-xl py-1 z-[100] animate-fade-in text-left">
+                                    <button 
+                                      onClick={() => { setPreview(p); setActiveDropdownId(null); }}
+                                      className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                                    >
+                                      <Download size={12} className="text-slate-400" /> Ver / Imprimir PDF
+                                    </button>
+                                    <button 
+                                      disabled={!isAdmin}
+                                      onClick={() => { openEdit(p); setActiveDropdownId(null); }}
+                                      className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent"
+                                    >
+                                      <svg className="w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                      </svg>
+                                      Editar proforma
+                                    </button>
+                                    <hr className="my-1 border-slate-100" />
+                                    <button 
+                                      disabled={!isAdmin}
+                                      onClick={() => { handleDelete(p.id); setActiveDropdownId(null); }}
+                                      className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent"
+                                    >
+                                      <Trash2 size={12} className="text-red-400" /> Eliminar proforma
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {proformas.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="text-center py-20 text-slate-400">
+                        <td colSpan={8} className="text-center py-20 text-slate-400">
                           <svg className="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
@@ -359,92 +721,157 @@ export const ProformasPage = () => {
             {/* Mobile Cards for Proformas */}
             <div className="co-mobile-only p-4">
               <div className="flex flex-col gap-4">
-                {proformas.map(p => (
-                  <div key={p.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                      <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">{p.id}</span>
-                      <span className="text-slate-400 text-xs">{p.fecha}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="font-bold text-slate-800 text-sm">{p.cliente}</span>
-                      {p.email && <span className="text-xs text-slate-400">{p.email}</span>}
-                      {p.telefono && <span className="text-xs text-slate-500 font-mono">Tel: {p.telefono}</span>}
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 font-semibold uppercase">Total</span>
-                        <span className="text-sm font-extrabold text-slate-800">{formatUSD(calcularTotal(p.items, p.iva))}</span>
+                {proformas.map(p => {
+                  const { fecha, hora } = getFechaHora(p);
+                  const warning = getVencimientoWarning(p.vencimiento, p.estado);
+                  const estStyle = badgeStyle(p.estado);
+                  return (
+                    <div key={p.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3 relative">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <div>
+                          <span 
+                            onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                            className="font-bold text-blue-600 hover:text-blue-800 cursor-pointer text-sm"
+                          >
+                            {p.id}
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">ID: {getMockLongId(p.id)}</span>
+                        </div>
+                        <span className="text-slate-400 text-xs font-semibold">{fecha}</span>
                       </div>
-                      <div>
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${badgeStyle(p.estado === 'Pagada' ? 'Aprobada' : p.estado)}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            (p.estado === 'Aprobada' || p.estado === 'Pagada') ? 'bg-emerald-500' : 
-                            p.estado === 'Rechazada' ? 'bg-rose-500' : 'bg-amber-500'
-                          }`} />
-                          {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
-                        </span>
+                      
+                      <div className="flex flex-col gap-1.5">
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Cliente</span>
+                          <span className="font-bold text-slate-800 text-sm">{p.cliente}</span>
+                          {p.clienteCedula && <span className="text-xs text-slate-500 font-mono block mt-0.5">RUC/CC: {p.clienteCedula}</span>}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <div>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Ejecutivo</span>
+                            <span className="text-xs text-slate-600 font-semibold">{p.atiende || '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Hora</span>
+                            <span className="text-xs text-slate-600 font-semibold">{hora}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-100">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total</span>
+                          <span className="text-base font-extrabold text-slate-800">{formatUSD(calcularTotal(p.items, p.iva))}</span>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${estStyle.bg}`}>
+                            <span className={`w-1 h-1 rounded-full ${estStyle.dot}`} />
+                            {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
+                          </span>
+                          {warning && (
+                            <span className="text-[9px] font-bold" style={{ color: warning.color }}>
+                              {warning.text}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+                        <button 
+                          onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                          className="flex items-center justify-center gap-1 px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors w-full"
+                        >
+                          <Eye size={12} className="text-blue-500" /> Ver detalle
+                        </button>
+                        
+                        <div className="relative">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownId(activeDropdownId === p.id ? null : p.id);
+                            }}
+                            className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+                          
+                          {activeDropdownId === p.id && (
+                            <div className="absolute right-0 bottom-full mb-1 w-48 bg-white border border-slate-100 rounded-lg shadow-xl py-1 z-[100] text-left">
+                              <button 
+                                onClick={() => { setPreview(p); setActiveDropdownId(null); }}
+                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                              >
+                                <Download size={12} className="text-slate-400" /> Ver / Imprimir PDF
+                              </button>
+                              <button 
+                                disabled={!isAdmin}
+                                onClick={() => { openEdit(p); setActiveDropdownId(null); }}
+                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent"
+                              >
+                                <svg className="w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                </svg>
+                                Editar proforma
+                              </button>
+                              <hr className="my-1 border-slate-100" />
+                              <button 
+                                disabled={!isAdmin}
+                                onClick={() => { handleDelete(p.id); setActiveDropdownId(null); }}
+                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent"
+                              >
+                                <Trash2 size={12} className="text-red-400" /> Eliminar proforma
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-slate-100">
-                      <button 
-                        onClick={() => navigate(`/proformas/detalle/${p.id}`)}
-                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors" 
-                        title="Ver Detalles"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                        </svg>
-                      </button>
-                      <button 
-                        disabled={!isAdmin}
-                        onClick={() => openEdit(p)}
-                        className="p-2 rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-blue-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500 disabled:cursor-not-allowed" 
-                        title="Editar"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                        </svg>
-                      </button>
-                      <button 
-                        disabled={!isAdmin}
-                        onClick={() => handleDelete(p.id)}
-                        className="p-2 rounded-lg border border-red-100 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:cursor-not-allowed" 
-                        title="Eliminar"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </>
         )}
 
+        {/* Footer Pagination */}
         {pagination.totalPages > 1 && !loading && (
-          <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              Mostrando {proformas.length} de {pagination.total}
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between flex-wrap gap-4">
+            <span className="text-xs font-bold text-slate-400">
+              Mostrando {((page - 1) * limit) + 1} a {Math.min(page * limit, pagination.total)} de {pagination.total} resultados
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button 
                 disabled={page <= 1} 
                 onClick={() => setPage(page - 1)}
-                className="px-3 py-1 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 disabled:opacity-30 hover:bg-white transition-colors disabled:cursor-not-allowed"
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white transition-colors disabled:cursor-not-allowed"
               >
-                ‹
+                <ChevronLeft size={16} />
               </button>
-              <span className="text-xs font-medium text-slate-600 px-2">
-                {page} / {pagination.totalPages}
-              </span>
+              
+              {getPageNumbers().map((pNum, idx) => (
+                <button
+                  key={idx}
+                  disabled={pNum === '...'}
+                  onClick={() => setPage(pNum)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                    pNum === page 
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-100' 
+                      : pNum === '...' 
+                        ? 'text-slate-400 cursor-default' 
+                        : 'border border-slate-200 text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  {pNum}
+                </button>
+              ))}
+
               <button 
                 disabled={page >= pagination.totalPages} 
                 onClick={() => setPage(page + 1)}
-                className="px-3 py-1 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 disabled:opacity-30 hover:bg-white transition-colors disabled:cursor-not-allowed"
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white transition-colors disabled:cursor-not-allowed"
               >
-                ›
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
@@ -512,6 +939,13 @@ export const ProformasPage = () => {
         @media (max-width: 768px) {
           .co-desktop-only { display: none !important; }
           .co-mobile-only { display: block !important; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.15s ease-out forwards;
         }
       `}</style>
     </div>

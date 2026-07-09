@@ -1,6 +1,6 @@
 // src/features/proyectos/ui/pages/ProyectoDetallePage.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
@@ -11,7 +11,36 @@ import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { useAutoAvanceInstalacionAdmin } from '../../application/hooks/useAutoAvanceInstalacionAdmin.js';
 import { useProyectosContext } from '../../application/context/ProyectosContext.jsx';
 import { updateOrden } from '../../../compras/application/comprasService.js';
+import { getMetodosPago } from '../../../gastos/application/gastosService.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+
+const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+const formatDateTime = (val) => {
+  if (!val) return '—';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleString('es-EC', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
+const formatGastoDateTime = (gasto) => {
+  if (gasto.createdAt) {
+    return formatDateTime(gasto.createdAt);
+  }
+  if (gasto.fecha) {
+    const parts = gasto.fecha.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]} 09:00`;
+    return `${gasto.fecha} 09:00`;
+  }
+  return '—';
+};
 import { FaseTimeline } from '../components/FaseTimeline.jsx';
 import { FaseBadge } from '../components/FaseBadge.jsx';
 import { ProgressBar } from '../components/ProgressBar.jsx';
@@ -583,6 +612,20 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
   const [proveedor, setProveedor] = useState('');
   const [notas, setNotas] = useState('');
 
+  const [metodosPago, setMetodosPago] = useState([]);
+  const [metodoPagoId, setMetodoPagoId] = useState('');
+
+  useEffect(() => {
+    getMetodosPago()
+      .then(data => {
+        setMetodosPago(data || []);
+        if (data && data.length > 0) {
+          setMetodoPagoId(data[0].id);
+        }
+      })
+      .catch(err => console.error('Error cargando métodos de pago:', err));
+  }, []);
+
   // Estados de aprobación de OC
   const [aprobaciones, setAprobaciones] = useState({});
   const [comentarioOC, setComentarioOC] = useState('');
@@ -645,45 +688,61 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
   const totalBodega = costoMaterialesBodega;
 
   // Registrar gasto manual
-  const handleAddManualGasto = async (e) => {
+  const handleAddManualGasto = (e) => {
     e.preventDefault();
-    if (!concepto.trim() || !monto || parseFloat(monto) <= 0) return;
-
-    const nuevoGasto = {
-      id: `G-MAN-${Date.now()}`,
-      concepto: concepto.trim(),
-      monto: parseFloat(monto),
-      fecha,
-      proveedor: proveedor.trim() || 'Varios',
-      notas: notas.trim()
-    };
-
-    const nuevosGastos = [...(proyecto.gastos || []), nuevoGasto];
-    
-    try {
-      await updateProyecto({ gastos: nuevosGastos });
-      setConcepto('');
-      setMonto('');
-      setProveedor('');
-      setNotas('');
-      setShowForm(false);
-      showModal('Gasto Registrado', 'El gasto se ha guardado exitosamente en el proyecto.', 'success');
-    } catch (err) {
-      showModal('Error', 'No se pudo registrar el gasto: ' + err.message, 'error');
+    if (!concepto.trim() || !monto || parseFloat(monto) <= 0 || !metodoPagoId) {
+      showModal('Error', 'Por favor, complete todos los campos requeridos.', 'error');
+      return;
     }
+
+    const selectedMPName = metodosPago.find(m => m.id === metodoPagoId)?.nombre || '';
+
+    showModal(
+      'Confirmar Registro de Gasto',
+      `¿Estás seguro de que deseas registrar el gasto "${concepto.trim()}" por $${parseFloat(monto).toFixed(2)} pagado con "${selectedMPName}"?`,
+      'confirm',
+      async () => {
+        const nuevoGasto = {
+          id: `G-MAN-${Date.now()}`,
+          concepto: concepto.trim(),
+          monto: parseFloat(monto),
+          fecha,
+          proveedor: proveedor.trim() || 'Varios',
+          notas: notas.trim(),
+          metodoPagoId,
+          registradoPorUserId: JSON.parse(localStorage.getItem('user') || '{}').id || null
+        };
+
+        const nuevosGastos = [...(proyecto.gastos || []), nuevoGasto];
+        
+        try {
+          await updateProyecto({ gastos: nuevosGastos });
+          setConcepto('');
+          setMonto('');
+          setProveedor('');
+          setNotas('');
+          setShowForm(false);
+          if (reloadProyectos) reloadProyectos();
+          showModal('Gasto Registrado', 'El gasto se ha guardado exitosamente en el proyecto.', 'success');
+        } catch (err) {
+          showModal('Error', 'No se pudo registrar el gasto: ' + err.message, 'error');
+        }
+      }
+    );
   };
 
   // Eliminar gasto manual
   const handleDeleteGasto = (gasto) => {
     showModal(
       'Confirmar Eliminación',
-      `¿Estás seguro de que deseas eliminar el gasto "${gasto.concepto}" por $${gasto.monto.toFixed(2)}?`,
+      `¿Estás seguro de que deseas eliminar el gasto "${gasto.concepto}" por $${gasto.monto.toFixed(2)}? El dinero será devuelto a la cuenta "${gasto.metodoPago?.nombre || 'correspondiente'}".`,
       'confirm',
       async () => {
         const nuevosGastos = (proyecto.gastos || []).filter(g => g.id !== gasto.id);
         try {
           await updateProyecto({ gastos: nuevosGastos });
-          showModal('Gasto Eliminado', 'El gasto ha sido eliminado con éxito.', 'success');
+          if (reloadProyectos) reloadProyectos();
+          showModal('Gasto Eliminado', 'El gasto ha sido eliminado y el monto fue devuelto a la cuenta de pago.', 'success');
         } catch (err) {
           showModal('Error', 'No se pudo eliminar el gasto: ' + err.message, 'error');
         }
@@ -955,7 +1014,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Proveedor / Beneficiario</label>
                       <input
@@ -965,6 +1024,22 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                         value={proveedor}
                         onChange={e => setProveedor(e.target.value)}
                       />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Caja / Cuenta de Pago *</label>
+                      <select
+                        required
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        value={metodoPagoId}
+                        onChange={e => setMetodoPagoId(e.target.value)}
+                      >
+                        <option value="">Seleccione una cuenta...</option>
+                        {metodosPago.map(m => (
+                          <option key={m.id} value={m.id}>
+                            {m.nombre} ({formatUSD(m.saldoActual || 0)})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Notas Adicionales</label>
@@ -999,7 +1074,9 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
                         <th className="p-3 font-bold uppercase tracking-wider">Concepto</th>
                         <th className="p-3 font-bold uppercase tracking-wider">Proveedor</th>
-                        <th className="p-3 font-bold uppercase tracking-wider">Fecha</th>
+                        <th className="p-3 font-bold uppercase tracking-wider">Caja / Cuenta</th>
+                        <th className="p-3 font-bold uppercase tracking-wider">Registrado Por</th>
+                        <th className="p-3 font-bold uppercase tracking-wider">Fecha / Hora</th>
                         <th className="p-3 font-bold uppercase tracking-wider text-right">Monto</th>
                         {isAdmin && <th className="p-3 w-16 text-center">Acciones</th>}
                       </tr>
@@ -1031,9 +1108,24 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                               )}
                             </div>
                           </td>
-                          <td className="p-3">{gasto.proveedor || '—'}</td>
-                          <td className="p-3 text-slate-400">{gasto.fecha}</td>
-                          <td className="p-3 text-right font-extrabold text-red-655">${gasto.monto.toFixed(2)}</td>
+                          <td className="p-3 text-slate-600">{gasto.proveedor || '—'}</td>
+                          <td className="p-3">
+                            <span className="font-semibold text-slate-700">{gasto.metodoPago?.nombre || '—'}</span>
+                          </td>
+                          <td className="p-3">
+                            {gasto.registradoPor?.nombre ? (
+                              <span className="inline-flex items-center gap-1 text-slate-600">
+                                <User size={10} className="text-slate-400" />
+                                {gasto.registradoPor.nombre}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-slate-400 whitespace-nowrap font-mono text-[10px]">
+                            {formatGastoDateTime(gasto)}
+                          </td>
+                          <td className="p-3 text-right font-extrabold text-red-600">${gasto.monto.toFixed(2)}</td>
                           {isAdmin && (
                             <td className="p-3 text-center">
                               {gasto.id && gasto.id.startsWith('G-OC-') ? (
@@ -1055,7 +1147,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50/80 font-bold text-slate-800 border-t border-slate-200">
-                        <td colSpan="3" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Directos y Compras:</td>
+                        <td colSpan="5" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Directos y Compras:</td>
                         <td className="p-3 text-right text-sm font-extrabold text-red-700">
                           ${(totalGastosManuales + totalGastosOC).toFixed(2)}
                         </td>
@@ -1372,46 +1464,48 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
 
       {/* Modal Dialog de Alertas */}
       {modalConfig.isOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`p-2.5 rounded-full ${
-                modalConfig.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
-                modalConfig.type === 'error' ? 'bg-red-50 text-red-600' :
-                'bg-amber-50 text-amber-600'
-              }`}>
-                {modalConfig.type === 'success' && <CheckCircle2 size={22} />}
-                {modalConfig.type === 'error' && <AlertTriangle size={22} />}
-                {modalConfig.type === 'confirm' && <HelpCircle size={22} />}
+        <ModalPortal>
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in duration-150">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-2.5 rounded-full ${
+                  modalConfig.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
+                  modalConfig.type === 'error' ? 'bg-red-50 text-red-600' :
+                  'bg-amber-50 text-amber-600'
+                }`}>
+                  {modalConfig.type === 'success' && <CheckCircle2 size={22} />}
+                  {modalConfig.type === 'error' && <AlertTriangle size={22} />}
+                  {modalConfig.type === 'confirm' && <HelpCircle size={22} />}
+                </div>
+                <h3 className="font-extrabold text-slate-800 text-lg">{modalConfig.title}</h3>
               </div>
-              <h3 className="font-extrabold text-slate-800 text-lg">{modalConfig.title}</h3>
-            </div>
-            
-            <p className="text-slate-600 text-sm mb-6 leading-relaxed">{modalConfig.message}</p>
-            
-            <div className="flex gap-2 justify-end">
-              {modalConfig.type === 'confirm' && (
+              
+              <p className="text-slate-600 text-sm mb-6 leading-relaxed">{modalConfig.message}</p>
+              
+              <div className="flex gap-2 justify-end">
+                {modalConfig.type === 'confirm' && (
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                )}
                 <button
-                  onClick={closeModal}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    closeModal();
+                    if (modalConfig.onConfirm) {
+                      modalConfig.onConfirm();
+                    }
+                  }}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"
                 >
-                  Cancelar
+                  Aceptar
                 </button>
-              )}
-              <button
-                onClick={() => {
-                  closeModal();
-                  if (modalConfig.onConfirm) {
-                    modalConfig.onConfirm();
-                  }
-                }}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"
-              >
-                Aceptar
-              </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

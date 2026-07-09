@@ -404,16 +404,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
                 {!isCollapsed && isPrintOpen && (
                   <ul className="sidebar-submenu">
-                    {canViewImpresionesList && (
-                      <li className={currentPath.startsWith('/impresiones') ? 'submenu-active' : ''}>
-                        <Link to="/impresiones" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2m2 4h6a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2zm8-12V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Enviar Impresión</span>
-                        </Link>
-                      </li>
-                    )}
                     {!isVentas && !isDisenador && (
                       <li className={currentPath.startsWith('/colas-impresion') ? 'submenu-active' : ''}>
                         <Link to="/colas-impresion" className="sidebar-submenu-link">

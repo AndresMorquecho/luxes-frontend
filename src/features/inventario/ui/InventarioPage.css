@@ -100,7 +100,6 @@
   display: block;
   font-size: 1.75rem;
   font-weight: 700;
-  font-family: 'DM Mono', monospace;
   color: #0f172a;
   line-height: 1;
 }
@@ -359,11 +358,9 @@
 }
 .inv-row-icon { color: #94a3b8; }
 .inv-td-stock {
-  font-family: 'DM Mono', monospace;
   font-size: 1rem;
 }
 .inv-td-min {
-  font-family: 'DM Mono', monospace;
   color: #94a3b8;
 }
 .inv-td-actions {
@@ -646,7 +643,6 @@
 .inv-chip.consumible { background: #eff6ff; color: #1d4ed8; }
 .inv-chip.herramienta { background: #f0fdfa; color: #0d9488; }
 .inv-stock-badge {
-  font-family: 'DM Mono', monospace;
   font-size: 0.8rem;
   color: #64748b;
 }
@@ -980,8 +976,7 @@
   }
 
   .inv-card-code {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
+      font-size: 0.7rem;
     color: #64748b;
     font-weight: 500;
   }
@@ -1028,15 +1023,13 @@
   }
 
   .inv-card-value.highlight {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.95rem;
+      font-size: 0.95rem;
     color: #0f172a;
   }
 
   .inv-card-value.cpp {
     color: #1e40af;
-    font-family: 'DM Mono', monospace;
-  }
+    }
 
   .inv-card-value.desc,
   .inv-card-value.date {
