@@ -878,7 +878,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
   return (
     <div className="space-y-6 animate-slide-up">
       {/* Barra de Filtros y Acciones */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-150 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 bg-white text-xs font-semibold text-slate-700 shadow-sm">
             <Calendar size={14} className="text-slate-400" />
@@ -984,7 +984,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                   Egresos operativos manuales y compras facturadas de proveedores.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-250">
+              <div className="mt-6 pt-4 border-t border-slate-100/70">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total ejecutado</span>
                 <span className="text-xl font-black text-indigo-600 mt-1 block">${totalGastosManuales.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
               </div>
@@ -1048,7 +1048,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                   Historial completo de solicitudes de compra para este proyecto.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-250">
+              <div className="mt-6 pt-4 border-t border-slate-100/70">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total ejecutado</span>
                 <span className="text-xl font-black text-emerald-600 mt-1 block">${totalGastosOC.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
               </div>
@@ -1122,13 +1122,6 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                               <FileText size={12} />
                               Ver PDF
                             </button>
-                            <button
-                              onClick={() => setSelectedOCForDetail(oc)}
-                              className="p-1.5 border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-colors cursor-pointer"
-                              title="Gestionar Orden"
-                            >
-                              <Eye size={13} />
-                            </button>
                           </div>
                         </div>
                       );
@@ -1152,7 +1145,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                 Insumos y depreciación de herramientas utilizados en el proyecto.
               </p>
             </div>
-            <div className="mt-6 pt-4 border-t border-slate-250">
+            <div className="mt-6 pt-4 border-t border-slate-100/70">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total ejecutado</span>
               <span className="text-xl font-black text-amber-600 mt-1 block">${costoMaterialesBodega.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
             </div>
@@ -1338,7 +1331,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                 </button>
               </div>
               
-              <div className="overflow-auto max-h-[450px] border border-slate-150 rounded-xl pr-1 bg-white">
+              <div className="overflow-auto max-h-[450px] border border-slate-100 rounded-xl pr-1 bg-white">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
@@ -1426,7 +1419,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                 </button>
               </div>
               
-              <div className="overflow-x-auto max-h-[450px] border border-slate-150 rounded-xl pr-1 bg-slate-50/50">
+              <div className="overflow-x-auto max-h-[450px] border border-slate-100 rounded-xl pr-1 bg-slate-50/50">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100/80 text-slate-500 border-b border-slate-200">
@@ -1446,7 +1439,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       if (cant <= 0) return null;
                       
                       return (
-                        <tr key={idx} className="border-b border-slate-150 text-slate-650 hover:bg-slate-50/70">
+                        <tr key={idx} className="border-b border-slate-100 text-slate-650 hover:bg-slate-50/70">
                           <td className="p-3 font-semibold text-slate-700">{m.nombre}</td>
                           <td className="p-3 text-center">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
@@ -1525,7 +1518,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                 </div>
                 
                 <div className="space-y-4 max-h-[500px] overflow-auto pr-1 thin-scrollbar">
-                  <div className="overflow-x-auto border border-slate-150 rounded-xl pr-1 bg-white">
+                  <div className="overflow-x-auto border border-slate-100 rounded-xl pr-1 bg-white">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
