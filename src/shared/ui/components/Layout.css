@@ -275,6 +275,14 @@
     box-sizing: border-box !important;
   }
 
+  .layout-container.mobile-taller-layout .layout-main:has(.co-recepcion-page),
+  .layout-container.mobile-taller-layout .layout-main:has(.co-compras-page) {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: calc(64px + 0.75rem) !important;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+  }
+
   .layout-container.mobile-taller-layout .layout-main:has(.nt-page) {
     padding-left: 0.625rem !important;
     padding-right: 0.625rem !important;

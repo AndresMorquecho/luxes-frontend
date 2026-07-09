@@ -1,41 +1,75 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   getOrdenes, updateOrden, deleteOrden, getComprasStats,
-  registrarAbono, getMetodosPago, recepcionarOrden
+  registrarAbono, getMetodosPago, getProveedores
 } from '../../application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
+import { ComprasAdminNav } from '../components/ComprasAdminNav';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
-import { mapOrdenToPDFFormat, isOrdenEditable, getAbonoSaldoPendiente } from '../../helpers/ordenCompraHelpers';
+import { mapOrdenToPDFFormat, isOrdenEditable, getAbonoSaldoPendiente, getOrdenProyectoLabel } from '../../helpers/ordenCompraHelpers';
 import './ComprasPage.css';
-
-const ESTADOS = ['pendiente_aprobacion', 'aprobada', 'recibida', 'cancelada'];
-const ESTADO_BADGES = {
-  pendiente_aprobacion: { bg: 'rgba(245,158,11,0.1)',  color: '#f59e0b', label: 'Pendiente Aprobación' },
-  aprobada:             { bg: 'rgba(59,130,246,0.1)',   color: '#3b82f6', label: 'Aprobada' },
-  parcialmente_recibida: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Recepción Parcial' },
-  recibida:             { bg: 'rgba(16,185,129,0.1)',   color: '#10b981', label: 'Recibida' },
-  cancelada:            { bg: 'rgba(239,68,68,0.08)',   color: '#ef4444', label: 'Cancelada' },
-};
-const PAGO_BADGES = {
-  sin_pagar: { bg: 'rgba(239,68,68,0.08)', color: '#ef4444', label: 'Sin Pagar' },
-  parcial:   { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b', label: 'Parcial' },
-  pagado:    { bg: 'rgba(16,185,129,0.1)', color: '#10b981', label: 'Pagado' },
-};
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
+const CO_PRIMARY = '#2b41b8';
+const CO_PRIMARY_HOVER = '#2436a0';
+const CO_NAVY = '#1a1c3d';
+const CO_PAGE_BG = '#f8f9fc';
+
+const ESTADO_BADGES = {
+  pendiente_aprobacion: { bg: 'bg-amber-50', color: 'text-amber-700', dot: 'bg-amber-500', label: 'PENDIENTE' },
+  aprobada:             { bg: 'bg-blue-50', color: 'text-[#2b41b8]', dot: 'bg-[#2b41b8]', label: 'APROBADO' },
+  parcialmente_recibida: { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
+  recibida:             { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'RECIBIDA' },
+  cancelada:            { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'CANCELADA' },
+};
+const PAGO_BADGES = {
+  sin_pagar: { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'POR PAGAR' },
+  parcial:   { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
+  pagado:    { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'PAGADO' },
+};
+const ESTADO_FILTER_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'pendiente_aprobacion', label: 'Pendiente aprobación' },
+  { value: 'aprobada', label: 'Aprobada' },
+  { value: 'parcialmente_recibida', label: 'Recepción parcial' },
+  { value: 'recibida', label: 'Recibida' },
+  { value: 'cancelada', label: 'Cancelada' },
+];
+
+const PAGO_FILTER_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'sin_pagar', label: 'Por pagar' },
+  { value: 'parcial', label: 'Parcial' },
+  { value: 'pagado', label: 'Pagado' },
+];
+
+const ORDEN_ESTADO_ICON = {
+  pendiente_aprobacion: { bg: 'bg-amber-50', color: 'text-amber-600' },
+  aprobada: { bg: 'bg-blue-50', color: 'text-[#2b41b8]' },
+  parcialmente_recibida: { bg: 'bg-orange-50', color: 'text-orange-600' },
+  recibida: { bg: 'bg-emerald-50', color: 'text-emerald-600' },
+  cancelada: { bg: 'bg-red-50', color: 'text-red-600' },
+};
+
+const BAG_ICON_PATH = 'M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12a1.125 1.125 0 0 1 1.263-1.123h12.974c.576 0 1.059.435 1.119 1.007z';
+
 export const ComprasPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [currentUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
   const userRole = (currentUser?.rol || '').toLowerCase();
   const isAdmin = userRole === 'admin' || userRole === 'administrador';
   const isImpresion = userRole === 'impresión' || userRole === 'impresion';
   const isTaller = userRole === 'taller';
+  const hasAprobacionPermission = currentUser?.permissions?.includes('aprobacion_ordenes_compra') || isAdmin;
+  const showAdminNav = hasAprobacionPermission && !isImpresion && !isTaller;
+  const isVistaAprobaciones = showAdminNav && searchParams.get('vista') === 'aprobaciones';
 
   const [stats, setStats] = useState({ totalOrdenes: 0, pendientes: 0, totalGastado: 0, totalDeuda: 0 });
 
@@ -44,8 +78,15 @@ export const ComprasPage = () => {
   const [ordenPage, setOrdenPage] = useState(1);
   const [ordenTotal, setOrdenTotal] = useState(0);
   const [ordenSearch, setOrdenSearch] = useState('');
+  const [ordenSearchInput, setOrdenSearchInput] = useState('');
+  const [filterEstado, setFilterEstado] = useState('');
+  const [filterPago, setFilterPago] = useState('');
+  const [filterProveedorId, setFilterProveedorId] = useState('');
+  const [proveedores, setProveedores] = useState([]);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [ordenLoading, setOrdenLoading] = useState(true);
   const [fechas, setFechas] = useState({ start: '', end: '' });
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(true);
   const perPage = 25;
 
   // ── PDF state ──
@@ -75,12 +116,6 @@ export const ComprasPage = () => {
   const [abonoSaving, setAbonoSaving] = useState(false);
   const [metodos, setMetodos] = useState([]);
 
-  // ── Recepción modal state ──
-  const [recepcionModalOpen, setRecepcionModalOpen] = useState(false);
-  const [recepcionOrden, setRecepcionOrden] = useState(null);
-  const [recepcionDetalles, setRecepcionDetalles] = useState([]);
-  const [recepcionSaving, setRecepcionSaving] = useState(false);
-
   const searchTimer = useRef(null);
 
   // ── Data loading ──
@@ -95,6 +130,11 @@ export const ComprasPage = () => {
         page: ordenPage,
         limit: perPage,
         search: ordenSearch || undefined,
+        estado: isVistaAprobaciones
+          ? 'pendiente_aprobacion'
+          : (filterEstado || undefined),
+        estadoPago: filterPago || undefined,
+        proveedorId: filterProveedorId || undefined,
         creadorRol: (isImpresion || isTaller) ? currentUser?.rol : undefined,
         estados: (isImpresion || isTaller)
           ? ['pendiente_aprobacion', 'aprobada', 'parcialmente_recibida']
@@ -106,7 +146,17 @@ export const ComprasPage = () => {
       setOrdenTotal(data.total || 0);
     } catch { setOrdenes([]); setOrdenTotal(0); }
     finally { setOrdenLoading(false); }
-  }, [ordenPage, ordenSearch, isImpresion, isTaller, currentUser, fechas]);
+  }, [ordenPage, ordenSearch, filterEstado, filterPago, filterProveedorId, isImpresion, isTaller, currentUser, fechas, isVistaAprobaciones]);
+
+  const loadProveedores = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const list = await getProveedores();
+      setProveedores(Array.isArray(list) ? list : []);
+    } catch {
+      setProveedores([]);
+    }
+  }, [isAdmin]);
 
   const loadMetodos = useCallback(async () => {
     try { const m = await getMetodosPago(); setMetodos(m); } catch {}
@@ -116,15 +166,27 @@ export const ComprasPage = () => {
     loadStats();
     loadOrdenes();
     loadMetodos();
-  }, [loadStats, loadOrdenes, loadMetodos]);
+    loadProveedores();
+  }, [loadStats, loadOrdenes, loadMetodos, loadProveedores]);
 
   useEffect(() => {
     setOrdenPage(1);
-  }, [fechas, ordenSearch]);
+  }, [fechas, ordenSearch, filterEstado, filterPago, filterProveedorId, isVistaAprobaciones]);
+
+  const goToRecepcion = (orden) => navigate(`/compras/recepcion/${orden.id}`);
+  const goToAprobacion = (orden) => navigate(`/compras/aprobacion/${orden.id}`, { state: { ordenFromList: orden } });
+
+  useEffect(() => {
+    if (!openMenuId) return undefined;
+    const close = () => setOpenMenuId(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [openMenuId]);
 
   // ── Search debounce ──
   const handleOrdenSearchChange = (e) => {
     const val = e.target.value;
+    setOrdenSearchInput(val);
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => { setOrdenSearch(val); }, 350);
   };
@@ -178,365 +240,460 @@ export const ComprasPage = () => {
     }
   };
 
-  // ── Recepción handlers ──
-  const openRecepcionModal = (orden) => {
-    setRecepcionOrden(orden);
-    const details = (orden.detalles || []).map(d => ({
-      id: d.id,
-      materialId: d.materialId,
-      descripcion: d.descripcion,
-      cantidadOriginal: d.cantidad,
-      cantidadRecibida: String(d.cantidad),
-      descargableInventario: !!d.materialId,
-    }));
-    setRecepcionDetalles(details);
-    setRecepcionModalOpen(true);
-  };
-
-  const handleRecepcionSave = async (e) => {
-    e.preventDefault();
-    setRecepcionSaving(true);
-    try {
-      const items = recepcionDetalles.filter(d => (parseFloat(d.cantidadRecibida) || 0) > 0);
-      const payload = {
-        fechaRecepcion: new Date().toISOString().split('T')[0],
-        detalles: items.map(d => ({
-          detalleId: d.id,
-          materialId: d.materialId,
-          cantidad: parseFloat(d.cantidadRecibida) || 0,
-          descargableInventario: d.descargableInventario === true && !!d.materialId,
-        })),
-      };
-
-      await recepcionarOrden(recepcionOrden.id, payload);
-      toast.success('Productos registrados con éxito');
-      setRecepcionModalOpen(false);
-      loadOrdenes(); loadStats();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setRecepcionSaving(false);
-    }
-  };
-
   const ordenTotalPages = Math.max(1, Math.ceil(ordenTotal / perPage));
+  const showingFrom = ordenTotal === 0 ? 0 : (ordenPage - 1) * perPage + 1;
+  const showingTo = Math.min(ordenPage * perPage, ordenTotal);
+  const activeFiltersCount = isVistaAprobaciones
+    ? [filterPago, filterProveedorId, fechas.start, fechas.end].filter(Boolean).length
+    : [filterEstado, filterPago, filterProveedorId, fechas.start, fechas.end].filter(Boolean).length;
+  const emptyMessage = isVistaAprobaciones
+    ? 'No hay órdenes pendientes de aprobación'
+    : 'No se encontraron órdenes de compra';
 
-  const renderPageButtons = () => {
-    const buttons = [];
-    const maxVisible = 5;
-    let start = Math.max(1, ordenPage - Math.floor(maxVisible / 2));
-    let end = Math.min(ordenTotalPages, start + maxVisible - 1);
-    
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-    
-    for (let i = start; i <= end; i++) {
-      buttons.push(
-        <button
-          key={i}
-          type="button"
-          className={`prest-page-btn ${ordenPage === i ? 'active-page' : ''}`}
-          onClick={() => setOrdenPage(i)}
-        >
-          {i}
-        </button>
-      );
-    }
-    return buttons;
+  const renderKpiCardDesktop = (kpi) => (
+    <div key={kpi.label} className="bg-white border border-slate-200/80 rounded-xl shadow-sm flex items-start gap-3 p-5 min-w-0 overflow-hidden">
+      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-5 h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-slate-500 leading-tight">{kpi.label}</p>
+        <p className="text-2xl font-bold mt-0.5 tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
+        <p className="text-[11px] text-slate-400 mt-0.5">{kpi.hint}</p>
+      </div>
+    </div>
+  );
+
+  const renderKpiCardMobile = (kpi) => (
+    <div
+      key={kpi.label}
+      className="co-kpi-mobile bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 p-3 min-w-0"
+      style={{ borderBottomWidth: '3px', borderBottomColor: kpi.accent }}
+    >
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-3.5 h-3.5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
+        </svg>
+      </div>
+      <div className="flex flex-col gap-1.5 min-w-0">
+        <p className="text-[9px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
+        <p className="text-sm font-semibold tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
+        <p className="text-[8px] text-slate-400 leading-tight line-clamp-2">{kpi.hint}</p>
+      </div>
+    </div>
+  );
+
+  const renderBadge = (badges, key, compact = false) => {
+    const b = badges[key];
+    if (!b) return <span className="text-xs text-slate-500">{key}</span>;
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-wide ${b.bg} ${b.color} ${
+        compact ? 'px-1.5 py-0.5 text-[8px] gap-0.5' : 'px-2.5 py-1 text-[10px] gap-1.5'
+      }`}>
+        <span className={`rounded-full shrink-0 ${b.dot} ${compact ? 'w-1 h-1' : 'w-1.5 h-1.5'}`} />
+        {b.label}
+      </span>
+    );
   };
+
+  const kpiItems = [
+    { label: 'Total Órdenes', mobileLabel: 'Total Órdenes', value: stats.totalOrdenes, hint: 'Todas las órdenes', accent: '#2b41b8', iconBg: 'bg-[#eef1fc]', iconColor: 'text-[#2b41b8]', icon: BAG_ICON_PATH },
+    { label: 'Pendientes Aprobación', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Esperando aprobación', accent: '#f97316', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    ...(isAdmin ? [
+      { label: 'Total Gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+      { label: 'Deuda Pendiente', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50', iconColor: 'text-red-500', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
+    ] : []),
+  ];
+
+  const renderOrdenActions = (o, mobile = false) => (
+    <div className={`flex items-center justify-center ${mobile ? '' : 'gap-1'}`}>
+      {!mobile && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
+        <button
+          type="button"
+          onClick={() => goToAprobacion(o)}
+          className="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap"
+          style={{ backgroundColor: CO_PRIMARY }}
+          title="Revisar y aprobar"
+        >
+          Revisar
+        </button>
+      )}
+      {!mobile && (
+        <button
+          type="button"
+          onClick={() => openPDFPreview(o)}
+          className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-[#eef1fc] hover:text-[#2b41b8] hover:border-[#c7d0f5] transition-colors"
+          title="Ver PDF"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+          </svg>
+        </button>
+      )}
+      <div className="relative">
+        <button
+          type="button"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === o.id ? null : o.id); }}
+          className={`inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors ${
+            mobile ? 'w-7 h-7 bg-white/90' : 'w-8 h-8 text-slate-600'
+          }`}
+          title="Más acciones"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>
+        </button>
+        {openMenuId === o.id && (
+          <div
+            className="absolute right-0 top-full mt-1 z-30 min-w-[180px] py-1 bg-white border border-slate-200 rounded-lg shadow-lg"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {mobile && (
+              <button type="button" onClick={() => { setOpenMenuId(null); openPDFPreview(o); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Ver PDF</button>
+            )}
+            {o.estado === 'cancelada' && o.notas && (
+              <button type="button" onClick={() => { setOpenMenuId(null); openViewReasonModal(o.notas, o.numero); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Ver motivo rechazo</button>
+            )}
+            {isAdmin && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
+              <button type="button" onClick={() => { setOpenMenuId(null); goToAprobacion(o); }} className="w-full text-left px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50">Aprobar / revisar</button>
+            )}
+            {isAdmin && (o.estado === 'aprobada' || o.estado === 'parcialmente_recibida') && (
+              <button type="button" onClick={() => { setOpenMenuId(null); goToRecepcion(o); }} className="w-full text-left px-3 py-2 text-xs text-violet-700 hover:bg-violet-50">Recibir productos</button>
+            )}
+            {isAdmin && o.estadoPago !== 'pagado' && o.estado !== 'cancelada' && o.estado !== 'pendiente_aprobacion' && (
+              <button type="button" onClick={() => { setOpenMenuId(null); openAbonoModal(o); }} className="w-full text-left px-3 py-2 text-xs text-blue-700 hover:bg-blue-50">Registrar abono</button>
+            )}
+            {isAdmin && isOrdenEditable(o.estado) && (
+              <button type="button" onClick={() => { setOpenMenuId(null); navigate(`/compras/editar/${o.id}`); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Editar orden</button>
+            )}
+            {isAdmin && (
+              <button type="button" onClick={() => { setOpenMenuId(null); handleOrdenDelete(o.id); }} className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50">Eliminar</button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderMobileOrdenRow = (o) => {
+    const iconStyle = ORDEN_ESTADO_ICON[o.estado] || ORDEN_ESTADO_ICON.aprobada;
+    return (
+      <div key={o.id} className="co-orden-row border-b border-slate-100 last:border-b-0">
+        <div className="flex items-center gap-1.5 px-2 py-2.5">
+          <button
+            type="button"
+            onClick={() => openPDFPreview(o)}
+            className="flex items-center gap-2 min-w-0 flex-1 text-left active:opacity-80"
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconStyle.bg}`}>
+              <svg className={`w-5 h-5 ${iconStyle.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d={BAG_ICON_PATH} />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold leading-tight truncate" style={{ color: CO_NAVY }}>{o.numero}</p>
+              <p className="text-[10px] text-slate-500 truncate uppercase tracking-wide">{o.proveedor?.nombre || '—'}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{fmtDate(o.fecha)}</p>
+            </div>
+          </button>
+          {isAdmin && (
+            <p className="text-xs font-bold tabular-nums shrink-0 px-0.5" style={{ color: CO_NAVY }}>{fmt(o.total)}</p>
+          )}
+          <div className="flex flex-col items-end gap-0.5 shrink-0 max-w-[4.25rem]">
+            {renderBadge(ESTADO_BADGES, o.estado, true)}
+            {isAdmin && renderBadge(PAGO_BADGES, o.estadoPago, true)}
+          </div>
+          <button type="button" onClick={() => openPDFPreview(o)} className="shrink-0 p-0.5 text-slate-300" aria-label="Ver orden">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+        </div>
+        {isVistaAprobaciones && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
+          <div className="px-2 pb-2.5">
+            <button
+              type="button"
+              onClick={() => goToAprobacion(o)}
+              className="w-full h-9 inline-flex items-center justify-center rounded-lg text-xs font-semibold text-white"
+              style={{ backgroundColor: CO_PRIMARY }}
+            >
+              Revisar y aprobar
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderAdminFilters = (extraClass = '') => (
+    <div className={`grid grid-cols-3 lg:grid-cols-4 gap-1.5 sm:gap-2 ${extraClass}`}>
+      {!isVistaAprobaciones && (
+        <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} className="h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
+          {ESTADO_FILTER_OPTIONS.map((opt) => <option key={opt.value || 'all'} value={opt.value}>Estado: {opt.label}</option>)}
+        </select>
+      )}
+      <select value={filterPago} onChange={(e) => setFilterPago(e.target.value)} className="h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
+        {PAGO_FILTER_OPTIONS.map((opt) => <option key={opt.value || 'all'} value={opt.value}>Pago: {opt.label}</option>)}
+      </select>
+      <select value={filterProveedorId} onChange={(e) => setFilterProveedorId(e.target.value)} className="h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
+        <option value="">Proveedor: Todos</option>
+        {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+      </select>
+      <div className="min-w-0 col-span-3 lg:col-span-1">
+        <DateRangePicker value={fechas} onChange={(val) => setFechas({ start: val.start, end: val.end })} placeholder="Rango de fechas" />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="co-page animate-slide-up">
+    <div
+      className="co-compras-page w-full min-h-full animate-slide-up px-0 py-0 sm:p-6 xl:p-8 md:-mx-10 md:-mt-8 md:-mb-10 overflow-x-hidden"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: CO_PAGE_BG }}
+    >
 
-      {/* Header */}
-      <div className="co-card co-header">
-        <div>
-          <h1 className="co-title">{isImpresion || isTaller ? 'Órdenes activas' : 'Órdenes de Compra'}</h1>
-          <p className="co-subtitle">
-            {isImpresion || isTaller
+      {/* ── Móvil ── */}
+      <div className="md:hidden">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-bold leading-tight" style={{ color: CO_NAVY }}>
+              {isImpresion || isTaller ? 'Órdenes activas' : isVistaAprobaciones ? 'Pendientes de aprobación' : 'Órdenes de Compra'}
+            </h1>
+            <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+              {isVistaAprobaciones
+                ? 'Revisa, aprueba o rechaza solicitudes de compra entrantes'
+                : isImpresion || isTaller
+                ? 'Solicitudes pendientes, aprobadas o en recepción'
+                : 'Control y emisión de compras de materiales y activos.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/compras/nueva')}
+            className="inline-flex items-center justify-center gap-1 px-3 py-2 text-white rounded-lg font-semibold text-[11px] whitespace-nowrap shrink-0"
+            style={{ backgroundColor: CO_PRIMARY, boxShadow: '0 2px 10px rgba(43, 65, 184, 0.3)' }}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nueva Orden
+          </button>
+        </div>
+
+        {(isImpresion || isTaller) && <ComprasOperativoNav />}
+        {showAdminNav && <ComprasAdminNav />}
+
+        <div className={`grid gap-2 mb-4 ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
+          {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
+        </div>
+
+        <div className="space-y-2 mb-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1 min-w-0">
+              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                id="search-ordenes-mobile"
+                value={ordenSearchInput}
+                onChange={handleOrdenSearchChange}
+                placeholder="Buscar por número, proveedor o concepto…"
+                className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
+              />
+            </div>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen((v) => !v)}
+                className="w-10 h-10 shrink-0 inline-flex items-center justify-center border border-slate-200 rounded-xl bg-white text-slate-500 relative"
+                aria-label="Filtros"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+                </svg>
+                {activeFiltersCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[1rem] h-4 px-1 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ backgroundColor: CO_PRIMARY }}>
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
+          {isAdmin && mobileFiltersOpen && renderAdminFilters()}
+          {!isAdmin && (
+            <DateRangePicker value={fechas} onChange={(val) => setFechas({ start: val.start, end: val.end })} placeholder="Rango de fechas" />
+          )}
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
+          <div className="px-3 py-2.5 flex items-center justify-between border-b border-slate-100">
+            <h2 className="text-sm font-bold" style={{ color: CO_NAVY }}>Órdenes recientes</h2>
+            {ordenTotalPages > 1 && (
+              <button type="button" onClick={() => setOrdenPage((p) => Math.min(p + 1, ordenTotalPages))} className="text-[11px] font-semibold" style={{ color: CO_PRIMARY }}>
+                Ver todas ›
+              </button>
+            )}
+          </div>
+          {ordenLoading && (
+            <div className="flex justify-center py-10"><div className="co-spinner" /></div>
+          )}
+          {!ordenLoading && ordenes.map((o) => renderMobileOrdenRow(o))}
+          {!ordenLoading && ordenes.length === 0 && (
+            <p className="text-center text-slate-400 text-sm py-10 px-4">{emptyMessage}</p>
+          )}
+        </div>
+
+        <div className="px-1 py-2 flex flex-col gap-2">
+          <p className="text-[11px] text-slate-500 text-center">
+            Mostrando {showingFrom} a {showingTo} de {ordenTotal} órdenes
+          </p>
+          {ordenTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-1">
+              <button type="button" disabled={ordenPage <= 1} onClick={() => setOrdenPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&lt;</button>
+              <span className="text-xs font-semibold px-2 tabular-nums" style={{ color: CO_NAVY }}>{ordenPage} / {ordenTotalPages}</span>
+              <button type="button" disabled={ordenPage >= ordenTotalPages} onClick={() => setOrdenPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&gt;</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Escritorio ── */}
+      <div className="hidden md:block">
+      <div className="flex flex-row items-start justify-between gap-4 mb-6">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[1.65rem] font-bold tracking-tight leading-tight" style={{ color: CO_NAVY }}>
+            {isImpresion || isTaller ? 'Órdenes activas' : isVistaAprobaciones ? 'Pendientes de aprobación' : 'Órdenes de Compra'}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 max-w-xl">
+            {isVistaAprobaciones
+              ? 'Revisa, aprueba o rechaza solicitudes de órdenes de compra entrantes'
+              : isImpresion || isTaller
               ? 'Solicitudes pendientes, aprobadas o en recepción de tu área'
-              : 'Solicitud, control y emisión de compras de materiales y activos'}
+              : 'Solicitud, control y emisión de compras de materiales y activos.'}
           </p>
         </div>
-        <button onClick={() => navigate('/compras/nueva')} className="co-btn-primary" id="btn-nueva-orden">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+        <button
+          type="button"
+          onClick={() => navigate('/compras/nueva')}
+          id="btn-nueva-orden"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-lg font-semibold text-sm whitespace-nowrap transition-colors shadow-md shrink-0"
+          style={{ backgroundColor: CO_PRIMARY, boxShadow: '0 4px 14px rgba(43, 65, 184, 0.35)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
+        >
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
           Nueva Orden
         </button>
       </div>
 
       {(isImpresion || isTaller) && <ComprasOperativoNav />}
+      {showAdminNav && <ComprasAdminNav />}
 
-      {/* KPI Cards */}
-      <div className="co-kpi-grid">
-        {[
-          { label: 'Total Órdenes', value: stats.totalOrdenes, color: '#3b82f6', icon: 'M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12a1.125 1.125 0 0 1 1.263-1.123h12.974c.576 0 1.059.435 1.119 1.007z' },
-          { label: 'Pendientes Aprobación', value: stats.pendientes, color: '#f59e0b', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-          ...(isAdmin ? [
-            { label: 'Total Gastado', value: fmt(stats.totalGastado), color: '#10b981', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-            { label: 'Deuda Pendiente', value: fmt(stats.totalDeuda), color: '#ef4444', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' }
-          ] : [])
-        ].map((kpi, i) => (
-          <div key={i} className="co-card co-kpi-card">
-            <div className="co-kpi-icon" style={{ background: `${kpi.color}15` }}>
-              <svg className="w-5 h-5" style={{ color: kpi.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
-              </svg>
-            </div>
-            <div>
-              <div className="co-kpi-label">{kpi.label}</div>
-              <div className="co-kpi-value">{kpi.value}</div>
-            </div>
-          </div>
-        ))}
+      <div className={`grid gap-4 mb-6 ${isAdmin ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-2'}`}>
+        {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
       </div>
 
-      {/* Table Card */}
-      <div className="co-card co-table-card">
-        <div className="co-table-header" style={{ gap: '1rem', flexWrap: 'wrap' }}>
-          <div className="flex items-center gap-2" style={{ flex: '1 1 200px' }}>
-            <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-100 space-y-3">
+          <div className="relative">
+            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
-            <input className="co-search-inline" placeholder="Buscar por número, proveedor o concepto…" onChange={handleOrdenSearchChange} id="search-ordenes" />
-          </div>
-          <div className="prest-datepicker-container">
-            <DateRangePicker
-              value={fechas}
-              onChange={(val) => setFechas({ start: val.start, end: val.end })}
-              placeholder="Rango de fechas"
+            <input
+              id="search-ordenes"
+              value={ordenSearchInput}
+              onChange={handleOrdenSearchChange}
+              placeholder="Buscar por número, proveedor o concepto…"
+              className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
             />
           </div>
+          {isAdmin && renderAdminFilters('lg:grid-cols-4')}
+          {!isAdmin && (
+            <div className="max-w-xs">
+              <DateRangePicker value={fechas} onChange={(val) => setFechas({ start: val.start, end: val.end })} placeholder="Rango de fechas" />
+            </div>
+          )}
         </div>
 
-        {/* Desktop View: Table */}
-        <div className="overflow-x-auto relative devoluciones-desktop-only">
+        <div className="overflow-x-auto relative">
           {ordenLoading && (
-            <div className="co-loader-box co-loader-overlay">
+            <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
               <div className="co-spinner" />
             </div>
           )}
-          <table className="co-table">
-              <thead>
-                <tr>
-                  <th>Orden</th>
-                  <th>Proveedor</th>
-                  <th>Emisor</th>
-                  <th>Fecha</th>
-                  <th>Concepto</th>
-                  <th>Observación / Notas</th>
-                  {isAdmin && <th className="text-right">Total</th>}
-                  <th className="text-center">Estado</th>
-                  {isAdmin && <th className="text-center">Pago</th>}
-                  <th className="text-center w-44">Acciones</th>
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-[#f8f9fc] text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+              <tr>
+                <th className="px-4 py-3">Orden</th>
+                <th className="px-4 py-3">Proveedor</th>
+                <th className="px-4 py-3">Emisor</th>
+                {isVistaAprobaciones && <th className="px-4 py-3">Proyecto</th>}
+                <th className="px-4 py-3">Fecha</th>
+                <th className="px-4 py-3">Concepto</th>
+                {isAdmin && <th className="px-4 py-3 text-right">Total</th>}
+                <th className="px-4 py-3 text-center">Estado</th>
+                {isAdmin && <th className="px-4 py-3 text-center">Pago</th>}
+                <th className="px-4 py-3 text-center w-28">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {!ordenLoading && ordenes.map((o) => (
+                <tr key={o.id} className="hover:bg-slate-50/70 transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: CO_PRIMARY }}>{o.numero}</td>
+                  <td className="px-4 py-3 font-medium" style={{ color: CO_NAVY }}>{o.proveedor?.nombre || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600 text-xs">{o.usuario?.nombre || '—'}</td>
+                  {isVistaAprobaciones && (
+                    <td className="px-4 py-3 text-slate-700 text-xs max-w-[180px] truncate" title={getOrdenProyectoLabel(o) || ''}>
+                      {getOrdenProyectoLabel(o) || '—'}
+                    </td>
+                  )}
+                  <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(o.fecha)}</td>
+                  <td className="px-4 py-3 text-slate-700 text-xs max-w-[220px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
+                  {isAdmin && <td className="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{fmt(o.total)}</td>}
+                  <td className="px-4 py-3 text-center">{renderBadge(ESTADO_BADGES, o.estado)}</td>
+                  {isAdmin && <td className="px-4 py-3 text-center">{renderBadge(PAGO_BADGES, o.estadoPago)}</td>}
+                  <td className="px-4 py-3">{renderOrdenActions(o)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {!ordenLoading && ordenes.map(o => (
-                  <tr key={o.id} className="co-tr">
-                    <td className="font-mono text-xs font-semibold text-slate-700">{o.numero}</td>
-                    <td className="font-semibold text-slate-800">{o.proveedor?.nombre || '—'}</td>
-                    <td className="text-slate-600 text-xs font-medium">{o.usuario?.nombre || '—'}</td>
-                    <td className="text-slate-500 text-xs">{fmtDate(o.fecha)}</td>
-                    <td className="text-slate-700 text-xs font-semibold max-w-[200px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
-                    <td className="text-slate-400 text-xs max-w-[150px] truncate" title={o.notas}>{o.notas || '—'}</td>
-                    {isAdmin && <td className="text-right font-semibold text-slate-800">{fmt(o.total)}</td>}
-                    <td className="text-center">
-                      <span className="co-badge" style={{ background: ESTADO_BADGES[o.estado]?.bg, color: ESTADO_BADGES[o.estado]?.color }}>
-                        {ESTADO_BADGES[o.estado]?.label || o.estado}
-                      </span>
-                    </td>
-                    {isAdmin && (
-                      <td className="text-center">
-                        <span className="co-badge" style={{ background: PAGO_BADGES[o.estadoPago]?.bg, color: PAGO_BADGES[o.estadoPago]?.color }}>
-                          {PAGO_BADGES[o.estadoPago]?.label || o.estadoPago}
-                        </span>
-                      </td>
-                    )}
-                    <td>
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => openPDFPreview(o)} className="co-action-btn co-action-blue" title="Ver Previsualización PDF">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                          </svg>
-                        </button>
-                        {o.estado === 'cancelada' && o.notas && (
-                          <button
-                            onClick={() => openViewReasonModal(o.notas, o.numero)}
-                            className="co-action-btn co-action-red"
-                            style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444' }}
-                            title="Ver Motivo de Rechazo"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                          </button>
-                        )}
-                        {isAdmin && o.estado === 'pendiente_aprobacion' && (
-                          <button
-                            onClick={() => navigate(`/compras/aprobacion/${o.id}`, { state: { ordenFromList: o } })}
-                            className="co-action-btn co-action-blue"
-                            title="Revisar y aprobar"
-                            style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                            </svg>
-                          </button>
-                        )}
-                        {isAdmin && isOrdenEditable(o.estado) && (
-                            <button onClick={() => navigate(`/compras/editar/${o.id}`)} className="co-action-btn co-action-blue" title="Editar">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                              </svg>
-                            </button>
-                        )}
-                        {isAdmin && (
-                            <button onClick={() => handleOrdenDelete(o.id)} className="co-action-btn co-action-red" title="Eliminar">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                              </svg>
-                            </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!ordenLoading && ordenes.length === 0 && (
-                  <tr><td colSpan={isAdmin ? 10 : 8} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron órdenes de compra</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-        {/* Mobile View: Cards */}
-        <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
-          <div className="prest-mobile-cards">
-            {ordenLoading && (
-              <div className="flex justify-center py-8">
-                <div className="co-spinner" />
-              </div>
-            )}
-            {!ordenLoading && ordenes.map(o => (
-              <div key={o.id} className="prest-card">
-                <div className="prest-card-header">
-                  <div>
-                    <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>{o.numero}</span>
-                    <span className="prest-card-tool-name">{o.proveedor?.nombre || '—'}</span>
-                  </div>
-                  <span className="co-badge" style={{ background: ESTADO_BADGES[o.estado]?.bg, color: ESTADO_BADGES[o.estado]?.color, fontSize: '0.7rem' }}>
-                    {ESTADO_BADGES[o.estado]?.label || o.estado}
-                  </span>
-                </div>
-                <div className="prest-card-body">
-                  <div className="prest-card-field">
-                    <span className="prest-card-field-label">Emisor</span>
-                    <span className="prest-card-field-value">{o.usuario?.nombre || '—'}</span>
-                  </div>
-                  <div className="prest-card-field">
-                    <span className="prest-card-field-label">Fecha</span>
-                    <span className="prest-card-field-value">{fmtDate(o.fecha)}</span>
-                  </div>
-                  <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
-                    <span className="prest-card-field-label">Concepto</span>
-                    <span className="prest-card-field-value">{o.concepto || '—'}</span>
-                  </div>
-                  <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
-                    <span className="prest-card-field-label">Observaciones</span>
-                    <span className="prest-card-field-value text-slate-500" style={{ fontSize: '0.75rem' }}>{o.notas || '—'}</span>
-                  </div>
-                  {isAdmin && (
-                    <div className="prest-card-field">
-                      <span className="prest-card-field-label">Total</span>
-                      <span className="prest-card-field-value" style={{ fontWeight: 700 }}>{fmt(o.total)}</span>
-                    </div>
-                  )}
-                  {isAdmin && (
-                    <div className="prest-card-field">
-                      <span className="prest-card-field-label">Pago</span>
-                      <span className="prest-card-field-value">
-                        <span className="co-badge" style={{ background: PAGO_BADGES[o.estadoPago]?.bg, color: PAGO_BADGES[o.estadoPago]?.color, fontSize: '0.7rem' }}>
-                          {PAGO_BADGES[o.estadoPago]?.label || o.estadoPago}
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="prest-card-footer">
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex gap-2">
-                      <button onClick={() => openPDFPreview(o)} className="co-action-btn co-action-blue" title="Ver Previsualización PDF" style={{ border: '1px solid #e2e8f0' }}>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        </svg>
-                      </button>
-                      {o.estado === 'cancelada' && o.notas && (
-                        <button
-                          onClick={() => openViewReasonModal(o.notas, o.numero)}
-                          className="co-action-btn co-action-red"
-                          style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid #fecaca' }}
-                          title="Ver Motivo de Rechazo"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                    {isAdmin && isOrdenEditable(o.estado) && (
-                        <button onClick={() => navigate(`/compras/editar/${o.id}`)} className="co-action-btn co-action-blue" title="Editar" style={{ border: '1px solid #e2e8f0' }}>
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                          </svg>
-                        </button>
-                    )}
-                    {isAdmin && (
-                        <button onClick={() => handleOrdenDelete(o.id)} className="co-action-btn co-action-red" title="Eliminar" style={{ border: '1px solid #fecaca' }}>
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                        </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {!ordenLoading && ordenes.length === 0 && (
-              <div className="prest-empty text-center py-8">
-                No se encontraron órdenes de compra
-              </div>
-            )}
-          </div>
+              ))}
+              {!ordenLoading && ordenes.length === 0 && (
+                <tr><td colSpan={isAdmin ? (isVistaAprobaciones ? 10 : 9) : 7} className="px-4 py-16 text-center text-slate-400 text-sm">{emptyMessage}</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {ordenTotalPages > 1 && (
-          <div className="prest-pagination">
-            <span className="prest-pagination-info">
-              {ordenTotal} órdenes ({ordenPage} de {ordenTotalPages})
-            </span>
-            <div className="prest-pagination-pages">
-              <button
-                type="button"
-                className="prest-page-btn"
-                disabled={ordenPage <= 1}
-                onClick={() => setOrdenPage(p => p - 1)}
-              >
-                &lt;
-              </button>
-              {renderPageButtons()}
-              <button
-                type="button"
-                className="prest-page-btn"
-                disabled={ordenPage >= ordenTotalPages}
-                onClick={() => setOrdenPage(p => p + 1)}
-              >
-                &gt;
-              </button>
-            </div>
+        <div className="px-5 py-3 border-t border-slate-100 flex flex-row items-center justify-between gap-3 bg-white">
+          <p className="text-xs text-slate-500">
+            Mostrando {showingFrom} a {showingTo} de {ordenTotal} órdenes
+          </p>
+          <div className="flex items-center gap-1">
+            <button type="button" disabled={ordenPage <= 1} onClick={() => setOrdenPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50">&lt;</button>
+            {Array.from({ length: Math.min(5, ordenTotalPages) }, (_, i) => {
+              const maxVisible = Math.min(5, ordenTotalPages);
+              let start = Math.max(1, ordenPage - Math.floor(maxVisible / 2));
+              const end = Math.min(ordenTotalPages, start + maxVisible - 1);
+              if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+              const pageNum = start + i;
+              if (pageNum > end) return null;
+              const isActive = ordenPage === pageNum;
+              return (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setOrdenPage(pageNum)}
+                  className={`w-8 h-8 rounded-lg border text-sm font-medium transition-colors ${isActive ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  style={isActive ? { backgroundColor: CO_PRIMARY, borderColor: CO_PRIMARY } : undefined}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button type="button" disabled={ordenPage >= ordenTotalPages} onClick={() => setOrdenPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50">&gt;</button>
           </div>
-        )}
+        </div>
+      </div>
       </div>
 
       {/* Registrar Abono Modal */}
@@ -607,108 +764,6 @@ export const ComprasPage = () => {
                     <button type="submit" disabled={abonoSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
                       {abonoSaving && <div className="co-spinner-sm" />}
                       Registrar Gasto
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </ModalPortal>
-
-      <ModalPortal open={recepcionModalOpen}>
-        <div className="co-portal-root">
-          <div className="co-overlay" onClick={() => setRecepcionModalOpen(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal animate-co-modal-in" style={{ maxWidth: '720px', width: '95%' }}>
-              <div className="co-modal-header">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-800">Recibir productos</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Orden: <span className="font-semibold text-slate-700">{recepcionOrden?.numero}</span> &middot; Proveedor: <span className="font-semibold text-slate-700">{recepcionOrden?.proveedor?.nombre}</span>
-                  </p>
-                </div>
-                <button type="button" onClick={() => setRecepcionModalOpen(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              <div className="co-modal-body">
-                <form onSubmit={handleRecepcionSave} className="space-y-4">
-                  <div className="overflow-x-auto border border-slate-100 rounded-lg">
-                    <table className="co-table text-left" style={{ margin: 0 }}>
-                      <thead style={{ background: '#f8fafc' }}>
-                        <tr>
-                          <th className="py-2 px-3 text-xs font-bold text-slate-500">Descripción / Artículo</th>
-                          <th className="py-2 px-3 text-xs font-bold text-slate-500 text-center w-24">Tipo</th>
-                          <th className="py-2 px-3 text-xs font-bold text-slate-500 text-right w-28">Cant. Pedida</th>
-                          <th className="py-2 px-3 text-xs font-bold text-slate-500 text-right w-36">Cant. Recibida</th>
-                          <th className="py-2 px-3 text-xs font-bold text-slate-500 text-center w-28">Inventario</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recepcionDetalles.map((det, index) => (
-                          <tr key={index} className="border-t border-slate-100">
-                            <td className="py-2.5 px-3 text-xs font-semibold text-slate-700">{det.descripcion}</td>
-                            <td className="py-2.5 px-3 text-center">
-                              {det.materialId ? (
-                                <span className="px-2 py-0.5 text-[9px] font-bold rounded-full text-blue-600 bg-blue-50">Insumo</span>
-                              ) : (
-                                <span className="px-2 py-0.5 text-[9px] font-bold rounded-full text-slate-500 bg-slate-50">Servicio/Otro</span>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-3 text-right text-xs font-medium text-slate-500">{det.cantidadOriginal}</td>
-                            <td className="py-2.5 px-3">
-                              <input
-                                type="number"
-                                className="co-input text-right"
-                                style={{ height: '32px', padding: '2px 8px', fontSize: '12px', width: '100%' }}
-                                min="0"
-                                max={det.cantidadOriginal * 2}
-                                step="any"
-                                value={det.cantidadRecibida}
-                                onChange={(e) => {
-                                  const valStr = e.target.value;
-                                  setRecepcionDetalles(prev => prev.map((item, idx) =>
-                                    idx === index ? { ...item, cantidadRecibida: valStr } : item
-                                  ));
-                                }}
-                                onWheel={e => e.target.blur()}
-                                required
-                              />
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <input
-                                type="checkbox"
-                                checked={det.descargableInventario && !!det.materialId}
-                                disabled={!det.materialId}
-                                title={det.materialId ? 'Suma al inventario' : 'Sin material vinculado'}
-                                onChange={(e) => {
-                                  setRecepcionDetalles(prev => prev.map((item, idx) =>
-                                    idx === index ? { ...item, descargableInventario: e.target.checked } : item
-                                  ));
-                                }}
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="p-3 bg-amber-50/60 border border-amber-200/50 rounded-lg flex gap-3 text-amber-800 text-xs">
-                    <svg className="w-5 h-5 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div>
-                      <span className="font-bold">Nota:</span> Solo los items con <span className="font-bold text-slate-800">Inventario</span> marcado y vinculados a un material ingresarán al stock (lona, vinil por metro). Desmarca para tinta u otros que no se controlan así.
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                    <button type="button" onClick={() => setRecepcionModalOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={recepcionSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', boxShadow: '0 4px 14px rgba(139,92,246,0.3)' }}>
-                      {recepcionSaving && <div className="co-spinner-sm" />}
-                      Confirmar productos recibidos
                     </button>
                   </div>
                 </form>

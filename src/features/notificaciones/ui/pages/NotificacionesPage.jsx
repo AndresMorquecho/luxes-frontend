@@ -52,7 +52,7 @@ const getNotificationRoute = (notification) => {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     const userRole = (user?.rol || '').toLowerCase();
     const isAdmin = userRole === 'admin' || userRole === 'administrador';
-    return isAdmin ? '/compras/aprobaciones' : '/compras';
+    return isAdmin ? '/compras?vista=aprobaciones' : '/compras';
   }
   
   // Tareas -> Panel de tareas

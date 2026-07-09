@@ -15,7 +15,8 @@ export function calcularHorasExtras(empleados, horasExtras) {
 
   // Inicializar acumuladores para todos los empleados
   empleados.forEach(emp => {
-    porColaborador[emp.id] = {
+    const id = String(emp.id);
+    porColaborador[id] = {
       empleadoId: emp.id,
       nombre: emp.nombre,
       horas: 0,
@@ -27,7 +28,7 @@ export function calcularHorasExtras(empleados, horasExtras) {
   // Acumular horas extras
   horasExtras.forEach(registro => {
     if (registro.aprobacionEstado && registro.aprobacionEstado !== 'APROBADA') return;
-    const colId = registro.colaboradorId;
+    const colId = String(registro.colaboradorId);
     if (porColaborador[colId]) {
       const totalRegistro = Number(registro.horas) * Number(registro.valorPorHora);
       porColaborador[colId].horas += Number(registro.horas);

@@ -13,6 +13,25 @@ const getHeaders = () => {
   };
 };
 
+const serializeOvertimeRecord = (he) => {
+  const src = he || {};
+  const horas = Number(src.horas);
+  const valorPorHora = Number(src.valorPorHora ?? 2.5);
+  return {
+    id: src.id,
+    fecha: src.fecha,
+    colaboradorId: String(src.colaboradorId),
+    horas,
+    detalleHorario: src.detalleHorario || '',
+    descripcion: src.descripcion || '',
+    valorPorHora,
+    total: src.total !== undefined ? Number(src.total) : horas * valorPorHora,
+    estado: src.estado || 'DEUDOR',
+    aprobacionEstado: src.aprobacionEstado || 'APROBADA',
+    origen: src.origen || 'MANUAL',
+  };
+};
+
 /**
  * Adaptador de API HTTP para Nómina (Hexagonal).
  * Implementa la interfaz/puerto NominaRepositoryPort conectándose al backend mediante REST API.
@@ -35,6 +54,9 @@ export class NominaApiAdapter extends NominaRepositoryPort {
     });
     if (!response.ok) throw new Error('Error al obtener colaboradores del servidor.');
     const json = await response.json();
+    if (json?.success === false) {
+      throw new Error(json?.error?.message || 'Error al obtener colaboradores del servidor.');
+    }
     const arr = Array.isArray(json) ? json : json.data || [];
     return arr.map(emp => new Empleado(emp));
   }
@@ -119,15 +141,35 @@ export class NominaApiAdapter extends NominaRepositoryPort {
    * @returns {Promise<Array<HoraExtra>>}
    */
   async saveOvertime(horasExtras, fechaInicio, fechaFin) {
+    const payload = (horasExtras || []).map(serializeOvertimeRecord);
     const response = await fetch(`${this.baseUrl}/nomina/horas-extras`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ horasExtras, fechaInicio, fechaFin }),
+      body: JSON.stringify({ horasExtras: payload, fechaInicio, fechaFin }),
     });
-    if (!response.ok) throw new Error('Error al guardar las horas extras en el servidor.');
+    if (!response.ok) {
+      let detail = 'Error al guardar las horas extras en el servidor.';
+      try {
+        const errJson = await response.json();
+        detail = errJson?.error?.message || errJson?.message || detail;
+      } catch {
+        // ignore parse errors
+      }
+      throw new Error(detail);
+    }
     const json = await response.json();
     const arr = Array.isArray(json) ? json : json.data || [];
     return arr.map(he => new HoraExtra(he));
+  }
+
+  async deleteOvertime(id) {
+    const response = await fetch(`${this.baseUrl}/nomina/horas-extras/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al eliminar horas extras.');
+    const json = await response.json();
+    return json.success || false;
   }
 
   /**

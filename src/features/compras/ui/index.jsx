@@ -4,7 +4,6 @@ import { ComprasPage } from './pages/ComprasPage';
 import { FormOrdenCompraPage } from './pages/FormOrdenCompraPage';
 import { CuentasPorPagarPage } from './pages/CuentasPorPagarPage';
 import { MetodosPagoPage } from './pages/MetodosPagoPage';
-import { AprobacionOrdenesPage } from './pages/AprobacionOrdenesPage';
 import { DetalleAprobacionPage } from './pages/DetalleAprobacionPage';
 import { RecepcionInsumosListPage } from '../../inventario/ui/recepcion/RecepcionInsumosListPage';
 import { RecepcionInsumosFormPage } from '../../inventario/ui/recepcion/RecepcionInsumosFormPage';
@@ -49,9 +48,9 @@ export default function ComprasFeature() {
       <Route path="recepcion/:ordenId" element={<RecepcionInsumosFormPage basePath="/compras/recepcion" />} />
       <Route path="cuentas-por-pagar" element={<CuentasPorPagarPage />} />
       <Route path="metodos-pago" element={<MetodosPagoPage />} />
-      <Route 
-        path="aprobaciones" 
-        element={hasAprobacionPermission ? <AprobacionOrdenesPage /> : <Navigate to="/compras" replace />} 
+      <Route
+        path="aprobaciones"
+        element={<Navigate to="/compras?vista=aprobaciones" replace />}
       />
       <Route 
         path="aprobacion/:id" 

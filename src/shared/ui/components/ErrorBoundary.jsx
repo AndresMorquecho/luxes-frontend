@@ -3,7 +3,7 @@ import React from 'react';
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null };
+    this.state = { error: null, remountKey: 0 };
   }
 
   static getDerivedStateFromError(error) {
@@ -12,10 +12,23 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('[ErrorBoundary]', error, info?.componentStack);
+
+    // React 19 + sticky/portals: remount después del commit fallido.
+    const isDomRace =
+      error?.name === 'NotFoundError' ||
+      (typeof error?.message === 'string' && error.message.includes('removeChild'));
+    if (isDomRace) {
+      window.setTimeout(() => {
+        this.setState((s) => ({
+          error: null,
+          remountKey: (s.remountKey || 0) + 1,
+        }));
+      }, 50);
+    }
   }
 
   handleReset = () => {
-    this.setState({ error: null });
+    this.setState((s) => ({ error: null, remountKey: (s.remountKey || 0) + 1 }));
     if (this.props.onReset) {
       this.props.onReset();
     } else {
@@ -24,8 +37,17 @@ export class ErrorBoundary extends React.Component {
   };
 
   render() {
-    const { error } = this.state;
-    if (!error) return this.props.children;
+    const { error, remountKey = 0 } = this.state;
+    if (!error) {
+      return <React.Fragment key={remountKey}>{this.props.children}</React.Fragment>;
+    }
+
+    const isDomRace =
+      error?.name === 'NotFoundError' ||
+      (typeof error?.message === 'string' && error.message.includes('removeChild'));
+    if (isDomRace) {
+      return null;
+    }
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
