@@ -1189,9 +1189,9 @@ input[type="number"] {
 }
 .co-tab:hover { color: #334155; background: rgba(241,245,249,0.9); }
 .co-tab-active {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: #2b41b8;
   color: white;
-  box-shadow: 0 4px 12px rgba(37,99,235,0.25);
+  box-shadow: 0 4px 12px rgba(43, 65, 184, 0.3);
 }
 
 .co-filter-chips {
@@ -1519,4 +1519,12 @@ input[type="number"] {
   .prest-devoluciones-mobile-only {
     display: none !important;
   }
+}
+
+/* ── Compras móvil ────────────────────────────────────────────────────────── */
+.co-kpi-mobile {
+  min-height: 0;
+}
+.co-orden-row:active {
+  background-color: rgba(248, 250, 252, 0.9);
 }

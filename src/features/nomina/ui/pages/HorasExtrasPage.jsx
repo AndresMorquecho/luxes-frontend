@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NominaContext } from '../../application/context/NominaContext';
 import { obtenerFechasPeriodo } from '../../application/hooks/useNomina';
@@ -20,31 +20,63 @@ export const HorasExtrasPage = () => {
   const [overtime, setOvertime] = useState([]);
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [vista, setVista] = useState('planilla'); // planilla | resumen
+  const loadSeqRef = useRef(0);
 
   const fechasMes = useMemo(
     () => obtenerFechasPeriodo(year, month, 'mensual'),
     [year, month],
   );
 
+  const normalizeOvertimeRecord = (he) => ({
+    id: he.id,
+    fecha: he.fecha,
+    colaboradorId: String(he.colaboradorId),
+    horas: Number(he.horas),
+    detalleHorario: he.detalleHorario || '',
+    descripcion: he.descripcion || '',
+    valorPorHora: Number(he.valorPorHora ?? 2.5),
+    total: he.total !== undefined ? Number(he.total) : Number(he.horas) * Number(he.valorPorHora ?? 2.5),
+    estado: he.estado || 'DEUDOR',
+    aprobacionEstado: he.aprobacionEstado || 'APROBADA',
+    origen: he.origen || 'MANUAL',
+  });
+
   const loadAll = useCallback(async () => {
     if (!adapter) return;
+    const seq = ++loadSeqRef.current;
     setLoading(true);
+
     try {
-      const [emps, ot, pend] = await Promise.all([
-        adapter.getEmployees(),
+      const emps = await adapter.getEmployees();
+      if (seq !== loadSeqRef.current) return;
+      setEmployees(Array.isArray(emps) ? emps : []);
+    } catch (err) {
+      if (seq !== loadSeqRef.current) return;
+      console.error('[HorasExtrasPage] colaboradores:', err);
+      setEmployees([]);
+      toast.error(err.message || 'Error al cargar colaboradores');
+    }
+
+    try {
+      const [ot, pend] = await Promise.all([
         adapter.getOvertime(fechasMes.fechaInicio, fechasMes.fechaFin),
         adapter.getPendingOvertime(),
       ]);
-      setEmployees(emps);
-      setOvertime(ot);
+      if (seq !== loadSeqRef.current) return;
+      setOvertime(Array.isArray(ot) ? ot : []);
       const pendMes = (pend || []).filter(
         (p) => p.fecha >= fechasMes.fechaInicio && p.fecha <= fechasMes.fechaFin,
       );
       setPending(pendMes);
     } catch (err) {
+      if (seq !== loadSeqRef.current) return;
+      console.error('[HorasExtrasPage] horas extras:', err);
       toast.error(err.message || 'Error al cargar horas extras');
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [adapter, fechasMes]);
 
@@ -52,9 +84,38 @@ export const HorasExtrasPage = () => {
     loadAll();
   }, [loadAll]);
 
+  const refreshOvertime = useCallback(async () => {
+    const [ot, pend] = await Promise.all([
+      adapter.getOvertime(fechasMes.fechaInicio, fechasMes.fechaFin),
+      adapter.getPendingOvertime(),
+    ]);
+    setOvertime(Array.isArray(ot) ? ot : []);
+    const pendMes = (pend || []).filter(
+      (p) => p.fecha >= fechasMes.fechaInicio && p.fecha <= fechasMes.fechaFin,
+    );
+    setPending(pendMes);
+    return ot;
+  }, [adapter, fechasMes]);
+
   const handleSaveOvertime = async (updatedOvertime) => {
-    await adapter.saveOvertime(updatedOvertime, fechasMes.fechaInicio, fechasMes.fechaFin);
-    await loadAll();
+    const existing = await adapter.getOvertime(fechasMes.fechaInicio, fechasMes.fechaFin);
+    const approvedExisting = (existing || []).filter(
+      (he) => he.aprobacionEstado === 'APROBADA' || !he.aprobacionEstado,
+    );
+    const byId = new Map();
+    approvedExisting.forEach((he) => byId.set(String(he.id), normalizeOvertimeRecord(he)));
+    (updatedOvertime || []).forEach((he) => byId.set(String(he.id), normalizeOvertimeRecord(he)));
+    const merged = Array.from(byId.values());
+    await adapter.saveOvertime(merged, fechasMes.fechaInicio, fechasMes.fechaFin);
+    await refreshOvertime();
+  };
+
+  const handleDeleteOvertime = async (id) => {
+    try {
+      await adapter.deleteOvertime(id);
+    } finally {
+      await loadAll();
+    }
   };
 
   const handleApprove = async (id) => {
@@ -92,7 +153,22 @@ export const HorasExtrasPage = () => {
     return result;
   };
 
-  if (loading && employees.length === 0) {
+  const approvedOvertime = useMemo(
+    () =>
+      (overtime || []).filter(
+        (he) => he.aprobacionEstado === 'APROBADA' || !he.aprobacionEstado,
+      ),
+    [overtime],
+  );
+
+  const resumenColaboradoresCount = useMemo(() => {
+    const ids = new Set(
+      approvedOvertime.map((he) => String(he.colaboradorId)).filter(Boolean),
+    );
+    return ids.size;
+  }, [approvedOvertime]);
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
         Cargando planilla de horas extras...
@@ -100,44 +176,113 @@ export const HorasExtrasPage = () => {
     );
   }
 
+  const periodoLabel = `${MESES[month - 1]} ${year}`;
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Registro de Horas Extras</h1>
-          <p className="text-sm text-slate-500">
-            Valida solicitudes del quiosco y gestiona la planilla del mes.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+    <div className="space-y-3 sm:space-y-5 animate-slide-up">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-3 sm:px-5 py-3 sm:py-4 space-y-3">
+          <div className="flex items-start gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/nomina/nomina-del-mes')}
+              className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
+              aria-label="Volver a nómina"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <h1 className="text-base sm:text-xl font-bold text-slate-800 leading-tight">Horas Extras</h1>
+                  <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                    {vista === 'resumen' ? 'Resumen' : 'Planilla'}
+                  </span>
+                </div>
+                <p className="hidden sm:block text-sm text-slate-500 mt-0.5">
+                  {vista === 'resumen'
+                    ? `Horas acumuladas por colaborador en ${periodoLabel}`
+                    : 'Valida solicitudes del quiosco y gestiona la planilla del mes'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex w-full rounded-lg sm:rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+            <label className="sr-only" htmlFor="he-mes">Mes</label>
             <select
+              id="he-mes"
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
+              className="flex-1 min-w-0 h-9 sm:h-10 pl-3 pr-2 text-xs sm:text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
             >
               {MESES.map((m, i) => (
                 <option key={m} value={i + 1}>{m}</option>
               ))}
             </select>
+            <div className="w-px h-5 sm:h-6 bg-slate-200 self-center" />
+            <label className="sr-only" htmlFor="he-anio">Año</label>
             <select
+              id="he-anio"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
+              className="w-[88px] sm:w-auto h-9 sm:h-10 pl-2 pr-3 text-xs sm:text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
             >
               {[year - 1, year, year + 1].map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/nomina/nomina-del-mes')}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm shrink-0"
-            style={{ backgroundColor: '#1d4ed8' }}
-          >
-            Volver a Nómina
-          </button>
+
+          <div className="flex gap-1 p-1 rounded-lg bg-slate-100 sm:bg-slate-50/50 sm:p-0 sm:rounded-none sm:border-t sm:border-slate-100 sm:pt-3">
+            <button
+              type="button"
+              onClick={() => setVista('planilla')}
+              className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                vista === 'planilla'
+                  ? 'bg-white text-blue-700 shadow-sm border border-blue-100 sm:border-blue-100'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60 border border-transparent'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v3.75" />
+              </svg>
+              Planilla
+              {approvedOvertime.length > 0 && (
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 tabular-nums">
+                  {approvedOvertime.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setVista('resumen')}
+              className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                vista === 'resumen'
+                  ? 'bg-white text-blue-700 shadow-sm border border-blue-100 sm:border-blue-100'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60 border border-transparent'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" />
+              </svg>
+              Resumen
+              {resumenColaboradoresCount > 0 && (
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 tabular-nums">
+                  {resumenColaboradoresCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -145,12 +290,15 @@ export const HorasExtrasPage = () => {
         employees={employees}
         initialOvertime={overtime}
         pendingOvertime={pending}
+        loading={loading}
         onSave={handleSaveOvertime}
+        onDelete={handleDeleteOvertime}
         onApprove={handleApprove}
         onReject={handleReject}
         onPatchOvertime={handlePatchOvertime}
         fechasActuales={fechasMes}
-        periodoLabel={`${MESES[month - 1]} ${year}`}
+        periodoLabel={periodoLabel}
+        activeView={vista}
       />
     </div>
   );

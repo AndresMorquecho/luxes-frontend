@@ -19,13 +19,14 @@ export async function getProveedores() {
 
 export async function getOrdenes(options = {}) {
   const params = new URLSearchParams();
-  const { page, limit, search, estado, estados, estadoPago, creadorRol, creadorId, pendienteRecepcion, fechaInicio, fechaFin, proyectoId } = options;
+  const { page, limit, search, estado, estados, estadoPago, proveedorId, creadorRol, creadorId, pendienteRecepcion, fechaInicio, fechaFin, proyectoId } = options;
   if (page) params.append('page', page);
   if (limit) params.append('limit', limit);
   if (search) params.append('search', search);
   if (estado) params.append('estado', estado);
   if (estados?.length) params.append('estados', estados.join(','));
   if (estadoPago) params.append('estadoPago', estadoPago);
+  if (proveedorId) params.append('proveedorId', proveedorId);
   if (creadorRol) params.append('creadorRol', creadorRol);
   if (creadorId) params.append('creadorId', creadorId);
   if (pendienteRecepcion) params.append('pendienteRecepcion', 'true');

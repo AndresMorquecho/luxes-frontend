@@ -912,43 +912,43 @@ const QuincenaTable = ({
         <table className="min-w-full text-xs border-collapse">
           <thead className="z-30 shadow-xs">
             <tr className="bg-slate-100 text-xs uppercase font-bold text-slate-700 border-b border-slate-200">
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-100 sticky top-0 left-0 z-40 border-r-2 border-r-slate-350 w-[320px] min-w-[320px] max-w-[320px]">Colaborador</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-50 sticky top-0 z-30">Sueldo Base</th>
-              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-violet-50 text-violet-950 sticky top-0 z-30">Provisiones (no neto)</th>
-              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950 sticky top-0 z-30">Ingresos al Neto (+)</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-red-50 text-red-950 sticky top-0 z-30">Egresos / Descuentos (-)</th>
-              <th colSpan={6} className="border border-slate-200 px-2 py-2 text-center bg-blue-50 text-blue-950 sticky top-0 z-30">Liquidación Final</th>
-              <th rowSpan={2} className="border border-slate-200 px-2 py-2.5 text-center w-28 bg-slate-100 text-slate-700 sticky top-0 z-30">Acción</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-100 sticky top-0 left-0 z-40 border-r-2 border-r-slate-350 w-[320px] min-w-[320px] max-w-[320px]"><span>Colaborador</span></th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-50 sticky top-0 z-30"><span>Sueldo Base</span></th>
+              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-violet-50 text-violet-950 sticky top-0 z-30"><span>Provisiones (no neto)</span></th>
+              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950 sticky top-0 z-30"><span>Ingresos al Neto (+)</span></th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-red-50 text-red-950 sticky top-0 z-30"><span>Egresos / Descuentos (-)</span></th>
+              <th colSpan={6} className="border border-slate-200 px-2 py-2 text-center bg-blue-50 text-blue-950 sticky top-0 z-30"><span>Liquidación Final</span></th>
+              <th rowSpan={2} className="border border-slate-200 px-2 py-2.5 text-center w-28 bg-slate-100 text-slate-700 sticky top-0 z-30"><span>Acción</span></th>
             </tr>
             <tr className="bg-slate-50 text-[11px] uppercase font-bold text-slate-600 border-b border-slate-200">
-              <th className="border border-slate-200 px-1 py-2 text-center w-[40px] min-w-[40px] max-w-[40px] sticky top-[38px] left-0 z-40 bg-slate-100">#</th>
-              <th className="border border-slate-200 px-2 py-2 text-left w-[190px] min-w-[190px] max-w-[190px] sticky top-[38px] left-[40px] z-40 bg-slate-100">Nombres</th>
-              <th className="border border-slate-200 px-2 py-2 text-center w-[90px] min-w-[90px] max-w-[90px] sticky top-[38px] left-[230px] z-40 bg-slate-100 border-r-2 border-r-slate-300">Contrato</th>
+              <th className="border border-slate-200 px-1 py-2 text-center w-[40px] min-w-[40px] max-w-[40px] sticky top-[38px] left-0 z-40 bg-slate-100"><span>#</span></th>
+              <th className="border border-slate-200 px-2 py-2 text-left w-[190px] min-w-[190px] max-w-[190px] sticky top-[38px] left-[40px] z-40 bg-slate-100"><span>Nombres</span></th>
+              <th className="border border-slate-200 px-2 py-2 text-center w-[90px] min-w-[90px] max-w-[90px] sticky top-[38px] left-[230px] z-40 bg-slate-100 border-r-2 border-r-slate-300"><span>Contrato</span></th>
               
-              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50 sticky top-[38px] z-30">Diario</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-slate-50 sticky top-[38px] z-30">Días T.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50 sticky top-[38px] z-30">Sueldo B.</th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50 sticky top-[38px] z-30"><span>Diario</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-slate-50 sticky top-[38px] z-30"><span>Días T.</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50 sticky top-[38px] z-30"><span>Sueldo B.</span></th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900 sticky top-[38px] z-30">Prov. D3</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900 sticky top-[38px] z-30">Prov. D4</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950 sticky top-[38px] z-30">Acum. D3</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950 sticky top-[38px] z-30">Acum. D4</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900 sticky top-[38px] z-30"><span>Prov. D3</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900 sticky top-[38px] z-30"><span>Prov. D4</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950 sticky top-[38px] z-30"><span>Acum. D3</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950 sticky top-[38px] z-30"><span>Acum. D4</span></th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30" title="Monto de horas extras aprobadas en el período">H. Extras</th>
-              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30">Ingresos Var.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30">F. Res.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-emerald-100 text-emerald-950 font-black sticky top-[38px] z-30">Total +</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30" title="Monto de horas extras aprobadas en el período"><span>H. Extras</span></th>
+              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30"><span>Ingresos Var.</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30"><span>F. Res.</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-emerald-100 text-emerald-950 font-black sticky top-[38px] z-30"><span>Total +</span></th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-red-50 text-red-900 sticky top-[38px] z-30">IESS</th>
-              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-red-50 text-red-900 sticky top-[38px] z-30">Egresos Varios</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-red-100 text-red-950 font-black sticky top-[38px] z-30">Total -</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-red-50 text-red-900 sticky top-[38px] z-30"><span>IESS</span></th>
+              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-red-50 text-red-900 sticky top-[38px] z-30"><span>Egresos Varios</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-red-100 text-red-950 font-black sticky top-[38px] z-30"><span>Total -</span></th>
 
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[78px] bg-blue-50 text-blue-900 font-bold sticky top-[38px] z-30" title="Sueldo quincena y otros ingresos, menos descuentos">Neto Mens.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 font-bold sticky top-[38px] z-30" title="Monto neto por horas extras aprobadas">Neto H.E.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-amber-50 text-amber-900 font-bold sticky top-[38px] z-30" title="Horas extras registradas, pendientes de aprobación">H.E. Pend.</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-blue-100 text-blue-950 font-black sticky top-[38px] z-30">Total</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-green-100 text-green-950 font-black sticky top-[38px] z-30">Pagado</th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-orange-100 text-orange-950 font-black sticky top-[38px] z-30">Pendiente</th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[78px] bg-blue-50 text-blue-900 font-bold sticky top-[38px] z-30" title="Sueldo quincena y otros ingresos, menos descuentos"><span>Neto Mens.</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 font-bold sticky top-[38px] z-30" title="Monto neto por horas extras aprobadas"><span>Neto H.E.</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-amber-50 text-amber-900 font-bold sticky top-[38px] z-30" title="Horas extras registradas, pendientes de aprobación"><span>H.E. Pend.</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-blue-100 text-blue-950 font-black sticky top-[38px] z-30"><span>Total</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-green-100 text-green-950 font-black sticky top-[38px] z-30"><span>Pagado</span></th>
+              <th className="border border-slate-200 px-1 py-2 text-center bg-orange-100 text-orange-950 font-black sticky top-[38px] z-30"><span>Pendiente</span></th>
             </tr>
           </thead>
 
@@ -1812,10 +1812,10 @@ export const NominaMesTab = () => {
         </button>
       </div>
 
-      {/* Una sola tabla activa: evita doble montaje con sticky + React 19 */}
+      {/* Una sola tabla activa + key por quincena: remount limpio (sticky + React 19) */}
       <div className="bg-white rounded-b-xl border-x border-b border-slate-200 shadow-xs overflow-hidden min-h-[250px] transition-all">
         <QuincenaTable
-          key={`${year}-${month}`}
+          key={`${year}-${month}-${activeTab}`}
           label={
             activeTab === 'q1'
               ? `PRIMERA QUINCENA — ${mesLabel} ${year} (01 AL 15)`
@@ -1841,49 +1841,49 @@ export const NominaMesTab = () => {
         />
       </div>
 
-      <ModalPortal open={Boolean(payTarget)}>
-        {payTarget && (
-        <PayModal
-          emp={payTarget.emp}
-          monto={payTarget.monto}
-          maxMonto={payTarget.maxMonto}
-          restante={payTarget.restante}
-          isCross={payTarget.isCross}
-          quincenaLabel={`${mesLabel} ${year}`}
-          onClose={() => deferClose(() => setPayTarget(null))}
-          onConfirm={handleConfirmPago}
-          onMontoChange={handleMontoChange}
-        />
-        )}
-      </ModalPortal>
+      {payTarget ? (
+        <ModalPortal>
+          <PayModal
+            emp={payTarget.emp}
+            monto={payTarget.monto}
+            maxMonto={payTarget.maxMonto}
+            restante={payTarget.restante}
+            isCross={payTarget.isCross}
+            quincenaLabel={`${mesLabel} ${year}`}
+            onClose={() => deferClose(() => setPayTarget(null))}
+            onConfirm={handleConfirmPago}
+            onMontoChange={handleMontoChange}
+          />
+        </ModalPortal>
+      ) : null}
 
-      <ModalPortal open={Boolean(activeEgresoModal)}>
-        {activeEgresoModal && (
-        <DetalleEgresosModal
-          empleadoId={activeEgresoModal.empleadoId}
-          empleadoNombre={activeEgresoModal.empleadoNombre}
-          fechaInicio={activeEgresoModal.fechaInicio}
-          fechaFin={activeEgresoModal.fechaFin}
-          adapter={adapter}
-          onClose={() => deferClose(() => setActiveEgresoModal(null))}
-          onUpdate={loadAll}
-        />
-        )}
-      </ModalPortal>
+      {activeEgresoModal ? (
+        <ModalPortal>
+          <DetalleEgresosModal
+            empleadoId={activeEgresoModal.empleadoId}
+            empleadoNombre={activeEgresoModal.empleadoNombre}
+            fechaInicio={activeEgresoModal.fechaInicio}
+            fechaFin={activeEgresoModal.fechaFin}
+            adapter={adapter}
+            onClose={() => deferClose(() => setActiveEgresoModal(null))}
+            onUpdate={loadAll}
+          />
+        </ModalPortal>
+      ) : null}
 
-      <ModalPortal open={Boolean(activeIngresoModal)}>
-        {activeIngresoModal && (
-        <DetalleIngresosModal
-          empleadoId={activeIngresoModal.empleadoId}
-          empleadoNombre={activeIngresoModal.empleadoNombre}
-          fechaInicio={activeIngresoModal.fechaInicio}
-          fechaFin={activeIngresoModal.fechaFin}
-          adapter={adapter}
-          onClose={() => deferClose(() => setActiveIngresoModal(null))}
-          onUpdate={loadAll}
-        />
-        )}
-      </ModalPortal>
+      {activeIngresoModal ? (
+        <ModalPortal>
+          <DetalleIngresosModal
+            empleadoId={activeIngresoModal.empleadoId}
+            empleadoNombre={activeIngresoModal.empleadoNombre}
+            fechaInicio={activeIngresoModal.fechaInicio}
+            fechaFin={activeIngresoModal.fechaFin}
+            adapter={adapter}
+            onClose={() => deferClose(() => setActiveIngresoModal(null))}
+            onUpdate={loadAll}
+          />
+        </ModalPortal>
+      ) : null}
     </div>
   );
 };
