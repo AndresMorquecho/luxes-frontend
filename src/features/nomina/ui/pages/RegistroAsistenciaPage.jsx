@@ -67,7 +67,7 @@ export const RegistroAsistenciaPage = () => {
                   <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <PersonInitialsAvatar name={emp?.nombre} seed={emp?.id} size="sm" />
+                        <PersonInitialsAvatar name={emp?.nombre} seed={emp?.id} size="sm" image={emp?.foto} />
                         <span className="font-medium text-gray-800 normal-case">{emp?.nombre || `ID ${r.empleadoId}`}</span>
                       </div>
                     </td>

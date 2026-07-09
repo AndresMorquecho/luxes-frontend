@@ -820,14 +820,22 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
             }}
           >
             <div className="avatar-circle">
-              <span>{userInitial}</span>
+              {user?.foto ? (
+                <img src={user.foto} alt={userName} className="w-full h-full object-cover rounded-full" />
+              ) : (
+                <span>{userInitial}</span>
+              )}
             </div>
           </a>
         ) : (
           <div className="sidebar-profile-container">
             <div className="sidebar-profile-info-box">
               <div className="avatar-circle">
-                <span>{userInitial}</span>
+                {user?.foto ? (
+                  <img src={user.foto} alt={userName} className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  <span>{userInitial}</span>
+                )}
               </div>
               <div className="profile-info">
                 <span className="profile-name">{userName}</span>

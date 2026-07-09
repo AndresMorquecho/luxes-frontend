@@ -848,7 +848,7 @@ const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horario
     <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" />
+          <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" image={emp.foto} />
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-800 leading-snug normal-case">{emp.nombre}</p>
             <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
@@ -1309,7 +1309,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                       <tr key={emp.id} className="hover:bg-slate-50/40 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3 min-w-0">
-                            <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" />
+                            <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" image={emp.foto} />
                             <div className="min-w-0">
                               <p className="text-sm font-bold text-slate-800 truncate normal-case">{emp.nombre}</p>
                               <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
