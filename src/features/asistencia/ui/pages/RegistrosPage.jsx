@@ -305,9 +305,8 @@ const KioskView = () => {
 
     try {
       // Validar GPS antes de continuar con la marcación
-      const gpsState = getGeolocationSnapshot();
-      if (gpsState.status === 'denied' || gpsState.status === 'unavailable' || gpsState.error) {
-        throw new Error('La ubicación (GPS) es obligatoria para registrar la asistencia. Por favor, activa los permisos de ubicación.');
+      if (gpsStatus === 'denied' || gpsStatus === 'unavailable' || gpsStatus === 'unsupported' || ubicacionError) {
+        throw new Error('La ubicación (GPS) es obligatoria para registrar la asistencia. Por favor, activa los permisos de ubicación en tu navegador.');
       }
 
       const [marcaciones, proxima] = await Promise.all([
