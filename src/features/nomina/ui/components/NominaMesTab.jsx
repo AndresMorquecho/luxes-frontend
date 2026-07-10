@@ -63,301 +63,316 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-2xl w-full md:w-[94vw] lg:w-[88vw] max-w-6xl mx-4 overflow-hidden border border-slate-200 animate-slide-up"
+      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 overflow-hidden border border-slate-200 animate-slide-up"
         onClick={(e) => e.stopPropagation()}>
         
-        {/* Header - Blue theme */}
-        <div className="bg-blue-900 px-8 py-6 text-white flex justify-between items-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-800 rounded-full translate-x-12 -translate-y-12 opacity-30 pointer-events-none" />
-          <div className="relative z-10">
-            <h3 className="text-xl font-extrabold tracking-tight uppercase flex items-center gap-2">
-              <svg className="w-6 h-6 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        {/* Minimalist Header */}
+        <div className="bg-slate-50 px-8 py-5 border-b border-slate-200/80 flex justify-between items-center relative">
+          <div>
+            <h3 className="text-sm font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2">
+              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5m-18 0a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25m-18 0v12.5A2.25 2.25 0 0 0 5.25 17h13.5A2.25 2.25 0 0 0 21 14.75V4.5M9 9h.008v.008H9V9Zm.008 3h.008v.008H9.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Z" />
               </svg>
-              Confirmar Registro de Pago / Abono
+              Registro de Pago / Abono
             </h3>
-            <p className="text-blue-200 text-xs mt-1 font-medium tracking-wide">
-              {quincenaLabel} — Configuración de liquidación del colaborador
+            <p className="text-slate-500 text-[10px] mt-0.5 font-semibold tracking-wide">
+              {quincenaLabel} — {emp.nombre}
             </p>
           </div>
-          <button onClick={onClose} className="relative z-10 text-blue-300 hover:text-white hover:bg-blue-800/50 p-2 rounded-full transition-all cursor-pointer bg-transparent border-0 outline-none">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 p-1.5 rounded-full transition-all cursor-pointer bg-transparent border-0 outline-none">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Tab selector */}
-        <div className="flex border-b border-slate-100 bg-slate-50 px-8">
+        {/* Tab Selector */}
+        <div className="flex border-b border-slate-200/60 bg-slate-50/50 px-8">
           <button
             onClick={() => setActiveTab('registrar')}
-            className={`py-4 px-6 text-center focus:outline-none transition-all font-bold text-xs uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
+            className={`py-3.5 px-5 text-center focus:outline-none transition-all font-bold text-[11px] uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
               activeTab === 'registrar'
                 ? 'border-blue-900 text-blue-900 font-extrabold'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
+                : 'border-transparent text-slate-450 hover:text-slate-600'
             }`}
           >
             Registrar Pago
           </button>
           <button
             onClick={() => setActiveTab('historial')}
-            className={`py-4 px-6 text-center focus:outline-none transition-all font-bold text-xs uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
+            className={`py-3.5 px-5 text-center focus:outline-none transition-all font-bold text-[11px] uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
               activeTab === 'historial'
                 ? 'border-blue-900 text-blue-900 font-extrabold'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
+                : 'border-transparent text-slate-450 hover:text-slate-600'
             }`}
           >
             Historial de Pagos ({nomina?.abonos?.length || 0})
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-8 space-y-6">
-          {activeTab === 'registrar' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
-              {/* Columna Izquierda: Datos del Colaborador y Banco (Tarjeta Transferencia) */}
-              <div className="space-y-6 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Colaborador Destinatario</span>
-                  <h4 className="text-2xl font-black text-slate-800 uppercase leading-none tracking-tight">
-                    {emp.nombre}
-                  </h4>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Verifique que la cuenta destino coincida con el registro impreso antes de proceder con la transferencia bancaria.
-                  </p>
-                </div>
-
-                {/* Tarjeta de Cuenta Bancaria Registrada (Credit Card style) */}
-                <div className="bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden border border-blue-950 min-h-[190px] flex flex-col justify-between">
-                  {/* Decorative gradients */}
-                  <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-blue-800 rounded-full opacity-25 filter blur-xl" />
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-800 rounded-full opacity-20 filter blur-2xl" />
-                  
-                  {/* Header card */}
-                  <div className="flex justify-between items-start relative z-10">
-                    <div>
-                      <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Cuenta de Nómina Registrada</span>
-                      <span className="text-sm font-black tracking-wider text-white uppercase mt-0.5 block">
-                        {emp.banco || 'SIN BANCO REGISTRADO'}
-                      </span>
-                    </div>
-                    {/* Bank Icon replacement */}
-                    <div className="p-2.5 bg-white/10 rounded-xl text-blue-200 backdrop-blur-xs">
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.5M4.5 21V10.5m15 0V9M4.5 10.5V9M21 21h-2.25H5.25H3" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Account Number in middle */}
-                  <div className="my-5 relative z-10">
-                    <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block mb-1">Número de Cuenta</span>
-                    <div className="text-xl font-mono tracking-widest font-bold text-blue-100 flex items-center gap-2">
-                      {emp.cuentaBanco ? (
-                        emp.cuentaBanco.match(/.{1,4}/g).join(' ')
-                      ) : (
-                        '— — — —'
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Holder name */}
-                  <div className="flex justify-between items-end relative z-10 pt-2 border-t border-white/10">
-                    <div>
-                      <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Beneficiario</span>
-                      <span className="text-xs font-bold tracking-wide text-white uppercase truncate max-w-[280px] block">
-                        {emp.nombre}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Estado Cuenta</span>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                        Activa
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Columna Derecha: Detalle de Liquidación / Abono y Selección de Caja */}
-              <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col justify-between space-y-6">
+        {/* Fixed-Size Content Wrapper */}
+        <div className="p-8 h-[480px] overflow-y-auto flex flex-col justify-between">
+          
+          <div className="flex-1">
+            {activeTab === 'registrar' ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
                 
-                <div className="space-y-4">
-                  <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Resumen Financiero</span>
-                  
-                  {/* 1. Monto Total a Pagar */}
-                  <div className="flex justify-between items-center py-3.5 px-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                      </div>
+                {/* Columna Izquierda: Datos del Colaborador y Banco */}
+                <div className="space-y-4 flex flex-col justify-between min-h-0">
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-widest block">Colaborador Destinatario</span>
+                    <h4 className="text-xl font-black text-slate-800 uppercase leading-none tracking-tight">
+                      {emp.nombre}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Verifique que la cuenta destino coincida con el registro impreso antes de proceder con la transferencia bancaria.
+                    </p>
+                  </div>
+
+                  {/* Tarjeta de Cuenta Bancaria Registrada (Credit Card style) */}
+                  <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white rounded-xl p-5 shadow-md relative overflow-hidden border border-slate-800 min-h-[160px] flex flex-col justify-between">
+                    <div className="absolute -bottom-8 -left-8 w-20 h-20 bg-slate-800 rounded-full opacity-35 filter blur-xl" />
+                    
+                    <div className="flex justify-between items-start relative z-10">
                       <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monto Total a Pagar</span>
-                        <span className="text-xs font-semibold text-slate-500">Saldo pendiente neto del período</span>
+                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block">Cuenta de Nómina Registrada</span>
+                        <span className="text-xs font-bold tracking-wider text-white uppercase mt-0.5 block">
+                          {emp.banco || 'SIN BANCO REGISTRADO'}
+                        </span>
                       </div>
-                    </div>
-                    <span className="text-2xl font-black text-slate-900 tracking-tight">{formatUSD(maxMonto)}</span>
-                  </div>
-
-                  {/* 2. Caja/Cuenta de Salida */}
-                  <div className="space-y-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider">
-                        Origen del Pago (Caja / Cuenta)
-                      </label>
-                      {loadingMps && <span className="text-[10px] text-blue-600 animate-pulse font-bold">Cargando...</span>}
-                    </div>
-                    <select
-                      value={selectedMetodoPagoId}
-                      onChange={(e) => setSelectedMetodoPagoId(e.target.value)}
-                      disabled={loadingMps}
-                      className="w-full mt-1 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 bg-slate-50/50 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner"
-                    >
-                      {loadingMps ? (
-                        <option value="">Cargando cuentas...</option>
-                      ) : metodosPago.length === 0 ? (
-                        <option value="">No hay cuentas activas disponibles</option>
-                      ) : (
-                        metodosPago.map((mp) => (
-                          <option key={mp.id} value={mp.id}>
-                            {mp.nombre} (Saldo: {formatUSD(mp.saldoActual)})
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  {/* 3. Input de Abono a realizar */}
-                  <div className="space-y-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider">
-                        {isCross ? 'Abono pendiente de otra quincena' : 'Abono / Pago a realizar hoy'}
-                      </label>
-                      <span className="text-[10px] font-bold text-slate-400">USD</span>
-                    </div>
-                    <div className="relative mt-1">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-xl">$</span>
-                      <input type="number" step="0.01" min="0.01" max={maxMonto}
-                        value={monto}
-                        onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
-                        className="w-full pl-8 pr-4 py-3 text-2xl font-black text-blue-900 border border-slate-200 rounded-xl bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
-                    </div>
-
-                    {/* Helper Quick Action Buttons */}
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setPercentage(0.5)}
-                        className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[10px] font-extrabold text-slate-600 bg-slate-50/50 hover:bg-slate-100 hover:text-slate-800 transition-all cursor-pointer bg-white"
-                      >
-                        Abonar 50% ({formatUSD(maxMonto / 2)})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPercentage(1)}
-                        className="flex-1 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-[10px] font-extrabold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
-                      >
-                        Pagar Total (100%)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 4. Saldo Pendiente que quedaría */}
-                  <div className="flex justify-between items-center py-3.5 px-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl">
+                      <div className="p-2 bg-white/5 rounded-lg text-slate-300 backdrop-blur-xs">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.5M4.5 21V10.5m15 0V9M4.5 10.5V9M21 21h-2.25H5.25H3" />
                         </svg>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Saldo Pendiente Restante</span>
-                        <span className="text-xs font-semibold text-slate-500">Saldo tras procesar este pago</span>
                       </div>
                     </div>
-                    {restante <= 0.01 ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                        </svg>
-                        Nómina Liquidada
-                      </span>
-                    ) : (
-                      <span className="text-2xl font-black text-orange-600 tracking-tight">{formatUSD(restante)}</span>
-                    )}
+
+                    <div className="my-3 relative z-10">
+                      <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Número de Cuenta</span>
+                      <div className="text-base font-mono tracking-widest font-bold text-slate-200 flex items-center gap-1.5">
+                        {emp.cuentaBanco ? (
+                          emp.cuentaBanco.match(/.{1,4}/g).join(' ')
+                        ) : (
+                          '— — — —'
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-end relative z-10 pt-1.5 border-t border-white/5">
+                      <div>
+                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block">Beneficiario</span>
+                        <span className="text-[11px] font-bold tracking-wide text-white uppercase truncate max-w-[200px] block">
+                          {emp.nombre}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          Activa
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
+                {/* Columna Derecha: Detalle de Liquidación / Abono y Selección de Caja */}
+                <div className="border border-slate-200/80 rounded-xl p-5 bg-slate-50/50 flex flex-col justify-between space-y-4 min-h-0">
+                  
+                  <div className="space-y-3">
+                    
+                    {/* 1. Monto Total a Pagar */}
+                    <div className="flex justify-between items-center py-2.5 px-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Monto Total a Pagar</span>
+                          <span className="text-[11px] font-semibold text-slate-500">Neto del período</span>
+                        </div>
+                      </div>
+                      <span className="text-lg font-black text-slate-900 tracking-tight">{formatUSD(maxMonto)}</span>
+                    </div>
+
+                    {/* 2. Caja/Cuenta de Salida */}
+                    <div className="space-y-1 bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                          </svg>
+                          Origen del Pago
+                        </label>
+                        {loadingMps && <span className="text-[9px] text-blue-600 animate-pulse font-bold">Cargando...</span>}
+                      </div>
+                      <select
+                        value={selectedMetodoPagoId}
+                        onChange={(e) => setSelectedMetodoPagoId(e.target.value)}
+                        disabled={loadingMps}
+                        className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner"
+                      >
+                        {loadingMps ? (
+                          <option value="">Cargando cuentas...</option>
+                        ) : metodosPago.length === 0 ? (
+                          <option value="">No hay cuentas activas disponibles</option>
+                        ) : (
+                          metodosPago.map((mp) => (
+                            <option key={mp.id} value={mp.id}>
+                              {mp.nombre} (Saldo: {formatUSD(mp.saldoActual)})
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+
+                    {/* 3. Input de Abono a realizar */}
+                    <div className="space-y-1 bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-extrabold text-slate-700 uppercase tracking-wider">
+                          {isCross ? 'Abono pendiente de otra quincena' : 'Monto a pagar hoy'}
+                        </label>
+                        <span className="text-[9px] font-bold text-slate-400">USD</span>
+                      </div>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-base">$</span>
+                        <input type="number" step="0.01" min="0.01" max={maxMonto}
+                          value={monto}
+                          onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
+                          className="w-full pl-6 pr-3 py-2 text-xl font-black text-blue-900 border border-slate-200 rounded-lg bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
+                      </div>
+
+                      <div className="flex gap-2 pt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setPercentage(0.5)}
+                          className="flex-1 py-1 rounded-md border border-slate-200 text-[9px] font-extrabold text-slate-600 bg-white hover:bg-slate-50 transition-all cursor-pointer"
+                        >
+                          Abonar 50% ({formatUSD(maxMonto / 2)})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPercentage(1)}
+                          className="flex-1 py-1 rounded-md bg-blue-50 border border-blue-200 text-[9px] font-extrabold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
+                        >
+                          Pagar Total (100%)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 4. Saldo Pendiente que quedaría */}
+                    <div className="flex justify-between items-center py-2 px-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Saldo Restante</span>
+                        </div>
+                      </div>
+                      {restante <= 0.01 ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                          Liquidada
+                        </span>
+                      ) : (
+                        <span className="text-base font-black text-orange-650 tracking-tight">{formatUSD(restante)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+                
               </div>
-              
-            </div>
-          ) : (
-            /* Historial de Pagos Tab */
-            <div className="space-y-4">
-              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Pagos y Abonos Registrados en el Período</span>
-              <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
-                <table className="w-full text-xs text-left text-slate-600">
-                  <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
-                    <tr>
-                      <th className="px-5 py-3.5">ID Gasto / Registro</th>
-                      <th className="px-5 py-3.5">Fecha de Pago</th>
-                      <th className="px-5 py-3.5">Caja / Cuenta de Salida</th>
-                      <th className="px-5 py-3.5 text-right">Monto</th>
-                      <th className="px-5 py-3.5 text-center">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {(!nomina || !nomina.abonos || nomina.abonos.length === 0) ? (
+            ) : (
+              /* Historial de Pagos Tab (Fixed-Size content) */
+              <div className="space-y-3 h-full flex flex-col justify-start">
+                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">Pagos y Abonos Registrados en el Período</span>
+                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs flex-1 max-h-[340px] overflow-y-auto">
+                  <table className="w-full text-xs text-left text-slate-600">
+                    <thead className="bg-slate-50 text-[9px] font-bold text-slate-500 uppercase border-b border-slate-200 sticky top-0 z-10">
                       <tr>
-                        <td colSpan={5} className="px-5 py-10 text-center text-slate-400 italic">
-                          No hay abonos registrados en este período para el colaborador.
-                        </td>
+                        <th className="px-4 py-3">Fecha y Hora</th>
+                        <th className="px-4 py-3">Registrado Por</th>
+                        <th className="px-4 py-3">Caja / Cuenta</th>
+                        <th className="px-4 py-3 text-right">Monto</th>
+                        <th className="px-4 py-3 text-center">Acción</th>
                       </tr>
-                    ) : (
-                      nomina.abonos.map((ab, idx) => (
-                        <tr key={ab.id || idx} className="hover:bg-slate-50/50">
-                          <td className="px-5 py-4 font-mono text-slate-400">{ab.id || 'Legacy / Sin ID'}</td>
-                          <td className="px-5 py-4 font-mono text-slate-500">{ab.fecha}</td>
-                          <td className="px-5 py-4 text-slate-700">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold">
-                              💳 {ab.metodoPagoNombre || 'No especificado'}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4 text-right font-black text-slate-900 text-sm">{formatUSD(ab.monto)}</td>
-                          <td className="px-5 py-4 text-center">
-                            <button
-                              onClick={() => onDeleteAbono(nomina, ab.id)}
-                              className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition-all cursor-pointer bg-transparent border-0 outline-none"
-                              title="Eliminar abono y devolver fondos a caja"
-                            >
-                              <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                              </svg>
-                            </button>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {(!nomina || !nomina.abonos || nomina.abonos.length === 0) ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-12 text-center text-slate-400 italic">
+                            No hay abonos registrados en este período para el colaborador.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        nomina.abonos.map((ab, idx) => (
+                          <tr key={ab.id || idx} className="hover:bg-slate-50/50">
+                            {/* Fecha y Hora con Icono */}
+                            <td className="px-4 py-3.5">
+                              <span className="inline-flex items-center gap-1.5 text-slate-500 font-mono">
+                                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                </svg>
+                                {ab.fechaHora || ab.fecha}
+                              </span>
+                            </td>
+                            {/* Registrado Por con Icono */}
+                            <td className="px-4 py-3.5">
+                              <span className="inline-flex items-center gap-1.5 text-slate-700">
+                                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                </svg>
+                                {ab.usuarioNombre || 'Usuario'}
+                              </span>
+                            </td>
+                            {/* Caja / Cuenta de Salida con Icono */}
+                            <td className="px-4 py-3.5">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-bold">
+                                <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                                </svg>
+                                {ab.metodoPagoNombre || 'No especificado'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-right font-black text-slate-800">{formatUSD(ab.monto)}</td>
+                            <td className="px-4 py-3.5 text-center">
+                              <button
+                                onClick={() => onDeleteAbono(nomina, ab.id)}
+                                className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-all cursor-pointer bg-transparent border-0 outline-none"
+                                title="Eliminar abono y devolver fondos a caja"
+                              >
+                                <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Footer Actions */}
-          <div className="flex gap-3 pt-6 border-t border-slate-100 justify-end">
+          <div className="flex gap-3 pt-5 border-t border-slate-100 justify-end shrink-0">
             <button onClick={onClose}
-              className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer bg-white">
+              className="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-650 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer bg-white">
               Cerrar
             </button>
             {activeTab === 'registrar' && (
               <button
                 onClick={() => onConfirm(selectedMetodoPagoId)}
                 disabled={!monto || monto <= 0 || !selectedMetodoPagoId || loadingMps}
-                className="px-10 py-3 rounded-xl bg-blue-900 text-white font-extrabold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                className="px-8 py-2.5 rounded-lg bg-blue-900 text-white font-extrabold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />

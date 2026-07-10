@@ -84,6 +84,8 @@ export class Nomina {
       fecha: abono.fecha,
       metodoPagoId: abono.metodoPagoId,
       metodoPagoNombre: abono.metodoPagoNombre,
+      usuarioNombre: abono.usuarioNombre,
+      fechaHora: abono.fechaHora,
     }));
 
     this.estado = estado;

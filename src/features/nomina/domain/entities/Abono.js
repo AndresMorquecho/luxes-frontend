@@ -11,13 +11,17 @@ export class Abono {
    * @param {string} data.fecha - Fecha del abono (AAAA-MM-DD)
    * @param {string} data.metodoPagoId - ID del método de pago/caja
    * @param {string} [data.metodoPagoNombre] - Nombre del método de pago/caja
+   * @param {string} [data.usuarioNombre] - Nombre del usuario que registró el pago
+   * @param {string} [data.fechaHora] - Fecha y hora formateada local
    */
-  constructor({ id, monto, fecha, metodoPagoId, metodoPagoNombre }) {
+  constructor({ id, monto, fecha, metodoPagoId, metodoPagoNombre, usuarioNombre, fechaHora }) {
     this.id = id;
     this.monto = Number(monto);
     this.fecha = fecha;
     this.metodoPagoId = metodoPagoId;
     this.metodoPagoNombre = metodoPagoNombre;
+    this.usuarioNombre = usuarioNombre;
+    this.fechaHora = fechaHora;
   }
 
   /**
