@@ -48,11 +48,11 @@ export function getGpsBadgeProps({ status, error, secure }) {
   if (status === 'denied' || status === 'unavailable') {
     return {
       tone: 'amber',
-      text: error || 'GPS limitado · marcación disponible',
+      text: error || 'GPS inactivo · marcación bloqueada',
     };
   }
   if (status === 'unsupported') {
-    return { tone: 'amber', text: 'GPS no compatible · marcación disponible' };
+    return { tone: 'amber', text: 'GPS no compatible · marcación bloqueada' };
   }
   return { tone: 'slate', text: 'GPS en preparación…' };
 }

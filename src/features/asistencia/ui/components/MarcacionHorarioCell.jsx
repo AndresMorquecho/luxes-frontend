@@ -22,7 +22,21 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
       <div className={`inline-flex flex-col items-center rounded-lg border px-2 py-1.5 min-w-[4.5rem] ${cardCls}`}>
         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">opcional</span>
         {horaReal ? (
-          <span className="font-mono text-xs font-bold text-slate-800 mt-0.5">{horaReal}</span>
+          <>
+            <span className="font-mono text-xs font-bold text-slate-800 mt-0.5">{horaReal}</span>
+            {marcacion?.ubicacionLat && marcacion?.ubicacionLng && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${marcacion.ubicacionLat},${marcacion.ubicacionLng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-0.5 text-[9px] font-bold text-blue-600 hover:text-blue-800 hover:underline mt-1 bg-blue-50 border border-blue-100 rounded px-1 py-0.5 leading-none transition-all"
+                title="Ver ubicación en Google Maps"
+                onClick={(e) => e.stopPropagation()}
+              >
+                📍 Mapa
+              </a>
+            )}
+          </>
         ) : (
           <span className="font-mono text-xs text-slate-300 mt-0.5">—</span>
         )}
@@ -39,7 +53,7 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
   }
 
   return (
-    <div className={`inline-flex flex-col items-center rounded-lg border px-2 py-1.5 min-w-[4.5rem] ${cardCls}`}>
+    <div className={`inline-flex flex-col items-center rounded-lg border px-2 py-1.5 min-w-[5.2rem] ${cardCls}`}>
       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
         ref. {esperado.label}
       </span>
@@ -52,6 +66,18 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
             <span className="text-[9px] font-semibold text-amber-600 leading-tight">
               {formatDiffMinutos(diff)}
             </span>
+          )}
+          {marcacion?.ubicacionLat && marcacion?.ubicacionLng && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${marcacion.ubicacionLat},${marcacion.ubicacionLng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 text-[9px] font-bold text-blue-600 hover:text-blue-800 hover:underline mt-1 bg-blue-50 border border-blue-100 rounded px-1 py-0.5 leading-none transition-all"
+              title="Ver ubicación en Google Maps"
+              onClick={(e) => e.stopPropagation()}
+            >
+              📍 Mapa
+            </a>
           )}
         </>
       ) : (

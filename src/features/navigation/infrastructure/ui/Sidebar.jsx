@@ -120,28 +120,12 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
       {/* Navigation menu list */}
       <nav className="sidebar-nav">
         {isAdmin && (
-          <div className="sidebar-layout-customizer-box">
+          <div className="sidebar-layout-customizer-box" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {isCollapsed ? (
-              <button
-                type="button"
-                title={showAll ? "Ver Módulos Principales" : "Ver Todos los Módulos"}
-                className={`sidebar-switch-toggle ${showAll ? 'active' : ''}`}
-                onClick={() => {
-                  const newValue = !showAll;
-                  setShowAll(newValue);
-                  localStorage.setItem('luxes_sidebar_show_all', String(newValue));
-                }}
-                style={{ cursor: 'pointer', border: 'none' }}
-              >
-                <div className="sidebar-switch-handle" />
-              </button>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 0.5rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
-                  {showAll ? 'Ver todo' : 'Módulos Principales'}
-                </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
                 <button
                   type="button"
+                  title={showAll ? "Ver Módulos Principales" : "Ver Todos los Módulos"}
                   className={`sidebar-switch-toggle ${showAll ? 'active' : ''}`}
                   onClick={() => {
                     const newValue = !showAll;
@@ -151,6 +135,81 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   style={{ cursor: 'pointer', border: 'none' }}
                 >
                   <div className="sidebar-switch-handle" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.open('/nomina/registro-asistencia?kiosk=true', '_blank')}
+                  className="sidebar-quick-action-btn"
+                  title="Registrar Asistencia"
+                  style={{
+                    cursor: 'pointer',
+                    border: 'none',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    color: '#3b82f6',
+                    padding: '6px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '1rem', height: '1rem' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', padding: '0 0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
+                    {showAll ? 'Ver todo' : 'Módulos Principales'}
+                  </span>
+                  <button
+                    type="button"
+                    className={`sidebar-switch-toggle ${showAll ? 'active' : ''}`}
+                    onClick={() => {
+                      const newValue = !showAll;
+                      setShowAll(newValue);
+                      localStorage.setItem('luxes_sidebar_show_all', String(newValue));
+                    }}
+                    style={{ cursor: 'pointer', border: 'none' }}
+                  >
+                    <div className="sidebar-switch-handle" />
+                  </button>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => window.open('/nomina/registro-asistencia?kiosk=true', '_blank')}
+                  style={{
+                    cursor: 'pointer',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    background: 'rgba(59, 130, 246, 0.05)',
+                    color: '#2563eb',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    width: '100%',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)';
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '0.85rem', height: '0.85rem' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <span>Registrar Asistencia</span>
                 </button>
               </div>
             )}
@@ -743,6 +802,24 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
+            {!isAdmin && (
+              <li className={currentPath === '/nomina/registro-asistencia' ? 'active' : ''}>
+                <a 
+                  href="/nomina/registro-asistencia?kiosk=true" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open('/nomina/registro-asistencia?kiosk=true', '_blank');
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <span className="sidebar-link-text">Registrar Asistencia</span>
+                </a>
+              </li>
+            )}
 
           </ul>
         </div>
@@ -828,14 +905,22 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
             }}
           >
             <div className="avatar-circle">
-              <span>{userInitial}</span>
+              {user?.foto ? (
+                <img src={user.foto} alt={userName} className="w-full h-full object-cover rounded-full" />
+              ) : (
+                <span>{userInitial}</span>
+              )}
             </div>
           </a>
         ) : (
           <div className="sidebar-profile-container">
             <div className="sidebar-profile-info-box">
               <div className="avatar-circle">
-                <span>{userInitial}</span>
+                {user?.foto ? (
+                  <img src={user.foto} alt={userName} className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  <span>{userInitial}</span>
+                )}
               </div>
               <div className="profile-info">
                 <span className="profile-name">{userName}</span>
