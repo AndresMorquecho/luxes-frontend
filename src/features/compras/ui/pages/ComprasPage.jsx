@@ -448,7 +448,7 @@ export const ComprasPage = () => {
 
   return (
     <div
-      className="co-compras-page w-full min-h-full animate-slide-up px-0 py-0 sm:p-6 xl:p-8 md:-mx-10 md:-mt-8 md:-mb-10 overflow-x-hidden"
+      className="co-compras-page w-full min-h-full animate-slide-up pb-10"
       style={{ fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: CO_PAGE_BG }}
     >
 
