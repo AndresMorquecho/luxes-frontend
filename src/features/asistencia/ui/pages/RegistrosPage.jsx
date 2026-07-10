@@ -716,7 +716,10 @@ const KioskView = () => {
 export const RegistrosPage = () => {
   const userStr = localStorage.getItem('user');
   const userObj = userStr ? normalizeUserForSession(JSON.parse(userStr)) : null;
-  const isKioskMode = isAsistenciaUser(userObj);
+  
+  const queryParams = new URLSearchParams(window.location.search);
+  const forceKiosk = queryParams.get('kiosk') === 'true' || queryParams.get('vista') === 'kiosk';
+  const isKioskMode = isAsistenciaUser(userObj) || forceKiosk;
 
   if (isKioskMode) {
     return <KioskView />;

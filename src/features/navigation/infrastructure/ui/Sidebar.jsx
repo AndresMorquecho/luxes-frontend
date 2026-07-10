@@ -138,9 +138,9 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.open('/nomina/registro-asistencia', '_blank')}
+                  onClick={() => window.open('/nomina/registro-asistencia?kiosk=true', '_blank')}
                   className="sidebar-quick-action-btn"
-                  title="Lanzar Marcación de Asistencia"
+                  title="Registrar Asistencia"
                   style={{
                     cursor: 'pointer',
                     border: 'none',
@@ -180,7 +180,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                 
                 <button
                   type="button"
-                  onClick={() => window.open('/nomina/registro-asistencia', '_blank')}
+                  onClick={() => window.open('/nomina/registro-asistencia?kiosk=true', '_blank')}
                   style={{
                     cursor: 'pointer',
                     border: '1px solid rgba(59, 130, 246, 0.2)',
@@ -209,7 +209,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '0.85rem', height: '0.85rem' }}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
-                  <span>Lanzar Asistencia</span>
+                  <span>Registrar Asistencia</span>
                 </button>
               </div>
             )}
@@ -797,12 +797,12 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
             {!isAdmin && (
               <li className={currentPath === '/nomina/registro-asistencia' ? 'active' : ''}>
                 <a 
-                  href="/nomina/registro-asistencia" 
+                  href="/nomina/registro-asistencia?kiosk=true" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   onClick={(e) => {
                     e.preventDefault();
-                    window.open('/nomina/registro-asistencia', '_blank');
+                    window.open('/nomina/registro-asistencia?kiosk=true', '_blank');
                   }}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
