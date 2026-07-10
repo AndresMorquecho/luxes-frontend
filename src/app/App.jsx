@@ -212,6 +212,24 @@ function App() {
     );
   }
 
+  // Render Kiosk view outside Layout for full-screen layout on tablets/screens
+  const queryParams = new URLSearchParams(location.search);
+  const isKioskRoute = location.pathname === '/nomina/registro-asistencia' && queryParams.get('kiosk') === 'true';
+
+  if (isKioskRoute) {
+    return (
+      <>
+        <ToastContainer />
+        <ConfirmDialogContainer />
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
+          </Routes>
+        </ErrorBoundary>
+      </>
+    );
+  }
+
   const isTallerMode = isTallerUser(user);
   const userRole = (user?.rol || '').toUpperCase();
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
