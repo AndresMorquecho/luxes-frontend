@@ -11,7 +11,6 @@ import { HistorialRecepcionesPage } from '../../inventario/ui/recepcion/Historia
 import { HistorialRecepcionDetallePage } from '../../inventario/ui/recepcion/HistorialRecepcionDetallePage';
 import { HistorialOrdenesCompraPage } from './pages/HistorialOrdenesCompraPage';
 import { HistorialOrdenCompraDetallePage } from './pages/HistorialOrdenCompraDetallePage';
-import { GuiaRemisionPage } from './pages/GuiaRemisionPage';
 
 export default function ComprasFeature() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -33,7 +32,6 @@ export default function ComprasFeature() {
         <Route path="recepcion/historial" element={<HistorialRecepcionesPage basePath="/compras/recepcion" />} />
         <Route path="recepcion" element={<RecepcionInsumosListPage basePath="/compras/recepcion" />} />
         <Route path="recepcion/:ordenId" element={<RecepcionInsumosFormPage basePath="/compras/recepcion" />} />
-        <Route path="guias-remision" element={<GuiaRemisionPage />} />
         <Route path="*" element={<Navigate to="/compras" replace />} />
       </Routes>
     );
@@ -58,7 +56,6 @@ export default function ComprasFeature() {
         path="aprobacion/:id" 
         element={hasAprobacionPermission ? <DetalleAprobacionPage /> : <Navigate to="/compras" replace />} 
       />
-      <Route path="guias-remision" element={<GuiaRemisionPage />} />
       <Route path="*" element={<Navigate to="/compras" replace />} />
     </Routes>
   );
