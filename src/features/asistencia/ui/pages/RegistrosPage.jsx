@@ -13,6 +13,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { isAsistenciaUser, normalizeUserForSession } from '../../../../shared/utils/userRoleHelpers';
 import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
+import { OverlayPortal } from '../../../../shared/ui/components/ModalPortal';
 
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -881,18 +882,7 @@ const TotalHorasDisplay = ({ isAsistio, isPermiso, lapsos }) => {
   return <span className="text-slate-300 text-xs">—</span>;
 };
 
-const AsistenciaAcciones = ({ isFalto, isPermiso, onConcederPermiso, onCancelarPermiso }) => {
-  if (isFalto) {
-    return (
-      <button
-        type="button"
-        onClick={onConcederPermiso}
-        className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
-      >
-        Conceder Permiso
-      </button>
-    );
-  }
+const AsistenciaAcciones = ({ isPermiso, onConcederPermiso, onCancelarPermiso }) => {
   if (isPermiso) {
     return (
       <button
@@ -904,7 +894,15 @@ const AsistenciaAcciones = ({ isFalto, isPermiso, onConcederPermiso, onCancelarP
       </button>
     );
   }
-  return <span className="text-xs text-slate-400">—</span>;
+  return (
+    <button
+      type="button"
+      onClick={onConcederPermiso}
+      className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+    >
+      Conceder Permiso
+    </button>
+  );
 };
 
 const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horarioDia, onConcederPermiso, onCancelarPermiso }) => {
@@ -1496,38 +1494,40 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
       )}
 
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-fade-in">
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5 text-center">
-            <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto shadow-sm">
-              <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-              </svg>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-black text-slate-800">{confirmModal.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">{confirmModal.message}</p>
-            </div>
-            <div className="flex gap-3 justify-center">
-              <button
-                type="button"
-                onClick={() => setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null })}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border-none"
-              >
-                No, cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  confirmModal.onConfirm();
-                  setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
-                }}
-                className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-sm hover:shadow transition-all cursor-pointer border-none"
-              >
-                Sí, continuar
-              </button>
+        <OverlayPortal open={confirmModal.isOpen}>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fade-in">
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5 text-center">
+              <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto shadow-sm">
+                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-black text-slate-800">{confirmModal.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">{confirmModal.message}</p>
+              </div>
+              <div className="flex gap-3 justify-center">
+                <button
+                  type="button"
+                  onClick={() => setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null })}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border-none"
+                >
+                  No, cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    confirmModal.onConfirm();
+                    setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+                  }}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-sm hover:shadow transition-all cursor-pointer border-none"
+                >
+                  Sí, continuar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </OverlayPortal>
       )}
     </div>
   );
