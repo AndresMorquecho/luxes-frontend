@@ -328,7 +328,7 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
 
   return (
     <div
-      className="co-compras-page co-recepcion-page w-full min-h-full animate-slide-up px-0 py-0 sm:p-6 xl:p-8 md:-mx-10 md:-mt-8 md:-mb-10 overflow-x-hidden"
+      className="co-compras-page co-recepcion-page w-full min-h-full animate-slide-up pb-10"
       style={{ fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: RI_PAGE_BG }}
     >
       {/* ── Móvil ── */}
