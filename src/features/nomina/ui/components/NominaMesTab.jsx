@@ -5,6 +5,8 @@ import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 import { registrarAbono } from '../../domain/use-cases/registrarAbono';
 import { obtenerFechasPeriodo } from '../../application/hooks/useNomina';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { getMetodosPago } from '../../../gastos/application/gastosService';
 import {
   sueldoDiarioEnQuincena,
   calcSueldoBrutoQuincena,
@@ -25,8 +27,34 @@ const ESTADO_BADGE = {
   PAGADO:        { label: 'Pagado',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
 };
 
-const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, onClose, onConfirm, onMontoChange }) => {
-  // Helper to set percentage of total
+const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomina, onDeleteAbono, onClose, onConfirm, onMontoChange }) => {
+  const [activeTab, setActiveTab] = useState('registrar'); // 'registrar' | 'historial'
+  const [metodosPago, setMetodosPago] = useState([]);
+  const [selectedMetodoPagoId, setSelectedMetodoPagoId] = useState('');
+  const [loadingMps, setLoadingMps] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    getMetodosPago()
+      .then(data => {
+        if (active) {
+          const activeMps = (data || []).filter(m => m.activo);
+          setMetodosPago(activeMps);
+          if (activeMps.length > 0) {
+            setSelectedMetodoPagoId(activeMps[0].id);
+          }
+        }
+      })
+      .catch(err => {
+        console.error('Error al cargar métodos de pago', err);
+        toast.error('No se pudieron cargar las cuentas/cajas de pago.');
+      })
+      .finally(() => {
+        if (active) setLoadingMps(false);
+      });
+    return () => { active = false; };
+  }, []);
+
   const setPercentage = (pct) => {
     const val = Math.round((maxMonto * pct) * 100) / 100;
     onMontoChange(Math.min(val, maxMonto));
@@ -59,175 +87,284 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, onCl
           </button>
         </div>
 
+        {/* Tab selector */}
+        <div className="flex border-b border-slate-100 bg-slate-50 px-8">
+          <button
+            onClick={() => setActiveTab('registrar')}
+            className={`py-4 px-6 text-center focus:outline-none transition-all font-bold text-xs uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
+              activeTab === 'registrar'
+                ? 'border-blue-900 text-blue-900 font-extrabold'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Registrar Pago
+          </button>
+          <button
+            onClick={() => setActiveTab('historial')}
+            className={`py-4 px-6 text-center focus:outline-none transition-all font-bold text-xs uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
+              activeTab === 'historial'
+                ? 'border-blue-900 text-blue-900 font-extrabold'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Historial de Pagos ({nomina?.abonos?.length || 0})
+          </button>
+        </div>
+
         {/* Content */}
         <div className="p-8 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
-            {/* Columna Izquierda: Datos del Colaborador y Banco (Tarjeta Transferencia) */}
-            <div className="space-y-6 flex flex-col justify-between">
-              <div className="space-y-3">
-                <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Colaborador Destinatario</span>
-                <h4 className="text-2xl font-black text-slate-800 uppercase leading-none tracking-tight">
-                  {emp.nombre}
-                </h4>
-                <p className="text-xs text-slate-500 font-medium">
-                  Verifique que la cuenta destino coincida con el registro impreso antes de proceder con la transferencia bancaria.
-                </p>
-              </div>
-
-              {/* Tarjeta de Cuenta Bancaria Registrada (Credit Card style) */}
-              <div className="bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden border border-blue-950 min-h-[190px] flex flex-col justify-between">
-                {/* Decorative gradients */}
-                <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-blue-800 rounded-full opacity-25 filter blur-xl" />
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-800 rounded-full opacity-20 filter blur-2xl" />
-                
-                {/* Header card */}
-                <div className="flex justify-between items-start relative z-10">
-                  <div>
-                    <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Cuenta de Nómina Registrada</span>
-                    <span className="text-sm font-black tracking-wider text-white uppercase mt-0.5 block">
-                      {emp.banco || 'SIN BANCO REGISTRADO'}
-                    </span>
-                  </div>
-                  {/* Bank Icon replacement */}
-                  <div className="p-2.5 bg-white/10 rounded-xl text-blue-200 backdrop-blur-xs">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.5M4.5 21V10.5m15 0V9M4.5 10.5V9M21 21h-2.25H5.25H3" />
-                    </svg>
-                  </div>
+          {activeTab === 'registrar' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* Columna Izquierda: Datos del Colaborador y Banco (Tarjeta Transferencia) */}
+              <div className="space-y-6 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Colaborador Destinatario</span>
+                  <h4 className="text-2xl font-black text-slate-800 uppercase leading-none tracking-tight">
+                    {emp.nombre}
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Verifique que la cuenta destino coincida con el registro impreso antes de proceder con la transferencia bancaria.
+                  </p>
                 </div>
 
-                {/* Account Number in middle */}
-                <div className="my-5 relative z-10">
-                  <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block mb-1">Número de Cuenta</span>
-                  <div className="text-xl font-mono tracking-widest font-bold text-blue-100 flex items-center gap-2">
-                    {emp.cuentaBanco ? (
-                      emp.cuentaBanco.match(/.{1,4}/g).join(' ')
+                {/* Tarjeta de Cuenta Bancaria Registrada (Credit Card style) */}
+                <div className="bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden border border-blue-950 min-h-[190px] flex flex-col justify-between">
+                  {/* Decorative gradients */}
+                  <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-blue-800 rounded-full opacity-25 filter blur-xl" />
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-800 rounded-full opacity-20 filter blur-2xl" />
+                  
+                  {/* Header card */}
+                  <div className="flex justify-between items-start relative z-10">
+                    <div>
+                      <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Cuenta de Nómina Registrada</span>
+                      <span className="text-sm font-black tracking-wider text-white uppercase mt-0.5 block">
+                        {emp.banco || 'SIN BANCO REGISTRADO'}
+                      </span>
+                    </div>
+                    {/* Bank Icon replacement */}
+                    <div className="p-2.5 bg-white/10 rounded-xl text-blue-200 backdrop-blur-xs">
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.5M4.5 21V10.5m15 0V9M4.5 10.5V9M21 21h-2.25H5.25H3" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Account Number in middle */}
+                  <div className="my-5 relative z-10">
+                    <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block mb-1">Número de Cuenta</span>
+                    <div className="text-xl font-mono tracking-widest font-bold text-blue-100 flex items-center gap-2">
+                      {emp.cuentaBanco ? (
+                        emp.cuentaBanco.match(/.{1,4}/g).join(' ')
+                      ) : (
+                        '— — — —'
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Holder name */}
+                  <div className="flex justify-between items-end relative z-10 pt-2 border-t border-white/10">
+                    <div>
+                      <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Beneficiario</span>
+                      <span className="text-xs font-bold tracking-wide text-white uppercase truncate max-w-[280px] block">
+                        {emp.nombre}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Estado Cuenta</span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        Activa
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Columna Derecha: Detalle de Liquidación / Abono y Selección de Caja */}
+              <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col justify-between space-y-6">
+                
+                <div className="space-y-4">
+                  <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Resumen Financiero</span>
+                  
+                  {/* 1. Monto Total a Pagar */}
+                  <div className="flex justify-between items-center py-3.5 px-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monto Total a Pagar</span>
+                        <span className="text-xs font-semibold text-slate-500">Saldo pendiente neto del período</span>
+                      </div>
+                    </div>
+                    <span className="text-2xl font-black text-slate-900 tracking-tight">{formatUSD(maxMonto)}</span>
+                  </div>
+
+                  {/* 2. Caja/Cuenta de Salida */}
+                  <div className="space-y-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider">
+                        Origen del Pago (Caja / Cuenta)
+                      </label>
+                      {loadingMps && <span className="text-[10px] text-blue-600 animate-pulse font-bold">Cargando...</span>}
+                    </div>
+                    <select
+                      value={selectedMetodoPagoId}
+                      onChange={(e) => setSelectedMetodoPagoId(e.target.value)}
+                      disabled={loadingMps}
+                      className="w-full mt-1 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 bg-slate-50/50 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner"
+                    >
+                      {loadingMps ? (
+                        <option value="">Cargando cuentas...</option>
+                      ) : metodosPago.length === 0 ? (
+                        <option value="">No hay cuentas activas disponibles</option>
+                      ) : (
+                        metodosPago.map((mp) => (
+                          <option key={mp.id} value={mp.id}>
+                            {mp.nombre} (Saldo: {formatUSD(mp.saldoActual)})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  {/* 3. Input de Abono a realizar */}
+                  <div className="space-y-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider">
+                        {isCross ? 'Abono pendiente de otra quincena' : 'Abono / Pago a realizar hoy'}
+                      </label>
+                      <span className="text-[10px] font-bold text-slate-400">USD</span>
+                    </div>
+                    <div className="relative mt-1">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-xl">$</span>
+                      <input type="number" step="0.01" min="0.01" max={maxMonto}
+                        value={monto}
+                        onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
+                        className="w-full pl-8 pr-4 py-3 text-2xl font-black text-blue-900 border border-slate-200 rounded-xl bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
+                    </div>
+
+                    {/* Helper Quick Action Buttons */}
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setPercentage(0.5)}
+                        className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[10px] font-extrabold text-slate-600 bg-slate-50/50 hover:bg-slate-100 hover:text-slate-800 transition-all cursor-pointer bg-white"
+                      >
+                        Abonar 50% ({formatUSD(maxMonto / 2)})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPercentage(1)}
+                        className="flex-1 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-[10px] font-extrabold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
+                      >
+                        Pagar Total (100%)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Saldo Pendiente que quedaría */}
+                  <div className="flex justify-between items-center py-3.5 px-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Saldo Pendiente Restante</span>
+                        <span className="text-xs font-semibold text-slate-500">Saldo tras procesar este pago</span>
+                      </div>
+                    </div>
+                    {restante <= 0.01 ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        Nómina Liquidada
+                      </span>
                     ) : (
-                      '— — — —'
+                      <span className="text-2xl font-black text-orange-600 tracking-tight">{formatUSD(restante)}</span>
                     )}
                   </div>
                 </div>
 
-                {/* Holder name */}
-                <div className="flex justify-between items-end relative z-10 pt-2 border-t border-white/10">
-                  <div>
-                    <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Beneficiario</span>
-                    <span className="text-xs font-bold tracking-wide text-white uppercase truncate max-w-[280px] block">
-                      {emp.nombre}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Estado Cuenta</span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      Activa
-                    </span>
-                  </div>
-                </div>
               </div>
-            </div>
-
-            {/* Columna Derecha: Detalle de Liquidación / Abono */}
-            <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col justify-between space-y-6">
               
-              <div className="space-y-4">
-                <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Resumen Financiero</span>
-                
-                {/* 1. Monto Total a Pagar */}
-                <div className="flex justify-between items-center py-3.5 px-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monto Total a Pagar</span>
-                      <span className="text-xs font-semibold text-slate-500">Saldo pendiente neto del período</span>
-                    </div>
-                  </div>
-                  <span className="text-2xl font-black text-slate-900 tracking-tight">{formatUSD(maxMonto)}</span>
-                </div>
-
-                {/* 2. Input de Abono a realizar */}
-                <div className="space-y-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider">
-                      {isCross ? 'Abono pendiente de otra quincena' : 'Abono / Pago a realizar hoy'}
-                    </label>
-                    <span className="text-[10px] font-bold text-slate-400">USD</span>
-                  </div>
-                  <div className="relative mt-1">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-xl">$</span>
-                    <input type="number" step="0.01" min="0.01" max={maxMonto}
-                      value={monto}
-                      onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
-                      className="w-full pl-8 pr-4 py-3 text-2xl font-black text-blue-900 border border-slate-200 rounded-xl bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
-                  </div>
-
-                  {/* Helper Quick Action Buttons */}
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setPercentage(0.5)}
-                      className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[10px] font-extrabold text-slate-600 bg-slate-50/50 hover:bg-slate-100 hover:text-slate-800 transition-all cursor-pointer"
-                    >
-                      Abonar 50% ({formatUSD(maxMonto / 2)})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPercentage(1)}
-                      className="flex-1 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-[10px] font-extrabold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
-                    >
-                      Pagar Total (100%)
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. Saldo Pendiente que quedaría */}
-                <div className="flex justify-between items-center py-3.5 px-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Saldo Pendiente Restante</span>
-                      <span className="text-xs font-semibold text-slate-500">Saldo tras procesar este pago</span>
-                    </div>
-                  </div>
-                  {restante <= 0.01 ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                      Nómina Liquidada
-                    </span>
-                  ) : (
-                    <span className="text-2xl font-black text-orange-600 tracking-tight">{formatUSD(restante)}</span>
-                  )}
-                </div>
-              </div>
-
             </div>
-            
-          </div>
+          ) : (
+            /* Historial de Pagos Tab */
+            <div className="space-y-4">
+              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Pagos y Abonos Registrados en el Período</span>
+              <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                <table className="w-full text-xs text-left text-slate-600">
+                  <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                    <tr>
+                      <th className="px-5 py-3.5">ID Gasto / Registro</th>
+                      <th className="px-5 py-3.5">Fecha de Pago</th>
+                      <th className="px-5 py-3.5">Caja / Cuenta de Salida</th>
+                      <th className="px-5 py-3.5 text-right">Monto</th>
+                      <th className="px-5 py-3.5 text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {(!nomina || !nomina.abonos || nomina.abonos.length === 0) ? (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-10 text-center text-slate-400 italic">
+                          No hay abonos registrados en este período para el colaborador.
+                        </td>
+                      </tr>
+                    ) : (
+                      nomina.abonos.map((ab, idx) => (
+                        <tr key={ab.id || idx} className="hover:bg-slate-50/50">
+                          <td className="px-5 py-4 font-mono text-slate-400">{ab.id || 'Legacy / Sin ID'}</td>
+                          <td className="px-5 py-4 font-mono text-slate-500">{ab.fecha}</td>
+                          <td className="px-5 py-4 text-slate-700">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold">
+                              💳 {ab.metodoPagoNombre || 'No especificado'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-right font-black text-slate-900 text-sm">{formatUSD(ab.monto)}</td>
+                          <td className="px-5 py-4 text-center">
+                            <button
+                              onClick={() => onDeleteAbono(nomina, ab.id)}
+                              className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition-all cursor-pointer bg-transparent border-0 outline-none"
+                              title="Eliminar abono y devolver fondos a caja"
+                            >
+                              <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Footer Actions */}
           <div className="flex gap-3 pt-6 border-t border-slate-100 justify-end">
             <button onClick={onClose}
-              className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer">
-              Cancelar
+              className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer bg-white">
+              Cerrar
             </button>
-            <button onClick={onConfirm}
-              disabled={!monto || monto <= 0}
-              className="px-10 py-3 rounded-xl bg-blue-900 text-white font-extrabold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-              {monto > 0 ? `Confirmar Pago de ${formatUSD(monto)}` : 'Ingrese un monto'}
-            </button>
+            {activeTab === 'registrar' && (
+              <button
+                onClick={() => onConfirm(selectedMetodoPagoId)}
+                disabled={!monto || monto <= 0 || !selectedMetodoPagoId || loadingMps}
+                className="px-10 py-3 rounded-xl bg-blue-900 text-white font-extrabold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                {monto > 0 ? `Confirmar Pago de ${formatUSD(monto)}` : 'Ingrese un monto'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1487,18 +1624,23 @@ export const NominaMesTab = () => {
 
   const handlePagar = (emp, cp, sub, restantePagar, quincena) => {
     const maxMonto = Math.max(0, Math.round(restantePagar * 100) / 100);
+    const arr = quincena === 1 ? q1Raw : q2Raw;
+    const nomina = arr.find(p => p.empleadoId === emp.id);
     setPayTarget({
       emp, cp, subtotal: sub,
       monto: maxMonto,
       maxMonto,
       restante: 0,
-      quincenaOrigen: activeTab === 'q1' ? 1 : 2,
+      quincenaOrigen: quincena,
       quincenaDestino: 0,
+      nomina,
     });
   };
 
   const handlePagarCross = (emp, cross) => {
     const monto = Math.round(cross.pendiente * 100) / 100;
+    const arr = cross.quincenaOrigen === 1 ? q1Raw : q2Raw;
+    const nomina = arr.find(p => p.empleadoId === emp.id);
     setPayTarget({
       emp, cp: null, subtotal: cross.pendiente,
       monto,
@@ -1507,6 +1649,7 @@ export const NominaMesTab = () => {
       quincenaOrigen: cross.quincenaOrigen,
       quincenaDestino: cross.quincenaOrigen,
       isCross: true,
+      nomina,
     });
   };
 
@@ -1517,14 +1660,14 @@ export const NominaMesTab = () => {
     setPayTarget(prev => ({ ...prev, monto: newMonto, restante: nuevoRestante }));
   };
 
-  const pagarQuincena = async (rawArr, setter, fechas, empId, monto, fecha, subtotal) => {
+  const pagarQuincena = async (rawArr, setter, fechas, empId, monto, fecha, subtotal, metodoPagoId) => {
     let nomina = rawArr.find(p => p.empleadoId === empId);
     if (!nomina) {
       const created = await adapter.getPayrolls(fechas.fechaInicio, fechas.fechaFin);
       nomina = created.find(p => p.empleadoId === empId);
     }
     if (nomina) {
-      const actualizada = registrarAbono(nomina, { monto, fecha });
+      const actualizada = registrarAbono(nomina, { monto, fecha, metodoPagoId });
       const totalAb = actualizada.abonos.reduce((s, a) => s + a.monto, 0);
       if (subtotal > 0 && totalAb >= subtotal) {
         actualizada.estado = 'PAGADO';
@@ -1536,8 +1679,20 @@ export const NominaMesTab = () => {
     }
   };
 
-  const handleConfirmPago = async () => {
+  const handleConfirmPago = async (metodoPagoId) => {
     if (!payTarget || !payTarget.monto || payTarget.monto <= 0) return;
+    if (!metodoPagoId) {
+      toast.error('Debe seleccionar una cuenta de pago (caja).');
+      return;
+    }
+
+    const confirm = await confirmDialog(
+      'Confirmar registro de pago',
+      `¿Está seguro de registrar el pago de ${formatUSD(payTarget.monto)} para el colaborador ${payTarget.emp.nombre}?`,
+      { type: 'warning', confirmLabel: 'Aceptar y Pagar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirm) return;
+
     try {
       const hoy = new Date().toISOString().slice(0, 10);
       const empId = payTarget.emp.id;
@@ -1553,14 +1708,14 @@ export const NominaMesTab = () => {
         const arr   = qDest === 1 ? q1Raw : q2Raw;
         const set   = qDest === 1 ? setQ1Raw : setQ2Raw;
         const fec   = qDest === 1 ? fechas1 : fechas2;
-        await pagarQuincena(arr, set, fec, empId, payTarget.monto, hoy, sub);
+        await pagarQuincena(arr, set, fec, empId, payTarget.monto, hoy, sub, metodoPagoId);
       } else {
         if (payTarget.quincenaOrigen === 2) {
-          await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2);
+          await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId);
         } else {
           await Promise.all([
-            pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, hoy, subQ1),
-            pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2),
+            pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, hoy, subQ1, metodoPagoId),
+            pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId),
           ]);
         }
       }
@@ -1568,7 +1723,69 @@ export const NominaMesTab = () => {
       toast.success('Pago registrado exitosamente.');
       await loadAll();
     } catch (err) {
-      toast.error('Error al registrar el pago.');
+      toast.error('Error al registrar el pago: ' + (err.message || err));
+    }
+  };
+
+  const handleDeleteAbono = async (nomina, abonoId) => {
+    if (!payTarget) return;
+
+    const confirm = await confirmDialog(
+      'Confirmar eliminación de pago',
+      '¿Está seguro de eliminar este pago del historial? El dinero se devolverá automáticamente a la caja/banco correspondiente.',
+      { type: 'warning', confirmLabel: 'Eliminar Pago', cancelLabel: 'Cancelar' }
+    );
+    if (!confirm) return;
+
+    try {
+      const abonosActualizados = (nomina.abonos || []).filter(a => a.id !== abonoId);
+
+      let nuevoEstado = 'PENDIENTE';
+      const totalAb = abonosActualizados.reduce((s, a) => s + a.monto, 0);
+
+      const empId = payTarget.emp.id;
+      const emp   = payTarget.emp;
+      const cp1   = q1Calculated.find(p => p.empleadoId === empId);
+      const cp2   = q2Calculated.find(p => p.empleadoId === empId);
+      const sub = payTarget.quincenaOrigen === 1
+        ? computeSubtotal(emp, cp1, false)
+        : computeSubtotal(emp, cp2, true);
+
+      if (sub > 0 && totalAb >= sub) {
+        nuevoEstado = 'PAGADO';
+      } else if (totalAb > 0) {
+        nuevoEstado = 'ABONO_PARCIAL';
+      }
+
+      const actualizada = new nomina.constructor({
+        ...nomina,
+        abonos: abonosActualizados,
+        estado: nuevoEstado,
+      });
+
+      const saved = await adapter.savePayroll(actualizada);
+
+      const isQ1 = payTarget.quincenaOrigen === 1;
+      const setter = isQ1 ? setQ1Raw : setQ2Raw;
+      setter(prev => prev.map(p => p.empleadoId === saved.empleadoId ? saved : p));
+
+      setPayTarget(prev => {
+        if (!prev) return null;
+        const newMax = Math.max(0, sub - totalAb);
+        return {
+          ...prev,
+          nomina: saved,
+          maxMonto: newMax,
+          monto: newMax,
+          restante: 0,
+        };
+      });
+
+      toast.success('Pago eliminado y saldo devuelto a la caja.');
+      await loadAll();
+    } catch (err) {
+      console.error('[deleteAbono]', err);
+      toast.error(err.message || 'Error al eliminar el pago.');
     }
   };
 
@@ -1846,6 +2063,8 @@ export const NominaMesTab = () => {
             maxMonto={payTarget.maxMonto}
             restante={payTarget.restante}
             isCross={payTarget.isCross}
+            nomina={payTarget.nomina}
+            onDeleteAbono={handleDeleteAbono}
             quincenaLabel={`${mesLabel} ${year}`}
             onClose={() => deferClose(() => setPayTarget(null))}
             onConfirm={handleConfirmPago}
