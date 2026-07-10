@@ -146,7 +146,7 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
       proyectoId: 'N/D',
       comentarios: ordenData.notas || 'Sin observaciones',
       items: (ordenData.detalles || []).map(d => ({
-        sku: d.materialId || 'N/D',
+        sku: d.material?.codigo || d.materialId || 'N/D',
         nombre: d.descripcion,
         cantidad: d.cantidad,
         cantidadSolicitada: d.cantidad,
@@ -176,81 +176,71 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
   const totalProductosRecibiendo = detalles.filter(d => !d.yaRecibido && (parseFloat(d.cantidadRecibida) || 0) > 0).length;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6" style={{ fontFamily: "'Inter', sans-serif" }}>
-      {/* Botón Volver */}
-      <button 
-        type="button" 
-        onClick={() => navigate(basePath)} 
-        className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-50 px-3 py-2 border border-slate-200 rounded-lg transition-all mb-5 shadow-sm"
-      >
-        <ArrowLeft size={14} /> Volver
-      </button>
-
-      {/* Barra de Orden de Compra */}
-      <div className="bg-white border border-slate-100 rounded-xl px-5 py-4 shadow-sm mb-6 flex items-center justify-between flex-wrap gap-4">
+    <div className="pb-10" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* Header unificado, ordenado y minimalista */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600">
-            <Package size={20} />
-          </div>
+          <button 
+            type="button" 
+            onClick={() => navigate(basePath)} 
+            className="p-2.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 hover:text-slate-700 shadow-sm bg-white"
+            title="Volver"
+          >
+            <ArrowLeft size={16} />
+          </button>
           <div>
-            <span className="font-extrabold text-slate-800 text-lg">{orden.numero}</span>
-            <span className="text-slate-300 mx-2">|</span>
-            <span className="text-sm font-semibold text-slate-500">{orden.proveedor?.nombre || 'Sin proveedor'}</span>
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              Recibir productos
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                {orden.numero}
+              </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-orange-50 text-orange-700 border border-orange-100">
+                {recibidos.length}/{detalles.length} recibidos
+              </span>
+            </h2>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">
+              Proveedor: <strong className="text-slate-600 font-semibold">{orden.proveedor?.nombre || 'Sin proveedor'}</strong>
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-50 text-orange-700 border border-orange-100">
-            {recibidos.length}/{detalles.length} recibidos
-          </span>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Botón Ver OC */}
           {!isTaller && (
             <button 
               type="button" 
               onClick={() => setShowOrdenPDF(true)} 
-              className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+              className="px-3 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors shadow-sm bg-white"
             >
-              Ver OC
+              Ver OC original
             </button>
           )}
-        </div>
-      </div>
 
-      {/* Cabecera de Recepción y Tarjetas de Control */}
-      <div className="flex items-center justify-between gap-6 flex-wrap mb-6">
-        <div>
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Recibir productos</h2>
-          <p className="text-sm text-slate-500 mt-1">Registra los productos que estás recibiendo y agrégalos al inventario.</p>
-        </div>
-
-        {/* Bloques de fecha y usuario en la parte derecha */}
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Card de Fecha de Recepción */}
-          <div className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-sm min-w-[200px] relative">
-            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fecha de recepción</span>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-bold text-slate-700">
-                {fechaRecepcionGlobal ? fmtDate(fechaRecepcionGlobal) : 'Sin seleccionar'}
-              </span>
-              <div className="relative">
-                <input 
-                  type="date"
-                  value={fechaRecepcionGlobal}
-                  onChange={(e) => setFechaRecepcionGlobal(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-                <Calendar size={16} className="text-slate-400 hover:text-blue-500 cursor-pointer" />
-              </div>
+          {/* Selector de fecha de llegada */}
+          <div className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm flex items-center gap-2 text-xs relative hover:border-slate-300 transition-colors">
+            <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Llegada:</span>
+            <span className="font-bold text-slate-700">
+              {fechaRecepcionGlobal ? fmtDate(fechaRecepcionGlobal) : 'Seleccionar'}
+            </span>
+            <div className="relative">
+              <input 
+                type="date"
+                value={fechaRecepcionGlobal}
+                onChange={(e) => setFechaRecepcionGlobal(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <Calendar size={14} className="text-slate-400 hover:text-blue-500 cursor-pointer" />
             </div>
           </div>
 
-          {/* Card de Recibido Por */}
-          <div className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-sm min-w-[200px] flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs uppercase">
+          {/* Información del Usuario */}
+          <div className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm flex items-center gap-2.5 text-xs">
+            <span className="w-5.5 h-5.5 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold text-[9px] uppercase">
               {user?.nombre ? user.nombre.split(' ').map(n => n[0]).slice(0, 2).join('') : 'U'}
-            </div>
-            <div>
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Recibido por</span>
-              <span className="block text-sm font-bold text-slate-800 leading-tight">{user?.nombre || 'Desconocido'}</span>
-              <span className="block text-[10px] text-slate-500 font-medium capitalize mt-0.5">{user?.rol || 'Visor'}</span>
+            </span>
+            <div className="text-[10px]">
+              <span className="font-bold text-slate-700 block leading-tight">{user?.nombre || 'Desconocido'}</span>
+              <span className="text-[8px] text-slate-400 block uppercase tracking-wider leading-none mt-0.5">{user?.rol || 'Visor'}</span>
             </div>
           </div>
         </div>
@@ -419,7 +409,7 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
         <button 
           type="button" 
           onClick={() => navigate(basePath)} 
-          className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+          className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors bg-white"
         >
           {pendientes.length === 0 ? 'Volver' : 'Cancelar'}
         </button>
