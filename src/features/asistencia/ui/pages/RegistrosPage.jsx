@@ -205,6 +205,22 @@ const KioskView = () => {
   const { error: ubicacionError, status: gpsStatus, secure: gpsSecure, resolveUbicacion, retryGeolocation } = useGeolocation();
   const gpsBadge = getGpsBadgeProps({ status: gpsStatus, error: ubicacionError, secure: gpsSecure });
   const [horarioHoy, setHorarioHoy] = useState(null);
+  const [recentRegistros, setRecentRegistros] = useState([]);
+
+  const loadRecentRegistros = async () => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const data = await getAsistencias(todayStr, todayStr);
+      data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
+      setRecentRegistros(data.slice(0, 5));
+    } catch (err) {
+      console.error('Error loading recent registrations:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadRecentRegistros();
+  }, []);
   const [isKioskDesktop, setIsKioskDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
   );
@@ -237,6 +253,9 @@ const KioskView = () => {
 
     try {
       const ubicacionFinal = await resolveUbicacion();
+      if (!ubicacionFinal) {
+        throw new Error('La ubicación (GPS) es obligatoria para registrar la asistencia. Por favor, activa los permisos de ubicación en tu navegador y vuelve a intentarlo.');
+      }
       const registro = await registrarAsistencia({
         empleadoId: empleadoId.trim(),
         ubicacion: ubicacionFinal,
@@ -261,9 +280,12 @@ const KioskView = () => {
         empleadoId: empleadoId.trim(),
         nombreEmpleado: registro.nombreEmpleado || empleadoId,
         marcaciones,
+        lapsos,
+        horasExtra: registro.horasExtra,
       });
 
       setIsCameraActive(false);
+      loadRecentRegistros();
       setTimeout(() => setLastScan(null), 8000);
     } catch (err) {
       console.error(err);
@@ -282,15 +304,24 @@ const KioskView = () => {
     setScanError(null);
 
     try {
+      // Validar GPS antes de continuar con la marcación
+      const gpsState = getGeolocationSnapshot();
+      if (gpsState.status === 'denied' || gpsState.status === 'unavailable' || gpsState.error) {
+        throw new Error('La ubicación (GPS) es obligatoria para registrar la asistencia. Por favor, activa los permisos de ubicación.');
+      }
+
       const [marcaciones, proxima] = await Promise.all([
         getTodayMarcaciones(empleadoId),
         getProximaMarcacion(empleadoId),
       ]);
 
+      const lapsos = calculateLapses(marcaciones);
+
       setKioskSession({
         empleadoId,
         nombreEmpleado: marcaciones[0]?.nombreEmpleado || empleadoId,
         marcaciones,
+        lapsos,
       });
 
       if (!puedeRegistrarMarcacion(marcaciones)) {
