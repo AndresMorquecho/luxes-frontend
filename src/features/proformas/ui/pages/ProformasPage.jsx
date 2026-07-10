@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate } from 'react-router-dom';
 import { getProformas, deleteProforma, updateProformaEstado } from '../../application/proformasService';
@@ -10,76 +10,6 @@ import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { FileText, Clock, CheckCircle2, DollarSign, Search, Trash2, Download, Eye, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ESTADOS = ['Pendiente', 'Aprobada', 'Rechazada'];
-
-const SearchableSelect = ({ label, value, onChange, options, placeholder }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const handleOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, []);
-
-  const filteredOptions = options.filter(opt =>
-    (opt || '').toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">{label}</label>
-      <div 
-        onClick={() => { setIsOpen(!isOpen); setSearch(''); }}
-        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer flex justify-between items-center min-h-[38px]"
-      >
-        <span className={value ? "text-slate-700 font-medium" : "text-slate-400"}>
-          {value || placeholder}
-        </span>
-        <span className="text-slate-400 text-[10px]">▼</span>
-      </div>
-      {isOpen && (
-        <div className="co-search-dropdown p-2">
-          <input
-            type="text"
-            placeholder="Buscar..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full px-3 py-1.5 mb-2 border border-slate-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onClick={e => e.stopPropagation()}
-            autoFocus
-          />
-          <div className="max-h-40 overflow-y-auto">
-            <div 
-              onClick={() => { onChange(''); setIsOpen(false); }}
-              className="px-2 py-1.5 text-xs text-slate-400 hover:bg-slate-50 rounded cursor-pointer italic"
-            >
-              {placeholder}
-            </div>
-            {filteredOptions.map(opt => (
-              <div
-                key={opt}
-                onClick={() => { onChange(opt); setIsOpen(false); }}
-                className={`co-search-item rounded ${value === opt ? 'bg-blue-50 text-blue-600 font-bold' : ''}`}
-              >
-                {opt}
-              </div>
-            ))}
-            {filteredOptions.length === 0 && (
-              <div className="px-2 py-1.5 text-xs text-slate-400 text-center">
-                No se encontraron resultados
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 export const ProformasPage = () => {
   const navigate = useNavigate();
@@ -409,7 +339,7 @@ export const ProformasPage = () => {
 
   const exportToCSV = () => {
     if (allProformas.length === 0) return;
-    const headers = ['N. Proforma', 'ID', 'Fecha', 'Cliente', 'Usuario', 'Total', 'Estado', 'Vencimiento'];
+    const headers = ['N. Proforma', 'ID', 'Fecha', 'Cliente', 'Ejecutivo', 'Total', 'Estado', 'Vencimiento'];
     const rows = allProformas.map(p => [
       p.id,
       getMockLongId(p.id),
@@ -518,75 +448,83 @@ export const ProformasPage = () => {
 
       {/* Filters Container */}
       <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm mb-6">
-        <div className="flex flex-col xl:flex-row xl:items-end gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 flex-1">
-            {/* Búsqueda general */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Búsqueda general</label>
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                <input 
-                  type="text" 
-                  value={localSearch} 
-                  onChange={e => setLocalSearch(e.target.value)}
-                  placeholder="Buscar por N.° proforma o cliente..."
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all min-h-[38px]" 
-                />
-              </div>
-            </div>
-
-            {/* Cliente */}
-            <SearchableSelect
-              label="Cliente"
-              value={localCliente}
-              onChange={setLocalCliente}
-              options={clientesList}
-              placeholder="Seleccionar cliente"
-            />
-
-            {/* Usuario */}
-            <SearchableSelect
-              label="Usuario"
-              value={localExecutive}
-              onChange={setLocalExecutive}
-              options={ejecutivos}
-              placeholder="Seleccionar usuario"
-            />
-
-            {/* Estado */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Estado</label>
-              <select 
-                value={localEstado} 
-                onChange={e => setLocalEstado(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all min-h-[38px]"
-              >
-                <option value="">Todos los estados</option>
-                {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
-
-            {/* Rango de fechas */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Rango de fechas</label>
-              <DateRangePicker
-                value={localDateRange}
-                onChange={setLocalDateRange}
-                placeholder="Seleccionar rango"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-5">
+          {/* Búsqueda general */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Búsqueda general</label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <input 
+                type="text" 
+                value={localSearch} 
+                onChange={e => setLocalSearch(e.target.value)}
+                placeholder="Buscar por N.° proforma o cliente..."
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full xl:w-auto justify-end xl:mb-0.5">
+          {/* Cliente */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Cliente</label>
+            <select 
+              value={localCliente} 
+              onChange={e => setLocalCliente(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            >
+              <option value="">Seleccionar cliente</option>
+              {clientesList.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {/* Ejecutivo / Usuario */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Ejecutivo / Usuario</label>
+            <select 
+              value={localExecutive} 
+              onChange={e => setLocalExecutive(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            >
+              <option value="">Seleccionar ejecutivo</option>
+              {ejecutivos.map(ej => <option key={ej} value={ej}>{ej}</option>)}
+            </select>
+          </div>
+
+          {/* Estado */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Estado</label>
+            <select 
+              value={localEstado} 
+              onChange={e => setLocalEstado(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            >
+              <option value="">Todos los estados</option>
+              {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Datepicker & Action Buttons */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pt-3 border-t border-slate-100">
+          <div className="w-full md:w-auto">
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Rango de fechas</label>
+            <DateRangePicker
+              value={localDateRange}
+              onChange={setLocalDateRange}
+              placeholder="Seleccionar rango"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
             <button 
               onClick={limpiarFiltros}
-              className="flex items-center justify-center gap-2 px-5 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors w-full sm:w-auto min-h-[38px]"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors w-full sm:w-auto"
             >
               Limpiar filtros
             </button>
             <button 
               onClick={aplicarFiltros}
-              className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm shadow-blue-100 w-full sm:w-auto min-h-[38px]"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm shadow-blue-100 w-full sm:w-auto"
             >
               <Search size={15} /> Aplicar filtros
             </button>
@@ -640,7 +578,7 @@ export const ProformasPage = () => {
                       <th className="text-left px-6 py-4">N.° Proforma</th>
                       <th className="text-left px-6 py-4">Fecha</th>
                       <th className="text-left px-6 py-4">Cliente</th>
-                      <th className="text-left px-6 py-4">Usuario</th>
+                      <th className="text-left px-6 py-4">Ejecutivo</th>
                       <th className="text-right px-6 py-4">Total</th>
                       <th className="text-center px-6 py-4">Estado</th>
                       <th className="text-left px-6 py-4">Vencimiento</th>
@@ -811,7 +749,7 @@ export const ProformasPage = () => {
                         
                         <div className="grid grid-cols-2 gap-2 mt-1">
                           <div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Usuario</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Ejecutivo</span>
                             <span className="text-xs text-slate-600 font-semibold">{p.atiende || '—'}</span>
                           </div>
                           <div>
@@ -1008,34 +946,6 @@ export const ProformasPage = () => {
         }
         .animate-fade-in {
           animation: fadeIn 0.15s ease-out forwards;
-        }
-        .co-search-dropdown {
-          position: absolute;
-          left: 0;
-          right: 0;
-          margin-top: 4px;
-          max-height: 200px;
-          overflow-y: auto;
-          background: #ffffff;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 8px;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-          z-index: 100;
-        }
-        .co-search-item {
-          padding: 8px 12px;
-          font-size: 13px;
-          cursor: pointer;
-          border-bottom: 1px solid #f1f5f9;
-          transition: background 0.15s ease;
-          text-align: left;
-          color: #334155;
-        }
-        .co-search-item:hover {
-          background-color: #f8fafc;
-        }
-        .co-search-item:last-child {
-          border-bottom: none;
         }
       `}</style>
     </div>

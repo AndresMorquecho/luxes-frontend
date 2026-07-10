@@ -383,7 +383,7 @@ export const EmpleadosPage = () => {
                     <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3 min-w-0">
-                          <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" image={emp.foto} />
+                          <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" />
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-slate-900 leading-tight truncate normal-case">{emp.nombre}</p>
                             <p className="text-xs text-slate-400 mt-0.5">{emp.id}</p>
@@ -463,7 +463,7 @@ export const EmpleadosPage = () => {
                 className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm"
               >
                 <div className="flex items-start gap-3">
-                  <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" image={emp.foto} />
+                  <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-900 leading-snug normal-case">{emp.nombre}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">{emp.id}</p>

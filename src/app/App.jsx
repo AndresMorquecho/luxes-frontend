@@ -212,24 +212,7 @@ function App() {
     );
   }
 
-  // Render Kiosk view outside Layout for full-screen layout on tablets/screens
-  const queryParams = new URLSearchParams(location.search);
-  const isKioskRoute = location.pathname === '/nomina/registro-asistencia' && queryParams.get('kiosk') === 'true';
-
-  if (isKioskRoute) {
-    return (
-      <>
-        <ToastContainer />
-        <ConfirmDialogContainer />
-        <ErrorBoundary>
-          <Routes>
-            <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
-          </Routes>
-        </ErrorBoundary>
-      </>
-    );
-  }
-
+  const isAsistenciaMode = isAsistenciaUser(user);
   const isTallerMode = isTallerUser(user);
   const userRole = (user?.rol || '').toUpperCase();
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
@@ -244,7 +227,12 @@ function App() {
       <PrintQueueProvider>
       <ProyectosProvider>
         <Layout user={user} onLogout={handleLogout}>
-          {isTallerMode ? (
+          {isAsistenciaMode ? (
+            <Routes>
+              <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
+              <Route path="*" element={<Navigate to="/nomina/registro-asistencia" replace />} />
+            </Routes>
+          ) : isTallerMode ? (
             <Routes>
               <Route path="/notificaciones" element={<NotificacionesPage />} />
               <Route path="/instalaciones" element={<InstalacionesPage />} />
@@ -254,7 +242,6 @@ function App() {
               <Route path="/devoluciones" element={<DevolucionesPage />} />
               <Route path="/inventario/recepcion" element={<Navigate to="/compras/recepcion" replace />} />
               <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
-              <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
               <Route path="*" element={<Navigate to="/notificaciones" replace />} />
             </Routes>
           ) : (

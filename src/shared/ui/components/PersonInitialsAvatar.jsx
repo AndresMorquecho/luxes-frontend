@@ -7,23 +7,18 @@ const SIZES = {
   lg: 'w-32 h-32 text-2xl rounded-2xl',
 };
 
-export function PersonInitialsAvatar({ name, seed, size = 'sm', className = '', image, foto }) {
+export function PersonInitialsAvatar({ name, seed, size = 'sm', className = '' }) {
   const palette = getAvatarPalette(seed || name);
   const initials = getPersonInitials(name);
-  const avatarImage = image || foto;
 
   return (
     <div
       className={`flex items-center justify-center font-bold shrink-0 overflow-hidden uppercase leading-none tracking-tight select-none ${SIZES[size] || SIZES.sm} ${className}`}
-      style={avatarImage ? undefined : { backgroundColor: palette.bg, color: palette.text }}
+      style={{ backgroundColor: palette.bg, color: palette.text }}
       title={name || undefined}
-      aria-label={name ? (avatarImage ? `Avatar de: ${name}` : `Iniciales: ${initials}`) : undefined}
+      aria-label={name ? `Iniciales: ${initials}` : undefined}
     >
-      {avatarImage ? (
-        <img src={avatarImage} alt={name} className="w-full h-full object-cover rounded-full" />
-      ) : (
-        <span className="block max-w-full truncate px-0.5 text-center">{initials}</span>
-      )}
+      <span className="block max-w-full truncate px-0.5 text-center">{initials}</span>
     </div>
   );
 }

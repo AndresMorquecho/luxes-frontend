@@ -88,18 +88,20 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
             >
               <div className="pdf-sheet">
-                <div className="pdf-sheet-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #02188E', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
-                  <div className="pdf-header-left" style={{ display: 'flex', alignItems: 'center', flex: 1, paddingRight: '20px' }}>
-                    <img
-                      src="/bannerProforma.png"
-                      alt="LUXES Diseño y Publicidad"
-                      style={{ maxWidth: '280px', display: 'block', height: 'auto' }}
-                    />
+                <div className="pdf-sheet-header">
+                  <div className="pdf-header-left">
+                    <h1 className="pdf-brand-title">LUXES 2026</h1>
+                    <p className="pdf-brand-subtitle">PORTAL &amp; ILUMINACIÓN</p>
+                    <p className="pdf-brand-meta">
+                      RUC: 0991234567001<br />
+                      Taller de Diseño, Producción e Instalación<br />
+                      Guayaquil, Ecuador • Telf: (04) 255-8899
+                    </p>
                   </div>
-                  <div className="pdf-header-right" style={{ textAlign: 'right' }}>
+                  <div className="pdf-header-right">
                     <div className="pdf-doc-badge">ORDEN DE COMPRA</div>
                     <h2 className="pdf-doc-id">{oc.id || 'BORRADOR'}</h2>
-                    <p className="pdf-doc-date">Fecha Solicitud: {oc.fechaCreacion || oc.fecha || new Date().toISOString().split('T')[0]}</p>
+                    <p className="pdf-doc-date">Fecha Solicitud: {oc.fechaCreacion || new Date().toISOString().split('T')[0]}</p>
                     <p className="pdf-doc-status">Estado: {oc.estado || 'PENDIENTE'}</p>
                   </div>
                 </div>
@@ -110,16 +112,16 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
                     <div className="pdf-box-content">
                       <p><strong>Proyecto:</strong> {proyecto?.nombre || oc.proyectoNombre || 'No especificado'}</p>
                       <p><strong>ID Proyecto:</strong> {proyecto?.id || oc.proyectoId || 'N/D'}</p>
-                      <p><strong>Responsable:</strong> {proyecto?.responsable || 'No asignado'}</p>
+                      <p><strong>Responsable:</strong> {proyecto?.responsable || 'Taller de Instalación'}</p>
                     </div>
                   </div>
 
                   <div className="pdf-meta-box">
                     <span className="pdf-box-title">DESTINATARIO / INSTALACIÓN</span>
                     <div className="pdf-box-content">
-                      <p><strong>Cliente:</strong> {proyecto?.cliente?.empresa || proyecto?.clienteNombre || oc.clienteNombre || 'No especificado'}</p>
-                      <p><strong>Contacto:</strong> {proyecto?.cliente?.nombre || 'No especificado'}</p>
-                      <p><strong>Ubicación:</strong> {proyecto?.fases?.INSTALACION?.datos?.direccionInstalacion || proyecto?.cliente?.direccion || 'No especificada'}</p>
+                      <p><strong>Cliente:</strong> {proyecto?.cliente?.empresa || 'Cliente Particular'}</p>
+                      <p><strong>Contacto:</strong> {proyecto?.cliente?.nombre || 'N/D'}</p>
+                      <p><strong>Ubicación:</strong> {proyecto?.fases?.INSTALACION?.datos?.direccionInstalacion || proyecto?.cliente?.direccion || 'Guayaquil, Ecuador'}</p>
                     </div>
                   </div>
                 </div>
@@ -170,19 +172,19 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
                 <div className="pdf-notes-section">
                   <p className="pdf-notes-title">OBSERVACIONES Y NOTAS:</p>
                   <p className="pdf-notes-text">
-                    {oc.comentarios || 'Sin observaciones adicionales.'}
+                    {oc.comentarios || 'Esta solicitud de materiales ha sido generada por el personal de montaje en sitio. Los precios cargados corresponden a estimaciones y cotizaciones referenciales del inventario.'}
                   </p>
                 </div>
 
                 <div className="pdf-signatures-row">
                   <div className="pdf-signature-field">
                     <div className="pdf-signature-line" />
-                    <span className="pdf-signature-lbl">{oc.usuario?.nombre || oc.solicitadoPor || 'Solicitante Técnico'}</span>
+                    <span className="pdf-signature-lbl">Solicitante Técnico</span>
                     <span className="pdf-signature-lbl-sub">Taller de Montaje e Instalaciones</span>
                   </div>
                   <div className="pdf-signature-field">
                     <div className="pdf-signature-line" />
-                    <span className="pdf-signature-lbl">{oc.aprobadoPor || 'Autorizado Por'}</span>
+                    <span className="pdf-signature-lbl">Autorizado Por</span>
                     <span className="pdf-signature-lbl-sub">Administración de Proyectos - LUXES</span>
                   </div>
                 </div>

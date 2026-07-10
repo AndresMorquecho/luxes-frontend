@@ -43,7 +43,7 @@ export const NominaEmpleadosPage = () => {
                   <td className="px-5 py-3 text-xs font-mono text-gray-400">{emp.id}</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" image={emp.foto} />
+                      <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" />
                       <span className="font-medium text-gray-800 normal-case">{emp.nombre}</span>
                     </div>
                   </td>
