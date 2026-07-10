@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getOrdenes, getProveedores } from '../../../compras/application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { RecepcionNav } from './RecepcionNav';
+import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import { formatDateTimeES } from '../../../../shared/utils/dateOnly.js';
 import '../../../compras/ui/pages/ComprasPage.css';
@@ -13,7 +14,6 @@ const fmtDateTime = (d) => formatDateTimeES(d);
 
 const RI_PRIMARY = '#2b41b8';
 const RI_NAVY = '#1a1c3d';
-const RI_PAGE_BG = '#f8f9fc';
 
 const countRecibidos = (orden) =>
   (orden.detalles || []).filter((d) => (d.cantidadRecibida ?? 0) > 0).length;
@@ -265,19 +265,18 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
 
   return (
     <div
-      className="co-compras-page co-recepcion-page w-full min-h-full animate-slide-up px-0 py-0 sm:p-6 xl:p-8 md:-mx-10 md:-mt-8 md:-mb-10 overflow-x-hidden"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: RI_PAGE_BG }}
+      className="co-compras-page co-recepcion-page animate-slide-up overflow-x-hidden pb-6"
     >
       <div className="md:hidden">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold leading-tight" style={{ color: RI_NAVY }}>Historial recibidos</h1>
-            <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">Órdenes completas ingresadas al inventario.</p>
-          </div>
-          <div className="shrink-0 bg-white border border-slate-200/80 rounded-xl px-3 py-2 shadow-sm">
-            <p className="text-sm font-bold text-emerald-600 whitespace-nowrap">{total} reg.</p>
-          </div>
-        </div>
+        <ComprasPageHeader
+          title="Historial recibidos"
+          subtitle="Órdenes completas ingresadas al inventario."
+          aside={(
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+              <p className="text-sm font-bold text-emerald-600 whitespace-nowrap">{total} reg.</p>
+            </div>
+          )}
+        />
 
         <RecepcionNav basePath={basePath} />
 
@@ -327,14 +326,10 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
       </div>
 
       <div className="hidden md:block">
-        <div className="flex flex-row items-start justify-between gap-4 mb-6">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[1.65rem] font-bold tracking-tight leading-tight" style={{ color: RI_NAVY }}>Historial de productos recibidos</h1>
-            <p className="text-sm text-slate-500 mt-1 max-w-xl">
-              Órdenes completas con fecha de llegada, responsable e ítems ingresados al inventario.
-            </p>
-          </div>
-        </div>
+        <ComprasPageHeader
+          title="Historial de productos recibidos"
+          subtitle="Órdenes completas con fecha de llegada, responsable e ítems ingresados al inventario."
+        />
 
         <RecepcionNav basePath={basePath} />
 

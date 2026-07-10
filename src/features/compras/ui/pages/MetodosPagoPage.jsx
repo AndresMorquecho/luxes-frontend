@@ -4,6 +4,7 @@ import {
   getMetodosPago, createMetodoPago, updateMetodoPago, deleteMetodoPago
 } from '../../application/comprasService';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
+import { ComprasPageHeader, ComprasHeaderButton } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
 
 const getInitialRange = () => {
@@ -122,17 +123,16 @@ export const MetodosPagoPage = () => {
 
   return (
     <div className="co-page animate-slide-up">
-      {/* Header */}
-      <div className="co-card co-header">
-        <div>
-          <h1 className="co-title">Métodos de Pago</h1>
-          <p className="co-subtitle">Administración de canales de cobro y pago (Caja Chica, Banco, etc.)</p>
-        </div>
-        <button onClick={openNewMetodo} className="co-btn-primary" id="btn-nuevo-metodo">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-          Nuevo Método
-        </button>
-      </div>
+      <ComprasPageHeader
+        title="Métodos de Pago"
+        subtitle="Administración de canales de cobro y pago (Caja Chica, Banco, etc.)"
+        action={(
+          <ComprasHeaderButton onClick={openNewMetodo} id="btn-nuevo-metodo">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            Nuevo Método
+          </ComprasHeaderButton>
+        )}
+      />
 
       {/* KPI Cards (Acumulados) */}
       <div className="co-kpi-grid mb-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>

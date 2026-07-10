@@ -14,6 +14,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { isAdminUser, isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
 import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
 import { fmtMoney, isOrdenEditable, getOrdenNoEditableMensaje, mergeOrdenDetalles, mapDetallesToFormRows } from '../../helpers/ordenCompraHelpers.js';
+import { ComprasPageHeader, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
 
 const MATERIAL_SEARCH_LIMIT = 5;
 const MIN_FILTER_CHARS = 2;
@@ -478,33 +479,21 @@ export const FormOrdenCompraPage = () => {
 
   return (
     <div className="co-page animate-slide-up">
-      {/* Header */}
-      <div className="co-card co-header" style={{ border: '1.5px solid #cbd5e1', background: '#ffffff' }}>
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl flex items-center justify-center shrink-0" style={{ background: '#eff6ff', color: '#3b82f6' }}>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="co-title" style={{ color: '#1e293b', fontWeight: 800 }}>
-              {isEdit ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}
-            </h1>
-            <p className="co-subtitle">
-              {editBloqueado
-                ? getOrdenNoEditableMensaje(ordenEstado)
-                : isEdit && isAdmin
-                  ? 'Modifica items, cantidades y precios de la orden.'
-                  : isEdit
-                    ? 'Modifica los items de la orden.'
-                    : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
-            </p>
-          </div>
-        </div>
-        <Link to="/compras" className="co-btn-ghost" style={{ color: '#2563eb', fontWeight: 700 }}>
-          ← Volver
-        </Link>
-      </div>
+      <ComprasPageHeader
+        title={isEdit ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}
+        subtitle={editBloqueado
+          ? getOrdenNoEditableMensaje(ordenEstado)
+          : isEdit && isAdmin
+            ? 'Modifica items, cantidades y precios de la orden.'
+            : isEdit
+              ? 'Modifica los items de la orden.'
+              : 'Registra qué necesitas comprar (sin precios ni proveedores)'}
+        action={(
+          <ComprasHeaderGhostButton onClick={() => navigate('/compras')}>
+            ← Volver
+          </ComprasHeaderGhostButton>
+        )}
+      />
 
       {/* Main Form */}
       <form onSubmit={handleSubmit} className="space-y-6">

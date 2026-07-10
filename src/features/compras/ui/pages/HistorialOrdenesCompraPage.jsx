@@ -13,6 +13,7 @@ import {
 } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
+import { ComprasPageHeader, ComprasHeaderButton } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
 
 export const HistorialOrdenesCompraPage = () => {
@@ -106,25 +107,23 @@ export const HistorialOrdenesCompraPage = () => {
 
   return (
     <div className="co-page animate-slide-up">
-      <div className="co-card co-header">
-        <div>
-          <h1 className="co-title">Historial de órdenes de compra</h1>
-          <p className="co-subtitle">
-            Registro completo de solicitudes del área de {areaLabel}: estados, fechas y seguimiento
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="co-stat-badge">
-            <span>{total} orden{total !== 1 ? 'es' : ''}</span>
-          </div>
-          <button type="button" onClick={() => navigate('/compras/nueva')} className="co-btn-primary">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Nueva orden
-          </button>
-        </div>
-      </div>
+      <ComprasPageHeader
+        title="Historial de órdenes de compra"
+        subtitle={`Registro completo de solicitudes del área de ${areaLabel}: estados, fechas y seguimiento`}
+        action={(
+          <>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-600">
+              {total} orden{total !== 1 ? 'es' : ''}
+            </div>
+            <ComprasHeaderButton onClick={() => navigate('/compras/nueva')}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Nueva orden
+            </ComprasHeaderButton>
+          </>
+        )}
+      />
 
       <ComprasOperativoNav />
 

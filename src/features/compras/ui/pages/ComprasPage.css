@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
+/* Contenedor full-width: usa el padding de layout-main (sin márgenes extra) */
+.co-compras-page {
+  width: 100%;
+  min-height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
 .co-page {
   padding: 1.5rem;
   width: 100%;

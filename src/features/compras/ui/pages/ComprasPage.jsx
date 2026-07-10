@@ -9,6 +9,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
 import { ComprasAdminNav } from '../components/ComprasAdminNav';
+import { ComprasPageHeader, ComprasHeaderButton } from '../components/ComprasPageHeader';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import { mapOrdenToPDFFormat, isOrdenEditable, getAbonoSaldoPendiente, getOrdenProyectoLabel } from '../../helpers/ordenCompraHelpers';
 import './ComprasPage.css';
@@ -19,7 +20,6 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'nume
 const CO_PRIMARY = '#2b41b8';
 const CO_PRIMARY_HOVER = '#2436a0';
 const CO_NAVY = '#1a1c3d';
-const CO_PAGE_BG = '#f8f9fc';
 
 const ESTADO_BADGES = {
   pendiente_aprobacion: { bg: 'bg-amber-50', color: 'text-amber-700', dot: 'bg-amber-500', label: 'PENDIENTE' },
@@ -434,7 +434,7 @@ export const ComprasPage = () => {
         </select>
       )}
       <select value={filterPago} onChange={(e) => setFilterPago(e.target.value)} className="h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
-        {PAGO_FILTER_OPTIONS.map((opt) => <option key={opt.value || 'all'} value={opt.value}>Pago: {opt.label}</option>)}
+        {PAGO_FILTER_OPTIONS.map((opt) => <option key={opt.value || 'all'} value={opt.value}>{opt.label}</option>)}
       </select>
       <select value={filterProveedorId} onChange={(e) => setFilterProveedorId(e.target.value)} className="h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
         <option value="">Proveedor: Todos</option>
@@ -448,37 +448,27 @@ export const ComprasPage = () => {
 
   return (
     <div
-      className="co-compras-page w-full min-h-full animate-slide-up px-0 py-0 sm:p-6 xl:p-8 md:-mx-10 md:-mt-8 md:-mb-10 overflow-x-hidden"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: CO_PAGE_BG }}
+      className="co-compras-page animate-slide-up overflow-x-hidden pb-6"
     >
 
       {/* ── Móvil ── */}
       <div className="md:hidden">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold leading-tight" style={{ color: CO_NAVY }}>
-              {isImpresion || isTaller ? 'Órdenes activas' : isVistaAprobaciones ? 'Pendientes de aprobación' : 'Órdenes de Compra'}
-            </h1>
-            <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-              {isVistaAprobaciones
-                ? 'Revisa, aprueba o rechaza solicitudes de compra entrantes'
-                : isImpresion || isTaller
-                ? 'Solicitudes pendientes, aprobadas o en recepción'
-                : 'Control y emisión de compras de materiales y activos.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/compras/nueva')}
-            className="inline-flex items-center justify-center gap-1 px-3 py-2 text-white rounded-lg font-semibold text-[11px] whitespace-nowrap shrink-0"
-            style={{ backgroundColor: CO_PRIMARY, boxShadow: '0 2px 10px rgba(43, 65, 184, 0.3)' }}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Nueva Orden
-          </button>
-        </div>
+        <ComprasPageHeader
+          title={isImpresion || isTaller ? 'Órdenes activas' : isVistaAprobaciones ? 'Pendientes de aprobación' : 'Órdenes de Compra'}
+          subtitle={isVistaAprobaciones
+            ? 'Revisa, aprueba o rechaza solicitudes de compra entrantes'
+            : isImpresion || isTaller
+            ? 'Solicitudes pendientes, aprobadas o en recepción'
+            : 'Control y emisión de compras de materiales y activos.'}
+          action={(
+            <ComprasHeaderButton onClick={() => navigate('/compras/nueva')}>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Nueva Orden
+            </ComprasHeaderButton>
+          )}
+        />
 
         {(isImpresion || isTaller) && <ComprasOperativoNav />}
         {showAdminNav && <ComprasAdminNav />}
@@ -559,34 +549,22 @@ export const ComprasPage = () => {
 
       {/* ── Escritorio ── */}
       <div className="hidden md:block">
-      <div className="flex flex-row items-start justify-between gap-4 mb-6">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[1.65rem] font-bold tracking-tight leading-tight" style={{ color: CO_NAVY }}>
-            {isImpresion || isTaller ? 'Órdenes activas' : isVistaAprobaciones ? 'Pendientes de aprobación' : 'Órdenes de Compra'}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1 max-w-xl">
-            {isVistaAprobaciones
-              ? 'Revisa, aprueba o rechaza solicitudes de órdenes de compra entrantes'
-              : isImpresion || isTaller
-              ? 'Solicitudes pendientes, aprobadas o en recepción de tu área'
-              : 'Solicitud, control y emisión de compras de materiales y activos.'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate('/compras/nueva')}
-          id="btn-nueva-orden"
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-lg font-semibold text-sm whitespace-nowrap transition-colors shadow-md shrink-0"
-          style={{ backgroundColor: CO_PRIMARY, boxShadow: '0 4px 14px rgba(43, 65, 184, 0.35)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nueva Orden
-        </button>
-      </div>
+      <ComprasPageHeader
+        title={isImpresion || isTaller ? 'Órdenes activas' : isVistaAprobaciones ? 'Pendientes de aprobación' : 'Órdenes de Compra'}
+        subtitle={isVistaAprobaciones
+          ? 'Revisa, aprueba o rechaza solicitudes de órdenes de compra entrantes'
+          : isImpresion || isTaller
+          ? 'Solicitudes pendientes, aprobadas o en recepción de tu área'
+          : 'Solicitud, control y emisión de compras de materiales y activos.'}
+        action={(
+          <ComprasHeaderButton onClick={() => navigate('/compras/nueva')} id="btn-nueva-orden">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nueva Orden
+          </ComprasHeaderButton>
+        )}
+      />
 
       {(isImpresion || isTaller) && <ComprasOperativoNav />}
       {showAdminNav && <ComprasAdminNav />}

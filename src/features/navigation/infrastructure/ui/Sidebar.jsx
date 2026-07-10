@@ -653,6 +653,14 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         </Link>
                       </li>
                     )}
+                    <li className={currentPath.startsWith('/compras/guias-remision') ? 'submenu-active' : ''}>
+                      <Link to="/compras/guias-remision" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 4.783 4.5h14.434a1.125 1.125 0 0 1 1.12 1.243l-1.264 12a1.125 1.125 0 0 1-1.12 1.243H3m15 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75-13.5h9.75" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Guías de Remisión</span>
+                      </Link>
+                    </li>
                   </ul>
                 )}
               </li>
