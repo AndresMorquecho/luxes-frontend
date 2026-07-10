@@ -437,6 +437,15 @@ export const ProformasPage = () => {
     document.body.removeChild(link);
   };
 
+  const hayFiltrosActivos = !!(
+    search.trim() ||
+    clienteFilter ||
+    usuarioFilter ||
+    estado ||
+    dateRange.start ||
+    dateRange.end
+  );
+
   return (
     <div className="pb-10" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}

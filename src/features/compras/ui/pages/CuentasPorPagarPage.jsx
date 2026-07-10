@@ -1,18 +1,31 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats
 } from '../../application/comprasService';
 import { buildOrdenParaAbono, getAbonoSaldoPendiente } from '../../helpers/ordenCompraHelpers';
+import { ComprasPageHeader } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
 
+const CO_PRIMARY = '#2b41b8';
+const CO_PRIMARY_HOVER = '#2436a0';
+const CO_NAVY = '#1a1c3d';
+
 const CXP_BADGES = {
-  pendiente: { bg: 'rgba(239,68,68,0.08)', color: '#ef4444', label: 'Pendiente' },
-  parcial:   { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b', label: 'Parcial' },
-  pagado:    { bg: 'rgba(16,185,129,0.1)', color: '#10b981', label: 'Pagado' },
-  vencido:   { bg: 'rgba(220,38,38,0.1)',  color: '#dc2626', label: 'Vencido' },
+  pendiente: { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'PENDIENTE' },
+  parcial:   { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
+  pagado:    { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'PAGADO' },
+  vencido:   { bg: 'bg-red-50', color: 'text-red-800', dot: 'bg-red-600', label: 'VENCIDO' },
 };
+
+const ESTADO_FILTER_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'pendiente', label: 'Pendiente' },
+  { value: 'parcial', label: 'Parcial' },
+  { value: 'pagado', label: 'Pagado' },
+  { value: 'vencido', label: 'Vencido' },
+];
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
@@ -26,12 +39,11 @@ export const CuentasPorPagarPage = () => {
   const [cxpLoading, setCxpLoading] = useState(true);
   const [metodos, setMetodos] = useState([]);
 
-  // Abono modal
   const [abonoModalOpen, setAbonoModalOpen] = useState(false);
   const [abonoOrden, setAbonoOrden] = useState(null);
   const [abonoForm, setAbonoForm] = useState({ metodoPagoId: '', monto: '', referencia: '' });
   const [abonoSaving, setAbonoSaving] = useState(false);
-  const perPage = 8;
+  const perPage = 25;
 
   const loadStats = useCallback(async () => {
     try { const s = await getComprasStats(); setStats(s); } catch {}
@@ -43,16 +55,21 @@ export const CuentasPorPagarPage = () => {
       const data = await getCuentasPorPagar({ page: cxpPage, limit: perPage, estado: cxpFilter || undefined });
       setCxpItems(data.items || []);
       setCxpTotal(data.total || 0);
-    } catch { setCxpItems([]); setCxpTotal(0); }
-    finally { setCxpLoading(false); }
+    } catch {
+      setCxpItems([]);
+      setCxpTotal(0);
+    } finally {
+      setCxpLoading(false);
+    }
   }, [cxpPage, cxpFilter]);
 
   const loadMetodos = useCallback(async () => {
     try { const m = await getMetodosPago(); setMetodos(m); } catch {}
   }, []);
 
-  useEffect(() => { loadStats(); loadMetodos(); }, []);
+  useEffect(() => { loadStats(); loadMetodos(); }, [loadStats, loadMetodos]);
   useEffect(() => { loadCxP(); }, [loadCxP]);
+  useEffect(() => { setCxpPage(1); }, [cxpFilter]);
 
   const openAbonoModal = (cuenta) => {
     const orden = buildOrdenParaAbono(cuenta);
@@ -75,170 +92,276 @@ export const CuentasPorPagarPage = () => {
       });
       toast.success('Abono registrado con éxito');
       setAbonoModalOpen(false);
-      loadStats(); loadCxP();
-    } catch (err) { toast.error(err.message); }
-    finally { setAbonoSaving(false); }
+      loadStats();
+      loadCxP();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setAbonoSaving(false);
+    }
   };
 
   const cxpTotalPages = Math.max(1, Math.ceil(cxpTotal / perPage));
+  const showingFrom = cxpTotal === 0 ? 0 : (cxpPage - 1) * perPage + 1;
+  const showingTo = Math.min(cxpPage * perPage, cxpTotal);
+
+  const kpiItems = [
+    { label: 'Deuda total', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50', iconColor: 'text-red-500', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
+    { label: 'Órdenes pendientes', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Por aprobar o pagar', accent: '#f97316', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    { label: 'Total gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    { label: 'Cuentas listadas', mobileLabel: 'Cuentas', value: cxpTotal, hint: 'Según filtro actual', accent: '#2b41b8', iconBg: 'bg-[#eef1fc]', iconColor: 'text-[#2b41b8]', icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z' },
+  ];
+
+  const renderKpiCardDesktop = (kpi) => (
+    <div key={kpi.label} className="bg-white border border-slate-200/80 rounded-xl shadow-sm flex items-start gap-3 p-5 min-w-0 overflow-hidden">
+      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-5 h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-slate-500 leading-tight">{kpi.label}</p>
+        <p className="text-2xl font-bold mt-0.5 tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
+        <p className="text-[11px] text-slate-400 mt-0.5">{kpi.hint}</p>
+      </div>
+    </div>
+  );
+
+  const renderKpiCardMobile = (kpi) => (
+    <div
+      key={kpi.label}
+      className="co-kpi-mobile bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 p-3 min-w-0"
+      style={{ borderBottomWidth: '3px', borderBottomColor: kpi.accent }}
+    >
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-3.5 h-3.5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
+        </svg>
+      </div>
+      <div className="flex flex-col gap-1.5 min-w-0">
+        <p className="text-[9px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
+        <p className="text-sm font-semibold tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
+        <p className="text-[8px] text-slate-400 leading-tight line-clamp-2">{kpi.hint}</p>
+      </div>
+    </div>
+  );
+
+  const renderBadge = (estado, compact = false) => {
+    const b = CXP_BADGES[estado] || CXP_BADGES.pendiente;
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-wide ${b.bg} ${b.color} ${
+        compact ? 'px-1.5 py-0.5 text-[8px] gap-0.5' : 'px-2.5 py-1 text-[10px] gap-1.5'
+      }`}>
+        <span className={`rounded-full shrink-0 ${b.dot} ${compact ? 'w-1 h-1' : 'w-1.5 h-1.5'}`} />
+        {b.label}
+      </span>
+    );
+  };
+
+  const renderEstadoFilter = (className = '') => (
+    <select
+      value={cxpFilter}
+      onChange={(e) => setCxpFilter(e.target.value)}
+      className={`h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0 ${className}`}
+    >
+      {ESTADO_FILTER_OPTIONS.map((opt) => (
+        <option key={opt.value || 'all'} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  );
+
+  const renderMobileRow = (c) => (
+    <div key={c.id} className="co-orden-row border-b border-slate-100 last:border-b-0">
+      <div className="flex items-start justify-between gap-2 px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[11px] font-bold leading-tight" style={{ color: CO_PRIMARY }}>{c.ordenCompra?.numero || '—'}</p>
+          <p className="text-[10px] text-slate-500 truncate mt-0.5">{c.ordenCompra?.proveedor?.nombre || '—'}</p>
+          <div className="mt-1">{renderBadge(c.estado, true)}</div>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[10px] text-slate-400">Saldo</p>
+          <p className="text-sm font-bold text-red-600 tabular-nums">{fmt(c.saldo)}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs px-3 pb-2">
+        <div><span className="text-slate-400 block text-[10px]">Total</span><span className="font-semibold text-slate-700">{fmt(c.montoTotal)}</span></div>
+        <div><span className="text-slate-400 block text-[10px]">Pagado</span><span className="font-semibold text-emerald-600">{fmt(c.montoPagado)}</span></div>
+        <div className="col-span-2"><span className="text-slate-400 block text-[10px]">Vencimiento</span><span className="text-slate-700">{fmtDate(c.fechaVencimiento)}</span></div>
+      </div>
+      {c.estado !== 'pagado' && (
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            onClick={() => openAbonoModal(c)}
+            className="w-full h-9 inline-flex items-center justify-center rounded-lg text-xs font-semibold text-white"
+            style={{ backgroundColor: CO_PRIMARY }}
+          >
+            Registrar abono
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderPagination = () => (
+    <div className="px-4 md:px-5 py-3 border-t border-slate-100 bg-white flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
+      <p className="text-xs text-slate-500 text-center md:text-left shrink-0">
+        Mostrando {showingFrom} a {showingTo} de {cxpTotal} cuentas
+      </p>
+      {cxpTotalPages > 1 && (
+        <div className="flex items-center justify-center md:justify-end gap-1">
+          <button type="button" disabled={cxpPage <= 1} onClick={() => setCxpPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 bg-white">&lt;</button>
+          <span className="md:hidden text-xs font-semibold px-2 tabular-nums" style={{ color: CO_NAVY }}>{cxpPage} / {cxpTotalPages}</span>
+          <div className="hidden md:flex items-center gap-1">
+            {Array.from({ length: Math.min(5, cxpTotalPages) }, (_, i) => {
+              const maxVisible = Math.min(5, cxpTotalPages);
+              let start = Math.max(1, cxpPage - Math.floor(maxVisible / 2));
+              const end = Math.min(cxpTotalPages, start + maxVisible - 1);
+              if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+              const pageNum = start + i;
+              if (pageNum > end) return null;
+              const isActive = cxpPage === pageNum;
+              return (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setCxpPage(pageNum)}
+                  className={`w-8 h-8 rounded-lg border text-sm font-medium transition-colors ${isActive ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  style={isActive ? { backgroundColor: CO_PRIMARY, borderColor: CO_PRIMARY } : undefined}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" disabled={cxpPage >= cxpTotalPages} onClick={() => setCxpPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 bg-white">&gt;</button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="co-page animate-slide-up">
-      {/* Header */}
-      <div className="co-card co-header">
-        <div>
-          <h1 className="co-title">Cuentas por Pagar</h1>
-          <p className="co-subtitle">Gestión de deudas y saldos pendientes a proveedores</p>
-        </div>
-      </div>
+    <div
+      className="co-compras-page animate-slide-up overflow-x-hidden pb-6"
+    >
+      {/* ── Móvil ── */}
+      <div className="md:hidden">
+        <ComprasPageHeader
+          title="Cuentas por Pagar"
+          subtitle="Deudas y saldos pendientes a proveedores."
+          aside={(
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+              <p className="text-sm font-bold text-red-600 whitespace-nowrap tabular-nums">{fmt(stats.totalDeuda)}</p>
+            </div>
+          )}
+        />
 
-      {/* KPI Cards */}
-      <div className="co-kpi-grid">
-        {[
-          { label: 'Deuda Total', value: fmt(stats.totalDeuda), color: '#ef4444', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
-          { label: 'Órdenes Pendientes', value: stats.pendientes, color: '#f59e0b', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-        ].map((kpi, i) => (
-          <div key={i} className="co-card co-kpi-card" style={{ maxWidth: '300px' }}>
-            <div className="co-kpi-icon" style={{ background: `${kpi.color}15` }}>
-              <svg className="w-5 h-5" style={{ color: kpi.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
-              </svg>
-            </div>
-            <div>
-              <div className="co-kpi-label">{kpi.label}</div>
-              <div className="co-kpi-value">{kpi.value}</div>
-            </div>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
+        </div>
+
+        <div className="mb-3">
+          {renderEstadoFilter('w-full')}
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
+          <div className="px-3 py-2.5 border-b border-slate-100">
+            <h2 className="text-sm font-bold" style={{ color: CO_NAVY }}>Cuentas por pagar</h2>
           </div>
-        ))}
-      </div>
-
-      {/* Cuentas por pagar table */}
-      <div className="co-card co-table-card">
-        <div className="co-table-header">
-          <span className="text-sm font-semibold text-slate-600">Filtrar por estado:</span>
-          <select className="co-input co-select-sm" value={cxpFilter} onChange={e => { setCxpFilter(e.target.value); setCxpPage(1); }}>
-            <option value="">Todos</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="parcial">Parcial</option>
-            <option value="pagado">Pagado</option>
-            <option value="vencido">Vencido</option>
-          </select>
+          {cxpLoading && <div className="flex justify-center py-10"><div className="co-spinner" /></div>}
+          {!cxpLoading && cxpItems.map((c) => renderMobileRow(c))}
+          {!cxpLoading && cxpItems.length === 0 && (
+            <p className="text-center text-slate-400 text-sm py-10 px-4">No hay cuentas por pagar</p>
+          )}
         </div>
 
-        {cxpLoading ? (
-          <div className="co-loader-box"><div className="co-spinner" /></div>
-        ) : (
-          <>
-            <div className="overflow-x-auto devoluciones-desktop-only">
-              <table className="co-table">
-              <thead>
+        <div className="px-1 py-2 flex flex-col gap-2">
+          <p className="text-[11px] text-slate-500 text-center">Mostrando {showingFrom} a {showingTo} de {cxpTotal} cuentas</p>
+          {cxpTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-1">
+              <button type="button" disabled={cxpPage <= 1} onClick={() => setCxpPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&lt;</button>
+              <span className="text-xs font-semibold px-2 tabular-nums" style={{ color: CO_NAVY }}>{cxpPage} / {cxpTotalPages}</span>
+              <button type="button" disabled={cxpPage >= cxpTotalPages} onClick={() => setCxpPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&gt;</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Escritorio ── */}
+      <div className="hidden md:block">
+        <ComprasPageHeader
+          title="Cuentas por Pagar"
+          subtitle="Gestión de deudas y saldos pendientes a proveedores."
+        />
+
+        <div className="grid gap-4 mb-6 md:grid-cols-2 xl:grid-cols-4">
+          {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <div className="max-w-xs">{renderEstadoFilter('w-full')}</div>
+          </div>
+
+          <div className="overflow-x-auto relative">
+            {cxpLoading && (
+              <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+                <div className="co-spinner" />
+              </div>
+            )}
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-[#f8f9fc] text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
                 <tr>
-                  <th>Orden</th><th>Proveedor</th><th className="text-right">Monto Total</th>
-                  <th className="text-right">Pagado</th><th className="text-right">Saldo</th>
-                  <th className="text-center">Vencimiento</th><th className="text-center">Estado</th><th className="text-center w-20">Acción</th>
+                  <th className="px-4 py-3">Orden</th>
+                  <th className="px-4 py-3">Proveedor</th>
+                  <th className="px-4 py-3 text-right">Monto total</th>
+                  <th className="px-4 py-3 text-right">Pagado</th>
+                  <th className="px-4 py-3 text-right">Saldo</th>
+                  <th className="px-4 py-3 text-center">Vencimiento</th>
+                  <th className="px-4 py-3 text-center">Estado</th>
+                  <th className="px-4 py-3 text-center w-36">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
-                {cxpItems.map(c => (
-                  <tr key={c.id} className="co-tr">
-                    <td className="font-mono text-xs font-semibold text-slate-700">{c.ordenCompra?.numero || '—'}</td>
-                    <td className="font-semibold text-slate-800">{c.ordenCompra?.proveedor?.nombre || '—'}</td>
-                    <td className="text-right text-slate-700">{fmt(c.montoTotal)}</td>
-                    <td className="text-right text-emerald-600 font-semibold">{fmt(c.montoPagado)}</td>
-                    <td className="text-right text-red-500 font-bold">{fmt(c.saldo)}</td>
-                    <td className="text-center text-slate-500 text-xs">{fmtDate(c.fechaVencimiento)}</td>
-                    <td className="text-center">
-                      <span className="co-badge" style={{ background: CXP_BADGES[c.estado]?.bg, color: CXP_BADGES[c.estado]?.color }}>
-                        {CXP_BADGES[c.estado]?.label || c.estado}
-                      </span>
-                    </td>
-                    <td className="text-center">
-                      {c.estado !== 'pagado' && (
-                        <button onClick={() => openAbonoModal(c)} className="co-action-btn co-action-green" title="Registrar Abono">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                          </svg>
+              <tbody className="divide-y divide-slate-100">
+                {!cxpLoading && cxpItems.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: CO_PRIMARY }}>{c.ordenCompra?.numero || '—'}</td>
+                    <td className="px-4 py-3 font-medium" style={{ color: CO_NAVY }}>{c.ordenCompra?.proveedor?.nombre || '—'}</td>
+                    <td className="px-4 py-3 text-right text-slate-700 tabular-nums">{fmt(c.montoTotal)}</td>
+                    <td className="px-4 py-3 text-right text-emerald-600 font-semibold tabular-nums">{fmt(c.montoPagado)}</td>
+                    <td className="px-4 py-3 text-right text-red-600 font-bold tabular-nums">{fmt(c.saldo)}</td>
+                    <td className="px-4 py-3 text-center text-slate-500 text-xs whitespace-nowrap">{fmtDate(c.fechaVencimiento)}</td>
+                    <td className="px-4 py-3 text-center">{renderBadge(c.estado)}</td>
+                    <td className="px-4 py-3 text-center">
+                      {c.estado !== 'pagado' ? (
+                        <button
+                          type="button"
+                          onClick={() => openAbonoModal(c)}
+                          className="h-9 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap"
+                          style={{ backgroundColor: CO_PRIMARY }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
+                        >
+                          Registrar abono
                         </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
                   </tr>
                 ))}
-                {cxpItems.length === 0 && (
-                  <tr><td colSpan={8} className="text-center py-16 text-slate-400 text-sm font-medium">No hay cuentas por pagar</td></tr>
+                {!cxpLoading && cxpItems.length === 0 && (
+                  <tr><td colSpan={8} className="px-4 py-16 text-center text-slate-400 text-sm">No hay cuentas por pagar</td></tr>
                 )}
               </tbody>
             </table>
-            </div>
-
-            <div className="prest-devoluciones-mobile-only" style={{ padding: '1rem 1.25rem' }}>
-              <div className="prest-mobile-cards">
-                {cxpItems.map((c) => (
-                  <div key={c.id} className="prest-card">
-                    <div className="prest-card-header">
-                      <div>
-                        <span className="font-mono text-xs font-semibold text-slate-500" style={{ display: 'block' }}>
-                          {c.ordenCompra?.numero || '—'}
-                        </span>
-                        <span className="prest-card-tool-name">{c.ordenCompra?.proveedor?.nombre || '—'}</span>
-                      </div>
-                      <span className="co-badge" style={{ background: CXP_BADGES[c.estado]?.bg, color: CXP_BADGES[c.estado]?.color, fontSize: '0.7rem' }}>
-                        {CXP_BADGES[c.estado]?.label || c.estado}
-                      </span>
-                    </div>
-                    <div className="prest-card-body">
-                      <div className="prest-card-field">
-                        <span className="prest-card-field-label">Monto Total</span>
-                        <span className="prest-card-field-value">{fmt(c.montoTotal)}</span>
-                      </div>
-                      <div className="prest-card-field">
-                        <span className="prest-card-field-label">Pagado</span>
-                        <span className="prest-card-field-value" style={{ color: '#10b981', fontWeight: 700 }}>{fmt(c.montoPagado)}</span>
-                      </div>
-                      <div className="prest-card-field">
-                        <span className="prest-card-field-label">Saldo</span>
-                        <span className="prest-card-field-value" style={{ color: '#ef4444', fontWeight: 700 }}>{fmt(c.saldo)}</span>
-                      </div>
-                      <div className="prest-card-field">
-                        <span className="prest-card-field-label">Vencimiento</span>
-                        <span className="prest-card-field-value">{fmtDate(c.fechaVencimiento)}</span>
-                      </div>
-                    </div>
-                    {c.estado !== 'pagado' && (
-                      <div className="prest-card-footer">
-                        <button
-                          type="button"
-                          onClick={() => openAbonoModal(c)}
-                          className="w-full py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
-                        >
-                          Registrar Abono
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {cxpItems.length === 0 && (
-                  <div className="prest-empty text-center py-8 text-slate-400 text-sm">No hay cuentas por pagar</div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {cxpTotalPages > 1 && (
-          <div className="co-pagination">
-            <span className="text-xs font-medium text-slate-400">{cxpTotal} cuenta{cxpTotal !== 1 ? 's' : ''}</span>
-            <div className="flex items-center gap-1">
-              <button disabled={cxpPage <= 1} onClick={() => setCxpPage(p => p - 1)} className="co-page-btn">‹</button>
-              <span className="text-xs font-semibold text-slate-500 px-2">{cxpPage} / {cxpTotalPages}</span>
-              <button disabled={cxpPage >= cxpTotalPages} onClick={() => setCxpPage(p => p + 1)} className="co-page-btn">›</button>
-            </div>
           </div>
-        )}
+
+          {renderPagination()}
+        </div>
       </div>
 
-      {/* Registrar Abono Modal */}
-      {abonoModalOpen && (
-        <ModalPortal>
+      <ModalPortal open={abonoModalOpen}>
         <div className="co-portal-root">
           <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
           <div className="co-modal-wrap">
@@ -252,7 +375,7 @@ export const CuentasPorPagarPage = () => {
               <div className="co-modal-body">
                 {abonoOrden && (
                   <div className="co-abono-info">
-                     <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Orden:</span>
                       <span className="font-bold text-slate-800">{abonoOrden.numero}</span>
                     </div>
@@ -316,8 +439,7 @@ export const CuentasPorPagarPage = () => {
             </div>
           </div>
         </div>
-        </ModalPortal>
-      )}
+      </ModalPortal>
     </div>
   );
 };

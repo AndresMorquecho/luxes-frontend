@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
 import { getOrdenProyectoLabel, normalizeOrdenDetalles } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { ComprasPageHeader, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -227,16 +228,15 @@ export const DetalleAprobacionPage = () => {
 
   return (
     <div className="co-page animate-slide-up">
-      {/* Header */}
-      <div className="co-card co-header">
-        <div>
-          <h1 className="co-title">Detalle de Orden - {orden.numero}</h1>
-          <p className="co-subtitle">Asigna proveedor y precios a cada item antes de aprobar</p>
-        </div>
-        <button onClick={() => navigate('/compras?vista=aprobaciones')} className="co-btn-ghost">
-          ← Volver a Aprobaciones
-        </button>
-      </div>
+      <ComprasPageHeader
+        title={`Detalle de Orden - ${orden.numero}`}
+        subtitle="Asigna proveedor y precios a cada item antes de aprobar"
+        action={(
+          <ComprasHeaderGhostButton onClick={() => navigate('/compras?vista=aprobaciones')}>
+            ← Volver a Aprobaciones
+          </ComprasHeaderGhostButton>
+        )}
+      />
 
       {/* Información General */}
       <div className="co-card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>

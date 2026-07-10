@@ -5,6 +5,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { RecepcionNav } from './RecepcionNav';
+import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import '../../../compras/ui/pages/ComprasPage.css';
 import './RecepcionInsumos.css';
@@ -15,7 +16,6 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'nume
 const RI_PRIMARY = '#2b41b8';
 const RI_PRIMARY_HOVER = '#2436a0';
 const RI_NAVY = '#1a1c3d';
-const RI_PAGE_BG = '#f8f9fc';
 
 const mapOrdenToPDFFormat = (orden) => {
   if (!orden) return null;
@@ -333,17 +333,15 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
     >
       {/* ── Móvil ── */}
       <div className="md:hidden">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold leading-tight" style={{ color: RI_NAVY }}>Recibir productos</h1>
-            <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-              Órdenes aprobadas con productos pendientes de ingreso.
-            </p>
-          </div>
-          <div className="shrink-0 bg-white border border-slate-200/80 rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm">
-            <p className="text-sm font-bold whitespace-nowrap" style={{ color: RI_PRIMARY }}>{ordenTotal} pend.</p>
-          </div>
-        </div>
+        <ComprasPageHeader
+          title="Recibir productos"
+          subtitle="Órdenes aprobadas con productos pendientes de ingreso."
+          aside={(
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+              <p className="text-sm font-bold whitespace-nowrap" style={{ color: RI_PRIMARY }}>{ordenTotal} pend.</p>
+            </div>
+          )}
+        />
 
         <RecepcionNav basePath={basePath} />
 
@@ -401,14 +399,10 @@ export const RecepcionInsumosListPage = ({ basePath = '/compras/recepcion' }) =>
 
       {/* ── Escritorio ── */}
       <div className="hidden md:block">
-        <div className="flex flex-row items-start justify-between gap-4 mb-6">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[1.65rem] font-bold tracking-tight leading-tight" style={{ color: RI_NAVY }}>Recibir productos</h1>
-            <p className="text-sm text-slate-500 mt-1 max-w-xl">
-              Órdenes aprobadas con productos pendientes — registra cantidades, fecha de llegada e inventario.
-            </p>
-          </div>
-        </div>
+        <ComprasPageHeader
+          title="Recibir productos"
+          subtitle="Órdenes aprobadas con productos pendientes — registra cantidades, fecha de llegada e inventario."
+        />
 
         <RecepcionNav basePath={basePath} />
 
