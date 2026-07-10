@@ -29,9 +29,7 @@ export function calcularNomina(empleado, nomina, options = {}) {
 
   const sueldoDiario = sueldoDiarioEnQuincena(empleado.sueldoDiario, diasLaborables);
   const baseQuincena = sueldoQuincenaBase(empleado.sueldoDiario);
-  const totalBruto = tieneContrato
-    ? baseQuincena
-    : calcSueldoBrutoQuincena(empleado.sueldoDiario, diasLaborados, diasLaborables);
+  const totalBruto = calcSueldoBrutoQuincena(empleado.sueldoDiario, diasLaborados, diasLaborables);
 
   const horasExtras = Number(nomina.ingresos.horasExtras || 0);
   const trabajosEmpresa = Number(nomina.ingresos.trabajosEnEmpresa || 0);

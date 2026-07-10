@@ -72,6 +72,16 @@ export const registrarPermiso = async ({ empleadoId, fecha }) => {
   );
 };
 
+export const eliminarPermiso = async ({ empleadoId, fecha }) => {
+  return parseResponse(
+    await fetch('/api/asistencias/permiso', {
+      method: 'DELETE',
+      headers: getHeaders(),
+      body: JSON.stringify({ empleadoId, fecha }),
+    })
+  );
+};
+
 export const getHorarioDelDia = async (fecha) => {
   const q = fecha ? `?fecha=${fecha}` : '';
   return parseResponse(

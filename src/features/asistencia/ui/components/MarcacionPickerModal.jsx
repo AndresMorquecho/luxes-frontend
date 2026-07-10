@@ -24,14 +24,14 @@ export function MarcacionPickerModal({
     : null;
 
   return (
-    <div className="space-y-5 w-full max-w-sm">
+    <div className="space-y-5 w-full max-w-sm text-center mx-auto">
       <div>
-        <h3 className="text-xl font-black text-white">¿Qué deseas registrar?</h3>
-        <p className="text-sm text-slate-300 mt-1 font-semibold">{nombreEmpleado || empleadoId}</p>
-        <p className="text-[10px] text-slate-500 mt-0.5">ID: {empleadoId}</p>
+        <h3 className="text-xl font-black text-slate-800">¿Qué deseas registrar?</h3>
+        <p className="text-sm text-slate-600 mt-1 font-semibold">{nombreEmpleado || empleadoId}</p>
+        <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wider">ID: {empleadoId}</p>
       </div>
 
-      <MarcacionesTimeline marcaciones={marcaciones} compact theme="dark" />
+      <MarcacionesTimeline marcaciones={marcaciones} compact theme="light" />
 
       <div className="space-y-2.5">
         {opciones.map((op) => (
@@ -40,7 +40,7 @@ export function MarcacionPickerModal({
             type="button"
             disabled={loading}
             onClick={() => onSelect(op.tipo)}
-            className={`w-full py-3.5 rounded-2xl border font-extrabold text-sm transition-colors disabled:opacity-50 cursor-pointer ${
+            className={`w-full py-3.5 rounded-2xl border font-extrabold text-sm transition-all disabled:opacity-50 cursor-pointer shadow-sm hover:shadow ${
               BTN_STYLES[op.tipo] || 'bg-slate-700 text-white'
             }`}
           >
@@ -58,7 +58,7 @@ export function MarcacionPickerModal({
         type="button"
         onClick={onCancel}
         disabled={loading}
-        className="w-full py-2.5 text-sm font-bold text-slate-400 hover:text-white transition-colors cursor-pointer bg-transparent border-none"
+        className="w-full py-2.5 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer bg-transparent border-none"
       >
         Cancelar
       </button>

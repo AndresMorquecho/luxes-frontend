@@ -822,12 +822,9 @@ const sumPendingHEInRange = (pendingList, fechaInicio, fechaFin) => {
 /** Sueldo bruto quincenal: contrato = mitad fija; por asistencia = prorrateo. */
 const resolveTotalBruto = (emp, cp, raw) => {
   if (cp?.totalBruto > 0) return cp.totalBruto;
-  const hasContract = emp.tieneContrato !== false;
   const diasLab = raw?.diasLaborables ?? cp?.diasLaborables ?? 15;
   const diasT = cp?.diasLaborados ?? raw?.diasLaborados ?? 0;
-  return hasContract
-    ? sueldoQuincenaBase(emp.sueldoDiario)
-    : calcSueldoBrutoQuincena(emp.sueldoDiario, diasT, diasLab);
+  return calcSueldoBrutoQuincena(emp.sueldoDiario, diasT, diasLab);
 };
 
 const QuincenaTable = ({

@@ -75,6 +75,7 @@ export function mapOrdenCompraParaInstalacion(oc) {
     estado,
     comentarios: oc.comentarios || oc.notas || '',
     proyectoId: oc.proyectoId ?? oc.proyecto?.id ?? null,
+    usuario: oc.usuario ?? null,
     items: detalles.map((d) => ({
       nombre: d.descripcion || d.nombre,
       cantidadSolicitada: Number(d.cantidadSolicitada ?? d.cantidad) || 0,
@@ -143,7 +144,7 @@ export const mapOrdenToPDFFormat = (orden) => {
     proyectoNombre: getOrdenProyectoLabel(orden) || orden.concepto || 'Compra de Materiales',
     comentarios: orden.notas || 'Sin observaciones.',
     items: (orden.detalles || []).map((d) => ({
-      sku: d.materialId ? d.materialId.slice(-8).toUpperCase() : 'ESP-LIBRE',
+      sku: d.material?.codigo || (d.materialId ? d.materialId.slice(-8).toUpperCase() : 'ESP-LIBRE'),
       nombre: d.descripcion,
       cantidad: d.cantidad,
       precioUnitario: d.precioUnitario,

@@ -2,6 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardSummary } from '../../../gastos/application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
+import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
+import { 
+  DollarSign, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  FileText, 
+  Layers, 
+  ChevronRight,
+  Calendar
+} from 'lucide-react';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -29,26 +39,209 @@ const FASE_COLORS = {
   COMPLETADO: '#10b981',
 };
 
+// Sparkline component to draw small trends based on dailyData
+function Sparkline({ data, color }) {
+  if (!data || data.length < 2) {
+    return (
+      <svg width="60" height="24" className="overflow-visible">
+        <line x1="0" y1="12" x2="60" y2="12" stroke="#e2e8f0" strokeWidth="1.5" strokeDasharray="3 3" />
+      </svg>
+    );
+  }
+  const width = 60;
+  const height = 24;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  
+  const points = data.map((val, index) => {
+    const x = (index / (data.length - 1)) * width;
+    const y = height - 2 - ((val - min) / range) * (height - 4);
+    return `${x},${y}`;
+  }).join(' ');
+  
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
+  );
+}
+
+// Interactive SVG Flow Line Chart
+function FlujoCajaChart({ dailyData }) {
+  if (!dailyData || dailyData.length === 0) return null;
+  
+  const width = 500;
+  const height = 180;
+  const padding = { top: 15, right: 15, bottom: 25, left: 45 };
+  
+  // Find min and max for Y scale
+  const allVals = dailyData.flatMap(d => [d.ingresos, d.egresos, d.balance]);
+  const maxVal = Math.max(...allVals, 100);
+  const minVal = Math.min(...allVals, -100);
+  const range = maxVal - minVal || 1;
+  
+  const getX = (index) => {
+    return padding.left + (index / (dailyData.length - 1)) * (width - padding.left - padding.right);
+  };
+  
+  const getY = (val) => {
+    return padding.top + (1 - (val - minVal) / range) * (height - padding.top - padding.bottom);
+  };
+  
+  // Grid line ticks
+  const yTicks = [minVal, minVal + range / 2, maxVal];
+  
+  // Build paths
+  let ingPath = '';
+  let egrPath = '';
+  let balPath = '';
+  
+  dailyData.forEach((d, idx) => {
+    const x = getX(idx);
+    const yIng = getY(d.ingresos);
+    const yEgr = getY(d.egresos);
+    const yBal = getY(d.balance);
+    
+    if (idx === 0) {
+      ingPath = `M ${x} ${yIng}`;
+      egrPath = `M ${x} ${yEgr}`;
+      balPath = `M ${x} ${yBal}`;
+    } else {
+      ingPath += ` L ${x} ${yIng}`;
+      egrPath += ` L ${x} ${yEgr}`;
+      balPath += ` L ${x} ${yBal}`;
+    }
+  });
+  
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+      {/* Grid Lines */}
+      {yTicks.map((tick, i) => (
+        <g key={i}>
+          <line 
+            x1={padding.left} 
+            y1={getY(tick)} 
+            x2={width - padding.right} 
+            y2={getY(tick)} 
+            stroke="#f1f5f9" 
+            strokeWidth="1" 
+          />
+          <text 
+            x={padding.left - 8} 
+            y={getY(tick) + 3} 
+            textAnchor="end" 
+            className="text-[9px] fill-slate-400 font-bold"
+          >
+            {formatUSD(tick).replace('.00', '')}
+          </text>
+        </g>
+      ))}
+      
+      {/* Zero line */}
+      {minVal < 0 && maxVal > 0 && (
+        <line 
+          x1={padding.left} 
+          y1={getY(0)} 
+          x2={width - padding.right} 
+          y2={getY(0)} 
+          stroke="#cbd5e1" 
+          strokeDasharray="2 2" 
+          strokeWidth="1" 
+        />
+      )}
+      
+      {/* Date Labels (Start and End) */}
+      <text x={padding.left} y={height - 5} className="text-[9px] fill-slate-400 font-bold">
+        {new Date(dailyData[0].fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' })}
+      </text>
+      <text x={width - padding.right} y={height - 5} textAnchor="end" className="text-[9px] fill-slate-400 font-bold">
+        {new Date(dailyData[dailyData.length - 1].fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' })}
+      </text>
+      
+      {/* Paths */}
+      <path d={ingPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={egrPath} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={balPath} fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Donut Chart for categories breakdown
+function DonutEgresos({ data, total }) {
+  const r = 36;
+  const circ = 2 * Math.PI * r; // ~226.19
+  
+  let accumulatedOffset = 0;
+  const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#64748b'];
+  
+  const slices = data.map((item, idx) => {
+    const strokeLength = (item.valor / (total || 1)) * circ;
+    const strokeOffset = accumulatedOffset;
+    accumulatedOffset -= strokeLength;
+    return {
+      ...item,
+      color: colors[idx % colors.length],
+      strokeLength,
+      strokeOffset
+    };
+  });
+  
+  return (
+    <div className="relative w-[120px] h-[120px] flex items-center justify-center shrink-0">
+      <svg width="120" height="120" viewBox="0 0 100 100" className="transform -rotate-90">
+        {total === 0 ? (
+          <circle cx="50" cy="50" r="36" fill="transparent" stroke="#f1f5f9" strokeWidth="10" />
+        ) : (
+          slices.map((slice, i) => (
+            <circle
+              key={i}
+              cx="50"
+              cy="50"
+              r="36"
+              fill="transparent"
+              stroke={slice.color}
+              strokeWidth="10"
+              strokeDasharray={`${slice.strokeLength} ${circ - slice.strokeLength}`}
+              strokeDashoffset={slice.strokeOffset}
+            />
+          ))
+        )}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2 select-none pointer-events-none">
+        <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">Total</span>
+        <span className="text-[12px] font-black text-slate-900 currency-val leading-none">{formatUSD(total)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [rango, setRango] = useState('mes'); // 'hoy', 'semana', 'mes'
+  const [rango, setRango] = useState('mes'); // '7dias', '30dias', 'mes'
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeJobState, setActiveJobState] = useState(null);
-  const [hoveredCat, setHoveredCat] = useState(null);
 
   const getDatesForRange = (range) => {
     const hasta = new Date();
     const desde = new Date();
 
-    if (range === 'hoy') {
-      desde.setHours(0, 0, 0, 0);
-    } else if (range === 'semana') {
+    if (range === '7dias') {
       desde.setDate(desde.getDate() - 7);
       desde.setHours(0, 0, 0, 0);
-    } else {
-      // mes
+    } else if (range === '30dias') {
       desde.setDate(desde.getDate() - 30);
+      desde.setHours(0, 0, 0, 0);
+    } else {
+      // mes (comienzo del mes actual)
+      desde.setDate(1);
       desde.setHours(0, 0, 0, 0);
     }
 
@@ -64,7 +257,6 @@ export default function DashboardPage() {
       const { desde, hasta } = getDatesForRange(rangeType);
       const data = await getDashboardSummary(desde, hasta);
       setSummary(data);
-      setActiveJobState(data.currentPrintingJob || null);
     } catch (err) {
       toast.error('Error al cargar el resumen del dashboard: ' + err.message);
     } finally {
@@ -76,112 +268,58 @@ export default function DashboardPage() {
     loadData(rango);
   }, [rango]);
 
-
-
   if (loading || !summary) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-slate-800 animate-spin" />
-        <p className="text-xs font-medium text-slate-400 tracking-wider uppercase">Cargando métricas...</p>
+        <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase animate-pulse">Cargando métricas de negocio...</p>
       </div>
     );
   }
 
-  const { kpi, usersActivity, printQueue, proyectosActivos, proyectosFaseCount, recentMovements } = summary;
+  const { kpi, usersActivity, proyectosActivos, recentMovements, dailyData = [], egresosDistribucion = [], quickSummary = {} } = summary;
 
-  const formatTime = (totalSeconds) => {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}m ${seconds}s`;
+  // Extracción de datos de sparklines reales
+  const sparklineBalance = dailyData.map(d => d.balance);
+  const sparklineIngresos = dailyData.map(d => d.ingresos);
+  const sparklineEgresos = dailyData.map(d => d.egresos);
+
+  // Proyectos con/sin instalación
+  const instCompletados = proyectosActivos.filter(p => p.requiereInstalacion && p.faseActual === 'COMPLETADO').length;
+  const instPendientes = proyectosActivos.filter(p => p.requiereInstalacion && p.faseActual !== 'COMPLETADO').length;
+  const noInstCompletados = proyectosActivos.filter(p => !p.requiereInstalacion && p.faseActual === 'COMPLETADO').length;
+  const noInstPendientes = proyectosActivos.filter(p => !p.requiereInstalacion && p.faseActual !== 'COMPLETADO').length;
+
+  // Comparativa de caja variables
+  const maxCajaVal = Math.max(kpi.ingresos, kpi.egresos, 1);
+  const widthIngPct = (kpi.ingresos / maxCajaVal) * 100;
+  const widthEgrPct = (kpi.egresos / maxCajaVal) * 100;
+
+  // Colores para las categorías de egresos
+  const egresoColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#64748b'];
+
+  const getColaboradorBadgeClass = (rol) => {
+    const r = (rol || '').toLowerCase();
+    if (r === 'taller') return 'bg-blue-50 text-blue-700 border-blue-100';
+    if (r === 'administrador') return 'bg-violet-50 text-violet-700 border-violet-100';
+    return 'bg-purple-50 text-purple-700 border-purple-100'; // ventas / visor / etc
   };
 
-  const renderUrgencyBadge = (urgency) => {
-    if (urgency === 'Alta') {
-      return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-wider">
-          ⚠️ Alta
-        </span>
-      );
-    }
-    if (urgency === 'Media') {
-      return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-wider">
-          Media
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-wider">
-        Baja
-      </span>
-    );
+  const getTrendText = (val) => {
+    if (val > 0) return `▲ ${val}% vs anterior`;
+    if (val < 0) return `▼ ${Math.abs(val)}% vs anterior`;
+    return `─ 0% vs anterior`;
   };
-
-  const renderStatusBadge = (status) => {
-    if (status === 'Imprimiendo') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-250 animate-pulse">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          Imprimiendo
-        </span>
-      );
-    }
-    if (status === 'Pausado') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-250">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          Pausado
-        </span>
-      );
-    }
-    if (status === 'Listo') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-250">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-          Listo
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-50 text-slate-700 border border-slate-200">
-        {status}
-      </span>
-    );
-  };
-
-  const totalProformas = kpi.porAprobar + kpi.aprobadas + kpi.pagadas + kpi.rechazadas;
-  const r = 38;
-  const circ = 2 * Math.PI * r; // ~238.76
-  const categories = [
-    { key: 'porAprobar', label: 'Pendientes', value: kpi.porAprobar, color: '#f59e0b', textClass: 'text-amber-550', hoverColor: '#d97706' },
-    { key: 'aprobadas', label: 'Aprobadas', value: kpi.aprobadas, color: '#10b981', textClass: 'text-emerald-500', hoverColor: '#059669' },
-    { key: 'pagadas', label: 'Pagadas', value: kpi.pagadas, color: '#3b82f6', textClass: 'text-blue-500', hoverColor: '#2563eb' },
-    { key: 'rechazadas', label: 'Rechazadas', value: kpi.rechazadas, color: '#ef4444', textClass: 'text-rose-500', hoverColor: '#dc2626' },
-  ];
-
-  let accumulatedOffset = 0;
-  const slices = categories.map(cat => {
-    if (cat.value === 0) return null;
-    const percentage = cat.value / (totalProformas || 1);
-    const strokeLength = percentage * circ;
-    const strokeOffset = accumulatedOffset;
-    accumulatedOffset -= strokeLength;
-    return {
-      ...cat,
-      percentage: Math.round(percentage * 100),
-      strokeLength,
-      strokeOffset
-    };
-  }).filter(Boolean);
 
   return (
-    <div className="pb-16 dashboard-container max-w-[1400px] mx-auto animate-fade-in">
+    <div className="pb-16 dashboard-container max-w-[1440px] mx-auto animate-fade-in px-4 sm:px-6">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
         
         .dashboard-container {
           font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-          letter-spacing: -0.01em;
+          letter-spacing: -0.015em;
+          background-color: #f8fafc;
         }
         .currency-val {
           font-family: 'JetBrains Mono', monospace;
@@ -189,38 +327,27 @@ export default function DashboardPage() {
         }
         .custom-card {
           background: #ffffff;
-          border: 1px solid rgba(226, 232, 240, 0.7);
-          border-radius: 12px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01), 0 10px 20px -12px rgba(0, 0, 0, 0.03);
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          border-radius: 16px;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01), 0 4px 12px -5px rgba(0, 0, 0, 0.015);
           transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
         .custom-card:hover {
-          border-color: rgba(203, 213, 225, 0.9);
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02), 0 12px 24px -10px rgba(0, 0, 0, 0.04);
+          border-color: rgba(203, 213, 225, 0.95);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 18px -4px rgba(0, 0, 0, 0.025);
         }
         .segment-btn {
-          font-size: 12px;
-          font-weight: 500;
+          font-size: 11px;
+          font-weight: 700;
           padding: 6px 14px;
-          border-radius: 6px;
+          border-radius: 8px;
           transition: all 0.15s ease;
           color: #64748b;
         }
         .segment-btn.active {
           background: #0f172a;
           color: #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-        .avatar-box {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         .thin-scrollbar::-webkit-scrollbar {
           width: 4px;
@@ -243,663 +370,572 @@ export default function DashboardPage() {
         .animate-fade-in {
           animation: fadeIn 0.3s ease-out forwards;
         }
-
       `}</style>
 
-      {/* Header section (Minimal & Borderless) */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 pt-4 border-b border-slate-100 pb-5">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Resumen de Operaciones</h1>
-          <p className="text-xs font-medium text-slate-400 mt-1">
-            Perspectiva general del flujo, proyectos activos y la actividad del equipo.
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Resumen de Operaciones</h1>
+          <p className="text-xs font-semibold text-slate-400 mt-2">
+            Perspectiva consolidada de flujo de caja, proyectos y cuentas del negocio.
           </p>
         </div>
 
-        {/* Minimal Rango Toggles */}
-        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/40">
-          <button onClick={() => setRango('hoy')} className={`segment-btn ${rango === 'hoy' ? 'active' : ''}`}>
-            Hoy
-          </button>
-          <button onClick={() => setRango('semana')} className={`segment-btn ${rango === 'semana' ? 'active' : ''}`}>
-            7 días
-          </button>
-          <button onClick={() => setRango('mes')} className={`segment-btn ${rango === 'mes' ? 'active' : ''}`}>
-            Último mes
+        {/* Range Toggles & Calendar */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200/40 shrink-0">
+            <button onClick={() => setRango('7dias')} className={`segment-btn cursor-pointer ${rango === '7dias' ? 'active' : ''}`}>
+              7 días
+            </button>
+            <button onClick={() => setRango('30dias')} className={`segment-btn cursor-pointer ${rango === '30dias' ? 'active' : ''}`}>
+              30 días
+            </button>
+            <button onClick={() => setRango('mes')} className={`segment-btn cursor-pointer ${rango === 'mes' ? 'active' : ''}`}>
+              Último mes
+            </button>
+          </div>
+          <button className="p-2 bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-500 rounded-xl cursor-pointer shadow-sm transition-colors">
+            <Calendar size={15} />
           </button>
         </div>
       </div>
 
-      {/* Financial Status Summary — 3 cards en horizontal (móvil y escritorio) */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
-        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
-            Balance Neto
-          </span>
-          <span
-            className={`text-sm sm:text-2xl md:text-3xl font-extrabold tracking-tight currency-val mt-1.5 sm:mt-2 leading-none ${
-              kpi.balance >= 0 ? 'text-slate-900' : 'text-rose-600'
-            }`}
-          >
-            {kpi.balance >= 0 ? '+' : ''}{formatUSD(kpi.balance)}
-          </span>
-          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
-            Diferencia neta en caja y abonos
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
-            Ingresos
-          </span>
-          <span className="text-sm sm:text-2xl md:text-3xl font-bold tracking-tight text-emerald-600 currency-val mt-1.5 sm:mt-2 leading-none">
-            {formatUSD(kpi.ingresos)}
-          </span>
-          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
-            Total cobrado al cliente
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200/70 rounded-xl p-3 sm:p-5 md:p-6 shadow-sm flex flex-col min-w-0">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
-            Egresos
-          </span>
-          <span className="text-sm sm:text-2xl md:text-3xl font-bold tracking-tight text-rose-600 currency-val mt-1.5 sm:mt-2 leading-none">
-            {formatUSD(kpi.egresos)}
-          </span>
-          <span className="text-[9px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 leading-snug line-clamp-2">
-            Pagos realizados y compras
-          </span>
-        </div>
-      </div>
-
-      {/* Main Grid divided in balanced horizontal rows with matching heights */}
-      <div className="space-y-8">
+      {/* Top Row: 5 KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
         
-        {/* ROW 1: Projects & Sales Metrics (2 Columns: 2/3 and 1/3) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-          
-          {/* Active Projects Block (8/12 width) */}
-          <div className="lg:col-span-8 custom-card p-4 sm:p-6 flex flex-col justify-between h-full">
-            <div className="flex flex-col">
-              <div className="flex items-start sm:items-center justify-between border-b border-slate-100 pb-3 mb-4 sm:mb-5 gap-2">
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Proyectos en Curso</h3>
-                  <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 line-clamp-2 sm:line-clamp-none">
-                    Control de fases y avance de los proyectos vigentes
-                  </p>
+        {/* Card 1: Balance Neto */}
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:border-slate-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full inline-block" /> Balance Neto
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-3 currency-val">
+                {formatUSD(kpi.balance)}
+              </h3>
+              <p className="text-[10px] font-bold text-slate-450 mt-1">Saldo neto en caja</p>
+            </div>
+            <div className="pt-2">
+              <Sparkline data={sparklineBalance} color="#8b5cf6" />
+            </div>
+          </div>
+          <div className="border-t border-slate-50 mt-4 pt-3">
+            <span className={`text-[10px] font-bold flex items-center gap-1 ${kpi.changeBalance >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+              {getTrendText(kpi.changeBalance)}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: Ingresos */}
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:border-slate-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block" /> Ingresos
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-3 currency-val">
+                {formatUSD(kpi.ingresos)}
+              </h3>
+              <p className="text-[10px] font-bold text-slate-455 mt-1">Cobros reales liquidados</p>
+            </div>
+            <div className="pt-2">
+              <Sparkline data={sparklineIngresos} color="#10b981" />
+            </div>
+          </div>
+          <div className="border-t border-slate-50 mt-4 pt-3">
+            <span className={`text-[10px] font-bold flex items-center gap-1 ${kpi.changeIngresos >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+              {getTrendText(kpi.changeIngresos)}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Egresos */}
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:border-slate-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full inline-block" /> Egresos
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-3 currency-val">
+                {formatUSD(kpi.egresos)}
+              </h3>
+              <p className="text-[10px] font-bold text-slate-455 mt-1">Gastos y compras pagados</p>
+            </div>
+            <div className="pt-2">
+              <Sparkline data={sparklineEgresos} color="#ef4444" />
+            </div>
+          </div>
+          <div className="border-t border-slate-50 mt-4 pt-3">
+            <span className={`text-[10px] font-bold flex items-center gap-1 ${kpi.changeEgresos >= 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
+              {getTrendText(kpi.changeEgresos)}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Por Cobrar */}
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:border-slate-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full inline-block" /> Por Cobrar
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-3 currency-val">
+                {formatUSD(kpi.totalProformasPendienteCobro)}
+              </h3>
+              <p className="text-[10px] font-bold text-slate-455 mt-1">Saldo de proformas aprobadas</p>
+            </div>
+            <div className="pt-2">
+              <svg width="60" height="24" className="overflow-visible">
+                <line x1="0" y1="12" x2="60" y2="12" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              </svg>
+            </div>
+          </div>
+          <div className="border-t border-slate-50 mt-4 pt-3">
+            <span className={`text-[10px] font-bold flex items-center gap-1 ${kpi.changeProformasPendienteCobro >= 0 ? 'text-slate-500' : 'text-rose-500'}`}>
+              {getTrendText(kpi.changeProformasPendienteCobro)}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 5: Cuentas por Pagar */}
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:border-slate-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-violet-500 rounded-full inline-block" /> Cuentas por Pagar
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-3 currency-val">
+                {formatUSD(kpi.totalCxPPendientes)}
+              </h3>
+              <p className="text-[10px] font-bold text-slate-455 mt-1">Saldos de OC's pendientes</p>
+            </div>
+            <div className="pt-2">
+              <svg width="60" height="24" className="overflow-visible">
+                <line x1="0" y1="12" x2="60" y2="12" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              </svg>
+            </div>
+          </div>
+          <div className="border-t border-slate-50 mt-4 pt-3">
+            <span className={`text-[10px] font-bold flex items-center gap-1 ${kpi.changeCxPPendientes >= 0 ? 'text-violet-600' : 'text-emerald-600'}`}>
+              {getTrendText(kpi.changeCxPPendientes)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Flujo de Caja (Line Chart), Distribución de Egresos (Donut Chart), Carga de Trabajo */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch mb-8">
+        
+        {/* Flujo de Caja Line Chart */}
+        <div className="lg:col-span-5 custom-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Flujo de Caja</h3>
+              <span className="text-[10px] font-bold text-slate-450 bg-slate-50 rounded px-2 py-0.5 border border-slate-200/50">
+                {rango === '7dias' ? 'Últimos 7 días' : rango === '30dias' ? 'Últimos 30 días' : 'Último mes'}
+              </span>
+            </div>
+            <div className="flex items-center gap-4 mt-4 text-[10px] font-bold text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#10b981] rounded-full inline-block" /> Ingresos</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#ef4444] rounded-full inline-block" /> Egresos</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#8b5cf6] rounded-full inline-block" /> Balance Neto</span>
+            </div>
+          </div>
+
+          <div className="h-[180px] w-full mt-6">
+            <FlujoCajaChart dailyData={dailyData} />
+          </div>
+        </div>
+
+        {/* Distribución de Egresos Donut Chart */}
+        <div className="lg:col-span-3 custom-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div className="border-b border-slate-100 pb-3 mb-4">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Distribución de Egresos</h3>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <DonutEgresos data={egresosDistribucion} total={kpi.egresos} />
+              
+              <div className="flex-1 space-y-1.5 max-h-[140px] overflow-y-auto thin-scrollbar pl-1">
+                {egresosDistribucion.slice(0, 5).map((eg, idx) => (
+                  <div key={eg.categoria} className="flex flex-col text-[10px]">
+                    <div className="flex items-center justify-between font-bold text-slate-700">
+                      <span className="flex items-center gap-1 truncate max-w-[70px]">
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: egresoColors[idx % egresoColors.length] }} />
+                        <span className="truncate">{eg.categoria}</span>
+                      </span>
+                      <span className="currency-val text-slate-900">{formatUSD(eg.valor).replace('.00', '')}</span>
+                    </div>
+                    <span className="text-[8px] text-slate-400 ml-2.5 font-bold">{eg.porcentaje}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-3 mt-4 flex justify-between items-center text-[10px] font-bold text-indigo-650">
+            <button onClick={() => navigate('/gastos')} className="hover:underline cursor-pointer flex items-center gap-0.5">
+              Ver detalle de egresos
+              <ChevronRight size={12} />
+            </button>
+          </div>
+        </div>
+
+        {/* Carga de Trabajo (Installation status statistics) */}
+        <div className="lg:col-span-4 custom-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div className="border-b border-slate-100 pb-3 mb-5">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Carga de Trabajo</h3>
+              <p className="text-[10px] font-semibold text-slate-400 mt-1">Proyectos según requerimiento de instalación</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Con Instalación */}
+              <div className="bg-slate-50 border border-slate-200/50 rounded-xl p-4 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Con Instalación</span>
+                  <h4 className="text-xl font-black text-slate-900 mt-1 tracking-tight">
+                    {instCompletados + instPendientes} <span className="text-[10px] font-bold text-slate-400">Proyectos</span>
+                  </h4>
                 </div>
-                <button 
-                  onClick={() => navigate('/proyectos')} 
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors shrink-0 whitespace-nowrap"
-                >
-                  Ver todos →
-                </button>
+                
+                <div className="mt-4 space-y-1.5 border-t border-slate-100/80 pt-3 text-[10px] font-bold">
+                  <div className="flex justify-between">
+                    <span className="text-slate-450">Completados</span>
+                    <span className="text-emerald-600">{instCompletados}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-450">En Curso</span>
+                    <span className="text-amber-500">{instPendientes}</span>
+                  </div>
+                </div>
               </div>
 
-              {proyectosActivos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <p className="text-xs font-medium text-slate-400">No hay proyectos activos en este periodo</p>
-                  <button 
-                    onClick={() => navigate('/proyectos')} 
-                    className="text-xs text-blue-600 font-semibold mt-2 hover:underline"
-                  >
-                    Ir al módulo de proyectos
-                  </button>
+              {/* Sin Instalación */}
+              <div className="bg-slate-50 border border-slate-200/50 rounded-xl p-4 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Sin Instalación</span>
+                  <h4 className="text-xl font-black text-slate-900 mt-1 tracking-tight">
+                    {noInstCompletados + noInstPendientes} <span className="text-[10px] font-bold text-slate-400">Proyectos</span>
+                  </h4>
                 </div>
-              ) : (
-                <>
-                  {/* Móvil: cards horizontales deslizables */}
-                  <div className="md:hidden -mx-1">
-                    <div className="flex gap-2.5 overflow-x-auto thin-scrollbar pb-1 snap-x snap-mandatory">
-                      {proyectosActivos.slice(0, 5).map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => navigate(`/proyectos/${p.id}`)}
-                          className="snap-start shrink-0 w-[min(72vw,260px)] bg-white border border-slate-200/80 rounded-xl p-3.5 text-left shadow-sm hover:border-slate-300 active:scale-[0.98] transition-all"
-                        >
-                          <p className="text-[11px] font-bold text-slate-800 leading-snug line-clamp-2">
-                            {p.nombre}
-                          </p>
-                          <p className="text-[10px] text-slate-400 mt-1 truncate">{p.clienteNombre}</p>
+                
+                <div className="mt-4 space-y-1.5 border-t border-slate-100/80 pt-3 text-[10px] font-bold">
+                  <div className="flex justify-between">
+                    <span className="text-slate-450">Completados</span>
+                    <span className="text-emerald-600">{noInstCompletados}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-450">En Curso</span>
+                    <span className="text-amber-500">{noInstPendientes}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                          <div className="flex items-center gap-1.5 mt-2.5">
-                            <span
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
+          <div className="border-t border-slate-100 pt-3 mt-4 flex justify-between items-center text-[10px] font-bold text-indigo-650">
+            <button onClick={() => navigate('/proyectos')} className="hover:underline cursor-pointer flex items-center gap-0.5">
+              Ver todos los proyectos
+              <ChevronRight size={12} />
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Row 3: Proyectos en Ejecución, Comparativa de Caja (Horizontal Bar), Resumen Rápido */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch mb-8">
+        
+        {/* Proyectos en Ejecución */}
+        <div className="lg:col-span-5 custom-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
+              <div>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Proyectos en Ejecución</h3>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Control del avance de los proyectos y compromisos</p>
+              </div>
+              <button 
+                onClick={() => navigate('/proyectos')} 
+                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors flex items-center cursor-pointer"
+              >
+                Ver todos
+                <ChevronRight size={12} />
+              </button>
+            </div>
+
+            {proyectosActivos.length === 0 ? (
+              <div className="py-12 text-center text-[11px] font-medium text-slate-400 italic">
+                Sin proyectos activos en este periodo.
+              </div>
+            ) : (
+              <div className="overflow-x-auto thin-scrollbar">
+                <table className="w-full text-left text-[11px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="pb-2 font-bold">Proyecto</th>
+                      <th className="pb-2 font-bold">Fase</th>
+                      <th className="pb-2 font-bold">Progreso</th>
+                      <th className="pb-2 font-bold">Responsable</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 font-semibold text-slate-600">
+                    {proyectosActivos.slice(0, 3).map(p => (
+                      <tr 
+                        key={p.id} 
+                        className="hover:bg-slate-50/50 cursor-pointer transition-colors" 
+                        onClick={() => navigate(`/proyectos/${p.id}`)}
+                      >
+                        <td className="py-3 pr-2">
+                          <span className="font-extrabold text-slate-800 block text-[11.5px] leading-tight">
+                            {p.nombre}
+                          </span>
+                          <span className="text-[9px] text-slate-400 block mt-0.5 font-bold">{p.clienteNombre}</span>
+                        </td>
+                        <td className="py-3">
+                          <div className="flex items-center gap-1">
+                            <span 
+                              className="w-1.5 h-1.5 rounded-full shrink-0" 
                               style={{ backgroundColor: FASE_COLORS[p.faseActual] || '#94a3b8' }}
                             />
-                            <span className="text-[10px] font-semibold text-slate-600 truncate">
+                            <span className="text-[10.5px]">
                               {FASE_LABELS[p.faseActual] || p.faseActual}
                             </span>
                           </div>
-
-                          <div className="flex items-center gap-2 mt-2.5">
-                            <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden min-w-0">
-                              <div
-                                className="bg-slate-800 h-full rounded-full transition-all duration-500"
-                                style={{ width: `${p.progreso}%` }}
+                        </td>
+                        <td className="py-3 pr-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-slate-100 rounded-full h-1 shrink-0 overflow-hidden">
+                              <div 
+                                className="bg-slate-800 h-full rounded-full" 
+                                style={{ width: `${p.progreso}%` }} 
                               />
                             </div>
-                            <span className="text-[10px] font-bold text-slate-600 currency-val shrink-0">
-                              {p.progreso}%
-                            </span>
+                            <span className="font-bold text-[9.5px] currency-val">{p.progreso}%</span>
                           </div>
-
-                          {p.responsable && (
-                            <p className="text-[9px] text-slate-400 mt-2 truncate">
-                              Resp.: {p.responsable}
-                            </p>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Escritorio: tabla */}
-                  <div className="hidden md:block overflow-x-auto thin-scrollbar">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          <th className="pb-3 font-semibold">Proyecto</th>
-                          <th className="pb-3 font-semibold">Fase</th>
-                          <th className="pb-3 font-semibold">Progreso</th>
-                          <th className="pb-3 font-semibold">Responsable</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {proyectosActivos.slice(0, 5).map(p => (
-                          <tr 
-                            key={p.id} 
-                            className="hover:bg-slate-50/50 cursor-pointer transition-colors group" 
-                            onClick={() => navigate(`/proyectos/${p.id}`)}
-                          >
-                            <td className="py-3 pr-4">
-                              <span className="font-semibold text-slate-800 group-hover:text-blue-600 block transition-colors text-[13px]">
-                                {p.nombre}
-                              </span>
-                              <span className="text-[10px] text-slate-400 block mt-0.5">{p.clienteNombre}</span>
-                            </td>
-                            <td className="py-3">
-                              <div className="flex items-center gap-1.5">
-                                <span 
-                                  className="w-1.5 h-1.5 rounded-full shrink-0" 
-                                  style={{ backgroundColor: FASE_COLORS[p.faseActual] || '#94a3b8' }}
-                                />
-                                <span className="font-medium text-slate-650">
-                                  {FASE_LABELS[p.faseActual] || p.faseActual}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 pr-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-24 bg-slate-100 rounded-full h-1 shrink-0 overflow-hidden">
-                                  <div 
-                                    className="bg-slate-850 h-full rounded-full transition-all duration-500" 
-                                    style={{ width: `${p.progreso}%` }} 
-                                  />
-                                </div>
-                                <span className="font-bold text-slate-600 text-[11px] currency-val">{p.progreso}%</span>
-                              </div>
-                            </td>
-                            <td className="py-3 font-medium text-slate-500">
-                              {p.responsable || '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {proyectosActivos.length > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-slate-100 pt-3 sm:pt-4 mt-3">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Fases Activas:</span>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 sm:gap-x-4">
-                  {Object.entries(proyectosFaseCount).map(([fase, val]) => {
-                    if (val === 0) return null;
-                    return (
-                      <div key={fase} className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-                        <span 
-                          className="w-1.5 h-1.5 rounded-full" 
-                          style={{ backgroundColor: FASE_COLORS[fase] || '#94a3b8' }}
-                        />
-                        <span>{FASE_LABELS[fase] || fase}: <strong className="text-slate-800 font-bold">{val}</strong></span>
-                      </div>
-                    );
-                  })}
-                </div>
+                        </td>
+                        <td className="py-3 text-[10.5px] text-slate-500 font-bold">
+                          {p.responsable || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Proformas Overview (4/12 width) */}
-          <div className="lg:col-span-4 custom-card p-6 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 tracking-tight">Métricas de Proformas</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Estado de cotizaciones del periodo</p>
-              </div>
-              <button 
-                onClick={() => navigate('/proformas')} 
-                className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-              >
-                Proformas
-              </button>
+        {/* Comparativa de Caja (Horizontal progress bars) */}
+        <div className="lg:col-span-3 custom-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div className="border-b border-slate-100 pb-3 mb-5">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Comparativa de Caja</h3>
+              <p className="text-[10px] font-semibold text-slate-450 mt-0.5">Relación de ingresos vs egresos del periodo</p>
             </div>
 
-            <div className="flex-1 flex flex-col justify-between space-y-4">
-              {/* Financial values */}
-              <div className="flex justify-between items-baseline mt-1">
-                <span className="text-xs font-semibold text-slate-500">Generado Total</span>
-                <span className="text-base font-bold text-slate-800 currency-val">
-                  {formatUSD(kpi.proformasMonto)}
-                </span>
-              </div>
-
-              {/* Large Donut Chart Centered */}
-              <div className="flex flex-col items-center justify-center py-2 border-t border-slate-50 pt-4">
-                <div className="relative w-[160px] h-[160px] flex items-center justify-center">
-                  <svg width="160" height="160" viewBox="0 0 100 100" className="transform -rotate-90">
-                    {totalProformas === 0 ? (
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="38"
-                        fill="transparent"
-                        stroke="#f1f5f9"
-                        strokeWidth="8"
-                      />
-                    ) : (
-                      slices.map(slice => {
-                        const isHovered = hoveredCat?.key === slice.key;
-                        return (
-                          <circle
-                            key={slice.key}
-                            cx="50"
-                            cy="50"
-                            r="38"
-                            fill="transparent"
-                            stroke={isHovered ? slice.hoverColor : slice.color}
-                            strokeWidth={isHovered ? "10" : "8"}
-                            strokeDasharray={`${slice.strokeLength} ${circ - slice.strokeLength}`}
-                            strokeDashoffset={slice.strokeOffset}
-                            className="transition-all duration-200 cursor-pointer"
-                            onMouseEnter={() => setHoveredCat(slice)}
-                            onMouseLeave={() => setHoveredCat(null)}
-                          />
-                        );
-                      })
-                    )}
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-3 select-none pointer-events-none">
-                    {hoveredCat ? (
-                      <>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                          {hoveredCat.label}
-                        </span>
-                        <span className="text-2xl font-extrabold text-slate-900 currency-val leading-none">
-                          {hoveredCat.value}
-                        </span>
-                        <span className="text-[10px] font-semibold text-slate-500 mt-1 block">
-                          {hoveredCat.percentage}% del total
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-2xl font-extrabold text-slate-900 currency-val leading-none">
-                          {kpi.proformasTotal}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">
-                          Proformas
-                        </span>
-                        <span className="text-[10px] font-semibold text-slate-500 mt-1 block currency-val">
-                          {formatUSD(kpi.proformasMonto)}
-                        </span>
-                      </>
-                    )}
-                  </div>
+            <div className="space-y-4">
+              {/* Ingresos bar */}
+              <div>
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 mb-1">
+                  <span>Ingresos</span>
+                  <span className="text-slate-800 currency-val">{formatUSD(kpi.ingresos)}</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                  <div className="bg-[#10b981] h-full rounded-full" style={{ width: `${widthIngPct}%` }} />
                 </div>
               </div>
 
-              {/* Legend Grid */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-3 border-t border-slate-100 text-[11px]">
-                {categories.map(cat => {
-                  const isHovered = hoveredCat?.key === cat.key;
-                  return (
-                    <div 
-                      key={cat.key} 
-                      className={`flex items-center justify-between p-1 rounded transition-all duration-150 ${isHovered ? 'bg-slate-50 scale-[1.02]' : ''}`}
-                      onMouseEnter={() => {
-                        const pct = totalProformas > 0 ? (cat.value / totalProformas) : 0;
-                        setHoveredCat({
-                          ...cat,
-                          percentage: Math.round(pct * 100),
-                          ...cat
-                        });
-                      }}
-                      onMouseLeave={() => setHoveredCat(null)}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                        <span className={`text-slate-550 font-medium truncate ${isHovered ? 'text-slate-900 font-semibold' : ''}`}>{cat.label}</span>
-                      </div>
-                      <span className={`font-bold currency-val ${cat.textClass} ${isHovered ? 'scale-105' : ''}`}>
-                        {cat.value}
-                      </span>
-                    </div>
-                  );
-                })}
+              {/* Egresos bar */}
+              <div>
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 mb-1">
+                  <span>Egresos</span>
+                  <span className="text-slate-800 currency-val">{formatUSD(kpi.egresos)}</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                  <div className="bg-[#ef4444] h-full rounded-full" style={{ width: `${widthEgrPct}%` }} />
+                </div>
               </div>
             </div>
           </div>
 
+          <div className="border-t border-slate-100 pt-3 mt-4 text-center">
+            <span className={`text-[10.5px] font-extrabold ${kpi.balance >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+              {kpi.balance >= 0 
+                ? `Superávit operativo +${formatUSD(kpi.balance)}` 
+                : `Déficit operativo -${formatUSD(Math.abs(kpi.balance))}`
+              }
+            </span>
+          </div>
         </div>
 
-        {/* ROW 2: Plotter & Team Pulse (2 Columns: 2/3 and 1/3) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-          
-          {/* Cola de Producción (8/12 width) */}
-          <div className="lg:col-span-8 custom-card p-6 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        {/* Resumen Rápido */}
+        <div className="lg:col-span-4 custom-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div className="border-b border-slate-100 pb-3 mb-4">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Resumen Rápido</h3>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-[8px]">●</span>
+                  <span className="text-[10.5px] font-bold text-slate-500">Proyectos activos</span>
+                </div>
+                <span className="text-xs font-black text-slate-700 currency-val">{proyectosActivos.filter(p => p.estado === 'ACTIVO').length}</span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center font-bold text-[8px]">●</span>
+                  <span className="text-[10.5px] font-bold text-slate-500">OC's pendientes</span>
+                </div>
+                <span className="text-xs font-black text-slate-700 currency-val">{quickSummary.ocsPendientes || 0}</span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-[8px]">●</span>
+                  <span className="text-[10.5px] font-bold text-slate-500">Proformas aprobadas</span>
+                </div>
+                <span className="text-xs font-black text-slate-700 currency-val">{quickSummary.proformasAprobadas || 0}</span>
+              </div>
+
+              <div className="flex items-center justify-between pb-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center font-bold text-[8px]">●</span>
+                  <span className="text-[10.5px] font-bold text-slate-500">Tareas pendientes</span>
+                </div>
+                <span className="text-xs font-black text-slate-700 currency-val">{quickSummary.tareasPendientes || 0}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-[9.5px] text-slate-400 font-bold text-center border-t border-slate-100 pt-3 mt-4">
+            Auditoría de almacén y tareas operativas
+          </div>
+        </div>
+
+      </div>
+
+      {/* Row 4: Movimientos de Caja Recientes (7/12) y Colaboradores (5/12) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        
+        {/* Movimientos de Caja Recientes */}
+        <div className="lg:col-span-7 custom-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 tracking-tight">Cola de Producción</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Plotter: Impresión activa y cola de espera</p>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Movimientos de Caja Recientes</h3>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Bitácora consolidada de ingresos y egresos recientes</p>
               </div>
               <button 
-                onClick={() => navigate('/colas-impresion')} 
-                className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                onClick={() => navigate('/movimientos')} 
+                className="text-[10px] font-bold text-indigo-650 hover:text-indigo-750 transition-colors flex items-center cursor-pointer"
               >
-                Cola →
+                Ver todos
+                <ChevronRight size={12} />
               </button>
             </div>
 
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 mt-2">
-              
-              {/* Left Side: Active Printing Job (5/12 or 6/12 for prominence) */}
-              <div className="md:col-span-6 flex flex-col justify-between">
-                <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Estado del Plotter</h4>
-                  {activeJobState ? (
-                    <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/5 flex flex-col justify-between min-h-[300px] hover:border-slate-200 transition-all duration-200">
-                      <div>
-                        {/* Badges Row */}
-                        <div className="flex items-center justify-between gap-2 border-b border-slate-100/50 pb-2 mb-3">
-                          {renderStatusBadge(activeJobState.status)}
-                          {renderUrgencyBadge(activeJobState.urgency)}
-                        </div>
-
-                        {/* Title & Client */}
-                        <div className="flex items-start gap-2.5 mb-3">
-                          <div className="p-2 bg-slate-50 rounded-lg shrink-0 border border-slate-100">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="#64748b" className="w-5 h-5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                            </svg>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h5 className="text-[13.5px] font-bold text-slate-800 truncate leading-tight" title={activeJobState.name}>
-                              {activeJobState.name}
-                            </h5>
-                            <span className="text-[10px] text-slate-400 block mt-1">
-                              Cliente: <strong className="text-slate-600 font-semibold">{activeJobState.client}</strong>
-                            </span>
-                            {activeJobState.proyectoNombre && (
-                              <span className="inline-block text-[9.5px] font-semibold text-violet-600 bg-violet-50/50 border border-violet-100 rounded px-1.5 py-0.5 mt-1">
-                                📁 {activeJobState.proyectoNombre}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Technical Grid */}
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2.5 border-y border-slate-100/50 text-[10.5px]">
-                          <div>
-                            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Formato / Material</span>
-                            <strong className="text-slate-700 font-semibold">{activeJobState.format}</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Dimensiones</span>
-                            <strong className="text-slate-750 font-semibold currency-val">{activeJobState.width.toFixed(2)} x {activeJobState.height.toFixed(2)} m <span className="text-[9px] text-slate-400">({(activeJobState.width * activeJobState.height).toFixed(2)}m²)</span></strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Responsable</span>
-                            <strong className="text-slate-750 font-semibold truncate block">{activeJobState.responsible || '—'}</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Copias</span>
-                            <strong className="text-slate-750 font-semibold currency-val">{activeJobState.copies} {activeJobState.copies === 1 ? 'copia' : 'copias'}</strong>
-                          </div>
-                        </div>
-                      </div>
-
-
-                      {/* Notes Callout if exists */}
-                      {activeJobState.notes && (
-                        <div className="mt-2.5 bg-amber-50/30 border border-amber-100/50 rounded-lg p-2 text-[9.5px] text-slate-600 flex items-start gap-1.5">
-                          <span className="text-[11px] shrink-0">💡</span>
-                          <p className="line-clamp-2 leading-snug"><strong className="text-slate-700">Indicaciones:</strong> {activeJobState.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="border border-slate-100 border-dashed rounded-xl p-6 bg-slate-50/10 flex flex-col items-center justify-center text-center min-h-[300px]">
-                      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3 border border-slate-200/40">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.8">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.82l-.24 2.24H4.5a2.25 2.25 0 00-2.25 2.25v2.25c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-2.25a2.25 2.25 0 00-2.25-2.25h-1.98l-.24-2.24m-11.28 0H18.72m-12 0h12m-12 0l1.24-11.13A2.25 2.25 0 018.21 2.25h7.58a2.25 2.25 0 012.23 1.99L19.28 13.82m-12 0h12" />
-                        </svg>
-                      </div>
-                      <h5 className="text-xs font-bold text-slate-700">Plotter Inactivo</h5>
-                      <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">No hay impresiones activas en curso. Inicie un trabajo de impresión en el taller.</p>
-                      <button 
-                        onClick={() => navigate('/colas-impresion')}
-                        className="text-[10.5px] font-bold text-blue-600 border border-blue-100 hover:bg-blue-50/50 transition-colors px-3 py-1.5 rounded-lg mt-4"
-                      >
-                        Ir a Cola de Impresión
-                      </button>
-                    </div>
-                  )}
-                </div>
+            {recentMovements.length === 0 ? (
+              <div className="py-12 text-center text-[11px] font-medium text-slate-400 italic">
+                Sin movimientos financieros recientes en el período.
               </div>
+            ) : (
+              <div className="overflow-x-auto thin-scrollbar">
+                <table className="w-full text-left text-[11px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="pb-2 font-bold">Fecha</th>
+                      <th className="pb-2 font-bold">Concepto</th>
+                      <th className="pb-2 font-bold">Entidad / Cliente</th>
+                      <th className="pb-2 font-bold">Método</th>
+                      <th className="pb-2 text-right font-bold">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 font-semibold text-slate-600">
+                    {recentMovements.slice(0, 4).map(m => (
+                      <tr key={m.id + m.origen} className="hover:bg-slate-50/40 transition-colors">
+                        <td className="py-3 text-slate-400 font-bold">
+                          {new Date(m.fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' }).replace('.', '')}
+                        </td>
+                        <td className="py-3 pr-2 text-slate-800 font-extrabold max-w-[150px] truncate">
+                          {m.descripcion}
+                        </td>
+                        <td className="py-3 pr-2 text-slate-500 font-bold truncate max-w-[110px]">
+                          {m.entidad || '—'}
+                        </td>
+                        <td className="py-3">
+                          <span className="inline-block text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-200/50">
+                            {m.metodoPago}
+                          </span>
+                        </td>
+                        <td className={`py-3 text-right font-bold text-[11.5px] currency-val ${
+                          m.tipo === 'ingreso' ? 'text-emerald-600' : 'text-rose-500'
+                        }`}>
+                          {m.tipo === 'ingreso' ? '+' : '-'}{formatUSD(m.monto)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
 
-              {/* Right Side: Waiting Queue (6/12 for symmetry) */}
-              <div className="md:col-span-6 flex flex-col justify-between border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Próximos en Cola</h4>
-                    <span className="text-[9.5px] font-bold text-slate-400 bg-slate-100 rounded px-1.5 py-0.5 currency-val">
-                      {printQueue.length} en espera
+        {/* Colaboradores */}
+        <div className="lg:col-span-5 custom-card p-6 flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
+              <div>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Colaboradores</h3>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Estado actual y asignaciones activas</p>
+              </div>
+              <button 
+                onClick={() => navigate('/nomina/empleados')} 
+                className="text-[10px] font-bold text-indigo-650 hover:text-indigo-750 transition-colors flex items-center cursor-pointer"
+              >
+                Ver todos
+                <ChevronRight size={12} />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[220px] overflow-y-auto thin-scrollbar pr-1">
+              {usersActivity.map(user => {
+                return (
+                  <div key={user.id} className="flex items-center justify-between gap-3 border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <PersonInitialsAvatar 
+                        name={user.nombre}
+                        image={user.foto}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-[11.5px] font-black text-slate-800 truncate leading-none">{user.nombre}</p>
+                        <span className="text-[9.5px] text-slate-400 font-bold block mt-1">
+                          {user.pendingTasksCount > 0 
+                            ? `${user.pendingTasksCount} ${user.pendingTasksCount === 1 ? 'tarea pendiente' : 'tareas pendientes'}` 
+                            : 'Sin tareas pendientes'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <span className={`text-[8.5px] font-extrabold px-2 py-0.5 rounded border uppercase tracking-wider shrink-0 ${getColaboradorBadgeClass(user.rol)}`}>
+                      {user.rol}
                     </span>
                   </div>
-                  
-                  {(!printQueue || printQueue.length === 0) ? (
-                    <div className="py-10 text-center text-[11px] text-slate-400 italic min-h-[250px] flex flex-col items-center justify-center border border-slate-50 rounded-xl bg-slate-50/5">
-                      <span className="text-xl mb-1 opacity-70">📭</span>
-                      No hay trabajos en cola de espera.
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-[290px] overflow-y-auto thin-scrollbar pr-1">
-                      {printQueue.map((job, idx) => (
-                        <div 
-                          key={job.id} 
-                          className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl transition-all duration-150 border border-slate-100/50 hover:border-slate-200/80 cursor-pointer group"
-                          onClick={() => navigate('/colas-impresion')}
-                        >
-                          <div className="min-w-0 flex-1 pr-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9.5px] font-bold text-slate-400 bg-slate-50 group-hover:bg-white rounded px-1.5 py-0.5 border border-slate-100 currency-val">
-                                #{idx + 1}
-                              </span>
-                              <span className="text-[11.5px] font-bold text-slate-800 group-hover:text-blue-600 truncate block transition-colors">
-                                {job.name}
-                              </span>
-                            </div>
-                            <span className="text-[9.5px] text-slate-400 truncate block mt-1 ml-1">
-                              {job.client} • {job.format} • {job.copies} {job.copies === 1 ? 'copia' : 'copias'}
-                            </span>
-                          </div>
-                          <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                            <span className="text-[10px] font-bold text-slate-700 currency-val block">
-                              {job.width.toFixed(2)}x{job.height.toFixed(2)} m
-                            </span>
-                            {renderUrgencyBadge(job.urgency)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Team Pulse (Equipo) (4/12 width) */}
-          <div className="lg:col-span-4 custom-card p-6 flex flex-col justify-between h-full">
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Estado del Equipo</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Colaboradores activos y últimas acciones realizadas</p>
-                </div>
-                <button 
-                  onClick={() => navigate('/nomina/empleados')} 
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Nómina
-                </button>
-              </div>
-
-              <div className="space-y-4 overflow-y-auto max-h-[300px] lg:max-h-[320px] thin-scrollbar pr-1 flex-1">
-                {usersActivity.map(user => {
-                  const colors = [
-                    { bg: '#f1f5f9', txt: '#334155' }, // slate
-                    { bg: '#eff6ff', txt: '#1e40af' }, // blue
-                    { bg: '#f5f3ff', txt: '#5b21b6' }, // purple
-                    { bg: '#ecfdf5', txt: '#065f46' }, // green
-                    { bg: '#fff7ed', txt: '#9a3412' }, // orange
-                  ];
-                  const c = colors[user.nombre.length % colors.length];
-                  const initials = user.nombre.split(' ').map(n => n[0]).slice(0, 2).join('');
-
-                  return (
-                    <div key={user.id} className="group transition-all">
-                      <div className="flex items-start gap-2.5">
-                        <div className="avatar-box shrink-0" style={{ backgroundColor: c.bg, color: c.txt }}>
-                          {initials}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11.5px] font-bold text-slate-800 truncate">{user.nombre}</p>
-                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide shrink-0">
-                              {user.rol}
-                            </span>
-                          </div>
-
-                          <div className="mt-1 space-y-1 pl-0.5 border-l border-slate-100 ml-0.5">
-                            {/* Active Task */}
-                            {user.activeTask ? (
-                              <div className="text-[10px]">
-                                <span className="text-slate-600 font-semibold hover:text-blue-600 cursor-pointer" onClick={() => navigate('/tareas')}>
-                                  📋 {user.activeTask.titulo}
-                                </span>
-                                <span className={`inline-block w-1.5 h-1.5 rounded-full ml-1 ${
-                                  user.activeTask.prioridad === 'alta' ? 'bg-rose-500 animate-pulse' :
-                                  user.activeTask.prioridad === 'media' ? 'bg-amber-400' : 'bg-blue-400'
-                                }`} />
-                              </div>
-                            ) : (
-                              <p className="text-[9.5px] text-slate-400 italic">Sin tareas pendientes</p>
-                            )}
-
-                            {/* Last Action */}
-                            {user.lastAction ? (
-                              <p className="text-[10px] text-slate-400 leading-normal">
-                                ⚡ <span className="text-slate-500 font-medium">{user.lastAction.accion}</span> ({user.lastAction.modulo})
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* ROW 3: Full-width Financial Ledger (12/12) */}
-        <div className="w-full">
-          <div className="custom-card p-6 flex flex-col justify-between h-full">
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Movimientos de Caja</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Bitácora consolidada de ingresos y egresos recientes</p>
-                </div>
-                <button 
-                  onClick={() => navigate('/movimientos')} 
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Ver historial →
-                </button>
-              </div>
-
-              {recentMovements.length === 0 ? (
-                <div className="py-12 text-center text-xs font-medium text-slate-400">
-                  No se registraron movimientos en este periodo
-                </div>
-              ) : (
-                <div className="overflow-x-auto thin-scrollbar">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="pb-3 font-semibold">Fecha</th>
-                        <th className="pb-3 font-semibold">Concepto</th>
-                        <th className="pb-3 font-semibold">Entidad / Cliente</th>
-                        <th className="pb-3 font-semibold">Responsable</th>
-                        <th className="pb-3 font-semibold">Método</th>
-                        <th className="pb-3 text-right font-semibold">Monto</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {recentMovements.slice(0, 7).map(m => (
-                        <tr key={m.id + m.origen} className="hover:bg-slate-50/40 transition-colors">
-                          <td className="py-3 font-semibold text-slate-400">
-                            {new Date(m.fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' })}
-                          </td>
-                          <td className="py-3 pr-4 font-semibold text-slate-800 max-w-[200px] truncate">
-                            {m.descripcion}
-                          </td>
-                          <td className="py-3 pr-2 text-slate-500 font-medium truncate max-w-[150px]">
-                            {m.entidad || '—'}
-                          </td>
-                          <td className="py-3 text-slate-500 font-medium">
-                            {m.usuario || '—'}
-                          </td>
-                          <td className="py-3">
-                            <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-200/30">
-                              {m.metodoPago}
-                            </span>
-                          </td>
-                          <td className={`py-3 text-right font-bold text-[13px] currency-val ${
-                            m.tipo === 'ingreso' ? 'text-emerald-600' : 'text-rose-500'
-                          }`}>
-                            {m.tipo === 'ingreso' ? '+' : '-'}{formatUSD(m.monto)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                );
+              })}
             </div>
           </div>
         </div>
 
       </div>
+
     </div>
   );
 }
