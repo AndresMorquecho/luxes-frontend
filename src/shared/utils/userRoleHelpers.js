@@ -1,9 +1,6 @@
-/** Usuario del quiosco de marcaciones (rol o cuenta dedicada). */
+/** Usuario del quiosco de marcaciones (desactivado). */
 export function isAsistenciaUser(user) {
-  if (!user) return false;
-  const rol = (user.rol || '').toLowerCase().trim();
-  const username = (user.username || '').toLowerCase().trim();
-  return rol === 'asistencia' || username === 'asistencia';
+  return false;
 }
 
 export function isTallerUser(user) {
