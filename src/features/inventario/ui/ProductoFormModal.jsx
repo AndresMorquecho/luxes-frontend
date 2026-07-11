@@ -80,8 +80,13 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
   const defaultCategory = lockedCategory || item?.categoria || 'Taller';
   
   const resolveSubtype = (cat) => {
-    if (item?.subtipo) return item.subtipo;
-    if (item?.tipo === 'herramienta') return 'herramienta';
+    const validSubs = SUBTYPES[cat] || [];
+    if (item?.subtipo && validSubs.some(s => s.id === item.subtipo)) {
+      return item.subtipo;
+    }
+    if (item?.tipo === 'herramienta' && validSubs.some(s => s.id === 'herramienta')) {
+      return 'herramienta';
+    }
     if (cat === 'Oficina') return 'activo_fijo';
     if (cat === 'Impresión') return 'consumible_descargable';
     return 'consumible_registro';

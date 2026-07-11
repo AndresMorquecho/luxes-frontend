@@ -25,7 +25,18 @@ export function registrarAbono(nomina, dataAbono) {
   }
 
   // Crear una nueva instancia de la nómina con el nuevo abono agregado
-  const abonosActualizados = [...nomina.abonos, { monto: nuevoAbono.monto, fecha: nuevoAbono.fecha }];
+  const abonosActualizados = [
+    ...nomina.abonos,
+    {
+      id: nuevoAbono.id || `GTO-temp-${Date.now()}`,
+      monto: nuevoAbono.monto,
+      fecha: nuevoAbono.fecha,
+      metodoPagoId: nuevoAbono.metodoPagoId,
+      metodoPagoNombre: nuevoAbono.metodoPagoNombre,
+      usuarioNombre: nuevoAbono.usuarioNombre,
+      fechaHora: nuevoAbono.fechaHora,
+    }
+  ];
 
   return new nomina.constructor({
     ...nomina,

@@ -79,8 +79,13 @@ export class Nomina {
     };
 
     this.abonos = abonos.map(abono => ({
+      id: abono.id,
       monto: Number(abono.monto),
       fecha: abono.fecha,
+      metodoPagoId: abono.metodoPagoId,
+      metodoPagoNombre: abono.metodoPagoNombre,
+      usuarioNombre: abono.usuarioNombre,
+      fechaHora: abono.fechaHora,
     }));
 
     this.estado = estado;

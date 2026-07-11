@@ -5,6 +5,8 @@ import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 import { registrarAbono } from '../../domain/use-cases/registrarAbono';
 import { obtenerFechasPeriodo } from '../../application/hooks/useNomina';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { getMetodosPago } from '../../../gastos/application/gastosService';
 import {
   sueldoDiarioEnQuincena,
   calcSueldoBrutoQuincena,
@@ -25,8 +27,34 @@ const ESTADO_BADGE = {
   PAGADO:        { label: 'Pagado',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
 };
 
-const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, onClose, onConfirm, onMontoChange }) => {
-  // Helper to set percentage of total
+const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomina, onDeleteAbono, onClose, onConfirm, onMontoChange }) => {
+  const [activeTab, setActiveTab] = useState('registrar'); // 'registrar' | 'historial'
+  const [metodosPago, setMetodosPago] = useState([]);
+  const [selectedMetodoPagoId, setSelectedMetodoPagoId] = useState('');
+  const [loadingMps, setLoadingMps] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    getMetodosPago()
+      .then(data => {
+        if (active) {
+          const activeMps = (data || []).filter(m => m.activo);
+          setMetodosPago(activeMps);
+          if (activeMps.length > 0) {
+            setSelectedMetodoPagoId(activeMps[0].id);
+          }
+        }
+      })
+      .catch(err => {
+        console.error('Error al cargar métodos de pago', err);
+        toast.error('No se pudieron cargar las cuentas/cajas de pago.');
+      })
+      .finally(() => {
+        if (active) setLoadingMps(false);
+      });
+    return () => { active = false; };
+  }, []);
+
   const setPercentage = (pct) => {
     const val = Math.round((maxMonto * pct) * 100) / 100;
     onMontoChange(Math.min(val, maxMonto));
@@ -35,199 +63,320 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, onCl
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-2xl w-full md:w-[94vw] lg:w-[88vw] max-w-6xl mx-4 overflow-hidden border border-slate-200 animate-slide-up"
+      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 overflow-hidden border border-slate-200 animate-slide-up animate-duration-200"
         onClick={(e) => e.stopPropagation()}>
         
-        {/* Header - Blue theme */}
-        <div className="bg-blue-900 px-8 py-6 text-white flex justify-between items-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-800 rounded-full translate-x-12 -translate-y-12 opacity-30 pointer-events-none" />
-          <div className="relative z-10">
-            <h3 className="text-xl font-extrabold tracking-tight uppercase flex items-center gap-2">
-              <svg className="w-6 h-6 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        {/* Minimalist Header */}
+        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200/80 flex justify-between items-center relative">
+          <div>
+            <h3 className="text-xs font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5m-18 0a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25m-18 0v12.5A2.25 2.25 0 0 0 5.25 17h13.5A2.25 2.25 0 0 0 21 14.75V4.5M9 9h.008v.008H9V9Zm.008 3h.008v.008H9.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Z" />
               </svg>
-              Confirmar Registro de Pago / Abono
+              Registro de Pago / Abono
             </h3>
-            <p className="text-blue-200 text-xs mt-1 font-medium tracking-wide">
-              {quincenaLabel} — Configuración de liquidación del colaborador
+            <p className="text-slate-500 text-[9px] mt-0.5 font-semibold tracking-wide">
+              {quincenaLabel} — {emp.nombre}
             </p>
           </div>
-          <button onClick={onClose} className="relative z-10 text-blue-300 hover:text-white hover:bg-blue-800/50 p-2 rounded-full transition-all cursor-pointer bg-transparent border-0 outline-none">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 p-1.5 rounded-full transition-all cursor-pointer bg-transparent border-0 outline-none">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-8 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
-            {/* Columna Izquierda: Datos del Colaborador y Banco (Tarjeta Transferencia) */}
-            <div className="space-y-6 flex flex-col justify-between">
-              <div className="space-y-3">
-                <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Colaborador Destinatario</span>
-                <h4 className="text-2xl font-black text-slate-800 uppercase leading-none tracking-tight">
-                  {emp.nombre}
-                </h4>
-                <p className="text-xs text-slate-500 font-medium">
-                  Verifique que la cuenta destino coincida con el registro impreso antes de proceder con la transferencia bancaria.
-                </p>
-              </div>
+        {/* Tab Selector */}
+        <div className="flex border-b border-slate-200/60 bg-slate-50/50 px-8">
+          <button
+            onClick={() => setActiveTab('registrar')}
+            className={`py-3 px-5 text-center focus:outline-none transition-all font-bold text-[10px] uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
+              activeTab === 'registrar'
+                ? 'border-blue-900 text-blue-900 font-extrabold'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Registrar Pago
+          </button>
+          <button
+            onClick={() => setActiveTab('historial')}
+            className={`py-3 px-5 text-center focus:outline-none transition-all font-bold text-[10px] uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
+              activeTab === 'historial'
+                ? 'border-blue-900 text-blue-900 font-extrabold'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Historial de Pagos ({nomina?.abonos?.length || 0})
+          </button>
+        </div>
 
-              {/* Tarjeta de Cuenta Bancaria Registrada (Credit Card style) */}
-              <div className="bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden border border-blue-950 min-h-[190px] flex flex-col justify-between">
-                {/* Decorative gradients */}
-                <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-blue-800 rounded-full opacity-25 filter blur-xl" />
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-800 rounded-full opacity-20 filter blur-2xl" />
+        {/* Fixed-Size Content Wrapper without vertical scrollbar */}
+        <div className="px-8 py-5 h-[410px] overflow-hidden flex flex-col justify-between">
+          
+          <div className="flex-1 min-h-0">
+            {activeTab === 'registrar' ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full items-stretch">
                 
-                {/* Header card */}
-                <div className="flex justify-between items-start relative z-10">
-                  <div>
-                    <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Cuenta de Nómina Registrada</span>
-                    <span className="text-sm font-black tracking-wider text-white uppercase mt-0.5 block">
-                      {emp.banco || 'SIN BANCO REGISTRADO'}
-                    </span>
+                {/* Columna Izquierda: Datos del Colaborador y Banco */}
+                <div className="flex flex-col justify-between space-y-3 min-h-0 h-full py-0.5">
+                  <div className="space-y-1.5">
+                    <span className="text-[9px] font-extrabold text-blue-650 uppercase tracking-widest block">Colaborador Destinatario</span>
+                    <h4 className="text-lg font-black text-slate-800 uppercase leading-none tracking-tight">
+                      {emp.nombre}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-semibold leading-snug">
+                      Verifique que la cuenta destino coincida con el registro impreso antes de proceder con la transferencia bancaria.
+                    </p>
                   </div>
-                  {/* Bank Icon replacement */}
-                  <div className="p-2.5 bg-white/10 rounded-xl text-blue-200 backdrop-blur-xs">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.5M4.5 21V10.5m15 0V9M4.5 10.5V9M21 21h-2.25H5.25H3" />
-                    </svg>
+
+                  {/* Tarjeta de Cuenta Bancaria Registrada (Credit Card style) */}
+                  <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white rounded-xl p-4 shadow-md relative overflow-hidden border border-slate-850 flex-1 flex flex-col justify-between max-h-[145px]">
+                    <div className="absolute -bottom-8 -left-8 w-20 h-20 bg-slate-800 rounded-full opacity-35 filter blur-xl" />
+                    
+                    <div className="flex justify-between items-start relative z-10">
+                      <div>
+                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block">Cuenta de Nómina Registrada</span>
+                        <span className="text-[11px] font-bold tracking-wider text-white uppercase mt-0.5 block">
+                          {emp.banco || 'SIN BANCO REGISTRADO'}
+                        </span>
+                      </div>
+                      <div className="p-1.5 bg-white/5 rounded-lg text-slate-300 backdrop-blur-xs">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.5M4.5 21V10.5m15 0V9M4.5 10.5V9M21 21h-2.25H5.25H3" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="my-1.5 relative z-10">
+                      <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Número de Cuenta</span>
+                      <div className="text-sm font-mono tracking-widest font-bold text-slate-200 flex items-center gap-1">
+                        {emp.cuentaBanco ? (
+                          emp.cuentaBanco.match(/.{1,4}/g).join(' ')
+                        ) : (
+                          '— — — —'
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-end relative z-10 pt-1.5 border-t border-white/5">
+                      <div>
+                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block">Beneficiario</span>
+                        <span className="text-[10px] font-bold tracking-wide text-white uppercase truncate max-w-[180px] block">
+                          {emp.nombre}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-flex items-center gap-1 px-1 py-0.5 rounded-md text-[7px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          Activa
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Account Number in middle */}
-                <div className="my-5 relative z-10">
-                  <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block mb-1">Número de Cuenta</span>
-                  <div className="text-xl font-mono tracking-widest font-bold text-blue-100 flex items-center gap-2">
-                    {emp.cuentaBanco ? (
-                      emp.cuentaBanco.match(/.{1,4}/g).join(' ')
+                {/* Columna Derecha: Detalle de Liquidación / Abono y Selección de Caja */}
+                <div className="border border-slate-250/50 rounded-xl p-4 bg-slate-50/50 flex flex-col justify-between space-y-2 h-full min-h-0">
+                  
+                  {/* 1. Monto Total a Pagar */}
+                  <div className="flex justify-between items-center py-1.5 px-3 bg-white border border-slate-200 rounded-lg shadow-xs shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-blue-50/80 text-blue-655 rounded-lg">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Monto Total a Pagar</span>
+                        <span className="text-[10px] font-semibold text-slate-500">Neto del período</span>
+                      </div>
+                    </div>
+                    <span className="text-base font-black text-slate-800 tracking-tight">{formatUSD(maxMonto)}</span>
+                  </div>
+
+                  {/* 2. Caja/Cuenta de Salida */}
+                  <div className="space-y-0.5 bg-white border border-slate-200 rounded-lg p-3 shadow-xs shrink-0">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[8px] font-extrabold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                        </svg>
+                        Origen del Pago
+                      </label>
+                      {loadingMps && <span className="text-[8px] text-blue-600 animate-pulse font-bold">Cargando...</span>}
+                    </div>
+                    <select
+                      value={selectedMetodoPagoId}
+                      onChange={(e) => setSelectedMetodoPagoId(e.target.value)}
+                      disabled={loadingMps}
+                      className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner"
+                    >
+                      {loadingMps ? (
+                        <option value="">Cargando cuentas...</option>
+                      ) : metodosPago.length === 0 ? (
+                        <option value="">No hay cuentas activas disponibles</option>
+                      ) : (
+                        metodosPago.map((mp) => (
+                          <option key={mp.id} value={mp.id}>
+                            {mp.nombre} (Saldo: {formatUSD(mp.saldoActual)})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  {/* 3. Input de Abono a realizar */}
+                  <div className="space-y-0.5 bg-white border border-slate-200 rounded-lg p-3 shadow-xs shrink-0">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[8px] font-extrabold text-slate-655 uppercase tracking-wider">
+                        {isCross ? 'Abono pendiente de otra quincena' : 'Monto a pagar hoy'}
+                      </label>
+                      <span className="text-[8px] font-bold text-slate-400">USD</span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-455 font-extrabold text-xs">$</span>
+                      <input type="number" step="0.01" min="0.01" max={maxMonto}
+                        value={monto}
+                        onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
+                        className="w-full pl-5 pr-2.5 py-1 text-base font-black text-slate-800 border border-slate-200 rounded bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
+                    </div>
+
+                    <div className="flex gap-2 pt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPercentage(0.5)}
+                        className="flex-1 py-1 rounded border border-slate-200 text-[8px] font-extrabold text-slate-600 bg-white hover:bg-slate-55 transition-all cursor-pointer"
+                      >
+                        Abonar 50%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPercentage(1)}
+                        className="flex-1 py-1 rounded bg-blue-50 border border-blue-200 text-[8px] font-extrabold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
+                      >
+                        Pagar Total
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Saldo Pendiente que quedaría */}
+                  <div className="flex justify-between items-center py-1.5 px-3 bg-white border border-slate-200 rounded-lg shadow-xs shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <div className="p-1 bg-orange-50 text-orange-600 rounded-md">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Saldo Restante</span>
+                      </div>
+                    </div>
+                    {restante <= 0.01 ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        Liquidada
+                      </span>
                     ) : (
-                      '— — — —'
+                      <span className="text-sm font-black text-orange-600 tracking-tight">{formatUSD(restante)}</span>
                     )}
                   </div>
-                </div>
 
-                {/* Holder name */}
-                <div className="flex justify-between items-end relative z-10 pt-2 border-t border-white/10">
-                  <div>
-                    <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Beneficiario</span>
-                    <span className="text-xs font-bold tracking-wide text-white uppercase truncate max-w-[280px] block">
-                      {emp.nombre}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[8px] font-bold text-blue-300 uppercase tracking-widest block">Estado Cuenta</span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      Activa
-                    </span>
-                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Columna Derecha: Detalle de Liquidación / Abono */}
-            <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col justify-between space-y-6">
-              
-              <div className="space-y-4">
-                <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest block">Resumen Financiero</span>
                 
-                {/* 1. Monto Total a Pagar */}
-                <div className="flex justify-between items-center py-3.5 px-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monto Total a Pagar</span>
-                      <span className="text-xs font-semibold text-slate-500">Saldo pendiente neto del período</span>
-                    </div>
-                  </div>
-                  <span className="text-2xl font-black text-slate-900 tracking-tight">{formatUSD(maxMonto)}</span>
-                </div>
-
-                {/* 2. Input de Abono a realizar */}
-                <div className="space-y-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider">
-                      {isCross ? 'Abono pendiente de otra quincena' : 'Abono / Pago a realizar hoy'}
-                    </label>
-                    <span className="text-[10px] font-bold text-slate-400">USD</span>
-                  </div>
-                  <div className="relative mt-1">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-xl">$</span>
-                    <input type="number" step="0.01" min="0.01" max={maxMonto}
-                      value={monto}
-                      onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
-                      className="w-full pl-8 pr-4 py-3 text-2xl font-black text-blue-900 border border-slate-200 rounded-xl bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
-                  </div>
-
-                  {/* Helper Quick Action Buttons */}
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setPercentage(0.5)}
-                      className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[10px] font-extrabold text-slate-600 bg-slate-50/50 hover:bg-slate-100 hover:text-slate-800 transition-all cursor-pointer"
-                    >
-                      Abonar 50% ({formatUSD(maxMonto / 2)})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPercentage(1)}
-                      className="flex-1 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-[10px] font-extrabold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
-                    >
-                      Pagar Total (100%)
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. Saldo Pendiente que quedaría */}
-                <div className="flex justify-between items-center py-3.5 px-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Saldo Pendiente Restante</span>
-                      <span className="text-xs font-semibold text-slate-500">Saldo tras procesar este pago</span>
-                    </div>
-                  </div>
-                  {restante <= 0.01 ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                      Nómina Liquidada
-                    </span>
-                  ) : (
-                    <span className="text-2xl font-black text-orange-600 tracking-tight">{formatUSD(restante)}</span>
-                  )}
+              </div>
+            ) : (
+              /* Historial de Pagos Tab (Fixed-Size content) */
+              <div className="space-y-3 h-full flex flex-col justify-start">
+                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">Pagos y Abonos Registrados en el Período</span>
+                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs flex-1 max-h-[340px] overflow-y-auto">
+                  <table className="w-full text-xs text-left text-slate-600">
+                    <thead className="bg-slate-50 text-[9px] font-bold text-slate-500 uppercase border-b border-slate-200 sticky top-0 z-10">
+                      <tr>
+                        <th className="px-4 py-3">Fecha y Hora</th>
+                        <th className="px-4 py-3">Registrado Por</th>
+                        <th className="px-4 py-3">Caja / Cuenta</th>
+                        <th className="px-4 py-3 text-right">Monto</th>
+                        <th className="px-4 py-3 text-center">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {(!nomina || !nomina.abonos || nomina.abonos.length === 0) ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-12 text-center text-slate-400 italic">
+                            No hay abonos registrados en este período para el colaborador.
+                          </td>
+                        </tr>
+                      ) : (
+                        nomina.abonos.map((ab, idx) => (
+                          <tr key={ab.id || idx} className="hover:bg-slate-50/50">
+                            {/* Fecha y Hora con Icono */}
+                            <td className="px-4 py-3.5">
+                              <span className="inline-flex items-center gap-1.5 text-slate-500 font-mono">
+                                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                </svg>
+                                {ab.fechaHora || ab.fecha}
+                              </span>
+                            </td>
+                            {/* Registrado Por con Icono */}
+                            <td className="px-4 py-3.5">
+                              <span className="inline-flex items-center gap-1.5 text-slate-700">
+                                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                </svg>
+                                {ab.usuarioNombre || 'Usuario'}
+                              </span>
+                            </td>
+                            {/* Caja / Cuenta de Salida con Icono */}
+                            <td className="px-4 py-3.5">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-bold">
+                                <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                                </svg>
+                                {ab.metodoPagoNombre || 'No especificado'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-right font-black text-slate-800">{formatUSD(ab.monto)}</td>
+                            <td className="px-4 py-3.5 text-center">
+                              <button
+                                onClick={() => onDeleteAbono(nomina, ab.id)}
+                                className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-all cursor-pointer bg-transparent border-0 outline-none"
+                                title="Eliminar abono y devolver fondos a caja"
+                              >
+                                <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-
-            </div>
-            
+            )}
           </div>
 
           {/* Footer Actions */}
-          <div className="flex gap-3 pt-6 border-t border-slate-100 justify-end">
+          <div className="flex gap-3 pt-5 border-t border-slate-100 justify-end shrink-0">
             <button onClick={onClose}
-              className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer">
-              Cancelar
+              className="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-650 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer bg-white">
+              Cerrar
             </button>
-            <button onClick={onConfirm}
-              disabled={!monto || monto <= 0}
-              className="px-10 py-3 rounded-xl bg-blue-900 text-white font-extrabold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-              {monto > 0 ? `Confirmar Pago de ${formatUSD(monto)}` : 'Ingrese un monto'}
-            </button>
+            {activeTab === 'registrar' && (
+              <button
+                onClick={() => onConfirm(selectedMetodoPagoId)}
+                disabled={!monto || monto <= 0 || !selectedMetodoPagoId || loadingMps}
+                className="px-8 py-2.5 rounded-lg bg-blue-900 text-white font-extrabold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                {monto > 0 ? `Confirmar Pago de ${formatUSD(monto)}` : 'Ingrese un monto'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1487,18 +1636,23 @@ export const NominaMesTab = () => {
 
   const handlePagar = (emp, cp, sub, restantePagar, quincena) => {
     const maxMonto = Math.max(0, Math.round(restantePagar * 100) / 100);
+    const arr = quincena === 1 ? q1Raw : q2Raw;
+    const nomina = arr.find(p => p.empleadoId === emp.id);
     setPayTarget({
       emp, cp, subtotal: sub,
       monto: maxMonto,
       maxMonto,
       restante: 0,
-      quincenaOrigen: activeTab === 'q1' ? 1 : 2,
+      quincenaOrigen: quincena,
       quincenaDestino: 0,
+      nomina,
     });
   };
 
   const handlePagarCross = (emp, cross) => {
     const monto = Math.round(cross.pendiente * 100) / 100;
+    const arr = cross.quincenaOrigen === 1 ? q1Raw : q2Raw;
+    const nomina = arr.find(p => p.empleadoId === emp.id);
     setPayTarget({
       emp, cp: null, subtotal: cross.pendiente,
       monto,
@@ -1507,6 +1661,7 @@ export const NominaMesTab = () => {
       quincenaOrigen: cross.quincenaOrigen,
       quincenaDestino: cross.quincenaOrigen,
       isCross: true,
+      nomina,
     });
   };
 
@@ -1517,14 +1672,21 @@ export const NominaMesTab = () => {
     setPayTarget(prev => ({ ...prev, monto: newMonto, restante: nuevoRestante }));
   };
 
-  const pagarQuincena = async (rawArr, setter, fechas, empId, monto, fecha, subtotal) => {
+  const pagarQuincena = async (rawArr, setter, fechas, empId, monto, fecha, subtotal, metodoPagoId) => {
     let nomina = rawArr.find(p => p.empleadoId === empId);
     if (!nomina) {
       const created = await adapter.getPayrolls(fechas.fechaInicio, fechas.fechaFin);
       nomina = created.find(p => p.empleadoId === empId);
     }
     if (nomina) {
-      const actualizada = registrarAbono(nomina, { monto, fecha });
+      const loggedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const usuarioNombre = loggedUser.nombre || 'Usuario';
+      
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const fechaHora = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+      const actualizada = registrarAbono(nomina, { monto, fecha, metodoPagoId, usuarioNombre, fechaHora });
       const totalAb = actualizada.abonos.reduce((s, a) => s + a.monto, 0);
       if (subtotal > 0 && totalAb >= subtotal) {
         actualizada.estado = 'PAGADO';
@@ -1536,8 +1698,20 @@ export const NominaMesTab = () => {
     }
   };
 
-  const handleConfirmPago = async () => {
+  const handleConfirmPago = async (metodoPagoId) => {
     if (!payTarget || !payTarget.monto || payTarget.monto <= 0) return;
+    if (!metodoPagoId) {
+      toast.error('Debe seleccionar una cuenta de pago (caja).');
+      return;
+    }
+
+    const confirm = await confirmDialog(
+      'Confirmar registro de pago',
+      `¿Está seguro de registrar el pago de ${formatUSD(payTarget.monto)} para el colaborador ${payTarget.emp.nombre}?`,
+      { type: 'warning', confirmLabel: 'Aceptar y Pagar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirm) return;
+
     try {
       const hoy = new Date().toISOString().slice(0, 10);
       const empId = payTarget.emp.id;
@@ -1553,14 +1727,14 @@ export const NominaMesTab = () => {
         const arr   = qDest === 1 ? q1Raw : q2Raw;
         const set   = qDest === 1 ? setQ1Raw : setQ2Raw;
         const fec   = qDest === 1 ? fechas1 : fechas2;
-        await pagarQuincena(arr, set, fec, empId, payTarget.monto, hoy, sub);
+        await pagarQuincena(arr, set, fec, empId, payTarget.monto, hoy, sub, metodoPagoId);
       } else {
         if (payTarget.quincenaOrigen === 2) {
-          await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2);
+          await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId);
         } else {
           await Promise.all([
-            pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, hoy, subQ1),
-            pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2),
+            pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, hoy, subQ1, metodoPagoId),
+            pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId),
           ]);
         }
       }
@@ -1568,7 +1742,69 @@ export const NominaMesTab = () => {
       toast.success('Pago registrado exitosamente.');
       await loadAll();
     } catch (err) {
-      toast.error('Error al registrar el pago.');
+      toast.error('Error al registrar el pago: ' + (err.message || err));
+    }
+  };
+
+  const handleDeleteAbono = async (nomina, abonoId) => {
+    if (!payTarget) return;
+
+    const confirm = await confirmDialog(
+      'Confirmar eliminación de pago',
+      '¿Está seguro de eliminar este pago del historial? El dinero se devolverá automáticamente a la caja/banco correspondiente.',
+      { type: 'warning', confirmLabel: 'Eliminar Pago', cancelLabel: 'Cancelar' }
+    );
+    if (!confirm) return;
+
+    try {
+      const abonosActualizados = (nomina.abonos || []).filter(a => a.id !== abonoId);
+
+      let nuevoEstado = 'PENDIENTE';
+      const totalAb = abonosActualizados.reduce((s, a) => s + a.monto, 0);
+
+      const empId = payTarget.emp.id;
+      const emp   = payTarget.emp;
+      const cp1   = q1Calculated.find(p => p.empleadoId === empId);
+      const cp2   = q2Calculated.find(p => p.empleadoId === empId);
+      const sub = payTarget.quincenaOrigen === 1
+        ? computeSubtotal(emp, cp1, false)
+        : computeSubtotal(emp, cp2, true);
+
+      if (sub > 0 && totalAb >= sub) {
+        nuevoEstado = 'PAGADO';
+      } else if (totalAb > 0) {
+        nuevoEstado = 'ABONO_PARCIAL';
+      }
+
+      const actualizada = new nomina.constructor({
+        ...nomina,
+        abonos: abonosActualizados,
+        estado: nuevoEstado,
+      });
+
+      const saved = await adapter.savePayroll(actualizada);
+
+      const isQ1 = payTarget.quincenaOrigen === 1;
+      const setter = isQ1 ? setQ1Raw : setQ2Raw;
+      setter(prev => prev.map(p => p.empleadoId === saved.empleadoId ? saved : p));
+
+      setPayTarget(prev => {
+        if (!prev) return null;
+        const newMax = Math.max(0, sub - totalAb);
+        return {
+          ...prev,
+          nomina: saved,
+          maxMonto: newMax,
+          monto: newMax,
+          restante: 0,
+        };
+      });
+
+      toast.success('Pago eliminado y saldo devuelto a la caja.');
+      await loadAll();
+    } catch (err) {
+      console.error('[deleteAbono]', err);
+      toast.error(err.message || 'Error al eliminar el pago.');
     }
   };
 
@@ -1846,6 +2082,8 @@ export const NominaMesTab = () => {
             maxMonto={payTarget.maxMonto}
             restante={payTarget.restante}
             isCross={payTarget.isCross}
+            nomina={payTarget.nomina}
+            onDeleteAbono={handleDeleteAbono}
             quincenaLabel={`${mesLabel} ${year}`}
             onClose={() => deferClose(() => setPayTarget(null))}
             onConfirm={handleConfirmPago}
