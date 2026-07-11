@@ -5,7 +5,8 @@ import {
   getGastos, saveGasto, deleteGasto, CATEGORIAS,
   getMetodosPago, getCierrePreview, saveCierre, getCierres,
   getVehiculos, getVehiculoDetails, saveVehiculo, deleteVehiculo,
-  addMantenimiento, updateMantenimiento, deleteMantenimiento 
+  addMantenimiento, updateMantenimiento, deleteMantenimiento,
+  getVehiculoControles, addVehiculoControl
 } from '../../application/gastosService';
 import { getUsuarios } from '../../../usuarios/application/usuariosService';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
@@ -29,6 +30,23 @@ const esMetodoEfectivo = (nombre) => {
 };
 
 const EMPTY_MAINT_FORM = { tipo: 'Cambio de Aceite', descripcion: '', fechaRealizado: new Date().toISOString().split('T')[0], fechaProxima: '', kilometraje: '', kmProximo: '', monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
+
+const EMPTY_CONTROL_FORM = {
+  fecha: '',
+  kilometraje: '',
+  combustible: 'bueno',
+  nivelAceite: false,
+  nivelAgua: false,
+  aceiteHidraulico: false,
+  liquidoFrenos: false,
+  gataLlave: false,
+  extintorBotiquin: false,
+  bandas: false,
+  otroCheckNombre: '',
+  otroCheckValor: false,
+  observacion: '',
+  sugerencia: ''
+};
 
 const CAT_BADGES = {
   oficina: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', label: 'Oficina' },
@@ -201,6 +219,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [vehiculoForm, setVehiculoForm] = useState(EMPTY_VEHICULO_FORM);
   const [savingVehiculo, setSavingVehiculo] = useState(false);
 
+  // --- ESTADOS CONTROLES ---
+  const [controles, setControles] = useState([]);
+  const [loadingControles, setLoadingControles] = useState(false);
+  const [controlFormOpen, setControlFormOpen] = useState(false);
+  const [controlForm, setControlForm] = useState(EMPTY_CONTROL_FORM);
+  const [formError, setFormError] = useState('');
+
   // --- ESTADOS MANTENIMIENTOS ---
   const [maintFormOpen, setMaintFormOpen] = useState(false);
   const [editingMaint, setEditingMaint] = useState(null);
@@ -282,6 +307,24 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       setLoadingVehiculos(false);
     }
   };
+
+  const loadControles = async (vehId) => {
+    setLoadingControles(true);
+    try {
+      const data = await getVehiculoControles(vehId);
+      setControles(data);
+    } catch (err) {
+      toast.error('Error al cargar historial de controles: ' + err.message);
+    } finally {
+      setLoadingControles(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedVehiculo?.id) {
+      loadControles(selectedVehiculo.id);
+    }
+  }, [selectedVehiculo]);
 
   const loadCierreHistory = async () => {
     setLoadingCierreHistory(true);
@@ -623,6 +666,72 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       refreshSelectedVehiculo(selectedVehiculo.id);
     } catch (err) {
       toast.error('Error al eliminar mantenimiento: ' + err.message);
+    }
+  };
+
+  const openNewControl = () => {
+    if (!selectedVehiculo) return;
+    setControlForm({
+      ...EMPTY_CONTROL_FORM,
+      fecha: new Date().toISOString().slice(0, 16),
+      kilometraje: selectedVehiculo.kilometraje || '',
+    });
+    setFormError('');
+    setControlFormOpen(true);
+  };
+
+  const handleControlChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setControlForm((p) => ({
+      ...p,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSaveControl = async (e) => {
+    e.preventDefault();
+    if (!selectedVehiculo) return;
+    if (!controlForm.kilometraje || Number(controlForm.kilometraje) <= 0) {
+      setFormError('El kilometraje debe ser mayor a 0');
+      return;
+    }
+
+    setSavingMaint(true);
+    setFormError('');
+    try {
+      const payload = {
+        ...controlForm,
+        kilometraje: Number(controlForm.kilometraje),
+      };
+      const saved = await addVehiculoControl(selectedVehiculo.id, payload);
+      toast.success('Control registrado correctamente');
+      
+      setControles((prev) => [saved, ...prev]);
+
+      setSelectedVehiculo((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          kilometraje: Math.max(prev.kilometraje, Number(controlForm.kilometraje)),
+        };
+      });
+      setVehiculos((prev) =>
+        prev.map((v) => {
+          if (v.id === selectedVehiculo.id) {
+            return {
+              ...v,
+              kilometraje: Math.max(v.kilometraje, Number(controlForm.kilometraje)),
+            };
+          }
+          return v;
+        })
+      );
+
+      setControlFormOpen(false);
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSavingMaint(false);
     }
   };
 
@@ -1296,6 +1405,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     <Plus size={16} />
                     Registrar Mantenimiento
                   </button>
+                  <button 
+                    onClick={openNewControl} 
+                    className="ga-btn-secondary text-emerald-600 border-emerald-100 hover:bg-emerald-50 whitespace-nowrap inline-flex items-center gap-1"
+                  >
+                    <ClipboardCheck size={14} />
+                    Registrar Control
+                  </button>
                 </div>
               </div>
 
@@ -1681,6 +1797,96 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         </div>
                       );
                     })()}
+                  </div>
+
+                  {/* Historial de Controles Diarios */}
+                  <div className="ga-card w-full">
+                    <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
+                      <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                        <Clock size={16} className="text-blue-500" />
+                        Historial de Controles Diarios
+                      </h3>
+                      <span className="text-xs text-slate-400 font-semibold">
+                        {controles.length} registros
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      {loadingControles ? (
+                        <div className="flex items-center justify-center py-12 gap-2 text-slate-400 text-xs">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-blue-600" />
+                          <span>Cargando controles...</span>
+                        </div>
+                      ) : controles.length === 0 ? (
+                        <p className="text-center text-slate-400 text-xs py-12">Sin controles diarios registrados para este vehículo.</p>
+                      ) : (
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
+                              <th className="px-4 py-3">Fecha y Hora</th>
+                              <th className="px-4 py-3">Operador</th>
+                              <th className="px-4 py-3">Kilometraje</th>
+                              <th className="px-4 py-3 text-center">Combustible</th>
+                              <th className="px-4 py-3">Niveles Check</th>
+                              <th className="px-4 py-3">Observación / Sugerencia</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                            {controles.map((log) => {
+                              const checksCount = [
+                                log.nivelAceite, log.nivelAgua, log.aceiteHidraulico,
+                                log.liquidoFrenos, log.gataLlave, log.extintorBotiquin, log.bandas
+                              ].filter(Boolean).length;
+
+                              const fechaFmt = new Date(log.fecha).toLocaleString('es-EC', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit', hour12: true
+                              });
+
+                              const fuelLabel = log.combustible === 'bajo' ? 'Bajo' : log.combustible === 'medio' ? 'Medio' : 'Bueno';
+                              const fuelColor = log.combustible === 'bajo' ? 'text-red-700 bg-red-50 border-red-200' :
+                                                log.combustible === 'medio' ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                                                'text-emerald-700 bg-emerald-50 border-emerald-200';
+
+                              return (
+                                <tr key={log.id} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">{fechaFmt}</td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <span className="flex items-center gap-1">
+                                      <User size={12} className="text-slate-400" />
+                                      {log.usuarioNom}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">{log.kilometraje.toLocaleString()} km</td>
+                                  <td className="px-4 py-3 text-center whitespace-nowrap">
+                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${fuelColor}`}>
+                                      {fuelLabel}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="space-y-0.5">
+                                      <span className="font-semibold text-slate-600 block">{checksCount} / 7 OK</span>
+                                      {log.otroCheckNombre && (
+                                        <span className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${
+                                          log.otroCheckValor ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-red-100 bg-red-50 text-red-700'
+                                        }`}>
+                                          {log.otroCheckNombre}: {log.otroCheckValor ? 'OK' : 'Novedad'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 max-w-[200px]">
+                                    {log.observacion && <p className="line-clamp-2"><strong className="font-bold text-slate-500">Obs:</strong> {log.observacion}</p>}
+                                    {log.sugerencia && <p className="line-clamp-2 mt-0.5"><strong className="font-bold text-slate-500">Sugerencia:</strong> {log.sugerencia}</p>}
+                                    {!log.observacion && !log.sugerencia && <span className="text-slate-400">Sin novedades</span>}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2273,6 +2479,194 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
       {/* 4. MODAL PREVIEW PDF CIERRE */}
       <CierrePDFPreviewModal isOpen={!!pdfCierre} onClose={() => setPdfCierre(null)} cierre={pdfCierre} />
+
+      {/* 5. MODAL REGISTRO CONTROL DE VEHÍCULO */}
+      <ModalPortal open={controlFormOpen}>
+        <div className="ga-modal-portal-root">
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+            onClick={() => deferClose(() => setControlFormOpen(false))} />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 shrink-0 bg-white">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">Registrar Control de Vehículo</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">{selectedVehiculo?.placa} — checklist de control circular</p>
+                </div>
+                <button type="button" onClick={() => deferClose(() => setControlFormOpen(false))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all border border-slate-200">
+                  ✕
+                </button>
+              </div>
+
+              <div className="overflow-y-auto p-6 flex-1 min-h-0">
+                <form onSubmit={handleSaveControl} className="space-y-6">
+                  {/* Row 1: Date/Time, Mileage, Fuel */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Fecha y Hora *</label>
+                      <input
+                        type="datetime-local"
+                        name="fecha"
+                        value={controlForm.fecha}
+                        onChange={handleControlChange}
+                        required
+                        className="ga-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Kilometraje *</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          name="kilometraje"
+                          value={controlForm.kilometraje}
+                          onChange={handleControlChange}
+                          required
+                          placeholder={`Actual: ${selectedVehiculo?.kilometraje || 0}`}
+                          className="ga-input pr-10 font-semibold"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">km</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nivel Combustible *</label>
+                      <select
+                        name="combustible"
+                        value={controlForm.combustible}
+                        onChange={handleControlChange}
+                        className="ga-input bg-white font-semibold"
+                      >
+                        <option value="bajo">Bajo (Menos de 1/4)</option>
+                        <option value="medio">Medio (Media capacidad)</option>
+                        <option value="bueno">Bueno (Lleno/Casi lleno)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Checkbox Matrix */}
+                  <div className="border-t border-slate-100 pt-5">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+                      Niveles y Herramientas (OK)
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {[
+                        { name: 'nivelAceite', label: 'Nivel de Aceite' },
+                        { name: 'nivelAgua', label: 'Nivel de Agua' },
+                        { name: 'aceiteHidraulico', label: 'Aceite Hidráulico / Líquido' },
+                        { name: 'liquidoFrenos', label: 'Líquido de Frenos' },
+                        { name: 'gataLlave', label: 'Gata y Llave de Ruedas' },
+                        { name: 'extintorBotiquin', label: 'Extintor y Botiquín' },
+                        { name: 'bandas', label: 'Juego de Bandas' }
+                      ].map((item) => (
+                        <label
+                          key={item.name}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                            controlForm[item.name]
+                              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800 font-medium'
+                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name={item.name}
+                            checked={controlForm[item.name]}
+                            onChange={handleControlChange}
+                            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                          />
+                          <span className="text-xs font-semibold">{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom check item */}
+                  <div className="border-t border-slate-100 pt-5">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+                      Otros Accesorios / Controles
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Nombre del Accesorio / Control Adicional</label>
+                        <input
+                          type="text"
+                          name="otroCheckNombre"
+                          value={controlForm.otroCheckNombre}
+                          onChange={handleControlChange}
+                          placeholder="Ej. Estado de llantas, Luces, etc."
+                          className="ga-input text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          className={`flex items-center gap-3 h-10 px-3 rounded-xl border transition-all cursor-pointer select-none ${
+                            controlForm.otroCheckValor
+                              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800'
+                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name="otroCheckValor"
+                            checked={controlForm.otroCheckValor}
+                            onChange={handleControlChange}
+                            disabled={!controlForm.otroCheckNombre.trim()}
+                            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 disabled:opacity-55"
+                          />
+                          <span className="text-xs font-semibold">¿Está OK?</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Observations and suggestions */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-5">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Observación</label>
+                      <textarea
+                        name="observacion"
+                        value={controlForm.observacion}
+                        onChange={handleControlChange}
+                        rows={2}
+                        placeholder="Detalla si encontraste alguna novedad..."
+                        className="ga-input resize-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Sugerencia</label>
+                      <textarea
+                        name="sugerencia"
+                        value={controlForm.sugerencia}
+                        onChange={handleControlChange}
+                        rows={2}
+                        placeholder="Indica qué reparación o revisión recomiendas..."
+                        className="ga-input resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {formError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                      {formError}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
+                    <button type="button" onClick={() => deferClose(() => setControlFormOpen(false))} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-all">Cancelar</button>
+                    <button type="submit" disabled={savingMaint} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-xl text-sm transition-all shadow-sm disabled:opacity-50">
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1 ${savingMaint ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!savingMaint}
+                      />
+                      Registrar Control
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
 
     </div>
   );
