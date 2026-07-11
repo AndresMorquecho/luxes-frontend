@@ -180,7 +180,7 @@ export const TallerControlPage = () => {
             <button
               onClick={openNewControl}
               disabled={!selectedVehId}
-              className="btn-primary h-10 px-4 rounded-xl text-sm font-semibold text-white inline-flex items-center justify-center gap-2 disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold h-10 px-4 rounded-xl text-sm inline-flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50"
             >
               <Plus size={16} /> Nuevo Control
             </button>
@@ -305,13 +305,13 @@ export const TallerControlPage = () => {
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
             <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-modal-in flex flex-col border border-slate-100 max-h-[min(780px,92vh)] overflow-hidden">
-              <div className="flex items-center justify-between px-8 py-5 shrink-0" style={MODAL_HEADER_STYLE}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 shrink-0 bg-white">
                 <div>
-                  <h2 className="text-xl font-bold text-white">Registrar Control de Vehículo</h2>
-                  <p className="text-xs text-white/60 mt-0.5">{selectedVeh?.placa} — checklist de control circular</p>
+                  <h2 className="text-base font-bold text-slate-800">Registrar Control de Vehículo</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">{selectedVeh?.placa} — checklist de control circular</p>
                 </div>
-                <button type="button" onClick={() => setModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 text-white border border-white/20">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                <button type="button" onClick={() => setModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                 </button>
               </div>
               
@@ -474,14 +474,14 @@ export const TallerControlPage = () => {
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold text-gray-600"
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="btn-primary px-6 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-xl text-sm transition-all shadow-sm disabled:opacity-50"
                   >
                     {saving ? 'Guardando...' : 'Registrar Control'}
                   </button>
