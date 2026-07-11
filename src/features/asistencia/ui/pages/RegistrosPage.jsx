@@ -14,6 +14,7 @@ import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonIni
 import { isAsistenciaUser, normalizeUserForSession } from '../../../../shared/utils/userRoleHelpers';
 import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
 import { OverlayPortal } from '../../../../shared/ui/components/ModalPortal';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -888,7 +889,7 @@ const AsistenciaAcciones = ({ isPermiso, onConcederPermiso, onCancelarPermiso })
       <button
         type="button"
         onClick={onCancelarPermiso}
-        className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+        className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
       >
         Cancelar Permiso
       </button>
@@ -898,7 +899,7 @@ const AsistenciaAcciones = ({ isPermiso, onConcederPermiso, onCancelarPermiso })
     <button
       type="button"
       onClick={onConcederPermiso}
-      className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+      className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
     >
       Conceder Permiso
     </button>
@@ -973,16 +974,8 @@ const AdminView = () => {
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('TODOS'); // TODOS | ASISTIO | FALTO | PERMISO | SIN_ALMUERZO
+  const [filtroEstado, setFiltroEstado] = useState('TODOS');
   const [horariosConfig, setHorariosConfig] = useState(DEFAULT_HORARIOS_CONFIG);
-
-  // Modal de confirmación
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: null,
-  });
 
   const horarioDia = useMemo(() => getHorarioEsperado(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
   const horarioLabel = useMemo(() => getHorarioLabel(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
@@ -1036,22 +1029,26 @@ const AdminView = () => {
     }
   };
 
-  const requestConcederPermiso = (empleadoId, nombreEmpleado) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Conceder Permiso Pagado',
-      message: `¿Estás seguro de que deseas conceder un permiso pagado para ${nombreEmpleado} en la fecha ${fechaFiltro}? Esto registrará el día como laborado.`,
-      onConfirm: () => handleConcederPermiso(empleadoId),
-    });
+  const requestConcederPermiso = async (empleadoId, nombreEmpleado) => {
+    const confirmed = await confirmDialog(
+      'Conceder Permiso Pagado',
+      `¿Estás seguro de que deseas conceder un permiso pagado para ${nombreEmpleado} en la fecha ${fechaFiltro}? Esto registrará el día como laborado.`,
+      { confirmLabel: 'Sí, continuar', cancelLabel: 'No, cancelar', type: 'primary' }
+    );
+    if (confirmed) {
+      handleConcederPermiso(empleadoId);
+    }
   };
 
-  const requestCancelarPermiso = (empleadoId, nombreEmpleado) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Cancelar Permiso Pagado',
-      message: `¿Estás seguro de que deseas revocar el permiso pagado para ${nombreEmpleado} el día ${fechaFiltro}? El registro volverá a estar pendiente o ausente.`,
-      onConfirm: () => handleCancelarPermiso(empleadoId),
-    });
+  const requestCancelarPermiso = async (empleadoId, nombreEmpleado) => {
+    const confirmed = await confirmDialog(
+      'Cancelar Permiso Pagado',
+      `¿Estás seguro de que deseas revocar el permiso pagado para ${nombreEmpleado} el día ${fechaFiltro}? El registro volverá a estar pendiente o ausente.`,
+      { confirmLabel: 'Sí, continuar', cancelLabel: 'No, cancelar', type: 'primary' }
+    );
+    if (confirmed) {
+      handleCancelarPermiso(empleadoId);
+    }
   };
 
   const weekDays = useMemo(() => {
@@ -1177,7 +1174,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 
 
   return (
-    <div className="p-4 sm:p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="space-y-4 sm:space-y-6 animate-slide-up w-full" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
         .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
         .kpi-card { position: relative; overflow: hidden; }
@@ -1191,10 +1188,22 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
       `}</style>
 
       {/* Header Panel */}
-      <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Control de Asistencia Diario</h1>
-          <p className="text-sm text-slate-500">Supervisión diaria, control de ausencias y asignación de permisos.</p>
+      <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-card">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-800">Control de Asistencia Diario</h1>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-emerald-100 text-emerald-700">
+                Activo
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">Supervisión diaria, control de ausencias y asignación de permisos.</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={descargarExcel}
@@ -1210,7 +1219,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 
 
       {/* KPIs Grid - placed above calendar selector, in a single row */}
-      <div className="flex flex-wrap lg:flex-nowrap gap-3 mb-6">
+      <div className="flex flex-wrap lg:flex-nowrap gap-3">
         {[
           { label: 'Colaboradores', value: kpis.total, cssClass: 'total', color: 'text-blue-600' },
           { label: 'Asistencias', value: kpis.asistieron, cssClass: 'asistencias', color: 'text-emerald-600' },
@@ -1226,7 +1235,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
       </div>
 
       {/* Selector de Semana / Fecha */}
-      <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 mb-4 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm">
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3">
           {/* Controles de semana */}
           <div className="flex items-center justify-between gap-2 lg:justify-start lg:shrink-0">
@@ -1493,42 +1502,6 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </>
       )}
 
-      {confirmModal.isOpen && (
-        <OverlayPortal open={confirmModal.isOpen}>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fade-in">
-            <div className="bg-white border border-slate-100 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5 text-center">
-              <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto shadow-sm">
-                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-                </svg>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-black text-slate-800">{confirmModal.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{confirmModal.message}</p>
-              </div>
-              <div className="flex gap-3 justify-center">
-                <button
-                  type="button"
-                  onClick={() => setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null })}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border-none"
-                >
-                  No, cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    confirmModal.onConfirm();
-                    setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
-                  }}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-sm hover:shadow transition-all cursor-pointer border-none"
-                >
-                  Sí, continuar
-                </button>
-              </div>
-            </div>
-          </div>
-        </OverlayPortal>
-      )}
     </div>
   );
 };

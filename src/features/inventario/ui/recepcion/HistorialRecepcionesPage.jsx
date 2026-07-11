@@ -14,6 +14,7 @@ const fmtDateTime = (d) => formatDateTimeES(d);
 
 const RI_PRIMARY = '#2b41b8';
 const RI_NAVY = '#1a1c3d';
+const RI_PAGE_BG = '#f8f9fc';
 
 const countRecibidos = (orden) =>
   (orden.detalles || []).filter((d) => (d.cantidadRecibida ?? 0) > 0).length;

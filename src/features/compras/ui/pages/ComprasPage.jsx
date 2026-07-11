@@ -20,6 +20,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'nume
 const CO_PRIMARY = '#2b41b8';
 const CO_PRIMARY_HOVER = '#2436a0';
 const CO_NAVY = '#1a1c3d';
+const CO_PAGE_BG = '#f8f9fc';
 
 const ESTADO_BADGES = {
   pendiente_aprobacion: { bg: 'bg-amber-50', color: 'text-amber-700', dot: 'bg-amber-500', label: 'PENDIENTE' },
