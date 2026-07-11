@@ -27,6 +27,88 @@ const ESTADO_BADGE = {
   PAGADO:        { label: 'Pagado',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
 };
 
+const BANCO_THEMES = {
+  '': {
+    gradient: 'linear-gradient(135deg, #64748b 0%, #334155 100%)',
+    text: '#ffffff',
+    accent: '#cbd5e1',
+    chip: '#94a3b8',
+    light: false,
+  },
+  Pichincha: {
+    gradient: 'linear-gradient(135deg, #ffdd00 0%, #ffc800 50%, #f5b000 100%)',
+    text: '#003087',
+    accent: '#003087',
+    chip: '#003087',
+    light: true,
+  },
+  Guayaquil: {
+    gradient: 'linear-gradient(135deg, #c41230 0%, #e31837 50%, #9b0f24 100%)',
+    text: '#ffffff',
+    accent: '#ffffff',
+    chip: '#ffd6dc',
+    light: false,
+  },
+  Bolivariano: {
+    gradient: 'linear-gradient(135deg, #004d2e 0%, #006b3f 50%, #003322 100%)',
+    text: '#ffffff',
+    accent: '#ffd700',
+    chip: '#c5e86c',
+    light: false,
+  },
+  Pacifico: {
+    gradient: 'linear-gradient(135deg, #002d72 0%, #003da5 50%, #001a45 100%)',
+    text: '#ffffff',
+    accent: '#5eb6ff',
+    chip: '#7ec8ff',
+    light: false,
+  },
+  Internacional: {
+    gradient: 'linear-gradient(135deg, #003087 0%, #f47920 120%)',
+    text: '#ffffff',
+    accent: '#ffffff',
+    chip: '#ffb380',
+    light: false,
+  },
+  Produbanco: {
+    gradient: 'linear-gradient(135deg, #6b0015 0%, #c8102e 50%, #4a000e 100%)',
+    text: '#ffffff',
+    accent: '#f5c6ce',
+    chip: '#e8a0ab',
+    light: false,
+  },
+  Austro: {
+    gradient: 'linear-gradient(135deg, #005a28 0%, #00843d 50%, #003d18 100%)',
+    text: '#ffffff',
+    accent: '#ffffff',
+    chip: '#7ddea0',
+    light: false,
+  },
+  Machala: {
+    gradient: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #065f46 120%)',
+    text: '#ffffff',
+    accent: '#7dd3fc',
+    chip: '#6ee7b7',
+    light: false,
+  },
+};
+
+const normalizeBankName = (name) => {
+  if (!name) return '';
+  const normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  const bankNames = Object.keys(BANCO_THEMES);
+  return bankNames.find((b) => {
+    const candidate = b
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    return normalized === candidate || normalized.includes(candidate);
+  }) || '';
+};
+
 const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomina, onDeleteAbono, onClose, onConfirm, onMontoChange }) => {
   const [activeTab, setActiveTab] = useState('registrar'); // 'registrar' | 'historial'
   const [metodosPago, setMetodosPago] = useState([]);
@@ -115,63 +197,95 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
           
           <div className="flex-1 min-h-0">
             {activeTab === 'registrar' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full items-stretch">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
                 
                 {/* Columna Izquierda: Datos del Colaborador y Banco */}
-                <div className="flex flex-col justify-between space-y-3 min-h-0 h-full py-0.5">
-                  <div className="space-y-1.5">
+                <div className="flex flex-col justify-center items-center space-y-3 min-h-0 h-full py-0.5">
+                  <div className="space-y-1.5 w-full text-center">
                     <span className="text-[9px] font-extrabold text-blue-650 uppercase tracking-widest block">Colaborador Destinatario</span>
                     <h4 className="text-lg font-black text-slate-800 uppercase leading-none tracking-tight">
                       {emp.nombre}
                     </h4>
-                    <p className="text-[10px] text-slate-500 font-semibold leading-snug">
+                    <p className="text-[10px] text-slate-500 font-semibold leading-snug max-w-sm mx-auto">
                       Verifique que la cuenta destino coincida con el registro impreso antes de proceder con la transferencia bancaria.
                     </p>
                   </div>
 
-                  {/* Tarjeta de Cuenta Bancaria Registrada (Credit Card style) */}
-                  <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white rounded-xl p-4 shadow-md relative overflow-hidden border border-slate-850 flex-1 flex flex-col justify-between max-h-[145px]">
-                    <div className="absolute -bottom-8 -left-8 w-20 h-20 bg-slate-800 rounded-full opacity-35 filter blur-xl" />
-                    
-                    <div className="flex justify-between items-start relative z-10">
-                      <div>
-                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block">Cuenta de Nómina Registrada</span>
-                        <span className="text-[11px] font-bold tracking-wider text-white uppercase mt-0.5 block">
-                          {emp.banco || 'SIN BANCO REGISTRADO'}
-                        </span>
-                      </div>
-                      <div className="p-1.5 bg-white/5 rounded-lg text-slate-300 backdrop-blur-xs">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.5M4.5 21V10.5m15 0V9M4.5 10.5V9M21 21h-2.25H5.25H3" />
-                        </svg>
-                      </div>
-                    </div>
+                  {/* Tarjeta de Cuenta Bancaria Registrada (Credit Card style with dynamic colors) */}
+                  {(() => {
+                    const normalizedBank = normalizeBankName(emp.banco);
+                    const theme = BANCO_THEMES[normalizedBank] || BANCO_THEMES[''];
+                    const light = theme.light;
 
-                    <div className="my-1.5 relative z-10">
-                      <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Número de Cuenta</span>
-                      <div className="text-sm font-mono tracking-widest font-bold text-slate-200 flex items-center gap-1">
-                        {emp.cuentaBanco ? (
-                          emp.cuentaBanco.match(/.{1,4}/g).join(' ')
-                        ) : (
-                          '— — — —'
-                        )}
-                      </div>
-                    </div>
+                    return (
+                      <div
+                        className="relative rounded-2xl p-5 shadow-lg transition-all duration-300 w-full max-w-[360px] mx-auto aspect-[1.6/1] flex flex-col justify-between overflow-hidden"
+                        style={{ background: theme.gradient }}
+                      >
+                        {/* Decorative circles */}
+                        <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+                          <div
+                            className="absolute -bottom-12 -right-12 w-40 h-40 rounded-full opacity-20"
+                            style={{ background: theme.accent }}
+                          />
+                          <div
+                            className="absolute -top-8 -left-8 w-32 h-32 rounded-full opacity-10"
+                            style={{ background: theme.accent }}
+                          />
+                        </div>
 
-                    <div className="flex justify-between items-end relative z-10 pt-1.5 border-t border-white/5">
-                      <div>
-                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest block">Beneficiario</span>
-                        <span className="text-[10px] font-bold tracking-wide text-white uppercase truncate max-w-[180px] block">
-                          {emp.nombre}
-                        </span>
+                        {/* Header with chip and bank */}
+                        <div className="flex items-start justify-between relative z-10">
+                          <div
+                            className={`relative w-8 h-[22px] rounded overflow-hidden ${light ? 'border border-[#003087]/25 shadow-sm' : 'border border-black/20 shadow-sm'}`}
+                            style={{ background: `linear-gradient(135deg, #fde047 0%, #eab308 100%)` }}
+                          >
+                            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[0.5px] bg-black/20"></div>
+                            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[0.5px] bg-black/20"></div>
+                          </div>
+                          <div className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${light ? 'bg-[#003087]/10 text-[#003087]' : 'bg-white/10 text-white'}`}>
+                            Cuenta
+                          </div>
+                        </div>
+
+                        {/* Bank name */}
+                        <div className="relative z-10">
+                          <p className={`text-[9px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
+                            Institución financiera
+                          </p>
+                          <p className={`text-lg font-black uppercase tracking-tight mt-0.5 ${light ? 'text-[#003087]' : 'text-white'}`}>
+                            {emp.banco || 'Sin banco registrado'}
+                          </p>
+                        </div>
+
+                        {/* Account number */}
+                        <div className="relative z-10">
+                          <p className={`text-[9px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
+                            Número de cuenta
+                          </p>
+                          <p className={`text-base font-mono tracking-[0.2em] font-bold mt-1 ${light ? 'text-[#003087]' : 'text-white'}`}>
+                            {emp.cuentaBanco ? emp.cuentaBanco.match(/.{1,4}/g).join(' ') : '—— —— ——'}
+                          </p>
+                        </div>
+
+                        {/* Beneficiary and logo */}
+                        <div className="flex items-end justify-between relative z-10">
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-[9px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
+                              Beneficiario
+                            </p>
+                            <p className={`text-xs font-bold uppercase truncate mt-0.5 ${light ? 'text-[#003087]' : 'text-white'}`}>
+                              {emp.nombre}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <div className={`w-8 h-5 rounded ${light ? 'bg-red-500' : 'bg-red-500'}`}></div>
+                            <div className={`w-8 h-5 rounded ${light ? 'bg-amber-400' : 'bg-amber-400'} -ml-2`}></div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="inline-flex items-center gap-1 px-1 py-0.5 rounded-md text-[7px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          Activa
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Columna Derecha: Detalle de Liquidación / Abono y Selección de Caja */}
