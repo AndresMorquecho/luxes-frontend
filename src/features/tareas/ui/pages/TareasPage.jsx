@@ -478,11 +478,15 @@ export default function TareasPage() {
 
       {stats && (
         <>
-          <div className="md:hidden grid grid-cols-2 gap-2 mb-4">
-            {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
+          <div className="md:hidden">
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
+            </div>
           </div>
-          <div className="hidden md:grid gap-4 mb-6 md:grid-cols-2 xl:grid-cols-4">
-            {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
+          <div className="hidden md:block">
+            <div className="grid gap-4 mb-6 md:grid-cols-2 xl:grid-cols-4">
+              {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
+            </div>
           </div>
         </>
       )}
