@@ -185,3 +185,15 @@ export async function getDashboardSummary(desde = '', hasta = '') {
   return data.data;
 }
 
+export async function getMovimientos(desde, hasta) {
+  const params = new URLSearchParams();
+  if (desde) params.append('desde', desde);
+  if (hasta) params.append('hasta', hasta);
+  const url = `/api/gastos/movimientos${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener movimientos');
+  return data.data;
+}
+
+

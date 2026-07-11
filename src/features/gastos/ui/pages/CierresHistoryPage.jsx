@@ -5,6 +5,7 @@ import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { Clock, User, ClipboardCheck, BarChart3, ArrowLeft, Trash2, X, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
+import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
 
 const fmt = (num) => {
   return Number(num).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -20,6 +21,7 @@ export const CierresHistoryPage = () => {
   const [cierreHistory, setCierreHistory] = useState([]);
   const [loadingCierreHistory, setLoadingCierreHistory] = useState(false);
   const [selectedCierreDetail, setSelectedCierreDetail] = useState(null);
+  const [pdfCierre, setPdfCierre] = useState(null);
   const [dateRange, setDateRange] = useState({ desde: '', hasta: '' });
 
   // Determine if admin
@@ -162,7 +164,7 @@ export const CierresHistoryPage = () => {
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
-                            onClick={() => setSelectedCierreDetail(c)}
+                            onClick={() => setPdfCierre(c)}
                             className="text-blue-600 hover:text-white font-bold bg-blue-50 hover:bg-blue-600 border border-blue-100 px-3 py-1.5 rounded-lg transition-all text-[10px] uppercase tracking-wider shadow-sm flex items-center gap-1"
                           >
                             <Eye size={12} /> Ver
@@ -414,6 +416,9 @@ export const CierresHistoryPage = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL PREVIEW PDF CIERRE */}
+      <CierrePDFPreviewModal isOpen={!!pdfCierre} onClose={() => setPdfCierre(null)} cierre={pdfCierre} />
     </div>
   );
 };

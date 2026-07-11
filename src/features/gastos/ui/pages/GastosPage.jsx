@@ -17,6 +17,7 @@ import {
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
   ClipboardCheck, BarChart3, Filter, ArrowUp, ArrowDown, Scale, Wallet
 } from 'lucide-react';
+import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
 
 const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
@@ -225,6 +226,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [savingCierre, setSavingCierre] = useState(false);
   const [efectivoFisicoContado, setEfectivoFisicoContado] = useState('');
   const [selectedCierreDetail, setSelectedCierreDetail] = useState(null);
+  const [pdfCierre, setPdfCierre] = useState(null);
 
   useEffect(() => {
     setEfectivoFisicoContado('');
@@ -344,7 +346,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         };
       });
 
-      await saveCierre({
+      const saved = await saveCierre({
         fechaInicio: cierrePreview.fechaInicio,
         fechaFin: cierrePreview.fechaFin,
         totalIngresos: cierrePreview.totalIngresos,
@@ -364,6 +366,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       setEfectivoFisicoContado('');
       setCierrePreview(null);
       loadCierreHistory();
+      if (saved) {
+        setPdfCierre(saved);
+      }
     } catch (err) {
       toast.error('Error al registrar cierre de caja: ' + err.message);
     } finally {
@@ -2265,6 +2270,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           </div>
         </div>
       </ModalPortal>
+
+      {/* 4. MODAL PREVIEW PDF CIERRE */}
+      <CierrePDFPreviewModal isOpen={!!pdfCierre} onClose={() => setPdfCierre(null)} cierre={pdfCierre} />
 
     </div>
   );
