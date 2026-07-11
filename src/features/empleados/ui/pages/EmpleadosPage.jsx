@@ -185,13 +185,13 @@ export const EmpleadosPage = () => {
 
   const q = search.toLowerCase();
   const filteredAll = empleados.filter(e =>
-    e.nombre.toLowerCase().includes(q) ||
-    e.id.toLowerCase().includes(q) ||
-    e.cedula.includes(q) ||
-    e.cargo.toLowerCase().includes(q) ||
-    e.departamento.toLowerCase().includes(q) ||
-    e.cuentaBanco.includes(q) ||
-    e.banco.toLowerCase().includes(q)
+    (e.nombre || '').toLowerCase().includes(q) ||
+    (e.id || '').toLowerCase().includes(q) ||
+    (e.cedula || '').includes(q) ||
+    (e.cargo || '').toLowerCase().includes(q) ||
+    (e.departamento || '').toLowerCase().includes(q) ||
+    (e.cuentaBanco || '').includes(q) ||
+    (e.banco || '').toLowerCase().includes(q)
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
