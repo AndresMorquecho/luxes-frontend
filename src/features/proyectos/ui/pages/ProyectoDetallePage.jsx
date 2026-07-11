@@ -5,13 +5,13 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
   DollarSign, Calendar, Tag, User, Eye, X,
-  Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package, ArrowDownRight
+  Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package
 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { useAutoAvanceInstalacionAdmin } from '../../application/hooks/useAutoAvanceInstalacionAdmin.js';
 import { useProyectosContext } from '../../application/context/ProyectosContext.jsx';
 import { updateOrden } from '../../../compras/application/comprasService.js';
-import { getMetodosPago, getDashboardSummary } from '../../../gastos/application/gastosService.js';
+import { getMetodosPago } from '../../../gastos/application/gastosService.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -875,145 +875,10 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
     document.body.removeChild(link);
   };
 
-  const [globalSummary, setGlobalSummary] = useState(null);
-  const { state } = useProyectosContext();
-
-  useEffect(() => {
-    const hoy = new Date().toISOString().split('T')[0];
-    const desde = new Date();
-    desde.setDate(desde.getDate() - 30);
-    const desdeStr = desde.toISOString().split('T')[0];
-    getDashboardSummary(desdeStr, hoy)
-      .then(data => setGlobalSummary(data))
-      .catch(err => console.error('Error fetching global summary:', err));
-  }, []);
-
-  const getCategoryForGasto = (concepto = '', proveedor = '', id = '') => {
-    const c = concepto.toLowerCase();
-    const p = proveedor.toLowerCase();
-    if (id.startsWith('G-OC-') || c.includes('material') || c.includes('compra') || c.includes('plancha') || c.includes('vinilo') || c.includes('lona') || c.includes('acrilico') || c.includes('tinta')) {
-      return 'Compras';
-    }
-    if (c.includes('mano de obra') || c.includes('sueldo') || c.includes('pago a') || c.includes('instalador') || c.includes('diseño') || c.includes('dibujante') || c.includes('comision') || c.includes('nomina')) {
-      return 'Mano de Obra';
-    }
-    if (c.includes('transporte') || c.includes('flete') || c.includes('gasolina') || c.includes('combustible') || c.includes('viaje') || c.includes('taxi')) {
-      return 'Transporte';
-    }
-    if (c.includes('servicio') || c.includes('luz') || c.includes('agua') || c.includes('internet') || c.includes('arriendo') || c.includes('alquiler') || c.includes('mantenimiento')) {
-      return 'Servicios';
-    }
-    return 'Otros';
-  };
-
-  const categoryTotals = {
-    'Compras': 0,
-    'Mano de Obra': 0,
-    'Servicios': 0,
-    'Transporte': 0,
-    'Otros': 0
-  };
-
-  (proyecto.gastos || []).forEach(g => {
-    const cat = getCategoryForGasto(g.concepto, g.proveedor, g.id || '');
-    categoryTotals[cat] += Number(g.monto);
-  });
-
-  // Bodega también se imputa a Compras
-  categoryTotals['Compras'] += costoMaterialesBodega;
-
-  const totalCatSum = Object.values(categoryTotals).reduce((a, b) => a + b, 0) || 1;
-  const categoriesList = Object.entries(categoryTotals).map(([name, val]) => ({
-    name,
-    value: val,
-    pct: (val / totalCatSum) * 100
-  })).sort((a, b) => b.value - a.value);
-
-  // 2. Gráfico Comparativo Mensual (Ingresos vs Egresos) de los últimos 6 meses
-  const last6Months = [];
-  const now = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    last6Months.push({
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: d.toLocaleDateString('es-EC', { month: 'short' }).replace('.', '').charAt(0).toUpperCase() + d.toLocaleDateString('es-EC', { month: 'short' }).slice(1).replace('.', '')
-    });
-  }
-
-  const monthlyDataMap = {};
-  last6Months.forEach(m => {
-    monthlyDataMap[m.key] = { ingresos: 0, egresos: 0 };
-  });
-
-  // El ingreso (proforma) se imputa al mes de creación del proyecto
-  const cDate = new Date(proyecto.fechaCreacion || now);
-  const cKey = `${cDate.getFullYear()}-${String(cDate.getMonth() + 1).padStart(2, '0')}`;
-  if (monthlyDataMap[cKey]) {
-    monthlyDataMap[cKey].ingresos += ingresoVenta;
-  }
-
-  // Los egresos se agrupan por el mes en que ocurrieron
-  (proyecto.gastos || []).forEach(g => {
-    const gDate = g.fecha ? new Date(g.fecha) : new Date();
-    const key = `${gDate.getFullYear()}-${String(gDate.getMonth() + 1).padStart(2, '0')}`;
-    if (monthlyDataMap[key]) {
-      monthlyDataMap[key].egresos += Number(g.monto || 0);
-    }
-  });
-
-  // Bodega va al mes de instalación o al actual
-  const installDate = proyecto?.fases?.INSTALACION?.datos?.fechaCompletada 
-    ? new Date(proyecto.fases.INSTALACION.datos.fechaCompletada) 
-    : new Date();
-  const installKey = `${installDate.getFullYear()}-${String(installDate.getMonth() + 1).padStart(2, '0')}`;
-  if (monthlyDataMap[installKey]) {
-    monthlyDataMap[installKey].egresos += costoMaterialesBodega;
-  }
-
-  // 3. Registros Recientes unificados (Gastos manuales + Consumo bodega)
-  const recentRegistrations = [];
-  (proyecto.gastos || []).forEach(g => {
-    recentRegistrations.push({
-      id: g.id,
-      concepto: g.concepto,
-      monto: Number(g.monto),
-      fecha: g.fecha,
-      createdAt: g.createdAt || g.fecha,
-      registradoPor: g.registradoPor?.nombre || 'General / Sistema',
-      tipo: g.id?.startsWith('G-OC-') ? 'oc' : 'manual'
-    });
-  });
-
-  if (costoMaterialesBodega > 0) {
-    recentRegistrations.push({
-      id: `G-BOD-${proyecto.id}`,
-      concepto: 'Consumo de bodega (Insumos)',
-      monto: costoMaterialesBodega,
-      fecha: proyecto?.fases?.INSTALACION?.datos?.fechaCompletada || proyecto.fechaCreacion,
-      createdAt: proyecto?.fases?.INSTALACION?.datos?.fechaCompletada || proyecto.fechaCreacion,
-      registradoPor: proyecto.responsable || 'Equipo de Instalación',
-      tipo: 'bodega'
-    });
-  }
-
-  recentRegistrations.sort((a, b) => {
-    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.fecha ? new Date(a.fecha).getTime() : 0);
-    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.fecha ? new Date(b.fecha).getTime() : 0);
-    return timeB - timeA;
-  });
-
-  // 4. Carga de Trabajo
-  const allInstalacionProy = (state?.proyectos || []).filter(p => p.requiereInstalacion);
-  const instCompleted = allInstalacionProy.filter(p => p.faseActual === 'COMPLETADO').length;
-  const instInProgress = allInstalacionProy.filter(p => p.faseActual !== 'COMPLETADO').length;
-  const allNoInstalacionProy = (state?.proyectos || []).filter(p => !p.requiereInstalacion);
-  const noInstCompleted = allNoInstalacionProy.filter(p => p.faseActual === 'COMPLETADO').length;
-  const noInstInProgress = allNoInstalacionProy.filter(p => p.faseActual !== 'COMPLETADO').length;
-
   return (
-    <div className="space-y-8 animate-slide-up">
-      {/* Botones de acción alineados a la izquierda */}
-      <div className="flex items-center gap-3">
+    <div className="space-y-6 animate-slide-up">
+      {/* Barra de Filtros y Acciones */}
+      <div className="flex flex-wrap items-center gap-2.5 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm">
         <button
           onClick={handleExportCSV}
           className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer bg-white"
@@ -1033,308 +898,275 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
         )}
       </div>
 
-      {/* Row 1: 4 Tarjetas KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Ingresos por Venta */}
-        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+      {/* 1. Tarjetas KPI de Rentabilidad y Utilidad Real */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Ingresos por Venta</span>
-            <h3 className="text-xl font-black text-slate-800 mt-2 currency-val">
-              {formatUSD(ingresoVenta)}
-            </h3>
-            <span className="text-[9.5px] font-semibold text-slate-400 mt-1 block">Total presupuestado</span>
+            <p className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Ingresos por Venta</p>
+            <h3 className="text-xl font-black text-slate-800 mt-1">${ingresoVenta.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
+            <p className="text-[9px] text-slate-400 mt-1 font-medium">Total presupuestado</p>
           </div>
           <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-            <DollarSign size={18} />
+            <DollarSign size={20} />
           </div>
         </div>
 
-        {/* Gastos Totales */}
-        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Gastos Totales</span>
-            <h3 className="text-xl font-black text-slate-800 mt-2 currency-val">
-              {formatUSD(totalGastos)}
+            <p className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Gastos Totales</p>
+            <h3 className="text-xl font-black text-red-650 mt-1">${totalGastos.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
+            <p className="text-[9px] text-slate-400 mt-1 font-medium">Total ejecutado</p>
+          </div>
+          <div className="p-3 bg-red-50 text-red-600 rounded-xl">
+            <DollarSign size={20} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Utilidad Real (Ganancia)</p>
+            <h3 className={`text-xl font-black mt-1 ${utilidadReal >= 0 ? 'text-emerald-600' : 'text-red-700'}`}>
+              ${utilidadReal.toLocaleString('es-EC', { minimumFractionDigits: 2 })}
             </h3>
-            <span className="text-[9.5px] font-semibold text-slate-400 mt-1 block">Total ejecutado</span>
+            <p className="text-[9px] text-slate-400 mt-1 font-medium">Resultado actual</p>
           </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-            <ArrowDownRight size={18} />
-          </div>
-        </div>
-
-        {/* Utilidad Real */}
-        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Utilidad Real (Ganancia)</span>
-            <h3 className={`text-xl font-black mt-2 currency-val ${utilidadReal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {utilidadReal >= 0 ? '+' : ''}{formatUSD(utilidadReal)}
-            </h3>
-            <span className="text-[9.5px] font-semibold text-slate-400 mt-1 block">Resultado actual</span>
-          </div>
-          <div className={`p-3 rounded-xl ${utilidadReal >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-            <DollarSign size={18} />
+          <div className={`p-3 rounded-xl ${utilidadReal >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-700'}`}>
+            <DollarSign size={20} />
           </div>
         </div>
 
-        {/* Rentabilidad Neta */}
-        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Rentabilidad Neta</span>
-            <h3 className={`text-xl font-black mt-2 currency-val ${utilidadReal >= 0 ? 'text-slate-900' : 'text-rose-650'}`}>
+            <p className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Rentabilidad Neta</p>
+            <h3 className={`text-xl font-black mt-1 ${utilidadReal >= 0 ? 'text-indigo-650' : 'text-red-600'}`}>
               {margenRentabilidad.toFixed(1)}%
             </h3>
-            <span className="text-[9.5px] font-semibold text-slate-400 mt-1 block">% sobre ingresos</span>
+            <p className="text-[9px] text-slate-400 mt-1 font-medium">% sobre ingresos</p>
           </div>
-          <div className={`p-3 rounded-xl ${utilidadReal >= 0 ? 'bg-indigo-50 text-indigo-650' : 'bg-rose-50 text-rose-500'}`}>
-            {utilidadReal >= 0 ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: Ingresos vs Egresos (Line/Bar Chart), Distribución de Egresos, Carga de Trabajo */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-        {/* Ingresos vs Egresos SVG Bar Chart */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-6 flex flex-col justify-between shadow-xs">
-          <div>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Ingresos vs Egresos</h3>
-              <span className="text-[9px] font-bold text-slate-450 bg-slate-50 border border-slate-200/60 rounded px-1.5 py-0.5">Últimos 6 meses</span>
-            </div>
-            <div className="flex gap-3 text-[10px] font-bold text-slate-500 mb-2">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#10b981] rounded-full" /> Ingresos</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#ef4444] rounded-full" /> Egresos</span>
-            </div>
-          </div>
-          <div className="h-[150px] w-full mt-4">
-            <MonthlyGroupedBarChart last6Months={last6Months} monthlyData={monthlyDataMap} />
-          </div>
-        </div>
-
-        {/* Distribución de Egresos Donut Chart */}
-        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-6 flex flex-col justify-between shadow-xs">
-          <div>
-            <div className="border-b border-slate-100 pb-3 mb-4">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Distribución de Egresos</h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <DonutEgresos data={categoriesList} total={totalGastos} />
-              
-              <div className="flex-1 space-y-1 overflow-y-auto max-h-[120px] thin-scrollbar pl-1">
-                {categoriesList.map((eg, idx) => (
-                  <div key={eg.name} className="flex flex-col text-[9.5px]">
-                    <div className="flex items-center justify-between font-bold text-slate-700">
-                      <span className="flex items-center gap-1 truncate max-w-[65px]">
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: egresoColors[idx % egresoColors.length] }} />
-                        <span className="truncate">{eg.name}</span>
-                      </span>
-                      <span className="currency-val text-slate-900">{formatUSD(eg.value).replace('.00', '')}</span>
-                    </div>
-                    <span className="text-[8px] text-slate-400 ml-2.5 font-bold">{eg.pct.toFixed(1)}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 pt-3 mt-4">
-            <button 
-              onClick={() => setIsGastosModalOpen(true)} 
-              className="text-[10px] font-bold text-indigo-650 hover:underline cursor-pointer"
-            >
-              Ver detalle de egresos →
-            </button>
-          </div>
-        </div>
-
-        {/* Carga de Trabajo (Installation status statistics) */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl p-6 flex flex-col justify-between shadow-xs">
-          <div>
-            <div className="border-b border-slate-100 pb-3 mb-4">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Carga de Trabajo</h3>
-              <p className="text-[9.5px] font-semibold text-slate-400 mt-0.5">Proyectos según requerimiento de instalación</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              {/* Con Instalación */}
-              <div className="bg-slate-50 border border-slate-250/50 rounded-xl p-3 flex flex-col justify-between">
-                <div>
-                  <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider block">Con Instalación</span>
-                  <h4 className="text-lg font-black text-slate-800 mt-1 tracking-tight">
-                    {instCompleted + instInProgress} <span className="text-[9px] font-bold text-slate-450">Proy.</span>
-                  </h4>
-                </div>
-                <div className="mt-3 space-y-1 border-t border-slate-150 pt-2 text-[9px] font-semibold">
-                  <div className="flex justify-between">
-                    <span className="text-slate-450">Completados</span>
-                    <span className="text-emerald-600 font-bold">{instCompleted}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-450">En curso</span>
-                    <span className="text-amber-500 font-bold">{instInProgress}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sin Instalación */}
-              <div className="bg-slate-50 border border-slate-250/50 rounded-xl p-3 flex flex-col justify-between">
-                <div>
-                  <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider block">Sin Instalación</span>
-                  <h4 className="text-lg font-black text-slate-800 mt-1 tracking-tight">
-                    {noInstCompleted + noInstInProgress} <span className="text-[9px] font-bold text-slate-450">Proy.</span>
-                  </h4>
-                </div>
-                <div className="mt-3 space-y-1 border-t border-slate-150 pt-2 text-[9px] font-semibold">
-                  <div className="flex justify-between">
-                    <span className="text-slate-450">Completados</span>
-                    <span className="text-emerald-600 font-bold">{noInstCompleted}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-450">En curso</span>
-                    <span className="text-amber-500 font-bold">{noInstInProgress}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 pt-3 mt-4 text-left">
-            <button 
-              onClick={() => navigate('/proyectos')} 
-              className="text-[10px] font-bold text-indigo-650 hover:underline cursor-pointer flex items-center gap-0.5"
-            >
-              Ver todos los proyectos →
-            </button>
+          <div className={`p-3 rounded-xl ${utilidadReal >= 0 ? 'bg-indigo-50 text-indigo-650' : 'bg-red-50 text-red-600'}`}>
+            {utilidadReal >= 0 ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
           </div>
         </div>
       </div>
 
-      {/* Row 3: Gastos por Categoría, Registros Recientes, Resumen Rápido */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+      {/* 2. Listado Modular de Egresos y Compras */}
+      <div className="space-y-6">
         
-        {/* Gastos por Categoría */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="border-b border-slate-100 pb-3 mb-5">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight font-black">Gastos por Categoría</h3>
-            </div>
-            
-            <div className="space-y-3.5">
-              {categoriesList.map((cat, idx) => (
-                <div key={cat.name} className="space-y-1 text-[11px] font-semibold">
-                  <div className="flex justify-between">
-                    <span className="text-slate-700 font-bold">{cat.name}</span>
-                    <span className="text-slate-500">
-                      <strong className="text-slate-800 currency-val">{formatUSD(cat.value)}</strong>
-                      <span className="text-[9.5px] text-slate-400 font-bold ml-1.5">({cat.pct.toFixed(1)}%)</span>
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-350" 
-                      style={{ 
-                        width: `${cat.pct}%`,
-                        backgroundColor: egresoColors[idx % egresoColors.length]
-                      }} 
-                    />
-                  </div>
+        {/* PANEL 1: GASTOS DIRECTOS */}
+        {filtroTipo !== 'oc' && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-12 animate-in fade-in duration-200">
+            <div className="lg:col-span-4 bg-slate-50/50 p-6 flex flex-col justify-between border-r border-slate-200">
+              <div>
+                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm w-max mb-4 text-indigo-600">
+                  <DollarSign size={20} />
                 </div>
-              ))}
+                <h2 className="font-extrabold text-slate-800 text-sm tracking-tight">Gastos Directos y Compras (Caja / Facturas)</h2>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Egresos operativos manuales y compras facturadas de proveedores.
+                </p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-100/70">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total ejecutado</span>
+                <span className="text-xl font-black text-indigo-600 mt-1 block">${totalGastosManuales.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+
+            <div className="lg:col-span-8 p-6 flex flex-col justify-between min-h-[220px]">
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Registros recientes</h4>
+                  <button
+                    onClick={() => setIsGastosModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
+                  >
+                    <Eye size={13} />
+                    Ver detalle
+                  </button>
+                </div>
+
+                {(!proyecto.gastos || proyecto.gastos.length === 0) ? (
+                  <div className="text-center py-8 text-xs text-slate-400 italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    No hay gastos directos manuales registrados en este proyecto.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {proyecto.gastos.slice(-3).map((g, idx) => (
+                      <div key={g.id || idx} className="flex justify-between items-center p-3 bg-slate-50 hover:bg-slate-100/50 rounded-xl border border-slate-100 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-white rounded-lg border border-slate-100 shadow-sm text-slate-400">
+                            <FileText size={14} />
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-700 text-xs block">{g.concepto}</span>
+                            <span className="text-[10px] text-slate-400 block font-medium">
+                              Registrado por {g.registradoPor?.nombre || 'General / Sistema'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-extrabold text-xs text-red-600 block">-${Number(g.monto).toFixed(2)}</span>
+                          <span className="text-[9px] text-slate-400 block font-mono font-medium">{formatGastoDateTime(g)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Registros Recientes */}
-        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Registros Recientes</h3>
-              <button 
-                onClick={() => setIsGastosModalOpen(true)} 
-                className="text-[10px] font-bold text-indigo-650 hover:underline cursor-pointer"
-              >
-                Ver todos
-              </button>
+        {/* PANEL 2: ÓRDENES DE COMPRA */}
+        {filtroTipo !== 'manual' && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-12 animate-in fade-in duration-200">
+            <div className="lg:col-span-4 bg-slate-50/50 p-6 flex flex-col justify-between border-r border-slate-200">
+              <div>
+                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm w-max mb-4 text-emerald-600">
+                  <ShoppingCart size={20} />
+                </div>
+                <h2 className="font-extrabold text-slate-800 text-sm tracking-tight">Órdenes de Compra del Proyecto</h2>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Historial completo de solicitudes de compra para este proyecto.
+                </p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-100/70">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total ejecutado</span>
+                <span className="text-xl font-black text-emerald-600 mt-1 block">${totalGastosOC.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
+              </div>
             </div>
 
-            {recentRegistrations.length === 0 ? (
-              <div className="py-8 text-center text-[10px] text-slate-400 italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                No hay egresos registrados aún.
+            <div className="lg:col-span-8 p-6 flex flex-col justify-between min-h-[220px]">
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Órdenes registradas</h4>
+                </div>
+
+                {(!proyecto.ordenesCompra || proyecto.ordenesCompra.length === 0) ? (
+                  <div className="text-center py-8 text-xs text-slate-400 italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    No hay solicitudes de orden de compra asociadas a este proyecto.
+                  </div>
+                ) : (
+                  <div className="space-y-3 overflow-auto max-h-[350px] pr-1 thin-scrollbar">
+                    {(proyecto.ordenesCompra || []).map((oc, idx) => {
+                      const isPendiente = oc.estado === 'PENDIENTE';
+                      const isAprobada = oc.estado === 'APROBADA';
+                      const isRecibida = oc.estado === 'RECIBIDA';
+                      return (
+                        <div key={oc.id || idx} className="flex flex-wrap lg:flex-nowrap justify-between items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100/50 rounded-xl border border-slate-100 transition-colors">
+                          <div className="min-w-[120px]">
+                            <span className="font-bold text-slate-800 text-xs block">{oc.numero}</span>
+                            <div className="flex items-center gap-1.5 mt-1 text-[10px] font-semibold">
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                isAprobada || isRecibida ? 'bg-emerald-500' :
+                                isPendiente ? 'bg-amber-500' : 'bg-red-500'
+                              }`} />
+                              <span className={
+                                isAprobada || isRecibida ? 'text-emerald-700' :
+                                isPendiente ? 'text-amber-700' : 'text-red-700'
+                              }>
+                                Estado: {oc.estado}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="min-w-[100px]">
+                            <span className="font-bold text-slate-700 text-xs block truncate max-w-[120px]" title={oc.proveedor?.nombre || '—'}>
+                              {oc.proveedor?.nombre || '—'}
+                            </span>
+                            <span className="text-[9px] text-slate-400 uppercase font-black">Proveedor</span>
+                          </div>
+
+                          <div className="min-w-[100px]">
+                            <span className="font-bold text-slate-700 text-xs block">
+                              {oc.usuario?.nombre || 'General'}
+                            </span>
+                            <span className="text-[9px] text-slate-400 uppercase font-black">Solicitado por</span>
+                          </div>
+
+                          <div>
+                            <span className="font-mono text-[10px] text-slate-400">{oc.fechaCreacion || oc.fecha}</span>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="font-black text-xs text-slate-850">${oc.total.toFixed(2)}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <button
+                              onClick={() => {
+                                setPrintableOC(mapOrdenToPDFFormat(oc));
+                                setIsPDFOpen(true);
+                              }}
+                              className="px-2.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-[10px] rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Ver PDF"
+                            >
+                              <FileText size={12} />
+                              Ver PDF
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="space-y-3">
-                {recentRegistrations.slice(0, 3).map((reg, idx) => (
-                  <div key={reg.id || idx} className="flex justify-between items-start gap-2 border-b border-slate-50 pb-2.5 last:border-0 last:pb-0">
-                    <div className="min-w-0">
-                      <span className="font-extrabold text-slate-800 text-[11.5px] block truncate max-w-[130px] leading-tight" title={reg.concepto}>
-                        {reg.concepto}
-                      </span>
-                      <span className="text-[8.5px] text-slate-400 font-bold block mt-1">
-                        Registrado por {reg.registradoPor}
-                      </span>
-                      <span className="text-[8.5px] text-slate-400 block font-mono mt-0.5">
-                        {new Date(reg.createdAt).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' })}
-                      </span>
+            </div>
+          </div>
+        )}
+
+        {/* PANEL 3: CONSUMO DE BODEGA */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-12 animate-in fade-in duration-200">
+          <div className="lg:col-span-4 bg-slate-50/50 p-6 flex flex-col justify-between border-r border-slate-200">
+            <div>
+              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm w-max mb-4 text-amber-600">
+                <Package size={20} />
+              </div>
+              <h2 className="font-extrabold text-slate-800 text-sm tracking-tight">Consumo de Bodega (Insumos y Herramientas)</h2>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Insumos y depreciación de herramientas utilizados en el proyecto.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-slate-100/70">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total ejecutado</span>
+              <span className="text-xl font-black text-amber-600 mt-1 block">${costoMaterialesBodega.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 p-6 flex flex-col justify-between min-h-[200px]">
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Resumen de consumo</h4>
+              </div>
+
+              {materialesBodega.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-400 italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  No se han registrado consumos de bodega en la fase de instalación.
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-50 hover:bg-slate-100/50 rounded-xl border border-slate-100 flex justify-between items-center transition-colors">
+                  <div>
+                    <span className="font-bold text-slate-800 text-xs block">CB_{proyecto.id?.slice(-6).toUpperCase() || '001'}</span>
+                    <span className="text-[10px] text-slate-400 block mt-1 font-medium">
+                      Registrado por {proyecto.responsable || 'Equipo de Instalación'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsBodegaModalOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
+                    >
+                      <Eye size={13} />
+                      Ver detalle
+                    </button>
+                    <div className="text-right min-w-[80px]">
+                      <span className="font-black text-xs text-slate-800 block">${costoMaterialesBodega.toFixed(2)}</span>
+                      <span className="text-[9px] text-slate-455 block font-medium font-mono">Total consumo</span>
                     </div>
-                    <span className="font-bold text-[11px] text-rose-600 currency-val shrink-0">
-                      -{formatUSD(reg.monto)}
-                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Resumen Rápido (General indicators counts) */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="border-b border-slate-100 pb-3 mb-4">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-tight">Resumen Rápido</h3>
+                </div>
+              )}
             </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Proyectos activos</span>
-                </div>
-                <span className="text-xs font-black text-slate-700 currency-val">
-                  {(state?.proyectos || []).filter(p => p.faseActual !== 'COMPLETADO').length}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">OC's pendientes</span>
-                </div>
-                <span className="text-xs font-black text-slate-700 currency-val">
-                  {globalSummary?.quickSummary?.ocsPendientes || 0}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Proformas aprobadas</span>
-                </div>
-                <span className="text-xs font-black text-slate-700 currency-val">
-                  {globalSummary?.quickSummary?.proformasAprobadas || 0}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pb-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tareas pendientes</span>
-                </div>
-                <span className="text-xs font-black text-slate-700 currency-val">
-                  {globalSummary?.quickSummary?.tareasPendientes || 0}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="text-[9px] text-slate-400 font-bold text-center border-t border-slate-100 pt-3 mt-4">
-            Auditoría consolidada del negocio
           </div>
         </div>
       </div>
@@ -1849,129 +1681,3 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
     </div>
   );
 }
-
-// DonutEgresos component for GastosComprasTab
-function DonutEgresos({ data, total }) {
-  const r = 36;
-  const circ = 2 * Math.PI * r;
-  let accumulatedOffset = 0;
-  const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#64748b'];
-
-  const slices = data.map((item, idx) => {
-    const strokeLength = (item.value / (total || 1)) * circ;
-    const strokeOffset = accumulatedOffset;
-    accumulatedOffset -= strokeLength;
-    return {
-      ...item,
-      color: colors[idx % colors.length],
-      strokeLength,
-      strokeOffset
-    };
-  });
-
-  return (
-    <div className="relative w-[110px] h-[110px] flex items-center justify-center shrink-0">
-      <svg width="110" height="110" viewBox="0 0 100 100" className="transform -rotate-90">
-        {total === 0 ? (
-          <circle cx="50" cy="50" r="36" fill="transparent" stroke="#f1f5f9" strokeWidth="10" />
-        ) : (
-          slices.map((slice, i) => (
-            <circle
-              key={i}
-              cx="50"
-              cy="50"
-              r="36"
-              fill="transparent"
-              stroke={slice.color}
-              strokeWidth="10"
-              strokeDasharray={`${slice.strokeLength} ${circ - slice.strokeLength}`}
-              strokeDashoffset={slice.strokeOffset}
-            />
-          ))
-        )}
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2 select-none pointer-events-none">
-        <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider block mb-0.5">Total</span>
-        <span className="text-[11px] font-extrabold text-slate-900 currency-val leading-none">{formatUSD(total).replace('.00', '')}</span>
-      </div>
-    </div>
-  );
-}
-
-// Vertical Bar Chart for GastosComprasTab
-function MonthlyGroupedBarChart({ last6Months, monthlyData }) {
-  const width = 450;
-  const height = 150;
-  const padding = { top: 10, right: 10, bottom: 20, left: 35 };
-
-  // Find max value
-  const maxVal = Math.max(...last6Months.flatMap(m => {
-    const data = monthlyData[m.key] || { ingresos: 0, egresos: 0 };
-    return [data.ingresos, data.egresos];
-  }), 100);
-
-  const chartHeight = height - padding.top - padding.bottom;
-  const colWidth = (width - padding.left - padding.right) / 6;
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
-      {/* Horizontal grid lines */}
-      {[0, 0.5, 1].map((ratio, i) => {
-        const y = padding.top + chartHeight * (1 - ratio);
-        const val = maxVal * ratio;
-        return (
-          <g key={i}>
-            <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#f1f5f9" strokeWidth="1" />
-            <text x={padding.left - 5} y={y + 3} textAnchor="end" className="text-[8px] fill-slate-400 font-bold">
-              {formatUSD(val).replace('.00', '').replace('$', '')}
-            </text>
-          </g>
-        );
-      })}
-
-      {/* Bars */}
-      {last6Months.map((m, idx) => {
-        const data = monthlyData[m.key] || { ingresos: 0, egresos: 0 };
-        const colX = padding.left + idx * colWidth;
-
-        const barWidth = 9;
-        const spacing = 2;
-        const ingX = colX + (colWidth - barWidth * 2 - spacing) / 2;
-        const egrX = ingX + barWidth + spacing;
-
-        const ingH = (data.ingresos / maxVal) * chartHeight;
-        const egrH = (data.egresos / maxVal) * chartHeight;
-
-        return (
-          <g key={m.key}>
-            {/* Ingreso Bar */}
-            <rect
-              x={ingX}
-              y={padding.top + chartHeight - ingH}
-              width={barWidth}
-              height={Math.max(ingH, 1)}
-              fill="#10b981"
-              rx="1.5"
-            />
-            {/* Egreso Bar */}
-            <rect
-              x={egrX}
-              y={padding.top + chartHeight - egrH}
-              width={barWidth}
-              height={Math.max(egrH, 1)}
-              fill="#ef4444"
-              rx="1.5"
-            />
-            {/* Label */}
-            <text x={colX + colWidth / 2} y={height - 4} textAnchor="middle" className="text-[8px] fill-slate-400 font-extrabold">
-              {m.label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// Curated colors for progress bars / donut
-const egresoColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#64748b'];
