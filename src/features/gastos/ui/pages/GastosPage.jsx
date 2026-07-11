@@ -223,6 +223,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [controles, setControles] = useState([]);
   const [loadingControles, setLoadingControles] = useState(false);
   const [controlFormOpen, setControlFormOpen] = useState(false);
+  const [viewingControl, setViewingControl] = useState(null);
   const [controlForm, setControlForm] = useState(EMPTY_CONTROL_FORM);
   const [formError, setFormError] = useState('');
 
@@ -1829,6 +1830,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                               <th className="px-4 py-3 text-center">Combustible</th>
                               <th className="px-4 py-3">Niveles Check</th>
                               <th className="px-4 py-3">Observación / Sugerencia</th>
+                              <th className="px-4 py-3 text-center w-16">Acciones</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -1879,6 +1881,16 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                     {log.observacion && <p className="line-clamp-2"><strong className="font-bold text-slate-500">Obs:</strong> {log.observacion}</p>}
                                     {log.sugerencia && <p className="line-clamp-2 mt-0.5"><strong className="font-bold text-slate-500">Sugerencia:</strong> {log.sugerencia}</p>}
                                     {!log.observacion && !log.sugerencia && <span className="text-slate-400">Sin novedades</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingControl(log)}
+                                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
+                                      title="Ver detalles"
+                                    >
+                                      <Eye size={13} />
+                                    </button>
                                   </td>
                                 </tr>
                               );
@@ -2479,6 +2491,127 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
       {/* 4. MODAL PREVIEW PDF CIERRE */}
       <CierrePDFPreviewModal isOpen={!!pdfCierre} onClose={() => setPdfCierre(null)} cierre={pdfCierre} />
+
+      {/* Modal para Visualizar Detalles del Control */}
+      <ModalPortal open={!!viewingControl}>
+        <div className="ga-modal-portal-root">
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+            onClick={() => deferClose(() => setViewingControl(null))} />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 shrink-0 bg-white">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">Detalles de Control Diario</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">{selectedVehiculo?.placa} — {viewingControl ? new Date(viewingControl.fecha).toLocaleDateString() : ''}</p>
+                </div>
+                <button type="button" onClick={() => deferClose(() => setViewingControl(null))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200">
+                  ✕
+                </button>
+              </div>
+
+              {viewingControl && (
+                <div className="overflow-y-auto p-6 space-y-5 text-slate-700">
+                  {/* Meta data */}
+                  <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-slate-450 block mb-0.5 uppercase tracking-wider font-bold text-[10px]">Fecha y Hora</span>
+                      <span className="font-bold text-slate-700">
+                        {new Date(viewingControl.fecha).toLocaleString('es-EC', {
+                          day: '2-digit', month: '2-digit', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit', hour12: true
+                        })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-450 block mb-0.5 uppercase tracking-wider font-bold text-[10px]">Operador</span>
+                      <span className="font-bold text-slate-700">{viewingControl.usuarioNom}</span>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-slate-450 block mb-0.5 uppercase tracking-wider font-bold text-[10px]">Kilometraje</span>
+                      <span className="font-extrabold text-blue-600 text-sm">{(viewingControl.kilometraje || 0).toLocaleString()} km</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-450 block mb-0.5 uppercase tracking-wider font-bold text-[10px] mt-2">Combustible</span>
+                      <span className="font-bold text-slate-700 capitalize mt-2 block">{viewingControl.combustible === 'bajo' ? 'Bajo (Menos de 1/4)' : viewingControl.combustible === 'medio' ? 'Medio (Media capacidad)' : 'Bueno (Lleno/Casi lleno)'}</span>
+                    </div>
+                  </div>
+
+                  {/* Matrix state */}
+                  <div className="space-y-3">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-1.5 h-3.5 bg-emerald-500 rounded-full" />
+                      Estado de Niveles y Herramientas
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        { key: 'nivelAceite', label: 'Nivel de Aceite' },
+                        { key: 'nivelAgua', label: 'Nivel de Agua' },
+                        { key: 'aceiteHidraulico', label: 'Aceite Hidráulico / Líquido' },
+                        { key: 'liquidoFrenos', label: 'Líquido de Frenos' },
+                        { key: 'gataLlave', label: 'Gata y Llave de Ruedas' },
+                        { key: 'extintorBotiquin', label: 'Extintor y Botiquín' },
+                        { key: 'bandas', label: 'Juego de Bandas' }
+                      ].map((item) => {
+                        const ok = viewingControl[item.key];
+                        return (
+                          <div key={item.key} className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
+                            ok ? 'bg-emerald-50/20 border-emerald-100 text-emerald-800' : 'bg-slate-50/30 border-slate-200 text-slate-500'
+                          }`}>
+                            <span className="font-semibold">{item.label}</span>
+                            {ok ? (
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">OK</span>
+                            ) : (
+                              <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase">No OK</span>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {viewingControl.otroCheckNombre && (
+                        <div className={`col-span-full flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
+                          viewingControl.otroCheckValor ? 'bg-emerald-50/20 border-emerald-100 text-emerald-800' : 'bg-slate-50/30 border-slate-200 text-slate-500'
+                        }`}>
+                          <span className="font-semibold">{viewingControl.otroCheckNombre} (Adicional)</span>
+                          {viewingControl.otroCheckValor ? (
+                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">OK</span>
+                          ) : (
+                            <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase">No OK</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Obs and suggestions */}
+                  <div className="border-t border-slate-100 pt-4 space-y-3">
+                    {viewingControl.observacion && (
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-400 uppercase tracking-wider block mb-1">Observación</span>
+                        <div className="p-3 bg-slate-50 rounded-xl text-slate-700 italic border border-slate-100">{viewingControl.observacion}</div>
+                      </div>
+                    )}
+                    {viewingControl.sugerencia && (
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-400 uppercase tracking-wider block mb-1">Sugerencia o Recomendación</span>
+                        <div className="p-3 bg-slate-50 rounded-xl text-slate-700 italic border border-slate-100">{viewingControl.sugerencia}</div>
+                      </div>
+                    )}
+                    {!viewingControl.observacion && !viewingControl.sugerencia && (
+                      <p className="text-center text-slate-400 text-xs py-2 italic font-medium">Sin observaciones ni sugerencias registradas.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                <button type="button" onClick={() => deferClose(() => setViewingControl(null))} className="bg-slate-250 hover:bg-slate-300 text-slate-700 font-bold px-5 py-2 rounded-xl text-xs transition-all border border-slate-300 bg-white">
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
 
       {/* 5. MODAL REGISTRO CONTROL DE VEHÍCULO */}
       <ModalPortal open={controlFormOpen}>
