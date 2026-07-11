@@ -33,6 +33,7 @@ import { ToastContainer } from '../shared/ui/components/Toast';
 import { isAsistenciaUser, isTallerUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
 import { ErrorBoundary } from '../shared/ui/components/ErrorBoundary';
+import { TallerControlPage } from '../features/gastos/ui/pages/TallerControlPage';
 
 function LegacyRecepcionRedirect() {
   const { ordenId } = useParams();
@@ -255,7 +256,8 @@ function App() {
               <Route path="/inventario/recepcion" element={<Navigate to="/compras/recepcion" replace />} />
               <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
               <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
-              <Route path="*" element={<Navigate to="/notificaciones" replace />} />
+              <Route path="/taller/control" element={<TallerControlPage />} />
+              <Route path="*" element={<Navigate to="/taller/control" replace />} />
             </Routes>
           ) : (
             <Routes>
@@ -280,6 +282,7 @@ function App() {
               {!isImpresion && <Route path="/movimientos/*" element={<MovimientosPage />} />}
               <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
               <Route path="/tareas/*" element={<TareasFeature />} />
+              <Route path="/taller/control" element={<TallerControlPage />} />
               {/* Redirección por defecto */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

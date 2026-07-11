@@ -800,7 +800,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         }
         .animate-ga-modal-in { animation: ga-modal-in 0.22s cubic-bezier(0.16,1,0.3,1) forwards; }
         @media (min-width: 768px) {
-          .cc-desktop-table { display: block; }
+          .cc-desktop-table { display: table; }
           .cc-mobile-cards { display: none; }
         }
         @media (max-width: 767px) {

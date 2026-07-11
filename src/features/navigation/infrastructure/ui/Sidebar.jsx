@@ -52,10 +52,10 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const canViewCierreCaja = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
   const canViewMovimientos = isAdmin;
   const canViewFinanzas = canViewMovimientos || canViewCierreCaja || (!isImpresion && !isTaller);
-  const canViewTareas = true;
+  const canViewTareas = !isTaller;
   const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
-  const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller);
-  const canViewCompras = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion || isTaller;
+  const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && !isTaller;
+  const canViewCompras = (isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion) && !isTaller;
   const canViewRelaciones = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
 
   const shouldShowModule = (moduleKey, originalCanView) => {
@@ -620,13 +620,13 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {isTaller && (
-              <li className={currentPath.startsWith('/devoluciones') ? 'active' : ''}>
-                <Link to="/devoluciones">
+            {(isTaller || isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && (
+              <li className={currentPath === '/taller/control' ? 'active' : ''}>
+                <Link to="/taller/control">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-install">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
                   </svg>
-                  <span className="sidebar-link-text">Devoluciones</span>
+                  <span className="sidebar-link-text">Control de Vehículos</span>
                   {!isCollapsed && (
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />

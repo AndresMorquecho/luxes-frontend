@@ -196,4 +196,24 @@ export async function getMovimientos(desde, hasta) {
   return data.data;
 }
 
+// ── Controles de Vehículo ────────────────────────────────────────────────────
+
+export async function getVehiculoControles(vehiculoId) {
+  const res = await fetch(`/api/vehiculos/${vehiculoId}/controles`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener controles del vehículo');
+  return data.data;
+}
+
+export async function addVehiculoControl(vehiculoId, control) {
+  const res = await fetch(`/api/vehiculos/${vehiculoId}/controles`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(control),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar control del vehículo');
+  return data.data;
+}
+
 
