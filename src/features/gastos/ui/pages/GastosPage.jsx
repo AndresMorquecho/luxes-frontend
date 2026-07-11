@@ -16,7 +16,8 @@ import {
   Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus, 
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
-  ClipboardCheck, BarChart3, Filter, ArrowUp, ArrowDown, Scale, Wallet
+  ClipboardCheck, BarChart3, Filter, ArrowUp, ArrowDown, Scale, Wallet,
+  Eye
 } from 'lucide-react';
 import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
 
