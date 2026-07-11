@@ -179,110 +179,100 @@ export const HorasExtrasPage = () => {
   const periodoLabel = `${MESES[month - 1]} ${year}`;
 
   return (
-    <div className="space-y-3 sm:space-y-5 animate-slide-up">
+    <div className="space-y-3 sm:space-y-5 animate-slide-up horas-extras-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`
+        .horas-extras-page, .horas-extras-page * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="px-3 sm:px-5 py-3 sm:py-4 space-y-3">
-          <div className="flex items-start gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/nomina/nomina-del-mes')}
-              className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
-              aria-label="Volver a nómina"
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        {/* Top row: back + icon + title + period selectors */}
+        <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
-            </button>
-
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Horas Extras</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  {vista === 'resumen' ? 'Resumen' : 'Planilla'}
+                </span>
               </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <h1 className="text-base sm:text-xl font-bold text-slate-800 leading-tight">Horas Extras</h1>
-                  <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
-                    {vista === 'resumen' ? 'Resumen' : 'Planilla'}
-                  </span>
-                </div>
-                <p className="hidden sm:block text-sm text-slate-500 mt-0.5">
-                  {vista === 'resumen'
-                    ? `Horas acumuladas por colaborador en ${periodoLabel}`
-                    : 'Valida solicitudes del quiosco y gestiona la planilla del mes'}
-                </p>
-              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                {vista === 'resumen'
+                  ? `Horas acumuladas por colaborador en ${periodoLabel}`
+                  : 'Valida solicitudes del quiosco y gestiona la planilla del mes'}
+              </p>
             </div>
           </div>
 
-          <div className="flex w-full rounded-lg sm:rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+          {/* Period selectors — right side */}
+          <div className="flex w-full sm:w-auto rounded-xl border border-slate-200 bg-slate-50 overflow-hidden shrink-0">
             <label className="sr-only" htmlFor="he-mes">Mes</label>
             <select
               id="he-mes"
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="flex-1 min-w-0 h-9 sm:h-10 pl-3 pr-2 text-xs sm:text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
+              className="flex-1 sm:flex-none h-10 pl-3 pr-2 text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
             >
               {MESES.map((m, i) => (
                 <option key={m} value={i + 1}>{m}</option>
               ))}
             </select>
-            <div className="w-px h-5 sm:h-6 bg-slate-200 self-center" />
+            <div className="w-px h-5 bg-slate-200 self-center" />
             <label className="sr-only" htmlFor="he-anio">Año</label>
             <select
               id="he-anio"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="w-[88px] sm:w-auto h-9 sm:h-10 pl-2 pr-3 text-xs sm:text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
+              className="w-24 h-10 pl-2 pr-3 text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
             >
               {[year - 1, year, year + 1].map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
+        </div>
 
-          <div className="flex gap-1 p-1 rounded-lg bg-slate-100 sm:bg-slate-50/50 sm:p-0 sm:rounded-none sm:border-t sm:border-slate-100 sm:pt-3">
-            <button
-              type="button"
-              onClick={() => setVista('planilla')}
-              className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                vista === 'planilla'
-                  ? 'bg-white text-blue-700 shadow-sm border border-blue-100 sm:border-blue-100'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60 border border-transparent'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v3.75" />
-              </svg>
-              Planilla
-              {approvedOvertime.length > 0 && (
-                <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 tabular-nums">
-                  {approvedOvertime.length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setVista('resumen')}
-              className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                vista === 'resumen'
-                  ? 'bg-white text-blue-700 shadow-sm border border-blue-100 sm:border-blue-100'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60 border border-transparent'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" />
-              </svg>
-              Resumen
-              {resumenColaboradoresCount > 0 && (
-                <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 tabular-nums">
-                  {resumenColaboradoresCount}
-                </span>
-              )}
-            </button>
-          </div>
+        {/* Tab bar — same style as EmpleadosPage */}
+        <div className="px-4 sm:px-5 pb-4 flex gap-1 border-t border-slate-100 pt-3 bg-slate-50/50">
+          <button
+            type="button"
+            onClick={() => setVista('planilla')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+              vista === 'planilla'
+                ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+            }`}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v3.75" />
+            </svg>
+            Planilla
+            {approvedOvertime.length > 0 && (
+              <span className="text-[11px] font-bold text-slate-400 tabular-nums">{approvedOvertime.length}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setVista('resumen')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+              vista === 'resumen'
+                ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+            }`}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" />
+            </svg>
+            Resumen
+            {resumenColaboradoresCount > 0 && (
+              <span className="text-[11px] font-bold text-slate-400 tabular-nums">{resumenColaboradoresCount}</span>
+            )}
+          </button>
         </div>
       </div>
 

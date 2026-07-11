@@ -10,11 +10,25 @@ export function sueldoDiarioFromMensual(sueldoMensual) {
   return roundMoney(mensual / DIAS_SUELDO_MES);
 }
 
-/** Sueldo mensual equivalente a partir del valor diario almacenado en BD. */
 export function sueldoMensualFromDiario(sueldoDiario) {
   const diario = Number(sueldoDiario) || 0;
   if (diario <= 0) return 0;
-  return roundMoney(diario * DIAS_SUELDO_MES);
+  
+  const raw = diario * DIAS_SUELDO_MES;
+  
+  // Reconstruir el valor exacto mensual si era entero (ej: 1000 en vez de 999.90)
+  const closestInt = Math.round(raw);
+  if (Math.round((closestInt / DIAS_SUELDO_MES) * 100) / 100 === diario) {
+    return closestInt;
+  }
+  
+  // Reconstruir si el sueldo original terminaba en .50
+  const closestHalf = Math.round(raw * 2) / 2;
+  if (Math.round((closestHalf / DIAS_SUELDO_MES) * 100) / 100 === diario) {
+    return closestHalf;
+  }
+  
+  return roundMoney(raw);
 }
 
 /**

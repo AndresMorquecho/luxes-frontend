@@ -16,6 +16,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'nume
 const RI_PRIMARY = '#2b41b8';
 const RI_PRIMARY_HOVER = '#2436a0';
 const RI_NAVY = '#1a1c3d';
+const RI_PAGE_BG = '#f8f9fc';
 
 const mapOrdenToPDFFormat = (orden) => {
   if (!orden) return null;
