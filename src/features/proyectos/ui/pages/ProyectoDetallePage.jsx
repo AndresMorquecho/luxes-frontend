@@ -5,7 +5,7 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
   DollarSign, Calendar, Tag, User, Eye, X,
-  Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package
+  Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package, ArrowDownRight
 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { useAutoAvanceInstalacionAdmin } from '../../application/hooks/useAutoAvanceInstalacionAdmin.js';

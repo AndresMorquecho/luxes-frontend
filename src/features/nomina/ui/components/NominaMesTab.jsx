@@ -583,49 +583,56 @@ const DetalleEgresosModal = ({
   const totalGeneral = useMemo(() => records.reduce((s, r) => s + r.monto, 0), [records]);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs"
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-2xl w-full md:w-[94vw] lg:w-[88vw] max-w-6xl h-[700px] mx-4 overflow-hidden border border-slate-200 flex flex-col animate-slide-up"
+      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-5xl h-[620px] mx-4 overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
         onClick={(e) => e.stopPropagation()}>
         
-        {/* Header */}
-        <div className="bg-blue-900 px-8 py-5 text-white flex justify-between items-center shrink-0">
+        {/* Minimalist Header */}
+        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200/80 flex justify-between items-center relative shrink-0">
           <div>
-            <h3 className="text-lg font-extrabold tracking-tight uppercase">Desglose de Egresos</h3>
-            <p className="text-blue-200 text-xs mt-0.5">{empleadoNombre} — del {fechaInicio} al {fechaFin}</p>
+            <h3 className="text-xs font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
+              </svg>
+              Desglose de Egresos
+            </h3>
+            <p className="text-slate-500 text-[9px] mt-0.5 font-semibold tracking-wide">
+              {empleadoNombre} — del {fechaInicio} al {fechaFin}
+            </p>
           </div>
-          <button onClick={onClose} className="text-blue-300 hover:text-white transition-colors cursor-pointer bg-transparent border-0 outline-none">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 p-1.5 rounded-full transition-all cursor-pointer bg-transparent border-0 outline-none">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 flex-1 flex flex-col min-h-0 space-y-6">
+        <div className="p-6 flex-1 flex flex-col min-h-0 space-y-4">
           {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4 shrink-0">
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center hover:border-blue-200 transition-all shadow-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Anticipos</span>
-              <span className="text-base font-bold text-slate-700 mt-1 block">{formatUSD(totalAnticipos)}</span>
+          <div className="grid grid-cols-4 gap-3 shrink-0">
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Anticipos</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{formatUSD(totalAnticipos)}</span>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center hover:border-blue-200 transition-all shadow-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Multas</span>
-              <span className="text-base font-bold text-slate-700 mt-1 block">{formatUSD(totalMultas)}</span>
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Multas</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{formatUSD(totalMultas)}</span>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center hover:border-blue-200 transition-all shadow-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Otros Descuentos</span>
-              <span className="text-base font-bold text-slate-700 mt-1 block">{formatUSD(totalOtros)}</span>
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Otros Descuentos</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{formatUSD(totalOtros)}</span>
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center shadow-xs">
-              <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider block">Total Egresos Varios</span>
-              <span className="text-base font-extrabold text-blue-900 mt-1 block">{formatUSD(totalGeneral)}</span>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center shadow-xs">
+              <span className="text-[9px] font-bold text-blue-500 uppercase tracking-wider block">Total Egresos Varios</span>
+              <span className="text-sm font-extrabold text-blue-900 mt-1 block">{formatUSD(totalGeneral)}</span>
             </div>
           </div>
 
           {/* Form Section */}
           <form onSubmit={handleSubmit} className="shrink-0 space-y-2">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nuevo Registro</h4>
+            <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Nuevo Registro</h4>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
               <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
@@ -863,49 +870,56 @@ const DetalleIngresosModal = ({
   }, [horasExtras, records]);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs"
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-2xl w-full md:w-[94vw] lg:w-[88vw] max-w-6xl h-[700px] mx-4 overflow-hidden border border-slate-200 flex flex-col animate-slide-up"
+      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-5xl h-[620px] mx-4 overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
         onClick={(e) => e.stopPropagation()}>
         
-        {/* Header */}
-        <div className="bg-blue-900 px-8 py-5 text-white flex justify-between items-center shrink-0">
+        {/* Minimalist Header */}
+        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200/80 flex justify-between items-center relative shrink-0">
           <div>
-            <h3 className="text-lg font-extrabold tracking-tight uppercase">Desglose de Ingresos Adicionales</h3>
-            <p className="text-blue-200 text-xs mt-0.5">{empleadoNombre} — del {fechaInicio} al {fechaFin}</p>
+            <h3 className="text-xs font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5v-15m0 0l-6.75 6.75M12 4.5l6.75 6.75" />
+              </svg>
+              Desglose de Ingresos Adicionales
+            </h3>
+            <p className="text-slate-500 text-[9px] mt-0.5 font-semibold tracking-wide">
+              {empleadoNombre} — del {fechaInicio} al {fechaFin}
+            </p>
           </div>
-          <button onClick={onClose} className="text-blue-300 hover:text-white transition-colors cursor-pointer bg-transparent border-0 outline-none">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 p-1.5 rounded-full transition-all cursor-pointer bg-transparent border-0 outline-none">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 flex-1 flex flex-col min-h-0 space-y-6">
+        <div className="p-6 flex-1 flex flex-col min-h-0 space-y-4">
           {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4 shrink-0">
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center hover:border-blue-200 transition-all shadow-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Horas Extras (Módulo)</span>
-              <span className="text-base font-bold text-slate-700 mt-1 block">{formatUSD(totalHorasExtrasVal)}</span>
+          <div className="grid grid-cols-4 gap-3 shrink-0">
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Horas Extras (Módulo)</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{formatUSD(totalHorasExtrasVal)}</span>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center hover:border-blue-200 transition-all shadow-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Trabajo en Empresa</span>
-              <span className="text-base font-bold text-slate-700 mt-1 block">{formatUSD(totalTrabajosEmpresa)}</span>
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Trabajo en Empresa</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{formatUSD(totalTrabajosEmpresa)}</span>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center hover:border-blue-200 transition-all shadow-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Otros Ingresos</span>
-              <span className="text-base font-bold text-slate-700 mt-1 block">{formatUSD(totalOtrosIngresos)}</span>
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Otros Ingresos</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{formatUSD(totalOtrosIngresos)}</span>
             </div>
-            <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-4 text-center shadow-xs">
-              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Total Ingresos Var.</span>
-              <span className="text-base font-extrabold text-blue-900 mt-1 block">{formatUSD(totalGeneral)}</span>
+            <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-3 text-center shadow-xs">
+              <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider block">Total Ingresos Var.</span>
+              <span className="text-sm font-extrabold text-blue-900 mt-1 block">{formatUSD(totalGeneral)}</span>
             </div>
           </div>
 
           {/* Form Section */}
           <form onSubmit={handleSubmit} className="shrink-0 space-y-2">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nuevo Registro (Trab. Empresa / Otros)</h4>
+            <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Nuevo Registro (Trab. Empresa / Otros)</h4>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
               <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
