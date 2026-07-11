@@ -246,6 +246,7 @@ export function MaterialesRequestPage() {
           tipo: item.subtipo === 'herramienta' || item.esPrestable
             ? 'herramienta'
             : (item.tipo || 'consumible'),
+          descargaStock: item.descargaStock !== undefined ? item.descargaStock : true,
         }));
       setInventarioDb(mapped);
     } catch (err) {
@@ -326,7 +327,11 @@ export function MaterialesRequestPage() {
   );
 
   const esItemSeleccionable = useCallback((item) => {
-    if ((item.stock ?? 0) <= 0) return false;
+    // Si descarga stock (consumible normal), requiere stock > 0
+    if ((item.descargaStock ?? true) && (item.stock ?? 0) <= 0) {
+      return false;
+    }
+    // Si es herramienta, debe estar en bodega y no estar prestada
     if (item.tipo === 'herramienta') {
       const estado = String(item.estadoUso || 'BODEGA').toUpperCase();
       if (estado !== 'BODEGA') return false;
