@@ -3,6 +3,8 @@ import { Car, ClipboardCheck, Gauge, CheckSquare, Clock, User, MessageSquare, Pl
 import { getVehiculos, getVehiculoControles, addVehiculoControl } from '../../application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
+
 
 const COMBUSTIBLE_OPTIONS = [
   { value: 'bajo', label: 'Bajo', color: 'text-red-600 bg-red-50 border-red-200' },
@@ -144,26 +146,11 @@ export const TallerControlPage = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Header card */}
-      <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-2xl p-6 shadow-md text-white relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 opacity-10">
-          <Car size={180} />
-        </div>
-        <div className="relative z-10 space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-white/10 text-white"><ClipboardCheck size={20} /></span>
-            <h1 className="text-xl font-bold tracking-wide">Registro de Control Diario</h1>
-          </div>
-          <p className="text-xs text-white/80 max-w-lg">
-            Completa la checklist de mantenimiento diario y actualización de kilometraje antes de iniciar la ruta.
-          </p>
-          <div className="pt-2 flex items-center gap-1.5 text-xs text-white/90">
-            <User size={13} className="opacity-80" />
-            <span>Operador: <strong className="font-bold">{storedUser.nombre || 'Taller'}</strong></span>
-          </div>
-        </div>
-      </div>
+    <div className="co-compras-page animate-slide-up pb-6 space-y-6">
+      <ComprasPageHeader
+        title="Control de Vehículos"
+        subtitle="Registro de control diario y kilometraje para la flota de vehículos activos"
+      />
 
       {/* Vehicle select */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">

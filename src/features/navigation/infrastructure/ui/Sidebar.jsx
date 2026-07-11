@@ -52,10 +52,10 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const canViewCierreCaja = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
   const canViewMovimientos = isAdmin;
   const canViewFinanzas = canViewMovimientos || canViewCierreCaja || (!isImpresion && !isTaller);
-  const canViewTareas = !isTaller;
+  const canViewTareas = true;
   const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
-  const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && !isTaller;
-  const canViewCompras = (isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion) && !isTaller;
+  const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller);
+  const canViewCompras = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion || isTaller;
   const canViewRelaciones = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
 
   const shouldShowModule = (moduleKey, originalCanView) => {
@@ -611,6 +611,22 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                   </svg>
                   <span className="sidebar-link-text">Gestion de Proyectos</span>
+                  {!isCollapsed && (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  )}
+                </Link>
+              </li>
+            )}
+
+            {isTaller && (
+              <li className={currentPath.startsWith('/devoluciones') ? 'active' : ''}>
+                <Link to="/devoluciones">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-install">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
+                  </svg>
+                  <span className="sidebar-link-text">Devoluciones</span>
                   {!isCollapsed && (
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
