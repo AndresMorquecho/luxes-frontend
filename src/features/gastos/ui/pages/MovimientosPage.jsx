@@ -413,7 +413,7 @@ export const MovimientosPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="mv-card px-5 py-4 mb-5 animate-mv-in" style={{ animationDelay: '0.1s', overflow: 'visible' }}>
+      <div className="mv-card px-5 py-4 mb-5 animate-mv-in" style={{ animationDelay: '0.1s', overflow: 'visible', position: 'relative', zIndex: 50 }}>
         <div className="mv-filter-bar">
           {/* Date range */}
           <div className="flex items-center gap-2" style={{ minWidth: '240px' }}>
@@ -516,8 +516,11 @@ export const MovimientosPage = () => {
                     const origenStyle = ORIGEN_COLORS[m.origen] || {};
                     return (
                       <tr key={m.id + m.origen}>
-                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#334155', fontSize: '12.5px' }}>
-                          {new Date(m.fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#334155', fontSize: '12.5px', padding: '10px 12px' }}>
+                          <div>{new Date(m.fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', fontWeight: 500 }}>
+                            {new Date(m.fecha).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </div>
                         </td>
                         <td>
                           <span className={`mv-badge ${m.tipo === 'ingreso' ? 'mv-badge-ingreso' : 'mv-badge-egreso'}`}>
