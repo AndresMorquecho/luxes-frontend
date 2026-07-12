@@ -413,7 +413,7 @@ export const MovimientosPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="mv-card px-5 py-4 mb-5 animate-mv-in" style={{ animationDelay: '0.1s' }}>
+      <div className="mv-card px-5 py-4 mb-5 animate-mv-in" style={{ animationDelay: '0.1s', overflow: 'visible' }}>
         <div className="mv-filter-bar">
           {/* Date range */}
           <div className="flex items-center gap-2" style={{ minWidth: '240px' }}>
