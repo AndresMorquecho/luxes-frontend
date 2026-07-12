@@ -6,6 +6,8 @@ import {
 import {
   createIngresoCaja, createTransferencia
 } from '../../../gastos/application/movimientosService';
+import { toast } from '../../../../shared/ui/components/Toast.jsx';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal.jsx';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { ComprasPageHeader, ComprasHeaderButton } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
@@ -149,9 +151,17 @@ export const MetodosPagoPage = () => {
   const handleIngresoSave = async (e) => {
     e.preventDefault();
     if (!ingresoForm.concepto || !ingresoForm.monto || !ingresoForm.metodoPagoId) {
-      alert('Por favor complete los campos obligatorios');
+      toast.error('Por favor complete los campos obligatorios');
       return;
     }
+
+    const confirmed = await confirmDialog(
+      'Registrar Ingreso Manual',
+      '¿Está seguro de que desea registrar este ingreso manual?',
+      { confirmText: 'Registrar', cancelText: 'Cancelar' }
+    );
+    if (!confirmed) return;
+
     setIngresoSaving(true);
     try {
       await createIngresoCaja({
@@ -160,8 +170,9 @@ export const MetodosPagoPage = () => {
       });
       setIngresoFormOpen(false);
       loadMetodos();
+      toast.success('Ingreso registrado con éxito');
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Error al registrar ingreso');
     } finally {
       setIngresoSaving(false);
     }
@@ -170,13 +181,21 @@ export const MetodosPagoPage = () => {
   const handleTransferenciaSave = async (e) => {
     e.preventDefault();
     if (!transferenciaForm.origenMetodoId || !transferenciaForm.destinoMetodoId || !transferenciaForm.monto) {
-      alert('Por favor complete los campos obligatorios');
+      toast.error('Por favor complete los campos obligatorios');
       return;
     }
     if (transferenciaForm.origenMetodoId === transferenciaForm.destinoMetodoId) {
-      alert('La cuenta de origen y destino deben ser diferentes');
+      toast.error('La cuenta de origen y destino deben ser diferentes');
       return;
     }
+
+    const confirmed = await confirmDialog(
+      'Realizar Transferencia',
+      '¿Está seguro de que desea transferir estos fondos?',
+      { confirmText: 'Transferir', cancelText: 'Cancelar' }
+    );
+    if (!confirmed) return;
+
     setTransferenciaSaving(true);
     try {
       await createTransferencia({
@@ -185,8 +204,9 @@ export const MetodosPagoPage = () => {
       });
       setTransferenciaFormOpen(false);
       loadMetodos();
+      toast.success('Transferencia realizada con éxito');
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Error al realizar transferencia');
     } finally {
       setTransferenciaSaving(false);
     }
