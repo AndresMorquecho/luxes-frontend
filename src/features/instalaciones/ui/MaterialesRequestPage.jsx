@@ -412,12 +412,12 @@ export function MaterialesRequestPage() {
 
     showModal(
       'Registrar Materiales para Instalación',
-      `¿Estás seguro de que deseas registrar y guardar estos ${materialesLocales.length} materiales para esta instalación?`,
+      `¿Estás seguro de que deseas registrar y guardar estos ${materialesConStock.length} materiales para esta instalación?`,
       'confirm',
       async () => {
         try {
           await updateFaseDatos('INSTALACION', {
-            materiales: materialesLocales
+            materiales: materialesConStock
           });
 
           // Recargar inventario local
@@ -448,7 +448,7 @@ export function MaterialesRequestPage() {
   // Iniciar montaje / instalación en sitio
   async function handleIniciarInstalacion() {
     const hasTeam = personalLocal && personalLocal.length > 0;
-    const hasMaterials = materialesLocales && materialesLocales.length > 0;
+    const hasMaterials = materialesConStock && materialesConStock.length > 0;
 
     if (!hasTeam || !hasMaterials) {
       if (!hasTeam && !hasMaterials) {
@@ -475,7 +475,7 @@ export function MaterialesRequestPage() {
             horaInstalacion: now.toTimeString().slice(0, 5),
             direccionInstalacion: datosInstalacion.direccionInstalacion || proyecto.cliente?.direccion || '',
             personalAsignado: personalLocal,
-            materiales: materialesLocales
+            materiales: materialesConStock
           });
 
           toast.success('Instalación iniciada con éxito, equipo/materiales guardados y administración notificada');
@@ -579,7 +579,7 @@ export function MaterialesRequestPage() {
         await updateFaseDatos('INSTALACION', {
           ...buildInicioObraSiFalta(datosInstalacion, now),
           personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
-          materiales: materialesLocales.length ? materialesLocales : datosInstalacion.materiales,
+          materiales: materialesConStock.length ? materialesConStock : datosInstalacion.materiales,
         });
       }
 
@@ -647,7 +647,7 @@ export function MaterialesRequestPage() {
           await updateFaseDatos('INSTALACION', {
             ...buildInicioObraSiFalta(datosInstalacion, now),
             personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
-            materiales: materialesLocales.length ? materialesLocales : datosInstalacion.materiales,
+            materiales: materialesConStock.length ? materialesConStock : datosInstalacion.materiales,
             instalacionCompletada: true,
             notasCierre: observacionesCierre,
             fechaFin,
@@ -685,7 +685,7 @@ export function MaterialesRequestPage() {
 
   const proyectoEncuesta = proyectoParaEncuesta || proyecto;
 
-  const herramientasSinResponsable = getHerramientasSinResponsable(materialesLocales);
+  const herramientasSinResponsable = getHerramientasSinResponsable(materialesConStock);
   const bloqueoPorHerramientas = herramientasSinResponsable.length > 0;
 
   function validarResponsablesHerramientas() {
@@ -748,10 +748,12 @@ export function MaterialesRequestPage() {
   };
 
   const materialesConStock = (materialesLocales || []).map(m => {
-    const invItem = inventarioDb.find(item => item.nombre === m.nombre);
+    const invItem = inventarioDb.find(item => item.nombre === m.nombre || (m.sku && item.sku === m.sku));
     return {
       ...m,
-      stock: invItem ? invItem.stock : 0
+      stock: invItem ? invItem.stock : 0,
+      tipo: invItem ? invItem.tipo : (m.tipo || 'consumible'),
+      descargaStock: invItem ? invItem.descargaStock : (m.descargaStock ?? true),
     };
   });
 

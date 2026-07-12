@@ -11,6 +11,8 @@ const ORIGEN_LABELS = {
   gasto: 'Gasto',
   orden_compra: 'Pago en caja',
   cuenta_por_pagar: 'Saldo OC',
+  ingreso_manual: 'Ingreso Manual',
+  transferencia: 'Transferencia',
 };
 
 const ORIGEN_COLORS = {
@@ -18,6 +20,8 @@ const ORIGEN_COLORS = {
   gasto: { bg: 'rgba(239,68,68,0.08)', color: '#dc2626', border: 'rgba(239,68,68,0.2)' },
   orden_compra: { bg: 'rgba(245,158,11,0.08)', color: '#d97706', border: 'rgba(245,158,11,0.2)' },
   cuenta_por_pagar: { bg: 'rgba(139,92,246,0.08)', color: '#7c3aed', border: 'rgba(139,92,246,0.2)' },
+  ingreso_manual: { bg: 'rgba(16,185,129,0.08)', color: '#059669', border: 'rgba(16,185,129,0.2)' },
+  transferencia: { bg: 'rgba(59,130,246,0.08)', color: '#2563eb', border: 'rgba(59,130,246,0.2)' },
 };
 
 export const MovimientosPage = () => {

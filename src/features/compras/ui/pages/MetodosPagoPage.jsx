@@ -3,6 +3,9 @@ import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalP
 import {
   getMetodosPago, createMetodoPago, updateMetodoPago, deleteMetodoPago
 } from '../../application/comprasService';
+import {
+  createIngresoCaja, createTransferencia
+} from '../../../gastos/application/movimientosService';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { ComprasPageHeader, ComprasHeaderButton } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
@@ -25,6 +28,14 @@ const formatUSD = (val) => {
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(val);
 };
 
+const getTodayStr = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const MetodosPagoPage = () => {
   const [metodos, setMetodos] = useState([]);
   const [metodosLoading, setMetodosLoading] = useState(true);
@@ -33,6 +44,14 @@ export const MetodosPagoPage = () => {
   const [dateRange, setDateRange] = useState(getInitialRange());
   const [metodoForm, setMetodoForm] = useState({ nombre: '', descripcion: '', tipo: 'EFECTIVO' });
   const [metodoSaving, setMetodoSaving] = useState(false);
+
+  const [ingresoFormOpen, setIngresoFormOpen] = useState(false);
+  const [ingresoForm, setIngresoForm] = useState({ concepto: '', categoria: 'Otros', fecha: getTodayStr(), monto: '', cliente: '', notas: '', metodoPagoId: '' });
+  const [ingresoSaving, setIngresoSaving] = useState(false);
+
+  const [transferenciaFormOpen, setTransferenciaFormOpen] = useState(false);
+  const [transferenciaForm, setTransferenciaForm] = useState({ origenMetodoId: '', destinoMetodoId: '', monto: '', fecha: getTodayStr(), referencia: '' });
+  const [transferenciaSaving, setTransferenciaSaving] = useState(false);
 
   const loadMetodos = useCallback(async () => {
     setMetodosLoading(true);
@@ -99,6 +118,80 @@ export const MetodosPagoPage = () => {
     }
   };
 
+  const openNewIngreso = () => {
+    const firstActive = metodos.find(m => m.activo)?.id || '';
+    setIngresoForm({
+      concepto: '',
+      categoria: 'Otros',
+      fecha: getTodayStr(),
+      monto: '',
+      cliente: '',
+      notas: '',
+      metodoPagoId: firstActive
+    });
+    setIngresoFormOpen(true);
+  };
+
+  const openNewTransferencia = () => {
+    const activeMethods = metodos.filter(m => m.activo);
+    const origin = activeMethods[0]?.id || '';
+    const dest = activeMethods[1]?.id || '';
+    setTransferenciaForm({
+      origenMetodoId: origin,
+      destinoMetodoId: dest,
+      monto: '',
+      fecha: getTodayStr(),
+      referencia: ''
+    });
+    setTransferenciaFormOpen(true);
+  };
+
+  const handleIngresoSave = async (e) => {
+    e.preventDefault();
+    if (!ingresoForm.concepto || !ingresoForm.monto || !ingresoForm.metodoPagoId) {
+      alert('Por favor complete los campos obligatorios');
+      return;
+    }
+    setIngresoSaving(true);
+    try {
+      await createIngresoCaja({
+        ...ingresoForm,
+        monto: Number(ingresoForm.monto)
+      });
+      setIngresoFormOpen(false);
+      loadMetodos();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIngresoSaving(false);
+    }
+  };
+
+  const handleTransferenciaSave = async (e) => {
+    e.preventDefault();
+    if (!transferenciaForm.origenMetodoId || !transferenciaForm.destinoMetodoId || !transferenciaForm.monto) {
+      alert('Por favor complete los campos obligatorios');
+      return;
+    }
+    if (transferenciaForm.origenMetodoId === transferenciaForm.destinoMetodoId) {
+      alert('La cuenta de origen y destino deben ser diferentes');
+      return;
+    }
+    setTransferenciaSaving(true);
+    try {
+      await createTransferencia({
+        ...transferenciaForm,
+        monto: Number(transferenciaForm.monto)
+      });
+      setTransferenciaFormOpen(false);
+      loadMetodos();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setTransferenciaSaving(false);
+    }
+  };
+
   // Cumulative Calculations (Active only)
   const totalEfectivo = metodos
     .filter(m => m.activo && m.tipo === 'EFECTIVO')
@@ -127,10 +220,20 @@ export const MetodosPagoPage = () => {
         title="Métodos de Pago"
         subtitle="Administración de canales de cobro y pago (Caja Chica, Banco, etc.)"
         action={(
-          <ComprasHeaderButton onClick={openNewMetodo} id="btn-nuevo-metodo">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            Nuevo Método
-          </ComprasHeaderButton>
+          <div className="flex gap-2 flex-wrap">
+            <ComprasHeaderButton onClick={openNewIngreso} id="btn-nuevo-ingreso" style={{ backgroundColor: '#10b981' }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              Nuevo Ingreso
+            </ComprasHeaderButton>
+            <ComprasHeaderButton onClick={openNewTransferencia} id="btn-nueva-transferencia" style={{ backgroundColor: '#3b82f6' }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+              Transferir
+            </ComprasHeaderButton>
+            <ComprasHeaderButton onClick={openNewMetodo} id="btn-nuevo-metodo">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              Nuevo Método
+            </ComprasHeaderButton>
+          </div>
         )}
       />
 
@@ -414,6 +517,145 @@ export const MetodosPagoPage = () => {
                     <button type="submit" disabled={metodoSaving} className="co-btn-primary">
                       {metodoSaving && <div className="co-spinner-sm" />}
                       {editingMetodo ? 'Guardar' : 'Crear Método'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </>
+        </ModalPortal>
+      )}
+
+      {ingresoFormOpen && (
+        <ModalPortal>
+        <>
+          <div className="co-overlay" onClick={() => setIngresoFormOpen(false)} />
+          <div className="co-modal-wrap">
+            <div className="co-modal animate-co-modal-in" style={{ maxWidth: '460px' }}>
+              <div className="co-modal-header">
+                <h2 className="text-lg font-bold text-slate-800">Registrar Ingreso Manual</h2>
+                <button type="button" onClick={() => setIngresoFormOpen(false)} className="co-modal-close">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="co-modal-body">
+                <form onSubmit={handleIngresoSave} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="co-label">Monto ($) *</label>
+                      <input type="number" className="co-input text-emerald-600 font-bold" value={ingresoForm.monto} placeholder="0.00" min="0.01" step="0.01"
+                        onChange={e => setIngresoForm(p => ({ ...p, monto: e.target.value }))} required />
+                    </div>
+                    <div>
+                      <label className="co-label">Fecha *</label>
+                      <input type="date" className="co-input" value={ingresoForm.fecha}
+                        onChange={e => setIngresoForm(p => ({ ...p, fecha: e.target.value }))} required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="co-label">Cuenta de Depósito *</label>
+                    <select className="co-input" value={ingresoForm.metodoPagoId}
+                      onChange={e => setIngresoForm(p => ({ ...p, metodoPagoId: e.target.value }))} required>
+                      <option value="" disabled>Seleccione cuenta...</option>
+                      {metodos.filter(m => m.activo).map(m => (
+                        <option key={m.id} value={m.id}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="co-label">Concepto / Motivo *</label>
+                    <input className="co-input" value={ingresoForm.concepto} placeholder="Ej: Venta de desperdicio, Intereses, etc."
+                      onChange={e => setIngresoForm(p => ({ ...p, concepto: e.target.value }))} required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="co-label">Cliente (Opcional)</label>
+                      <input className="co-input" value={ingresoForm.cliente} placeholder="Nombre del cliente"
+                        onChange={e => setIngresoForm(p => ({ ...p, cliente: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="co-label">Categoría (Opcional)</label>
+                      <input className="co-input" value={ingresoForm.categoria} placeholder="Ej: Varios, Reembolso"
+                        onChange={e => setIngresoForm(p => ({ ...p, categoria: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="co-label">Notas / Observaciones</label>
+                    <textarea className="co-input h-20 resize-none p-2" value={ingresoForm.notas} placeholder="Detalles adicionales..."
+                      onChange={e => setIngresoForm(p => ({ ...p, notas: e.target.value }))} />
+                  </div>
+                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                    <button type="button" onClick={() => setIngresoFormOpen(false)} className="co-btn-ghost">Cancelar</button>
+                    <button type="submit" disabled={ingresoSaving} className="co-btn-primary" style={{ backgroundColor: '#10b981' }}>
+                      {ingresoSaving && <div className="co-spinner-sm" />}
+                      Registrar Ingreso
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </>
+        </ModalPortal>
+      )}
+
+      {transferenciaFormOpen && (
+        <ModalPortal>
+        <>
+          <div className="co-overlay" onClick={() => setTransferenciaFormOpen(false)} />
+          <div className="co-modal-wrap">
+            <div className="co-modal animate-co-modal-in" style={{ maxWidth: '460px' }}>
+              <div className="co-modal-header">
+                <h2 className="text-lg font-bold text-slate-800">Transferencia entre Cuentas</h2>
+                <button type="button" onClick={() => setTransferenciaFormOpen(false)} className="co-modal-close">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="co-modal-body">
+                <form onSubmit={handleTransferenciaSave} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="co-label">Monto ($) *</label>
+                      <input type="number" className="co-input text-blue-600 font-bold" value={transferenciaForm.monto} placeholder="0.00" min="0.01" step="0.01"
+                        onChange={e => setTransferenciaForm(p => ({ ...p, monto: e.target.value }))} required />
+                    </div>
+                    <div>
+                      <label className="co-label">Fecha *</label>
+                      <input type="date" className="co-input" value={transferenciaForm.fecha}
+                        onChange={e => setTransferenciaForm(p => ({ ...p, fecha: e.target.value }))} required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="co-label">Cuenta Origen (Sale fondos) *</label>
+                    <select className="co-input" value={transferenciaForm.origenMetodoId}
+                      onChange={e => setTransferenciaForm(p => ({ ...p, origenMetodoId: e.target.value }))} required>
+                      <option value="" disabled>Seleccione cuenta de origen...</option>
+                      {metodos.filter(m => m.activo).map(m => (
+                        <option key={m.id} value={m.id}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="co-label">Cuenta Destino (Ingresa fondos) *</label>
+                    <select className="co-input" value={transferenciaForm.destinoMetodoId}
+                      onChange={e => setTransferenciaForm(p => ({ ...p, destinoMetodoId: e.target.value }))} required>
+                      <option value="" disabled>Seleccione cuenta de destino...</option>
+                      {metodos.filter(m => m.activo).map(m => (
+                        <option key={m.id} value={m.id} disabled={m.id === transferenciaForm.origenMetodoId}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="co-label">Referencia / Notas</label>
+                    <input className="co-input" value={transferenciaForm.referencia} placeholder="Ej: Retiro para caja chica, Depósito…"
+                      onChange={e => setTransferenciaForm(p => ({ ...p, referencia: e.target.value }))} />
+                  </div>
+                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                    <button type="button" onClick={() => setTransferenciaFormOpen(false)} className="co-btn-ghost">Cancelar</button>
+                    <button type="submit" disabled={transferenciaSaving} className="co-btn-primary" style={{ backgroundColor: '#3b82f6' }}>
+                      {transferenciaSaving && <div className="co-spinner-sm" />}
+                      Transferir Fondos
                     </button>
                   </div>
                 </form>
