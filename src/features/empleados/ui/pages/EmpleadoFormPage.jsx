@@ -33,6 +33,8 @@ const EMPTY_FORM = {
   tipoContrato: 'Fijo',
   tieneContrato: true,
   sueldoDiario: '',
+  decimoTerceroValor: '',
+  decimoCuartoValor: '',
   direccion: '',
   foto: '',
 };
@@ -606,6 +608,8 @@ export const EmpleadoFormPage = () => {
           username: emp.username || emp.correo?.split('@')[0] || '',
           rol: emp.rol || '',
           roleId: emp.roleId || '',
+          decimoTerceroValor: emp.decimoTerceroValor !== null && emp.decimoTerceroValor !== undefined ? Number(emp.decimoTerceroValor) : '',
+          decimoCuartoValor: emp.decimoCuartoValor !== null && emp.decimoCuartoValor !== undefined ? Number(emp.decimoCuartoValor) : '',
         };
         setForm(loadedForm);
         setInitialForm(loadedForm);
@@ -827,6 +831,8 @@ export const EmpleadoFormPage = () => {
       const saved = await saveEmpleado({
         ...form,
         sueldoDiario: sueldoDiarioFromMensual(Number(form.sueldoDiario) || 0),
+        decimoTerceroValor: form.decimoTerceroValor !== '' && form.decimoTerceroValor !== null ? Number(form.decimoTerceroValor) : null,
+        decimoCuartoValor: form.decimoCuartoValor !== '' && form.decimoCuartoValor !== null ? Number(form.decimoCuartoValor) : null,
       });
 
       const docsToUpload = pendingDocs.map((doc) => ({
@@ -1058,6 +1064,18 @@ export const EmpleadoFormPage = () => {
                             </p>
                           )}
                         </div>
+                        {form.tieneContrato && (
+                          <>
+                            <div>
+                              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Décimo Tercero Mensual ($)</label>
+                              <input name="decimoTerceroValor" type="number" step="0.01" min="0" value={form.decimoTerceroValor} onChange={handleChange} placeholder="Auto (1/12 sueldo)" className="input-field" />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Décimo Cuarto Mensual ($)</label>
+                              <input name="decimoCuartoValor" type="number" step="0.01" min="0" value={form.decimoCuartoValor} onChange={handleChange} placeholder="Auto ($40.16)" className="input-field" />
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       <div className="flex justify-center md:justify-end">

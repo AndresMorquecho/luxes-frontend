@@ -177,22 +177,14 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
                 </h3>
                 <div className="space-y-4">
                   <div className="rounded-lg border border-violet-100 bg-violet-50/50 p-3 space-y-2">
-                    <p className="text-[10px] font-bold text-violet-800 uppercase tracking-wider">Provisiones (no suman al neto)</p>
+                    <p className="text-[10px] font-bold text-violet-800 uppercase tracking-wider">Décimos Quincenales (Fijos)</p>
                     <div className="flex justify-between text-xs">
-                      <span className="text-violet-700">Prov. Décimo 3</span>
-                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.ingresos.provisionDecimo3 ?? 0)}</span>
+                      <span className="text-violet-700">Décimo Tercero</span>
+                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.decimoTercero ?? 0)}</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-violet-700">Acum. Décimo 3</span>
-                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.ingresos.acumuladoDecimo3 ?? 0)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-violet-700">Prov. Décimo 4</span>
-                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.ingresos.provisionDecimo4 ?? 0)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-violet-700">Acum. Décimo 4</span>
-                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.ingresos.acumuladoDecimo4 ?? 0)}</span>
+                      <span className="text-violet-700">Décimo Cuarto</span>
+                      <span className="font-bold text-violet-900">{formatUSD(calculoEnTiempoReal.decimoCuarto ?? 0)}</span>
                     </div>
                   </div>
                   <div>

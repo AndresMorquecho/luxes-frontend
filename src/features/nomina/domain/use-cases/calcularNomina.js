@@ -22,88 +22,71 @@ export function calcularNomina(empleado, nomina, options = {}) {
   if (!empleado) throw new Error('Se requiere un empleado para realizar el cálculo de nómina.');
   if (!nomina) throw new Error('Se requiere una nómina para realizar el cálculo.');
 
-  const diasLaborables = Number(nomina.diasLaborables) || 15;
-  const diasLaborados = Number(nomina.diasLaborados) || 0;
-  const tieneContrato = empleado.tieneContrato !== false;
-  const sbuVigente = Number(options.sbuVigente) || SBU_DEFAULT_ECUADOR;
+  const isFijo = empleado.tieneContrato !== false;
+  const sueldoMensual = Number(empleado.sueldoDiario) >= 100 ? Number(empleado.sueldoDiario) : Number(empleado.sueldoDiario) * 30;
 
+  // 1. Días Laborables
+  const diasLaborables = isFijo ? 15 : (Number(nomina.diasLaborables) || 13);
+
+  // 2. Tarifa Diaria Quincenal
   const sueldoDiario = sueldoDiarioEnQuincena(empleado.sueldoDiario, diasLaborables);
-  const baseQuincena = sueldoQuincenaBase(empleado.sueldoDiario);
-  const totalBruto = calcSueldoBrutoQuincena(empleado.sueldoDiario, diasLaborados, diasLaborables);
 
-  const horasExtras = Number(nomina.ingresos.horasExtras || 0);
-  const trabajosEmpresa = Number(nomina.ingresos.trabajosEnEmpresa || 0);
-  const fondosReserva = tieneContrato ? Number(nomina.ingresos.fondosReserva || 0) : 0;
+  // 3. Días Trabajados (Reales)
+  const diasLaborados = Number(nomina.diasLaborados) || 0; // representará diasTrabajadosReales
 
-  const gravado = ingresosGravadosPeriodo(totalBruto, horasExtras, trabajosEmpresa);
+  // 4. Bruto total de días
+  const totalBruto = roundTo2(sueldoDiario * diasLaborados);
 
-  const ing = nomina.ingresos || {};
-  const tieneProvisionesGuardadas =
-    ing.provisionDecimo3 != null || ing.acumuladoDecimo3 != null;
+  // 5. Permisos/Atrasos
+  const permisoHoras = Number(nomina.permisoHoras || 0);
+  const valorPermisoHoras = roundTo2(permisoHoras * (sueldoDiario / 8));
+  const subtotalDias = roundTo2(Math.max(0, totalBruto - valorPermisoHoras));
 
-  const decimos = tieneProvisionesGuardadas
-    ? {
-        provisionDecimo3: Number(ing.provisionDecimo3 ?? 0),
-        provisionDecimo4: Number(ing.provisionDecimo4 ?? 0),
-        acumuladoDecimo3: Number(ing.acumuladoDecimo3 ?? 0),
-        acumuladoDecimo4: Number(ing.acumuladoDecimo4 ?? 0),
-        pagoDecimo3: Number(ing.pagoDecimo3 ?? 0),
-        pagoDecimo4: Number(ing.pagoDecimo4 ?? 0),
-        decimoTercero: 0,
-        decimoCuarto: 0,
-        enVentanaPagoDecimo3: Boolean(ing.enVentanaPagoDecimo3),
-        enVentanaPagoDecimo4: Boolean(ing.enVentanaPagoDecimo4),
-      }
-    : computeDecimosProvisions({
-        gravado,
-        sbuVigente,
-        fechaInicio: nomina.fechaInicio,
-        fechaFin: nomina.fechaFin,
-        tieneContrato,
-        decimoTerceroMensualizado: Boolean(empleado.decimoTerceroMensualizado),
-        decimoCuartoMensualizado: Boolean(empleado.decimoCuartoMensualizado),
-        region: empleado.region === 'sierra' ? 'sierra' : 'costa',
-        nominasPreviasAnio: options.nominasPreviasAnio || [],
-      });
+  // 6. Décimos
+  let decimoCuarto = 0;
+  let decimoTercero = 0;
+  if (isFijo) {
+    const dec4Val = empleado.decimoCuartoValor !== null && empleado.decimoCuartoValor !== undefined && empleado.decimoCuartoValor !== ''
+      ? Number(empleado.decimoCuartoValor)
+      : 40.16;
+    decimoCuarto = roundTo2(dec4Val / 2);
 
-  const pagoDecimo3 = decimos.pagoDecimo3;
-  const pagoDecimo4 = decimos.pagoDecimo4;
+    const dec3Val = empleado.decimoTerceroValor !== null && empleado.decimoTerceroValor !== undefined && empleado.decimoTerceroValor !== ''
+      ? Number(empleado.decimoTerceroValor)
+      : (sueldoMensual / 12);
+    decimoTercero = roundTo2(dec3Val / 2);
+  }
 
-  const baseIess = gravado;
-  const iessCalculado = tieneContrato ? roundTo2(baseIess * 0.0945) : 0;
-  const iess = tieneContrato
-    ? (nomina.egresos.iess > 0 ? Number(nomina.egresos.iess) : iessCalculado)
-    : 0;
+  // 7. IESS
+  const iess = isFijo ? roundTo2(sueldoMensual * 0.0945 / 2) : 0;
 
-  // Ingresos al neto: solo pagos mensualizados de décimos (no provisiones)
-  const sumaIngresos = roundTo2(
-    pagoDecimo3 + pagoDecimo4 + horasExtras + trabajosEmpresa + fondosReserva,
-  );
+  // 8. Subtotal de Liquidación
+  const subtotalLiquidacion = roundTo2(subtotalDias + decimoCuarto + decimoTercero - iess);
 
-  const extConyuge = Number(nomina.egresos.extensionConyuge || 0);
-  const quirografario = Number(nomina.egresos.prestamoQuirografario || 0);
-  const anticipos = Number(nomina.egresos.anticipos || 0);
-  const dctoHoras = Number(nomina.egresos.dctoHorasNoLaboradas || 0);
-  const multas = Number(nomina.egresos.multas || 0);
-  const dctoFiesta = Number(nomina.egresos.dctoFiesta || 0);
-  const dctoHerramientas = Number(nomina.egresos.dctoHerramientas || 0);
-  const dctoGenerico = Number(nomina.egresos.dctoGenerico || 0);
+  // 9. Horas Extras y Trabajos en Empresa (Ingresos Adicionales)
+  const horasExtras = Number(nomina.ingresos?.horasExtras || 0);
+  const trabajosEmpresa = Number(nomina.ingresos?.trabajosEnEmpresa || 0);
+  const fondosReserva = isFijo ? Number(nomina.ingresos?.fondosReserva || 0) : 0;
+
+  const sumaIngresos = roundTo2(horasExtras + trabajosEmpresa + fondosReserva);
+
+  // 10. Egresos Adicionales
+  const extConyuge = Number(nomina.egresos?.extensionConyuge || 0);
+  const quirografario = Number(nomina.egresos?.prestamoQuirografario || 0);
+  const anticipos = Number(nomina.egresos?.anticipos || 0);
+  const multas = Number(nomina.egresos?.multas || 0);
+  const dctoFiesta = Number(nomina.egresos?.dctoFiesta || 0);
+  const dctoHerramientas = Number(nomina.egresos?.dctoHerramientas || 0);
+  const dctoGenerico = Number(nomina.egresos?.dctoGenerico || 0);
 
   const sumaEgresos = roundTo2(
-    iess +
-      extConyuge +
-      quirografario +
-      anticipos +
-      dctoHoras +
-      multas +
-      dctoFiesta +
-      dctoHerramientas +
-      dctoGenerico,
+    extConyuge + quirografario + anticipos + multas + dctoFiesta + dctoHerramientas + dctoGenerico
   );
 
-  const netoRecibir = roundTo2(totalBruto + sumaIngresos - sumaEgresos);
+  // 11. Neto a Recibir
+  const netoRecibir = roundTo2(subtotalLiquidacion + sumaIngresos - sumaEgresos);
 
-  const totalAbonado = roundTo2(nomina.abonos.reduce((sum, abono) => sum + abono.monto, 0));
+  const totalAbonado = roundTo2((nomina.abonos || []).reduce((sum, abono) => sum + abono.monto, 0));
 
   let estadoPago = 'PENDIENTE';
   if (nomina.estado === 'PAGADO' || (totalAbonado >= netoRecibir && netoRecibir > 0)) {
@@ -115,13 +98,23 @@ export function calcularNomina(empleado, nomina, options = {}) {
   return {
     empleadoId: empleado.id,
     nombreEmpleado: empleado.nombre,
+    isFijo,
+    tieneContrato: empleado.tieneContrato !== false,
     sueldoDiario,
-    sueldoQuincenaBase: baseQuincena,
+    sueldoQuincenaBase: sueldoQuincenaBase(empleado.sueldoDiario),
     diasLaborables,
-    diasLaborados: nomina.diasLaborados,
+    diasLaborados,
     totalBruto,
+    permisoHoras,
+    valorPermisoHoras,
+    subtotalDias,
+    decimoCuarto,
+    decimoTercero,
+    iess,
+    subtotalLiquidacion,
     ingresos: {
-      ...decimos,
+      decimoTercero,
+      decimoCuarto,
       horasExtras,
       trabajosEnEmpresa: trabajosEmpresa,
       fondosReserva,
@@ -131,7 +124,7 @@ export function calcularNomina(empleado, nomina, options = {}) {
       extensionConyuge: extConyuge,
       prestamoQuirografario: quirografario,
       anticipos,
-      dctoHorasNoLaboradas: dctoHoras,
+      dctoHorasNoLaboradas: valorPermisoHoras,
       multas,
       dctoFiesta,
       dctoHerramientas,
@@ -140,14 +133,14 @@ export function calcularNomina(empleado, nomina, options = {}) {
     sumaIngresos,
     sumaEgresos,
     netoRecibir,
-    abonos: nomina.abonos,
+    abonos: nomina.abonos || [],
     totalAbonado,
     estadoPago,
     provisiones: {
-      decimo3: decimos.provisionDecimo3,
-      decimo4: decimos.provisionDecimo4,
-      acumuladoDecimo3: decimos.acumuladoDecimo3,
-      acumuladoDecimo4: decimos.acumuladoDecimo4,
+      decimo3: isFijo ? roundTo2(sueldoMensual / 12) : 0,
+      decimo4: isFijo ? roundTo2(40.16) : 0,
+      acumuladoDecimo3: 0,
+      acumuladoDecimo4: 0,
     },
   };
 }
