@@ -498,6 +498,300 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   );
 };
 
+const DetallePermisosModal = ({
+  empleadoId,
+  empleadoNombre,
+  fechaInicio,
+  fechaFin,
+  raw,
+  onClose,
+  onConfirm,
+}) => {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [fecha, setFecha] = useState(() => fechaInicio ? fechaInicio.slice(0, 10) : '');
+  const [horas, setHoras] = useState('1.0');
+  const [motivo, setMotivo] = useState('');
+
+  // Local helper to calculate late hours
+  const calculateLateHours = (fechaHoraStr) => {
+    const date = new Date(fechaHoraStr);
+    const day = date.getDay(); // 0 = Sunday, 6 = Saturday, 1-5 = Weekday
+    if (day === 0) return 0; // Sundays don't count
+    
+    // Convert date to local time elements
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const timeInMinutes = hours * 60 + minutes;
+    
+    const expectedTime = (day === 6) ? (9 * 60) : (8 * 60); // 9:00 AM on Saturdays, 8:00 AM on weekdays
+    const diff = timeInMinutes - expectedTime;
+    
+    if (diff <= 5) return 0; // 5 mins grace period
+    
+    const halfHours = Math.round(diff / 30);
+    return Math.max(0.5, halfHours * 0.5);
+  };
+
+  useEffect(() => {
+    const initRecords = async () => {
+      setLoading(true);
+      try {
+        if (raw?.egresos?.permisosDetalle && Array.isArray(raw.egresos.permisosDetalle)) {
+          setRecords(raw.egresos.permisosDetalle);
+        } else {
+          // Fetch from QR asistencias
+          const desdeStr = fechaInicio ? fechaInicio.slice(0, 10) : '';
+          const hastaStr = fechaFin ? fechaFin.slice(0, 10) : '';
+          if (desdeStr && hastaStr) {
+            const res = await fetch(`/api/asistencias?desde=${desdeStr}&hasta=${hastaStr}`);
+            const json = await res.json();
+            if (json.success && Array.isArray(json.data)) {
+              const matched = json.data
+                .filter(a => a.empleadoId === empleadoId && a.tipo === 'ENTRADA')
+                .map(a => {
+                  const lateHours = calculateLateHours(a.fechaHora);
+                  if (lateHours <= 0) return null;
+                  const locTime = new Date(a.fechaHora).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: false });
+                  return {
+                    id: `qr-${a.id}-${Math.random()}`,
+                    fecha: a.fechaHora.slice(0, 10),
+                    horaMarcacion: locTime,
+                    horas: lateHours,
+                    motivo: `Atraso QR (${locTime})`,
+                    tipo: 'qr_tarde'
+                  };
+                })
+                .filter(Boolean);
+              setRecords(matched);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading QR asistencias:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initRecords();
+  }, [empleadoId, fechaInicio, fechaFin, raw]);
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    const parsedHoras = parseFloat(horas);
+    if (isNaN(parsedHoras) || parsedHoras <= 0) {
+      toast.error('Ingrese una cantidad de horas válida');
+      return;
+    }
+    if (!fecha) {
+      toast.error('Seleccione una fecha');
+      return;
+    }
+
+    const newRecord = {
+      id: `manual-${Date.now()}-${Math.random()}`,
+      fecha,
+      horas: parsedHoras,
+      motivo: motivo.trim() || 'Permiso / Atraso manual',
+      tipo: 'manual'
+    };
+
+    setRecords(prev => [...prev, newRecord]);
+    setMotivo('');
+  };
+
+  const handleDelete = (id) => {
+    setRecords(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleSave = () => {
+    const totalHours = records.reduce((s, r) => s + r.horas, 0);
+    onConfirm(totalHours, records);
+  };
+
+  const totalHoras = useMemo(() => records.reduce((s, r) => s + r.horas, 0), [records]);
+  const totalValor = totalHoras * 2.5;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh]">
+        {/* Header */}
+        <div className="bg-slate-800 text-white px-6 py-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider">Permisos de Horas y Atrasos</h3>
+            <p className="text-[11px] text-slate-300 font-semibold mt-0.5">{empleadoNombre}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors cursor-pointer border-0 bg-transparent text-xl font-bold">
+            &times;
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-5 gap-6">
+          {/* Form Side (2 Cols) */}
+          <div className="md:col-span-2 border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-6">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-blue-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              Registrar Permiso Manual
+            </h4>
+            <form onSubmit={handleAdd} className="space-y-3.5">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Fecha</label>
+                <input
+                  type="date"
+                  min={fechaInicio ? fechaInicio.slice(0,10) : undefined}
+                  max={fechaFin ? fechaFin.slice(0,10) : undefined}
+                  value={fecha}
+                  onChange={e => setFecha(e.target.value)}
+                  className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 outline-hidden focus:border-blue-900 focus:ring-1 focus:ring-blue-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Horas</label>
+                <div className="relative rounded-md shadow-xs">
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    value={horas}
+                    onChange={e => setHoras(e.target.value)}
+                    className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 outline-hidden focus:border-blue-900 focus:ring-1 focus:ring-blue-900"
+                    required
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <span className="text-slate-400 text-xs font-bold">hs</span>
+                  </div>
+                </div>
+                <p className="text-[9px] text-slate-400 font-semibold mt-1">Sugerencia: 1.0 hora ($2.50) o 0.5 hora ($1.25)</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Motivo / Descripción</label>
+                <textarea
+                  value={motivo}
+                  onChange={e => setMotivo(e.target.value)}
+                  placeholder="Ej. Cita médica, permiso tarde, etc."
+                  rows={2}
+                  className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 outline-hidden focus:border-blue-900 focus:ring-1 focus:ring-blue-900 resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer border-0 shadow-sm"
+              >
+                Agregar
+              </button>
+            </form>
+          </div>
+
+          {/* List Side (3 Cols) */}
+          <div className="md:col-span-3 flex flex-col min-h-[300px]">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-blue-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-3.75 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                </svg>
+                Registros de esta Quincena
+              </h4>
+              <span className="text-[10px] text-blue-900 font-extrabold uppercase bg-blue-50 px-2 py-0.5 rounded-full">
+                Tarifa: $2.50 / hr
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="flex-1 flex flex-col justify-center items-center text-slate-400 gap-1.5">
+                <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div>
+                <span className="text-xs font-bold">Escaneando marcaciones del QR...</span>
+              </div>
+            ) : records.length === 0 ? (
+              <div className="flex-1 border border-dashed border-slate-200 rounded-xl flex flex-col justify-center items-center p-6 text-center text-slate-400">
+                <span className="text-xs font-bold">No hay permisos ni atrasos registrados.</span>
+                <p className="text-[10px] mt-0.5">Los atrasos del QR aparecerán automáticamente si el empleado marca después de las 08:00 AM.</p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto max-h-[350px] border border-slate-200 rounded-xl divide-y divide-slate-100 bg-slate-50/20">
+                {records.map(rec => {
+                  const valor = rec.horas * 2.5;
+                  const isQR = rec.tipo === 'qr_tarde';
+                  return (
+                    <div key={rec.id} className="p-3 flex justify-between items-center group/item hover:bg-slate-50 transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-800">{rec.fecha}</span>
+                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${isQR ? 'bg-amber-50 text-amber-800 border-amber-100' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                            {isQR ? 'Atraso QR' : 'Manual'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-semibold text-slate-500 mt-1 truncate" title={rec.motivo}>
+                          {rec.motivo}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0 ml-4">
+                        <div className="text-right">
+                          <span className="text-xs font-black text-slate-700 block">{rec.horas} hs</span>
+                          <span className="text-[9px] font-bold text-red-650 block">-{formatUSD(valor)}</span>
+                        </div>
+                        <button
+                          onClick={() => handleDelete(rec.id)}
+                          className="p-1 rounded-md text-slate-350 hover:text-red-650 hover:bg-red-50 transition-all cursor-pointer border-0 bg-transparent"
+                          title="Eliminar registro"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.34 6.6m-2.76 0L10.2 9m8.96-.14-.37 8.5C19 18.23 18.06 19 17.02 19h-10c-1.04 0-1.94-.77-2.02-1.78L4.63 8.82m13.8 0L14.75 3h-5.5L6.8 8.82M4.75 9h14.5M11 5v3" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Total summary */}
+            {records.length > 0 && (
+              <div className="mt-4 bg-red-50/40 border border-red-100/50 rounded-xl p-3 flex justify-between items-center text-xs">
+                <div>
+                  <span className="text-slate-500 font-bold block">Horas Acumuladas</span>
+                  <span className="font-black text-slate-800 text-sm">{totalHoras} hs</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-500 font-bold block">Descuento Total</span>
+                  <span className="font-black text-red-750 text-sm">-{formatUSD(totalValor)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-between items-center shrink-0">
+          <p className="text-[10px] text-slate-400 font-bold">Los descuentos se verán reflejados al confirmar la nómina.</p>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors cursor-pointer bg-white"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-6 py-2 bg-blue-900 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg hover:bg-blue-800 transition-colors cursor-pointer border-0 shadow-xs"
+            >
+              Confirmar e Incorporar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DetalleEgresosModal = ({
   empleadoId,
   empleadoNombre,
@@ -1116,6 +1410,7 @@ const QuincenaTable = ({
   onCellChange,
   onOpenEgresos,
   onOpenIngresos,
+  onOpenPermisos,
 }) => {
   const pendingHEByEmp = useMemo(
     () => sumPendingHEInRange(pendingOvertime, fechaInicio, fechaFin),
@@ -1184,7 +1479,7 @@ const QuincenaTable = ({
   );
 
   return (
-<div className="flex flex-col w-full animate-fade-in">
+    <div className="flex flex-col w-full animate-fade-in">
       <div className="bg-slate-700 text-white text-center py-2.5 font-bold text-xs tracking-wider uppercase shrink-0 rounded-t-xl">
         <span>{label}</span>
       </div>
@@ -1193,31 +1488,31 @@ const QuincenaTable = ({
           <thead className="z-30 shadow-xs">
             <tr className="bg-slate-100 text-[10px] uppercase font-black text-slate-500 border-b border-slate-200">
               <th rowSpan={2} className="border border-slate-200 px-2 py-3.5 text-left bg-slate-100 sticky top-0 left-0 z-40 border-r border-r-slate-300 w-[200px] min-w-[200px]">Colaborador</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-slate-50/80 text-slate-600 tracking-wider border-r border-r-slate-300">
+              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-slate-150 text-slate-650 tracking-wider border-r border-r-slate-300">
                 <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-slate-500 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
                 Tarifa Base
               </th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-sky-50/50 text-sky-800 tracking-wider border-r border-r-slate-300">
+              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-sky-100 text-sky-800 tracking-wider border-r border-r-slate-300">
                 <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-sky-650 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
                 Asistencia / Atrasos
               </th>
-              <th colSpan={4} className="border border-slate-200 px-2 py-1.5 text-center bg-purple-50/50 text-purple-800 tracking-wider border-r border-r-slate-300">
+              <th colSpan={4} className="border border-slate-200 px-2 py-1.5 text-center bg-purple-100 text-purple-800 tracking-wider border-r border-r-slate-300">
                 <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-purple-650 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
                 </svg>
                 Leyes y Beneficios
               </th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-amber-50/50 text-amber-800 tracking-wider border-r border-r-slate-300">
+              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-amber-100 text-amber-800 tracking-wider border-r border-r-slate-300">
                 <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-amber-650 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
                 </svg>
                 Otros Ingresos / Egresos
               </th>
-              <th colSpan={2} className="border border-slate-200 px-2 py-1.5 text-center bg-blue-50/70 text-blue-800 tracking-wider border-r border-r-slate-300">
+              <th colSpan={2} className="border border-slate-200 px-2 py-1.5 text-center bg-blue-100 text-blue-800 tracking-wider border-r border-r-slate-300">
                 <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-blue-650 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                 </svg>
@@ -1226,22 +1521,22 @@ const QuincenaTable = ({
               <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-center bg-slate-100 sticky top-0 z-30">Estado</th>
               <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-center bg-slate-100 sticky top-0 z-30 w-28">Acción</th>
             </tr>
-            <tr className="bg-slate-50 text-[9px] uppercase font-bold text-slate-700 border-b border-slate-200">
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Sueldo Diario</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Días Lab.</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100/60 font-extrabold text-slate-800 sticky top-0 z-30 border-r border-r-slate-300">Total</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">Días Trab.</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">Permisos / Horas</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100/60 font-extrabold text-slate-850 sticky top-0 z-30 border-r border-r-slate-300">Subtotal Días</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Décimo 4to</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Décimo 3ro</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">IESS</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-violet-100/20 font-extrabold text-violet-900 sticky top-0 z-30 border-r border-r-slate-300">Subtotal</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Ingresos</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Egresos</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100/60 font-extrabold text-slate-800 sticky top-0 z-30 border-r border-r-slate-300">Total neto</th>
+            <tr className="bg-slate-100 text-[9px] uppercase font-bold text-slate-700 border-b border-slate-200">
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30">Sueldo Diario</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30">Días Lab.</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-200 font-extrabold text-slate-800 sticky top-0 z-30 border-r border-r-slate-300">Total</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30 w-[75px] min-w-[75px]">Días Trab.</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30 w-[75px] min-w-[75px]">Permisos / Horas</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-200 font-extrabold text-slate-850 sticky top-0 z-30 border-r border-r-slate-300">Subtotal Días</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30">Décimo 4to</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30">Décimo 3ro</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30 w-[75px] min-w-[75px]">IESS</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-violet-100 font-extrabold text-violet-900 sticky top-0 z-30 border-r border-r-slate-300">Subtotal</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30">Ingresos</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100 sticky top-0 z-30">Egresos</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-200 font-extrabold text-slate-800 sticky top-0 z-30 border-r border-r-slate-300">Total neto</th>
               <th className="border border-slate-200 px-2 py-1.5 text-center bg-blue-100 text-blue-950 font-black sticky top-0 z-30">Total a pagar</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-emerald-100/35 text-emerald-800 font-extrabold sticky top-0 z-30 border-r border-r-slate-300">Abonado</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-emerald-100 text-emerald-800 font-extrabold sticky top-0 z-30 border-r border-r-slate-300">Abonado</th>
             </tr>
           </thead>
 
@@ -1306,14 +1601,23 @@ const QuincenaTable = ({
                     {formatUSD(totalTeorico)}
                   </td>
 
-                  {/* Días Trab. (Editable) */}
-                  <td className="border border-slate-200 text-center px-1 py-1 bg-slate-50/50">
-                    <CellInput value={diasT} onChange={val => onCellChange(emp.id, 'diasLaborados', val)} />
+                  {/* Días Trab. (No editable, viene del QR) */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-semibold text-xs bg-slate-50/10">
+                    {diasT}
                   </td>
 
-                  {/* Permisos Horas (Editable) */}
-                  <td className="border border-slate-200 text-center px-1 py-1 bg-slate-50/50">
-                    <CellInput value={permisoHoras} onChange={val => onCellChange(emp.id, 'permisoHoras', val)} />
+                  {/* Permisos Horas (Clickable, abre modal) */}
+                  <td
+                    className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-bold text-xs cursor-pointer hover:bg-slate-100 transition-colors group/cell"
+                    onClick={() => onOpenPermisos(emp.id, emp.nombre, raw)}
+                    title="Haga clic para gestionar permisos de horas"
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span>{permisoHoras} hs</span>
+                      <span className="text-[10px] text-blue-600 font-black opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                        [+]
+                      </span>
+                    </div>
                   </td>
 
                   {/* Subtotal Días */}
@@ -1348,20 +1652,30 @@ const QuincenaTable = ({
 
                   {/* Ingresos (Clickable) */}
                   <td
-                    className="border border-slate-200 text-center px-2 py-2 text-green-700 font-bold text-xs cursor-pointer hover:bg-green-50/50 transition-colors"
+                    className="border border-slate-200 text-center px-2 py-2 text-green-700 font-bold text-xs cursor-pointer hover:bg-green-50/50 transition-colors group/cell"
                     onClick={() => onOpenIngresos(emp.id, emp.nombre)}
                     title="Haga clic para editar ingresos"
                   >
-                    +{formatUSD(sumaIngresos)}
+                    <div className="flex items-center justify-center gap-1">
+                      <span>+{formatUSD(sumaIngresos)}</span>
+                      <span className="text-[10px] text-green-700 font-black opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                        [+]
+                      </span>
+                    </div>
                   </td>
 
                   {/* Egresos (Clickable) */}
                   <td
-                    className="border border-slate-200 text-center px-2 py-2 text-red-650 font-bold text-xs cursor-pointer hover:bg-red-50/50 transition-colors"
+                    className="border border-slate-200 text-center px-2 py-2 text-red-650 font-bold text-xs cursor-pointer hover:bg-red-50/50 transition-colors group/cell"
                     onClick={() => onOpenEgresos(emp.id, emp.nombre)}
                     title="Haga clic para editar egresos"
                   >
-                    -{formatUSD(sumaEgresos)}
+                    <div className="flex items-center justify-center gap-1">
+                      <span>-{formatUSD(sumaEgresos)}</span>
+                      <span className="text-[10px] text-red-600 font-black opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                        [+]
+                      </span>
+                    </div>
                   </td>
 
                   {/* Total neto (Ajustes) */}
@@ -1499,11 +1813,16 @@ const QuincenaTable = ({
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold block">Días Trab.</span>
-                  <CellInput value={diasT} onChange={val => onCellChange(emp.id, 'diasLaborados', val)} />
+                  <span className="font-bold text-slate-800">{diasT}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold block">Permisos Horas</span>
-                  <CellInput value={permisoHoras} onChange={val => onCellChange(emp.id, 'permisoHoras', val)} />
+                  <span
+                    onClick={() => onOpenPermisos(emp.id, emp.nombre, raw)}
+                    className="font-bold text-blue-900 cursor-pointer underline hover:text-blue-800"
+                  >
+                    {permisoHoras} hs [+]
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold block">Subtotal Días</span>
@@ -1555,15 +1874,22 @@ const QuincenaTable = ({
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
+                  onClick={() => onOpenPermisos(emp.id, emp.nombre, raw)}
+                  className="flex-1 min-w-[70px] py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 text-[10px] font-bold cursor-pointer"
+                >
+                  Permisos
+                </button>
+                <button
+                  type="button"
                   onClick={() => onOpenIngresos(emp.id, emp.nombre)}
-                  className="flex-1 min-w-[80px] py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px] font-bold cursor-pointer"
+                  className="flex-1 min-w-[70px] py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px] font-bold cursor-pointer"
                 >
                   Ingresos
                 </button>
                 <button
                   type="button"
                   onClick={() => onOpenEgresos(emp.id, emp.nombre)}
-                  className="flex-1 min-w-[80px] py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-[10px] font-bold cursor-pointer"
+                  className="flex-1 min-w-[70px] py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-[10px] font-bold cursor-pointer"
                 >
                   Egresos
                 </button>
@@ -1622,6 +1948,7 @@ export const NominaMesTab = () => {
   const [savingBulk, setSavingBulk] = useState(false);
   const [activeEgresoModal, setActiveEgresoModal] = useState(null);
   const [activeIngresoModal, setActiveIngresoModal] = useState(null);
+  const [activePermisoModal, setActivePermisoModal] = useState(null);
   const [pendingOvertime, setPendingOvertime] = useState([]);
 
   const handleOpenEgresos = (empleadoId, empleadoNombre) => {
@@ -1641,6 +1968,17 @@ export const NominaMesTab = () => {
       empleadoNombre,
       fechaInicio: dates.fechaInicio,
       fechaFin: dates.fechaFin
+    });
+  };
+
+  const handleOpenPermisos = (empleadoId, empleadoNombre, raw) => {
+    const dates = activeTab === 'q1' ? fechas1 : fechas2;
+    setActivePermisoModal({
+      empleadoId,
+      empleadoNombre,
+      fechaInicio: dates.fechaInicio,
+      fechaFin: dates.fechaFin,
+      raw
     });
   };
 
@@ -2209,6 +2547,7 @@ export const NominaMesTab = () => {
           onCellChange={handleCellChange}
           onOpenEgresos={handleOpenEgresos}
           onOpenIngresos={handleOpenIngresos}
+          onOpenPermisos={handleOpenPermisos}
         />
       </div>
 
@@ -2254,6 +2593,24 @@ export const NominaMesTab = () => {
             adapter={adapter}
             onClose={() => deferClose(() => setActiveIngresoModal(null))}
             onUpdate={loadAll}
+          />
+        </ModalPortal>
+      ) : null}
+
+      {activePermisoModal ? (
+        <ModalPortal>
+          <DetallePermisosModal
+            empleadoId={activePermisoModal.empleadoId}
+            empleadoNombre={activePermisoModal.empleadoNombre}
+            fechaInicio={activePermisoModal.fechaInicio}
+            fechaFin={activePermisoModal.fechaFin}
+            raw={activePermisoModal.raw}
+            onClose={() => deferClose(() => setActivePermisoModal(null))}
+            onConfirm={(horas, list) => {
+              handleCellChange(activePermisoModal.empleadoId, 'permisoHoras', horas);
+              handleCellChange(activePermisoModal.empleadoId, 'egresos.permisosDetalle', list);
+              setActivePermisoModal(null);
+            }}
           />
         </ModalPortal>
       ) : null}
