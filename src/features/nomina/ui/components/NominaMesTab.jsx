@@ -145,7 +145,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 h-[520px] overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
+      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 h-[570px] overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
         onClick={(e) => e.stopPropagation()}>
         
         {/* Minimalist Header */}
@@ -202,7 +202,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
           
           <div className="flex-1 min-h-0">
             {activeTab === 'registrar' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start pt-2">
                 
                 {/* Columna Izquierda: Datos del Colaborador y Banco */}
                 <div className="flex flex-col justify-center items-center space-y-4 py-1">
