@@ -1191,30 +1191,57 @@ const QuincenaTable = ({
       <div className="hidden md:block overflow-auto max-h-[520px] relative border-t border-slate-200">
         <table className="min-w-full text-xs border-collapse">
           <thead className="z-30 shadow-xs">
-            <tr className="bg-slate-100 text-[9px] uppercase font-black text-slate-500 border-b border-slate-200">
-              <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-left bg-slate-100 sticky top-0 left-0 z-40 border-r-2 border-r-slate-300 w-[200px] min-w-[200px]">Colaborador</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-1 text-center bg-slate-50/50 tracking-wider">Tarifa Base</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-1 text-center bg-slate-50/50 tracking-wider">Asistencia / Atrasos</th>
-              <th colSpan={4} className="border border-slate-200 px-2 py-1 text-center bg-violet-100/40 text-violet-750 tracking-wider border-x border-violet-200/50">Leyes y Beneficios</th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-1 text-center bg-blue-100/45 text-blue-750 tracking-wider border-r border-blue-200/50">Neto Final</th>
-              <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-center bg-emerald-100/40 text-emerald-800 font-extrabold sticky top-0 z-30">Abonado</th>
+            <tr className="bg-slate-100 text-[10px] uppercase font-black text-slate-500 border-b border-slate-200">
+              <th rowSpan={2} className="border border-slate-200 px-2 py-3.5 text-left bg-slate-100 sticky top-0 left-0 z-40 border-r border-r-slate-300 w-[200px] min-w-[200px]">Colaborador</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-slate-50/80 text-slate-600 tracking-wider border-r border-r-slate-300">
+                <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-slate-500 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                Tarifa Base
+              </th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-sky-50/50 text-sky-800 tracking-wider border-r border-r-slate-300">
+                <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-sky-650 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                Asistencia / Atrasos
+              </th>
+              <th colSpan={4} className="border border-slate-200 px-2 py-1.5 text-center bg-purple-50/50 text-purple-800 tracking-wider border-r border-r-slate-300">
+                <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-purple-650 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
+                </svg>
+                Leyes y Beneficios
+              </th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-1.5 text-center bg-amber-50/50 text-amber-800 tracking-wider border-r border-r-slate-300">
+                <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-amber-650 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+                </svg>
+                Otros Ingresos / Egresos
+              </th>
+              <th colSpan={2} className="border border-slate-200 px-2 py-1.5 text-center bg-blue-50/70 text-blue-800 tracking-wider border-r border-r-slate-300">
+                <svg className="w-3.5 h-3.5 mr-1.5 inline-block text-blue-650 align-text-bottom" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                Resultado
+              </th>
               <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-center bg-slate-100 sticky top-0 z-30">Estado</th>
               <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-center bg-slate-100 sticky top-0 z-30 w-28">Acción</th>
             </tr>
-            <tr className="bg-slate-100 text-[9px] uppercase font-bold text-slate-700 border-b border-slate-200">
+            <tr className="bg-slate-50 text-[9px] uppercase font-bold text-slate-700 border-b border-slate-200">
               <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Sueldo Diario</th>
               <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Días Lab.</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-200/30 font-extrabold text-slate-800 sticky top-0 z-30">Total</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100/60 font-extrabold text-slate-800 sticky top-0 z-30 border-r border-r-slate-300">Total</th>
               <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">Días Trab.</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">Permisos Horas</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-200/40 font-extrabold text-slate-850 sticky top-0 z-30">Subtotal Días</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">Permisos / Horas</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100/60 font-extrabold text-slate-850 sticky top-0 z-30 border-r border-r-slate-300">Subtotal Días</th>
               <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Décimo 4to</th>
               <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Décimo 3ro</th>
               <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">IESS</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-violet-100/20 font-extrabold text-violet-900 sticky top-0 z-30">Subtotal</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-violet-100/20 font-extrabold text-violet-900 sticky top-0 z-30 border-r border-r-slate-300">Subtotal</th>
               <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Ingresos</th>
               <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Egresos</th>
-              <th className="border border-slate-200 px-2 py-1.5 text-center bg-blue-100 text-blue-950 font-black sticky top-0 z-30 border-x border-blue-200">Total Pagar</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-100/60 font-extrabold text-slate-800 sticky top-0 z-30 border-r border-r-slate-300">Total neto</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-blue-100 text-blue-950 font-black sticky top-0 z-30">Total a pagar</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-emerald-100/35 text-emerald-800 font-extrabold sticky top-0 z-30 border-r border-r-slate-300">Abonado</th>
             </tr>
           </thead>
 
@@ -1241,6 +1268,7 @@ const QuincenaTable = ({
               const sumaIngresos = cp?.sumaIngresos ?? 0;
               const sumaEgresos = cp?.sumaEgresos ?? 0;
               const netoRecibir = cp?.netoRecibir ?? 0;
+              const totalNetoAjustes = sumaIngresos - sumaEgresos;
               
               const totalAb = resolveAbonado(cp, raw);
               const pendientePago = computePendientePago(cp, raw, 0);
@@ -1252,7 +1280,7 @@ const QuincenaTable = ({
               return (
                 <tr key={emp.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'} hover:bg-slate-100/30 transition-colors group`}>
                   {/* Colaborador */}
-                  <td className={`border border-slate-200 px-3 py-2 w-[200px] min-w-[200px] sticky left-0 z-10 ${stickyBg} group-hover:bg-slate-100`}>
+                  <td className={`border border-slate-200 px-3 py-2 w-[200px] min-w-[200px] sticky left-0 z-10 ${stickyBg} group-hover:bg-slate-100 border-r-2 border-r-slate-300`}>
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-800 uppercase text-xs truncate" title={emp.nombre}>
                         {emp.nombre}
@@ -1274,7 +1302,7 @@ const QuincenaTable = ({
                   </td>
 
                   {/* Total Teórico */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-bold text-xs bg-slate-100/50">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-bold text-xs bg-slate-100/50 border-r border-r-slate-300">
                     {formatUSD(totalTeorico)}
                   </td>
 
@@ -1289,7 +1317,7 @@ const QuincenaTable = ({
                   </td>
 
                   {/* Subtotal Días */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-800 font-extrabold text-xs bg-slate-200/25">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-800 font-extrabold text-xs bg-slate-200/25 border-r border-r-slate-300">
                     {formatUSD(subtotalDias)}
                   </td>
 
@@ -1314,7 +1342,7 @@ const QuincenaTable = ({
                   </td>
 
                   {/* Subtotal */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-violet-950 font-extrabold text-xs bg-violet-100/20">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-violet-950 font-extrabold text-xs bg-violet-100/20 border-r border-r-slate-300">
                     {formatUSD(subtotalLiq)}
                   </td>
 
@@ -1336,13 +1364,18 @@ const QuincenaTable = ({
                     -{formatUSD(sumaEgresos)}
                   </td>
 
+                  {/* Total neto (Ajustes) */}
+                  <td className={`border border-slate-200 text-center px-2 py-2 font-bold text-xs bg-slate-50/50 border-r border-r-slate-300 ${totalNetoAjustes > 0 ? 'text-green-700' : totalNetoAjustes < 0 ? 'text-red-650' : 'text-slate-500'}`}>
+                    {totalNetoAjustes > 0 ? '+' : ''}{formatUSD(totalNetoAjustes)}
+                  </td>
+
                   {/* Total Pagar */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-blue-950 font-black text-sm bg-blue-100/80 border-x-2 border-x-blue-200">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-blue-950 font-black text-sm bg-blue-100/80">
                     {formatUSD(netoRecibir)}
                   </td>
 
                   {/* Abonado */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-emerald-800 font-extrabold text-xs bg-emerald-50/60">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-emerald-800 font-extrabold text-xs bg-emerald-50/60 border-r border-r-slate-300">
                     {formatUSD(totalAb)}
                   </td>
 
@@ -1382,18 +1415,21 @@ const QuincenaTable = ({
               </td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalSueldoDiario)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalDiasLaborables}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 font-extrabold text-xs bg-slate-200/55">{formatUSD(totalTeorico)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 font-extrabold text-xs bg-slate-200/55 border-r border-r-slate-300">{formatUSD(totalTeorico)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalDiasTrabajados}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalPermisoHoras} hs</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-850 font-extrabold text-xs bg-slate-200/75">{formatUSD(totalSubtotalDias)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-850 font-extrabold text-xs bg-slate-200/75 border-r border-r-slate-300">{formatUSD(totalSubtotalDias)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100/40">{formatUSD(totalDecimoCuarto)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100/40">{formatUSD(totalDecimoTercero)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalIESS)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-violet-100 text-violet-950 font-black text-xs">{formatUSD(totalSubtotalLiquidacion)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-violet-100 text-violet-950 font-black text-xs border-r border-r-slate-300">{formatUSD(totalSubtotalLiquidacion)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-green-700 text-xs bg-green-100/40">+{formatUSD(totalSumaIngresos)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-red-700 text-xs bg-red-100/40">-{formatUSD(totalSumaEgresos)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-200 text-blue-950 font-black text-xs border-x border-blue-300">{formatUSD(totalNeto)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-emerald-100 text-emerald-800 font-black text-xs">{formatUSD(totalAbonado)}</td>
+              <td className={`border border-slate-200 text-center px-1 py-2.5 font-bold text-xs bg-slate-100 border-r border-r-slate-300 ${(totalSumaIngresos - totalSumaEgresos) > 0 ? 'text-green-700' : (totalSumaIngresos - totalSumaEgresos) < 0 ? 'text-red-700' : 'text-slate-600'}`}>
+                {(totalSumaIngresos - totalSumaEgresos) > 0 ? '+' : ''}{formatUSD(totalSumaIngresos - totalSumaEgresos)}
+              </td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-100 text-blue-950 font-black text-xs">{formatUSD(totalNeto)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-emerald-100 text-emerald-800 font-black text-xs border-r border-r-slate-300">{formatUSD(totalAbonado)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 bg-orange-150 text-orange-850 font-extrabold text-xs">{formatUSD(totalPendiente)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-400 bg-slate-100">—</td>
             </tr>
