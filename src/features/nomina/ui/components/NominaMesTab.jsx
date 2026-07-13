@@ -504,15 +504,18 @@ const DetallePermisosModal = ({
   fechaInicio,
   fechaFin,
   raw,
+  adapter,
   onClose,
-  onConfirm,
+  onUpdate,
 }) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [fecha, setFecha] = useState(() => fechaInicio ? fechaInicio.slice(0, 10) : '');
+  const [tipo, setTipo] = useState('PERMISO_PERSONAL');
   const [horas, setHoras] = useState('1.0');
   const [motivo, setMotivo] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Local helper to calculate late hours
   const calculateLateHours = (fechaHoraStr) => {
@@ -560,11 +563,27 @@ const DetallePermisosModal = ({
                     horaMarcacion: locTime,
                     horas: lateHours,
                     motivo: `Atraso QR (${locTime})`,
-                    tipo: 'qr_tarde'
+                    tipo: 'ATRASO_QR'
                   };
                 })
                 .filter(Boolean);
-              setRecords(matched);
+              
+              if (matched.length > 0) {
+                const totalHours = matched.reduce((s, r) => s + r.horas, 0);
+                const updated = {
+                  ...raw,
+                  permisoHoras: totalHours,
+                  egresos: {
+                    ...raw.egresos,
+                    permisosDetalle: matched
+                  }
+                };
+                const saved = await adapter.savePayroll(updated);
+                setRecords(saved.egresos?.permisosDetalle || matched);
+                if (onUpdate) await onUpdate();
+              } else {
+                setRecords([]);
+              }
             }
           }
         }
@@ -575,9 +594,9 @@ const DetallePermisosModal = ({
       }
     };
     initRecords();
-  }, [empleadoId, fechaInicio, fechaFin, raw]);
+  }, [empleadoId, fechaInicio, fechaFin, raw, adapter, onUpdate]);
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
     const parsedHoras = parseFloat(horas);
     if (isNaN(parsedHoras) || parsedHoras <= 0) {
@@ -593,198 +612,244 @@ const DetallePermisosModal = ({
       id: `manual-${Date.now()}-${Math.random()}`,
       fecha,
       horas: parsedHoras,
-      motivo: motivo.trim() || 'Permiso / Atraso manual',
-      tipo: 'manual'
+      motivo: motivo.trim() || 'Permiso manual',
+      tipo: tipo
     };
 
-    setRecords(prev => [...prev, newRecord]);
-    setMotivo('');
+    const newList = [...records, newRecord];
+    const totalHours = newList.reduce((s, r) => s + r.horas, 0);
+
+    setSubmitting(true);
+    try {
+      const updated = {
+        ...raw,
+        permisoHoras: totalHours,
+        egresos: {
+          ...raw.egresos,
+          permisosDetalle: newList
+        }
+      };
+      const saved = await adapter.savePayroll(updated);
+      setRecords(saved.egresos?.permisosDetalle || newList);
+      toast.success('Permiso registrado en la base de datos');
+      setMotivo('');
+      if (onUpdate) await onUpdate();
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al guardar el permiso');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleDelete = (id) => {
-    setRecords(prev => prev.filter(r => r.id !== id));
+  const handleDelete = async (id) => {
+    if (!window.confirm('¿Está seguro de eliminar este registro?')) return;
+    const newList = records.filter(r => r.id !== id);
+    const totalHours = newList.reduce((s, r) => s + r.horas, 0);
+
+    try {
+      const updated = {
+        ...raw,
+        permisoHoras: totalHours,
+        egresos: {
+          ...raw.egresos,
+          permisosDetalle: newList
+        }
+      };
+      const saved = await adapter.savePayroll(updated);
+      setRecords(saved.egresos?.permisosDetalle || newList);
+      toast.success('Registro eliminado');
+      if (onUpdate) await onUpdate();
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al eliminar el registro');
+    }
   };
 
-  const handleSave = () => {
-    const totalHours = records.reduce((s, r) => s + r.horas, 0);
-    onConfirm(totalHours, records);
-  };
-
+  // Summary calculations
+  const totalAtrasosQR = useMemo(() => records.filter(r => r.tipo === 'ATRASO_QR').reduce((s, r) => s + r.horas, 0), [records]);
+  const totalPermisosManual = useMemo(() => records.filter(r => r.tipo !== 'ATRASO_QR').reduce((s, r) => s + r.horas, 0), [records]);
   const totalHoras = useMemo(() => records.reduce((s, r) => s + r.horas, 0), [records]);
-  const totalValor = totalHoras * 2.5;
+  const totalDescuentoValor = totalHoras * 2.5;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh]">
-        {/* Header */}
-        <div className="bg-slate-800 text-white px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
+      onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-5xl h-[620px] mx-4 overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
+        onClick={(e) => e.stopPropagation()}>
+        
+        {/* Minimalist Header */}
+        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200/80 flex justify-between items-center relative shrink-0">
           <div>
-            <h3 className="text-sm font-black uppercase tracking-wider">Permisos de Horas y Atrasos</h3>
-            <p className="text-[11px] text-slate-300 font-semibold mt-0.5">{empleadoNombre}</p>
+            <h3 className="text-xs font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-violet-650" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              Desglose de Permisos y Atrasos
+            </h3>
+            <p className="text-slate-500 text-[9px] mt-0.5 font-semibold tracking-wide">
+              {empleadoNombre} — del {fechaInicio} al {fechaFin}
+            </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors cursor-pointer border-0 bg-transparent text-xl font-bold">
-            &times;
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 p-1.5 rounded-full transition-all cursor-pointer bg-transparent border-0 outline-none">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-5 gap-6">
-          {/* Form Side (2 Cols) */}
-          <div className="md:col-span-2 border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-6">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-blue-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-              Registrar Permiso Manual
-            </h4>
-            <form onSubmit={handleAdd} className="space-y-3.5">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Fecha</label>
+        <div className="p-6 flex-1 flex flex-col min-h-0 space-y-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-4 gap-3 shrink-0">
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Atrasos QR</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{totalAtrasosQR} hs ({formatUSD(totalAtrasosQR * 2.5)})</span>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Permisos Manuales</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{totalPermisosManual} hs ({formatUSD(totalPermisosManual * 2.5)})</span>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Horas</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{totalHoras} hs</span>
+            </div>
+            <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 text-center shadow-xs">
+              <span className="text-[9px] font-bold text-violet-650 uppercase tracking-wider block">Total Descuento Permisos</span>
+              <span className="text-sm font-extrabold text-violet-950 mt-1 block">{formatUSD(totalDescuentoValor)}</span>
+            </div>
+          </div>
+
+          {/* Form Section */}
+          <form onSubmit={handleAdd} className="shrink-0 space-y-2">
+            <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Nuevo Registro</h4>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
                 <input
                   type="date"
-                  min={fechaInicio ? fechaInicio.slice(0,10) : undefined}
-                  max={fechaFin ? fechaFin.slice(0,10) : undefined}
-                  value={fecha}
-                  onChange={e => setFecha(e.target.value)}
-                  className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 outline-hidden focus:border-blue-900 focus:ring-1 focus:ring-blue-900"
                   required
+                  min={fechaInicio}
+                  max={fechaFin}
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                  className="w-full px-2 py-1.5 text-xs text-slate-800 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Horas</label>
-                <div className="relative rounded-md shadow-xs">
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    value={horas}
-                    onChange={e => setHoras(e.target.value)}
-                    className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 outline-hidden focus:border-blue-900 focus:ring-1 focus:ring-blue-900"
-                    required
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-slate-400 text-xs font-bold">hs</span>
-                  </div>
-                </div>
-                <p className="text-[9px] text-slate-400 font-semibold mt-1">Sugerencia: 1.0 hora ($2.50) o 0.5 hora ($1.25)</p>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tipo</label>
+                <select
+                  value={tipo}
+                  onChange={(e) => setTipo(e.target.value)}
+                  className="w-full px-2 py-1.5 text-xs text-slate-800 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="PERMISO_PERSONAL">Permiso Personal</option>
+                  <option value="PERMISO_MEDICO">Permiso Médico</option>
+                  <option value="ATRASO_MANUAL">Atraso Manual</option>
+                  <option value="OTROS">Otros</option>
+                </select>
               </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Motivo / Descripción</label>
-                <textarea
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Horas</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  required
+                  value={horas}
+                  onChange={(e) => setHoras(e.target.value)}
+                  className="w-full px-2 py-1.5 text-xs text-slate-800 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="space-y-1 md:col-span-4">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Motivo / Detalle</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Cita odontológica"
                   value={motivo}
-                  onChange={e => setMotivo(e.target.value)}
-                  placeholder="Ej. Cita médica, permiso tarde, etc."
-                  rows={2}
-                  className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 outline-hidden focus:border-blue-900 focus:ring-1 focus:ring-blue-900 resize-none"
+                  onChange={(e) => setMotivo(e.target.value)}
+                  className="w-full px-2 py-1.5 text-xs text-slate-800 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
-
-              <button
-                type="submit"
-                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer border-0 shadow-sm"
-              >
-                Agregar
-              </button>
-            </form>
-          </div>
-
-          {/* List Side (3 Cols) */}
-          <div className="md:col-span-3 flex flex-col min-h-[300px]">
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                <svg className="w-4 h-4 text-blue-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-3.75 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-                </svg>
-                Registros de esta Quincena
-              </h4>
-              <span className="text-[10px] text-blue-900 font-extrabold uppercase bg-blue-50 px-2 py-0.5 rounded-full">
-                Tarifa: $2.50 / hr
-              </span>
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-1.5 px-3 h-[32px] rounded-lg bg-blue-900 text-white font-bold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5 border-0 outline-none"
+                >
+                  {submitting ? (
+                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  )}
+                  Añadir
+                </button>
+              </div>
             </div>
+          </form>
 
-            {loading ? (
-              <div className="flex-1 flex flex-col justify-center items-center text-slate-400 gap-1.5">
-                <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div>
-                <span className="text-xs font-bold">Escaneando marcaciones del QR...</span>
-              </div>
-            ) : records.length === 0 ? (
-              <div className="flex-1 border border-dashed border-slate-200 rounded-xl flex flex-col justify-center items-center p-6 text-center text-slate-400">
-                <span className="text-xs font-bold">No hay permisos ni atrasos registrados.</span>
-                <p className="text-[10px] mt-0.5">Los atrasos del QR aparecerán automáticamente si el empleado marca después de las 08:00 AM.</p>
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto max-h-[350px] border border-slate-200 rounded-xl divide-y divide-slate-100 bg-slate-50/20">
-                {records.map(rec => {
-                  const valor = rec.horas * 2.5;
-                  const isQR = rec.tipo === 'qr_tarde';
-                  return (
-                    <div key={rec.id} className="p-3 flex justify-between items-center group/item hover:bg-slate-50 transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-800">{rec.fecha}</span>
-                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${isQR ? 'bg-amber-50 text-amber-800 border-amber-100' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                            {isQR ? 'Atraso QR' : 'Manual'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] font-semibold text-slate-500 mt-1 truncate" title={rec.motivo}>
-                          {rec.motivo}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0 ml-4">
-                        <div className="text-right">
-                          <span className="text-xs font-black text-slate-700 block">{rec.horas} hs</span>
-                          <span className="text-[9px] font-bold text-red-650 block">-{formatUSD(valor)}</span>
-                        </div>
-                        <button
-                          onClick={() => handleDelete(rec.id)}
-                          className="p-1 rounded-md text-slate-350 hover:text-red-650 hover:bg-red-50 transition-all cursor-pointer border-0 bg-transparent"
-                          title="Eliminar registro"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.34 6.6m-2.76 0L10.2 9m8.96-.14-.37 8.5C19 18.23 18.06 19 17.02 19h-10c-1.04 0-1.94-.77-2.02-1.78L4.63 8.82m13.8 0L14.75 3h-5.5L6.8 8.82M4.75 9h14.5M11 5v3" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Total summary */}
-            {records.length > 0 && (
-              <div className="mt-4 bg-red-50/40 border border-red-100/50 rounded-xl p-3 flex justify-between items-center text-xs">
-                <div>
-                  <span className="text-slate-500 font-bold block">Horas Acumuladas</span>
-                  <span className="font-black text-slate-800 text-sm">{totalHoras} hs</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-slate-500 font-bold block">Descuento Total</span>
-                  <span className="font-black text-red-750 text-sm">-{formatUSD(totalValor)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-between items-center shrink-0">
-          <p className="text-[10px] text-slate-400 font-bold">Los descuentos se verán reflejados al confirmar la nómina.</p>
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors cursor-pointer bg-white"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-6 py-2 bg-blue-900 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg hover:bg-blue-800 transition-colors cursor-pointer border-0 shadow-xs"
-            >
-              Confirmar e Incorporar
-            </button>
+          {/* List Section */}
+          <div className="flex-1 flex flex-col min-h-0 space-y-2">
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Registros Existentes</h4>
+            <div className="flex-1 border border-slate-200 rounded-xl overflow-y-auto bg-slate-50/50 min-h-0">
+              {loading ? (
+                <div className="p-3 text-center text-xs text-slate-500 font-semibold">Cargando registros...</div>
+              ) : records.length === 0 ? (
+                <div className="p-5 text-center text-xs text-slate-400 font-medium italic">No hay registros de permisos ni atrasos para este período.</div>
+              ) : (
+                <table className="min-w-full text-xs divide-y divide-slate-200 table-fixed border-collapse">
+                  <thead className="bg-blue-50 text-[10px] font-bold text-blue-900 uppercase sticky top-0 z-10">
+                    <tr>
+                      <th className="border border-slate-200 px-3 py-1.5 text-left w-32 bg-blue-50">Fecha</th>
+                      <th className="border border-slate-200 px-3 py-1.5 text-center w-36 bg-blue-50">Tipo</th>
+                      <th className="border border-slate-200 px-3 py-1.5 text-left bg-blue-50">Motivo / Detalle</th>
+                      <th className="border border-slate-200 px-3 py-1.5 text-right w-24 bg-blue-50">Horas</th>
+                      <th className="border border-slate-200 px-3 py-1.5 text-right w-24 bg-blue-50">Valor</th>
+                      <th className="border border-slate-200 px-3 py-1.5 text-center w-20 bg-blue-50">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-100 text-xs">
+                    {records.map((r) => {
+                      const valor = r.horas * 2.5;
+                      return (
+                        <tr key={r.id} className="hover:bg-slate-50/50">
+                          <td className="border border-slate-200 px-3 py-1.5 font-mono text-slate-600 truncate">{r.fecha}</td>
+                          <td className="border border-slate-200 px-3 py-1.5 text-center truncate">
+                            {r.tipo === 'ATRASO_QR' ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold text-[9px] uppercase border border-amber-100">Atraso QR</span>
+                            ) : r.tipo === 'ATRASO_MANUAL' ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-yellow-50 text-yellow-850 rounded-full font-bold text-[9px] uppercase border border-yellow-100">Atraso Manual</span>
+                            ) : r.tipo === 'PERMISO_MEDICO' ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[9px] uppercase border border-emerald-100">Permiso Médico</span>
+                            ) : r.tipo === 'PERMISO_PERSONAL' ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded-full font-bold text-[9px] uppercase border border-purple-100">Permiso Personal</span>
+                            ) : (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-slate-50 text-slate-700 rounded-full font-bold text-[9px] uppercase border border-slate-200">Otros</span>
+                            )}
+                          </td>
+                          <td className="border border-slate-200 px-3 py-1.5 font-medium text-slate-800 truncate" title={r.motivo}>{r.motivo || <span className="text-slate-400 italic">Sin motivo</span>}</td>
+                          <td className="border border-slate-200 px-3 py-1.5 text-right font-bold text-slate-700">{r.horas} hs</td>
+                          <td className="border border-slate-200 px-3 py-1.5 text-right font-bold text-red-650">-{formatUSD(valor)}</td>
+                          <td className="border border-slate-200 px-3 py-1.5 text-center">
+                            <button
+                              onClick={() => handleDelete(r.id)}
+                              className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-all cursor-pointer bg-transparent border-0 outline-none"
+                              title="Eliminar"
+                            >
+                              <svg className="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1944,8 +2009,6 @@ export const NominaMesTab = () => {
   const [payTarget, setPayTarget] = useState(null);
   const [activeTab, setActiveTab] = useState('q1');
   
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [savingBulk, setSavingBulk] = useState(false);
   const [activeEgresoModal, setActiveEgresoModal] = useState(null);
   const [activeIngresoModal, setActiveIngresoModal] = useState(null);
   const [activePermisoModal, setActivePermisoModal] = useState(null);
@@ -2001,7 +2064,6 @@ export const NominaMesTab = () => {
       setQ1Raw(p1);
       setQ2Raw(p2);
       setPendingOvertime(Array.isArray(pending) ? pending : []);
-      setHasUnsavedChanges(false);
     } catch (err) {
       console.error(err);
     } finally {
@@ -2058,57 +2120,44 @@ export const NominaMesTab = () => {
   }, [q1Rows, q2Rows, q1Raw, q2Raw]);
 
   const handleMesAnterior = () => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('Tienes cambios sin guardar. ¿Estás seguro de cambiar de mes y perderlos?')) return;
-    }
     if (month === 1) { setMonth(12); setYear(y => y - 1); }
     else setMonth(m => m - 1);
   };
 
   const handleMesSiguiente = () => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('Tienes cambios sin guardar. ¿Estás seguro de cambiar de mes y perderlos?')) return;
-    }
     if (month === 12) { setMonth(1); setYear(y => y + 1); }
     else setMonth(m => m + 1);
   };
 
-  const handleCellChange = (empId, fieldPath, value) => {
+  const handleCellChange = async (empId, fieldPath, value) => {
     const isQ1 = activeTab === 'q1';
+    const rawArr = isQ1 ? q1Raw : q2Raw;
     const setter = isQ1 ? setQ1Raw : setQ2Raw;
-    
-    setter(prev => prev.map(p => {
-      if (p.empleadoId !== empId) return p;
-      const updated = { ...p };
-      const parts = fieldPath.split('.');
-      if (parts.length === 1) {
-        updated[parts[0]] = value;
-      } else if (parts.length === 2) {
-        updated[parts[0]] = {
-          ...updated[parts[0]],
-          [parts[1]]: value
-        };
-      }
-      return updated;
-    }));
-    setHasUnsavedChanges(true);
-  };
 
-  const handleSaveBulk = async () => {
-    setSavingBulk(true);
+    const record = rawArr.find(p => p.empleadoId === empId);
+    if (!record) return;
+
+    const updated = { ...record };
+    const parts = fieldPath.split('.');
+    if (parts.length === 1) {
+      updated[parts[0]] = value;
+    } else if (parts.length === 2) {
+      updated[parts[0]] = {
+        ...updated[parts[0]],
+        [parts[1]]: value
+      };
+    }
+
     try {
-      const targetRaw = activeTab === 'q1' ? q1Raw : q2Raw;
-      await Promise.all(targetRaw.map(p => adapter.savePayroll(p)));
-      toast.success('Todos los cambios de nómina han sido guardados en la base de datos.');
-      setHasUnsavedChanges(false);
+      const saved = await adapter.savePayroll(updated);
+      setter(prev => prev.map(p => p.empleadoId === empId ? saved : p));
       await loadAll();
     } catch (err) {
-      console.error(err);
-      toast.error('Error al guardar los cambios de la nómina.');
-    } finally {
-      setSavingBulk(false);
+      console.error('Error saving cell change:', err);
+      toast.error('Error al guardar cambios de nómina');
     }
   };
+
 
   const handlePagar = (emp, cp, sub, restantePagar, quincena) => {
     const maxMonto = Math.max(0, Math.round(restantePagar * 100) / 100);
@@ -2352,27 +2401,11 @@ export const NominaMesTab = () => {
             Rol Quincenal — {mesLabel} {year}
           </h2>
           <p className="text-slate-500 text-xs mt-0.5">
-            Nómina dividida en primera y segunda quincena. Ingresa y edita datos directamente en las celdas y guarda los cambios de forma masiva.
+            Nómina dividida en primera y segunda quincena. Los cambios se guardan automáticamente al instante.
           </p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          {hasUnsavedChanges && (
-            <button
-              onClick={handleSaveBulk}
-              disabled={savingBulk}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center gap-1.5 cursor-pointer border border-emerald-700"
-            >
-              {savingBulk ? (
-                <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 3.75H6.912a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H15M2.25 13.5h19.5M9 3.75v3a1.5 1.5 0 0 0 1.5 1.5h3A1.5 1.5 0 0 0 15 6.75v-3M9 3.75h6M12 11.25v5m-3-3h6" />
-                </svg>
-              )}
-              Guardar Cambios de Nómina
-            </button>
-          )}
 
           <div className="flex items-center gap-2">
             <button onClick={handleMesAnterior}
@@ -2605,12 +2638,9 @@ export const NominaMesTab = () => {
             fechaInicio={activePermisoModal.fechaInicio}
             fechaFin={activePermisoModal.fechaFin}
             raw={activePermisoModal.raw}
+            adapter={adapter}
             onClose={() => deferClose(() => setActivePermisoModal(null))}
-            onConfirm={(horas, list) => {
-              handleCellChange(activePermisoModal.empleadoId, 'permisoHoras', horas);
-              handleCellChange(activePermisoModal.empleadoId, 'egresos.permisosDetalle', list);
-              setActivePermisoModal(null);
-            }}
+            onUpdate={loadAll}
           />
         </ModalPortal>
       ) : null}
