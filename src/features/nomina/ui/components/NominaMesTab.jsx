@@ -1184,31 +1184,37 @@ const QuincenaTable = ({
   );
 
   return (
-    <div className="flex flex-col w-full animate-fade-in">
+<div className="flex flex-col w-full animate-fade-in">
       <div className="bg-slate-700 text-white text-center py-2.5 font-bold text-xs tracking-wider uppercase shrink-0 rounded-t-xl">
         <span>{label}</span>
       </div>
       <div className="hidden md:block overflow-auto max-h-[520px] relative border-t border-slate-200">
         <table className="min-w-full text-xs border-collapse">
           <thead className="z-30 shadow-xs">
-            <tr className="bg-slate-100 text-xs uppercase font-bold text-slate-700 border-b border-slate-200">
-              <th className="border border-slate-200 px-2 py-3.5 text-left bg-slate-100 sticky top-0 left-0 z-40 border-r-2 border-r-slate-300 w-[200px] min-w-[200px]">Colaborador</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30">Sueldo Diario</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30">Días Lab.</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30">Total</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30 w-[75px] min-w-[75px]">Días Trab.</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30 w-[75px] min-w-[75px]">Permisos Horas</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30">Subtotal Días</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-violet-50 text-violet-950 sticky top-0 z-30">Décimo 4to</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-violet-50 text-violet-950 sticky top-0 z-30">Décimo 3ro</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-red-50 text-red-955 sticky top-0 z-30 w-[75px] min-w-[75px]">IESS</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-blue-50 text-blue-955 sticky top-0 z-30">Subtotal</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-emerald-50 text-emerald-950 sticky top-0 z-30">Ingresos</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-red-50 text-red-950 sticky top-0 z-30">Egresos</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-blue-50 text-blue-950 sticky top-0 z-30">Total Pagar</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-100 text-slate-700 sticky top-0 z-30">Abonado</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-100 text-slate-700 sticky top-0 z-30">Estado</th>
-              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-100 text-slate-700 sticky top-0 z-30 w-28">Acción</th>
+            <tr className="bg-slate-100 text-[9px] uppercase font-black text-slate-500 border-b border-slate-200">
+              <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-left bg-slate-100 sticky top-0 left-0 z-40 border-r-2 border-r-slate-300 w-[200px] min-w-[200px]">Colaborador</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-1 text-center bg-slate-50/50 tracking-wider">Tarifa Base</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-1 text-center bg-slate-50/50 tracking-wider">Asistencia / Atrasos</th>
+              <th colSpan={4} className="border border-slate-200 px-2 py-1 text-center bg-violet-100/40 text-violet-750 tracking-wider border-x border-violet-200/50">Leyes y Beneficios</th>
+              <th colSpan={3} className="border border-slate-200 px-2 py-1 text-center bg-blue-100/45 text-blue-750 tracking-wider border-r border-blue-200/50">Neto Final</th>
+              <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-center bg-emerald-100/40 text-emerald-800 font-extrabold sticky top-0 z-30">Abonado</th>
+              <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-center bg-slate-100 sticky top-0 z-30">Estado</th>
+              <th rowSpan={2} className="border border-slate-200 px-2 py-3 text-center bg-slate-100 sticky top-0 z-30 w-28">Acción</th>
+            </tr>
+            <tr className="bg-slate-100 text-[9px] uppercase font-bold text-slate-700 border-b border-slate-200">
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Sueldo Diario</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Días Lab.</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-200/30 font-extrabold text-slate-800 sticky top-0 z-30">Total</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">Días Trab.</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">Permisos Horas</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-slate-200/40 font-extrabold text-slate-850 sticky top-0 z-30">Subtotal Días</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Décimo 4to</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Décimo 3ro</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30 w-[75px] min-w-[75px]">IESS</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-violet-100/20 font-extrabold text-violet-900 sticky top-0 z-30">Subtotal</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Ingresos</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center sticky top-0 z-30">Egresos</th>
+              <th className="border border-slate-200 px-2 py-1.5 text-center bg-blue-100 text-blue-950 font-black sticky top-0 z-30 border-x border-blue-200">Total Pagar</th>
             </tr>
           </thead>
 
@@ -1268,7 +1274,7 @@ const QuincenaTable = ({
                   </td>
 
                   {/* Total Teórico */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-semibold text-xs">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-bold text-xs bg-slate-100/50">
                     {formatUSD(totalTeorico)}
                   </td>
 
@@ -1283,7 +1289,7 @@ const QuincenaTable = ({
                   </td>
 
                   {/* Subtotal Días */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-bold text-xs">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-800 font-extrabold text-xs bg-slate-200/25">
                     {formatUSD(subtotalDias)}
                   </td>
 
@@ -1308,7 +1314,7 @@ const QuincenaTable = ({
                   </td>
 
                   {/* Subtotal */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-blue-900 font-bold text-xs bg-blue-50/10">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-violet-950 font-extrabold text-xs bg-violet-100/20">
                     {formatUSD(subtotalLiq)}
                   </td>
 
@@ -1331,12 +1337,12 @@ const QuincenaTable = ({
                   </td>
 
                   {/* Total Pagar */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-blue-900 font-black text-sm bg-blue-50/30">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-blue-950 font-black text-sm bg-blue-100/80 border-x-2 border-x-blue-200">
                     {formatUSD(netoRecibir)}
                   </td>
 
                   {/* Abonado */}
-                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-semibold text-xs">
+                  <td className="border border-slate-200 text-center px-2 py-2 text-emerald-800 font-extrabold text-xs bg-emerald-50/60">
                     {formatUSD(totalAb)}
                   </td>
 
@@ -1376,18 +1382,18 @@ const QuincenaTable = ({
               </td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalSueldoDiario)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalDiasLaborables}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalTeorico)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 font-extrabold text-xs bg-slate-200/55">{formatUSD(totalTeorico)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalDiasTrabajados}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalPermisoHoras} hs</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalSubtotalDias)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100">{formatUSD(totalDecimoCuarto)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100">{formatUSD(totalDecimoTercero)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-red-800 text-xs bg-red-100">{formatUSD(totalIESS)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-100 text-blue-950 font-black text-xs">{formatUSD(totalSubtotalLiquidacion)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-green-700 text-xs bg-green-100">+{formatUSD(totalSumaIngresos)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-red-700 text-xs bg-red-100">-{formatUSD(totalSumaEgresos)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-200 text-blue-950 font-black text-xs">{formatUSD(totalNeto)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-green-150 text-green-800 font-extrabold text-xs">{formatUSD(totalAbonado)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-850 font-extrabold text-xs bg-slate-200/75">{formatUSD(totalSubtotalDias)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100/40">{formatUSD(totalDecimoCuarto)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100/40">{formatUSD(totalDecimoTercero)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalIESS)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-violet-100 text-violet-950 font-black text-xs">{formatUSD(totalSubtotalLiquidacion)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-green-700 text-xs bg-green-100/40">+{formatUSD(totalSumaIngresos)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-red-700 text-xs bg-red-100/40">-{formatUSD(totalSumaEgresos)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-200 text-blue-950 font-black text-xs border-x border-blue-300">{formatUSD(totalNeto)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-emerald-100 text-emerald-800 font-black text-xs">{formatUSD(totalAbonado)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 bg-orange-150 text-orange-850 font-extrabold text-xs">{formatUSD(totalPendiente)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-400 bg-slate-100">—</td>
             </tr>
