@@ -21,6 +21,9 @@ export class Empleado {
     this.region = data.region === 'sierra' ? 'sierra' : 'costa';
     this.decimoTerceroMensualizado = Boolean(data.decimoTerceroMensualizado);
     this.decimoCuartoMensualizado = Boolean(data.decimoCuartoMensualizado);
+    this.decimoTerceroValor = data.decimoTerceroValor !== null && data.decimoTerceroValor !== undefined ? Number(data.decimoTerceroValor) : null;
+    this.decimoCuartoValor = data.decimoCuartoValor !== null && data.decimoCuartoValor !== undefined ? Number(data.decimoCuartoValor) : null;
+    this.iessValor = data.iessValor !== null && data.iessValor !== undefined ? Number(data.iessValor) : null;
   }
 
   validate() {
