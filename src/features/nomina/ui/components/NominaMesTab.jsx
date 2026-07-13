@@ -202,10 +202,10 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
           
           <div className="flex-1 min-h-0">
             {activeTab === 'registrar' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
                 
                 {/* Columna Izquierda: Datos del Colaborador y Banco */}
-                <div className="flex flex-col justify-center items-center space-y-4 min-h-0 h-full py-1">
+                <div className="flex flex-col justify-center items-center space-y-4 py-1">
                   <div className="space-y-1.5 w-full text-center">
                     <span className="text-[10px] font-bold text-blue-650 uppercase tracking-widest block">Colaborador Destinatario</span>
                     <h4 className="text-xl font-bold text-slate-800 uppercase leading-none tracking-tight">
@@ -294,7 +294,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                 </div>
 
                 {/* Columna Derecha: Detalle de Liquidación / Abono y Selección de Caja */}
-                <div className="border border-slate-200 rounded-xl p-5 bg-slate-50/40 flex flex-col space-y-4 h-full min-h-0">
+                <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/40 flex flex-col space-y-3 shadow-xs shrink-0">
                   
                   {/* 1. Monto Total a Pagar */}
                   <div className="flex justify-between items-center py-2.5 px-4 bg-white border border-slate-200 rounded-xl shadow-xs shrink-0">
