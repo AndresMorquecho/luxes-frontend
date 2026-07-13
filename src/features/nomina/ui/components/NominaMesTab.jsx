@@ -1096,7 +1096,6 @@ const sumPendingHEInRange = (pendingList, fechaInicio, fechaFin) => {
   return map;
 };
 
-/** Sueldo bruto quincenal: contrato = mitad fija; por asistencia = prorrateo. */
 const resolveTotalBruto = (emp, cp, raw) => {
   if (cp?.totalBruto > 0) return cp.totalBruto;
   const diasLab = raw?.diasLaborables ?? cp?.diasLaborables ?? 15;
@@ -1122,43 +1121,57 @@ const QuincenaTable = ({
     () => sumPendingHEInRange(pendingOvertime, fechaInicio, fechaFin),
     [pendingOvertime, fechaInicio, fechaFin],
   );
+
   const totalSueldoDiario = useMemo(
-    () => rows.reduce((s, r) => {
-      const diasLab = r.raw?.diasLaborables ?? r.cp?.diasLaborables ?? 15;
-      return s + sueldoDiarioEnQuincena(r.emp.sueldoDiario, diasLab);
-    }, 0),
+    () => rows.reduce((s, r) => s + (r.cp?.sueldoDiario ?? 0), 0),
     [rows],
   );
-  const totalBruto = useMemo(
-    () => rows.reduce((s, r) => s + resolveTotalBruto(r.emp, r.cp, r.raw), 0),
+  const totalDiasLaborables = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.diasLaborables ?? 0), 0),
     [rows],
   );
-  const totalHE = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.horasExtras ?? 0), 0), [rows]);
-  const totalTE = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.trabajosEnEmpresa ?? 0), 0), [rows]);
-  const totalProvD3 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.provisionDecimo3 ?? 0), 0), [rows]);
-  const totalProvD4 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.provisionDecimo4 ?? 0), 0), [rows]);
-  const totalAcumD3 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.acumuladoDecimo3 ?? 0), 0), [rows]);
-  const totalAcumD4 = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.acumuladoDecimo4 ?? 0), 0), [rows]);
-  const totalFR = useMemo(() => rows.reduce((s, r) => s + (r.cp?.ingresos?.fondosReserva ?? 0), 0), [rows]);
-  const totalSumaIngresos = useMemo(() => rows.reduce((s, r) => s + (r.cp?.sumaIngresos ?? 0), 0), [rows]);
-  const totalIESS = useMemo(() => rows.reduce((s, r) => s + (r.cp?.egresos?.iess ?? 0), 0), [rows]);
-  const totalAnticipos = useMemo(() => rows.reduce((s, r) => s + (r.cp?.egresos?.anticipos ?? 0), 0), [rows]);
-  const totalMultas = useMemo(() => rows.reduce((s, r) => s + (r.cp?.egresos?.multas ?? 0), 0), [rows]);
-  const totalOtrosEgress = useMemo(() => rows.reduce((s, r) => s + (r.cp?.egresos?.dctoGenerico ?? 0), 0), [rows]);
-  const totalSumaEgresos = useMemo(() => rows.reduce((s, r) => s + (r.cp?.sumaEgresos ?? 0), 0), [rows]);
-  const totalNeto = useMemo(() => rows.reduce((s, r) => s + (r.cp?.netoRecibir ?? 0), 0), [rows]);
-  const totalNetoMens = useMemo(
-    () => rows.reduce((s, r) => {
-      const he = r.cp?.ingresos?.horasExtras ?? 0;
-      return s + splitNetoPago(r.cp?.netoRecibir ?? 0, he).netoMensualidad;
-    }, 0),
+  const totalTeorico = useMemo(
+    () => rows.reduce((s, r) => s + ((r.cp?.sueldoDiario ?? 0) * (r.cp?.diasLaborables ?? 0)), 0),
     [rows],
   );
-  const totalNetoHE = useMemo(
-    () => rows.reduce((s, r) => {
-      const he = r.cp?.ingresos?.horasExtras ?? 0;
-      return s + splitNetoPago(r.cp?.netoRecibir ?? 0, he).netoHorasExtras;
-    }, 0),
+  const totalDiasTrabajados = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.diasLaborados ?? 0), 0),
+    [rows],
+  );
+  const totalPermisoHoras = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.permisoHoras ?? 0), 0),
+    [rows],
+  );
+  const totalSubtotalDias = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.subtotalDias ?? 0), 0),
+    [rows],
+  );
+  const totalDecimoCuarto = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.decimoCuarto ?? 0), 0),
+    [rows],
+  );
+  const totalDecimoTercero = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.decimoTercero ?? 0), 0),
+    [rows],
+  );
+  const totalIESS = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.iess ?? 0), 0),
+    [rows],
+  );
+  const totalSubtotalLiquidacion = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.subtotalLiquidacion ?? 0), 0),
+    [rows],
+  );
+  const totalSumaIngresos = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.sumaIngresos ?? 0), 0),
+    [rows],
+  );
+  const totalSumaEgresos = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.sumaEgresos ?? 0), 0),
+    [rows],
+  );
+  const totalNeto = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.netoRecibir ?? 0), 0),
     [rows],
   );
   const totalAbonado = useMemo(
@@ -1166,253 +1179,186 @@ const QuincenaTable = ({
     [rows],
   );
   const totalPendiente = useMemo(
-    () => rows.reduce((s, r) => {
-      const totalB = resolveTotalBruto(r.emp, r.cp, r.raw);
-      return s + computePendientePago(r.cp, r.raw, totalB);
-    }, 0),
+    () => rows.reduce((s, r) => s + computePendientePago(r.cp, r.raw, 0), 0),
     [rows],
-  );
-  const totalHEPendiente = useMemo(
-    () => Object.values(pendingHEByEmp).reduce((s, v) => s + v, 0),
-    [pendingHEByEmp],
   );
 
   return (
-    <div className="flex flex-col w-full">
-      <div className="bg-slate-700 text-white text-center py-2.5 font-bold text-xs tracking-wider uppercase shrink-0">
+    <div className="flex flex-col w-full animate-fade-in">
+      <div className="bg-slate-700 text-white text-center py-2.5 font-bold text-xs tracking-wider uppercase shrink-0 rounded-t-xl">
         <span>{label}</span>
       </div>
       <div className="hidden md:block overflow-auto max-h-[520px] relative border-t border-slate-200">
         <table className="min-w-full text-xs border-collapse">
           <thead className="z-30 shadow-xs">
             <tr className="bg-slate-100 text-xs uppercase font-bold text-slate-700 border-b border-slate-200">
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-100 sticky top-0 left-0 z-40 border-r-2 border-r-slate-350 w-[320px] min-w-[320px] max-w-[320px]"><span>Colaborador</span></th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-slate-50 sticky top-0 z-30"><span>Sueldo Base</span></th>
-              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-violet-50 text-violet-950 sticky top-0 z-30"><span>Provisiones (no neto)</span></th>
-              <th colSpan={4} className="border border-slate-200 px-2 py-2 text-center bg-emerald-50 text-emerald-950 sticky top-0 z-30"><span>Ingresos al Neto (+)</span></th>
-              <th colSpan={3} className="border border-slate-200 px-2 py-2 text-center bg-red-50 text-red-950 sticky top-0 z-30"><span>Egresos / Descuentos (-)</span></th>
-              <th colSpan={6} className="border border-slate-200 px-2 py-2 text-center bg-blue-50 text-blue-950 sticky top-0 z-30"><span>Liquidación Final</span></th>
-              <th rowSpan={2} className="border border-slate-200 px-2 py-2.5 text-center w-28 bg-slate-100 text-slate-700 sticky top-0 z-30"><span>Acción</span></th>
-            </tr>
-            <tr className="bg-slate-50 text-[11px] uppercase font-bold text-slate-600 border-b border-slate-200">
-              <th className="border border-slate-200 px-1 py-2 text-center w-[40px] min-w-[40px] max-w-[40px] sticky top-[38px] left-0 z-40 bg-slate-100"><span>#</span></th>
-              <th className="border border-slate-200 px-2 py-2 text-left w-[190px] min-w-[190px] max-w-[190px] sticky top-[38px] left-[40px] z-40 bg-slate-100"><span>Nombres</span></th>
-              <th className="border border-slate-200 px-2 py-2 text-center w-[90px] min-w-[90px] max-w-[90px] sticky top-[38px] left-[230px] z-40 bg-slate-100 border-r-2 border-r-slate-300"><span>Contrato</span></th>
-              
-              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50 sticky top-[38px] z-30"><span>Diario</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-slate-50 sticky top-[38px] z-30"><span>Días T.</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-slate-50 sticky top-[38px] z-30"><span>Sueldo B.</span></th>
-
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900 sticky top-[38px] z-30"><span>Prov. D3</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-50 text-violet-900 sticky top-[38px] z-30"><span>Prov. D4</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950 sticky top-[38px] z-30"><span>Acum. D3</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-violet-100 text-violet-950 sticky top-[38px] z-30"><span>Acum. D4</span></th>
-
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30" title="Monto de horas extras aprobadas en el período"><span>H. Extras</span></th>
-              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30"><span>Ingresos Var.</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-emerald-50 text-emerald-900 sticky top-[38px] z-30"><span>F. Res.</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-emerald-100 text-emerald-950 font-black sticky top-[38px] z-30"><span>Total +</span></th>
-
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[65px] bg-red-50 text-red-900 sticky top-[38px] z-30"><span>IESS</span></th>
-              <th className="border border-slate-200 px-2 py-2 text-center min-w-[110px] bg-red-50 text-red-900 sticky top-[38px] z-30"><span>Egresos Varios</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-red-100 text-red-950 font-black sticky top-[38px] z-30"><span>Total -</span></th>
-
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[78px] bg-blue-50 text-blue-900 font-bold sticky top-[38px] z-30" title="Sueldo quincena y otros ingresos, menos descuentos"><span>Neto Mens.</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-emerald-50 text-emerald-900 font-bold sticky top-[38px] z-30" title="Monto neto por horas extras aprobadas"><span>Neto H.E.</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center min-w-[72px] bg-amber-50 text-amber-900 font-bold sticky top-[38px] z-30" title="Horas extras registradas, pendientes de aprobación"><span>H.E. Pend.</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-blue-100 text-blue-950 font-black sticky top-[38px] z-30"><span>Total</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-green-100 text-green-950 font-black sticky top-[38px] z-30"><span>Pagado</span></th>
-              <th className="border border-slate-200 px-1 py-2 text-center bg-orange-100 text-orange-950 font-black sticky top-[38px] z-30"><span>Pendiente</span></th>
+              <th className="border border-slate-200 px-2 py-3.5 text-left bg-slate-100 sticky top-0 left-0 z-40 border-r-2 border-r-slate-300 w-[200px] min-w-[200px]">Colaborador</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30">Sueldo Diario</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30">Días Lab.</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30">Total</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30 w-[75px] min-w-[75px]">Días Trab.</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30 w-[75px] min-w-[75px]">Permisos Horas</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-50 sticky top-0 z-30">Subtotal Días</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-violet-50 text-violet-950 sticky top-0 z-30">Décimo 4to</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-violet-50 text-violet-950 sticky top-0 z-30">Décimo 3ro</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-red-50 text-red-955 sticky top-0 z-30 w-[75px] min-w-[75px]">IESS</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-blue-50 text-blue-955 sticky top-0 z-30">Subtotal</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-emerald-50 text-emerald-950 sticky top-0 z-30">Ingresos</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-red-50 text-red-950 sticky top-0 z-30">Egresos</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-blue-50 text-blue-950 sticky top-0 z-30">Total Pagar</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-100 text-slate-700 sticky top-0 z-30">Abonado</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-100 text-slate-700 sticky top-0 z-30">Estado</th>
+              <th className="border border-slate-200 px-2 py-3.5 text-center bg-slate-100 text-slate-700 sticky top-0 z-30 w-28">Acción</th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-slate-100">
             {rows.map(({ emp, cp, raw }, idx) => {
               const hasContract = emp.tieneContrato !== false;
-              const diasLab     = raw?.diasLaborables ?? cp?.diasLaborables ?? 15;
-              const sueldo      = sueldoDiarioEnQuincena(emp.sueldoDiario, diasLab);
-              const diasT       = cp?.diasLaborados ?? raw?.diasLaborados ?? 0;
-              const totalB      = resolveTotalBruto(emp, cp, raw);
+              const contractBadge = hasContract
+                ? "bg-blue-50 text-blue-700 border-blue-100"
+                : "bg-amber-50 text-amber-700 border-amber-100";
+              const contractLabel = hasContract ? "Fijo" : "Eventual";
               
-              const totalAb     = resolveAbonado(cp, raw);
-              const cross       = crossPendientes?.find(p => p.empId === emp.id);
-              const hePendiente = pendingHEByEmp[emp.id] || 0;
-
-              // Valores de ingresos y egresos (HE = solo aprobadas, viene del backend)
-              const he          = cp?.ingresos?.horasExtras ?? raw?.ingresos?.horasExtras ?? 0;
-              const te          = raw?.ingresos?.trabajosEnEmpresa ?? 0;
-              const fr          = raw?.ingresos?.fondosReserva ?? 0;
-              const iessVal     = raw?.egresos?.iess ?? 0;
-              const ant         = raw?.egresos?.anticipos ?? 0;
-              const multas      = raw?.egresos?.multas ?? 0;
-              const otrosE      = raw?.egresos?.dctoGenerico ?? 0;
-
-              const provD3      = cp?.ingresos?.provisionDecimo3 ?? 0;
-              const provD4      = cp?.ingresos?.provisionDecimo4 ?? 0;
-              const acumD3      = cp?.ingresos?.acumuladoDecimo3 ?? 0;
-              const acumD4      = cp?.ingresos?.acumuladoDecimo4 ?? 0;
-              const pagoMensD3  = cp?.ingresos?.pagoDecimo3 ?? 0;
-              const pagoMensD4  = cp?.ingresos?.pagoDecimo4 ?? 0;
-
-              const ep          = cp?.estadoPago ?? 'PENDIENTE';
-              const badge       = ESTADO_BADGE[ep] ?? ESTADO_BADGE.PENDIENTE;
-              const subtotalNeto = cp?.netoRecibir ?? totalB;
-              const { netoMensualidad, netoHorasExtras } = splitNetoPago(subtotalNeto, he);
-              const pendientePago = computePendientePago(cp, raw, totalB);
-              const subtotalIngr = cp?.sumaIngresos ?? 0;
-              const subtotalEgr  = cp?.sumaEgresos ?? 0;
+              const sueldo = cp?.sueldoDiario ?? 0;
+              const diasLab = cp?.diasLaborables ?? 15;
+              const totalTeorico = sueldo * diasLab;
+              
+              const diasT = cp?.diasLaborados ?? 0;
+              const permisoHoras = cp?.permisoHoras ?? 0;
+              const subtotalDias = cp?.subtotalDias ?? 0;
+              const dec4 = cp?.decimoCuarto ?? 0;
+              const dec3 = cp?.decimoTercero ?? 0;
+              const iessVal = cp?.iess ?? 0;
+              const subtotalLiq = cp?.subtotalLiquidacion ?? 0;
+              
+              const sumaIngresos = cp?.sumaIngresos ?? 0;
+              const sumaEgresos = cp?.sumaEgresos ?? 0;
+              const netoRecibir = cp?.netoRecibir ?? 0;
+              
+              const totalAb = resolveAbonado(cp, raw);
+              const pendientePago = computePendientePago(cp, raw, 0);
+              const ep = cp?.estadoPago ?? 'PENDIENTE';
+              const badge = ESTADO_BADGE[ep] ?? ESTADO_BADGE.PENDIENTE;
 
               const stickyBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
 
               return (
                 <tr key={emp.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'} hover:bg-slate-100/30 transition-colors group`}>
-                  <td className={`border border-slate-200 text-center font-bold text-slate-400 px-1.5 py-2 w-[40px] min-w-[40px] max-w-[40px] sticky left-0 z-10 ${stickyBg} group-hover:bg-slate-100`}>
-                    <span>{idx + 1}</span>
-                  </td>
-                  <td className={`border border-slate-200 px-2.5 py-2 font-bold text-slate-800 uppercase text-xs w-[190px] min-w-[190px] max-w-[190px] sticky left-[40px] z-10 ${stickyBg} group-hover:bg-slate-100 truncate`} title={emp.nombre}>
-                    <span className="block truncate">{emp.nombre}</span>
-                  </td>
-                  <td className={`border border-slate-200 text-center px-1.5 py-2 w-[90px] min-w-[90px] max-w-[90px] sticky left-[230px] z-10 ${stickyBg} group-hover:bg-slate-100 border-r-2 border-r-slate-300`}>
-                    {hasContract ? (
-                      <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-emerald-100">Contrato</span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-amber-100">Por Asis</span>
-                    )}
+                  {/* Colaborador */}
+                  <td className={`border border-slate-200 px-3 py-2 w-[200px] min-w-[200px] sticky left-0 z-10 ${stickyBg} group-hover:bg-slate-100`}>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-800 uppercase text-xs truncate" title={emp.nombre}>
+                        {emp.nombre}
+                      </span>
+                      <span className={`inline-flex w-fit px-1.5 py-0.5 rounded text-[9px] font-bold border mt-1 ${contractBadge}`}>
+                        {contractLabel}
+                      </span>
+                    </div>
                   </td>
 
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-slate-50/50 text-slate-700 font-semibold text-xs">{formatUSD(sueldo)}</td>
+                  {/* Sueldo Diario */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-semibold text-xs">
+                    {formatUSD(sueldo)}
+                  </td>
+
+                  {/* Días Lab. */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-600 font-semibold text-xs">
+                    {diasLab}
+                  </td>
+
+                  {/* Total Teórico */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-semibold text-xs">
+                    {formatUSD(totalTeorico)}
+                  </td>
+
+                  {/* Días Trab. (Editable) */}
                   <td className="border border-slate-200 text-center px-1 py-1 bg-slate-50/50">
                     <CellInput value={diasT} onChange={val => onCellChange(emp.id, 'diasLaborados', val)} />
                   </td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-slate-50/80 font-bold text-slate-700 text-xs">{formatUSD(totalB)}</td>
 
-                  <td className="border border-slate-200 text-center px-1 py-1.5 bg-violet-50/30 text-violet-900 text-[10px] font-semibold" title="Provisión décimo tercero (gravado/12)">
-                    {hasContract && provD3 > 0 ? (
-                      <div className="leading-tight">
-                        <div>{formatUSD(provD3)}</div>
-                        {pagoMensD3 > 0 && <div className="text-[8px] text-violet-600">+pagado</div>}
-                      </div>
-                    ) : '—'}
-                  </td>
-                  <td className="border border-slate-200 text-center px-1 py-1.5 bg-violet-50/30 text-violet-900 text-[10px] font-semibold" title="Provisión décimo cuarto (SBU/12 prorrateado)">
-                    {hasContract && provD4 > 0 ? (
-                      <div className="leading-tight">
-                        <div>{formatUSD(provD4)}</div>
-                        {pagoMensD4 > 0 && <div className="text-[8px] text-violet-600">+pagado</div>}
-                      </div>
-                    ) : '—'}
-                  </td>
-                  <td className="border border-slate-200 text-center px-1 py-1.5 bg-violet-100/40 text-violet-950 text-[10px] font-bold">
-                    {hasContract && acumD3 > 0 ? formatUSD(acumD3) : '—'}
-                  </td>
-                  <td className="border border-slate-200 text-center px-1 py-1.5 bg-violet-100/40 text-violet-950 text-[10px] font-bold">
-                    {hasContract && acumD4 > 0 ? formatUSD(acumD4) : '—'}
+                  {/* Permisos Horas (Editable) */}
+                  <td className="border border-slate-200 text-center px-1 py-1 bg-slate-50/50">
+                    <CellInput value={permisoHoras} onChange={val => onCellChange(emp.id, 'permisoHoras', val)} />
                   </td>
 
-                  {/* Ingresos al neto */}
-                  <td
-                    className="border border-slate-200 text-center px-1.5 py-2 bg-emerald-50/50 text-emerald-800 font-bold text-xs"
-                    title="Horas extras aprobadas en Registro de Horas Extras"
-                  >
-                    {he > 0 ? formatUSD(he) : '—'}
+                  {/* Subtotal Días */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-bold text-xs">
+                    {formatUSD(subtotalDias)}
                   </td>
-                  <td className="border border-slate-200 text-center p-0.5 bg-emerald-50/5 hover:bg-emerald-50/20 transition-colors group/cell relative">
-                    <button
-                      onClick={() => onOpenIngresos(emp.id, emp.nombre)}
-                      className="w-full h-full flex items-center justify-center gap-1.5 py-2 px-1 text-xs font-semibold text-slate-800 transition-all outline-none border border-transparent rounded hover:border-emerald-200 cursor-pointer"
-                    >
-                      {te > 0 ? (
-                        <>
-                          <span className="text-emerald-700 font-bold">{formatUSD(te)}</span>
-                          <span className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-100 transition-all duration-200 flex items-center justify-center bg-emerald-600 text-white rounded-full w-4 h-4 shadow-xs">
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                            </svg>
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-slate-400 group-hover/cell:opacity-0 transition-opacity">—</span>
-                          <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-all duration-200">
-                            <span className="flex items-center justify-center bg-emerald-600 text-white rounded-full w-4 h-4 shadow-xs">
-                              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                              </svg>
-                            </span>
-                          </span>
-                        </>
-                      )}
-                    </button>
-                  </td>
-                  <td className="border border-slate-200 text-center px-0.5 py-0.5">
-                    <CellInput value={fr} onChange={val => onCellChange(emp.id, 'ingresos.fondosReserva', val)} disabled={!hasContract} />
-                  </td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-emerald-50/40 font-bold text-slate-700 text-xs">{formatUSD(subtotalIngr)}</td>
 
-                  {/* Egresos / Descuentos */}
-                  <td className="border border-slate-200 text-center px-0.5 py-0.5">
+                  {/* Décimo 4to */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-violet-900 font-semibold text-xs bg-violet-50/10">
+                    {dec4 > 0 ? formatUSD(dec4) : '—'}
+                  </td>
+
+                  {/* Décimo 3ro */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-violet-900 font-semibold text-xs bg-violet-50/10">
+                    {dec3 > 0 ? formatUSD(dec3) : '—'}
+                  </td>
+
+                  {/* IESS (Editable) */}
+                  <td className="border border-slate-200 text-center px-1 py-1 bg-red-50/5">
                     <CellInput 
-                      value={iessVal} 
+                      value={raw?.egresos?.iess ?? ''} 
                       onChange={val => onCellChange(emp.id, 'egresos.iess', val)} 
-                      placeholder={cp?.egresos?.iess ? String(cp.egresos.iess) : '0'} 
+                      placeholder={String(iessVal)} 
                       disabled={!hasContract}
                     />
                   </td>
-                  <td className="border border-slate-200 text-center p-0.5 bg-red-50/5 hover:bg-red-50/20 transition-colors group/cell relative">
-                    <button
-                      onClick={() => onOpenEgresos(emp.id, emp.nombre)}
-                      className="w-full h-full flex items-center justify-center gap-1.5 py-2 px-1 text-xs font-semibold text-slate-800 transition-all outline-none border border-transparent rounded hover:border-red-200 cursor-pointer"
+
+                  {/* Subtotal */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-blue-900 font-bold text-xs bg-blue-50/10">
+                    {formatUSD(subtotalLiq)}
+                  </td>
+
+                  {/* Ingresos (Clickable) */}
+                  <td
+                    className="border border-slate-200 text-center px-2 py-2 text-green-700 font-bold text-xs cursor-pointer hover:bg-green-50/50 transition-colors"
+                    onClick={() => onOpenIngresos(emp.id, emp.nombre)}
+                    title="Haga clic para editar ingresos"
+                  >
+                    +{formatUSD(sumaIngresos)}
+                  </td>
+
+                  {/* Egresos (Clickable) */}
+                  <td
+                    className="border border-slate-200 text-center px-2 py-2 text-red-650 font-bold text-xs cursor-pointer hover:bg-red-50/50 transition-colors"
+                    onClick={() => onOpenEgresos(emp.id, emp.nombre)}
+                    title="Haga clic para editar egresos"
+                  >
+                    -{formatUSD(sumaEgresos)}
+                  </td>
+
+                  {/* Total Pagar */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-blue-900 font-black text-sm bg-blue-50/30">
+                    {formatUSD(netoRecibir)}
+                  </td>
+
+                  {/* Abonado */}
+                  <td className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-semibold text-xs">
+                    {formatUSD(totalAb)}
+                  </td>
+
+                  {/* Estado */}
+                  <td className="border border-slate-200 text-center px-2 py-2">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${badge.cls}`}
                     >
-                      {(ant + multas + otrosE) > 0 ? (
-                        <>
-                          <span className="text-red-700 font-bold">{formatUSD(ant + multas + otrosE)}</span>
-                          <span className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-100 transition-all duration-200 flex items-center justify-center bg-red-600 text-white rounded-full w-4 h-4 shadow-xs">
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                            </svg>
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-slate-400 group-hover/cell:opacity-0 transition-opacity">—</span>
-                          <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-all duration-200">
-                            <span className="flex items-center justify-center bg-red-600 text-white rounded-full w-4 h-4 shadow-xs">
-                              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                              </svg>
-                            </span>
-                          </span>
-                        </>
-                      )}
-                    </button>
-                  </td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-red-50/40 font-bold text-red-700 text-xs">{formatUSD(subtotalEgr)}</td>
-
-                  {/* Liquidación Final */}
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-blue-50/40 font-bold text-blue-900 text-xs">
-                    {formatUSD(netoMensualidad)}
-                  </td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-emerald-50/50 font-bold text-emerald-800 text-xs">
-                    {netoHorasExtras > 0 ? formatUSD(netoHorasExtras) : '—'}
-                  </td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-amber-50/60 font-bold text-amber-800 text-xs" title="Aún no aprobado — no suma en el neto">
-                    {hePendiente > 0 ? formatUSD(hePendiente) : '—'}
-                  </td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-blue-50/30 font-black text-blue-900 text-xs">{formatUSD(subtotalNeto)}</td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-green-50/30 font-bold text-green-700 text-xs">{totalAb > 0 ? formatUSD(totalAb) : '—'}</td>
-                  <td className="border border-slate-200 text-center px-1.5 py-2 bg-orange-50/30 font-bold text-orange-700 text-xs">
-                    {pendientePago > 0 ? formatUSD(pendientePago) : '—'}
+                      {badge.label}
+                    </span>
                   </td>
 
-                  <td className="border border-slate-200 text-center px-1.5 py-1.5">
+                  {/* Acciones */}
+                  <td className="border border-slate-200 text-center px-2 py-1.5">
                     <div className="flex justify-center items-center">
                       {ep === 'PAGADO' ? (
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider border ${badge.cls} w-full justify-center`}>
-                          {badge.label}
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg font-bold text-[9px] uppercase tracking-wider border ${badge.cls} w-full justify-center`}>
+                          Liquidada
                         </span>
                       ) : (
-                        <button onClick={() => onPagar(emp, cp, subtotalNeto, pendientePago)}
-                          className="w-full py-1.5 rounded-lg bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider hover:bg-slate-700 shadow-xs transition-all cursor-pointer">
+                        <button onClick={() => onPagar(emp, cp, netoRecibir, pendientePago, quincenaNum)}
+                          className="w-full py-1 rounded-lg bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider hover:bg-slate-700 shadow-xs transition-all cursor-pointer border-0">
                           {ep === 'ABONO_PARCIAL' ? 'Abonar' : 'Pagar'}
                         </button>
                       )}
@@ -1425,33 +1371,24 @@ const QuincenaTable = ({
 
           <tfoot className="font-black text-[11px] uppercase shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             <tr className="bg-slate-100 border-t-2 border-slate-350">
-              <td colSpan={3} className="border border-slate-200 px-3 py-2.5 text-slate-700 uppercase tracking-widest sticky left-0 z-40 bg-slate-100 border-r-2 border-r-slate-300 w-[320px] min-w-[320px] max-w-[320px]">
+              <td className="border border-slate-200 px-3 py-2.5 text-slate-700 uppercase tracking-widest sticky left-0 z-45 bg-slate-100 border-r-2 border-r-slate-300 w-[200px] min-w-[200px]">
                 <span>TOTALES</span>
               </td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalSueldoDiario)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-400 bg-slate-100">—</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalBruto)}</td>
-
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-800 text-xs bg-violet-100">{formatUSD(totalProvD3)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-800 text-xs bg-violet-100">{formatUSD(totalProvD4)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-900 text-xs bg-violet-200">{formatUSD(totalAcumD3)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-900 text-xs bg-violet-200">{formatUSD(totalAcumD4)}</td>
-
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalHE)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalTE)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-emerald-800 text-xs bg-emerald-100">{formatUSD(totalFR)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 bg-emerald-200 text-emerald-950 font-black text-xs">{formatUSD(totalSumaIngresos)}</td>
-
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalDiasLaborables}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalTeorico)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalDiasTrabajados}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalPermisoHoras} hs</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalSubtotalDias)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100">{formatUSD(totalDecimoCuarto)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100">{formatUSD(totalDecimoTercero)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-red-800 text-xs bg-red-100">{formatUSD(totalIESS)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-red-800 text-xs bg-red-100">{formatUSD(totalAnticipos + totalMultas + totalOtrosEgress)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 bg-red-200 text-red-950 font-black text-xs">{formatUSD(totalSumaEgresos)}</td>
-
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-50 text-blue-900 font-extrabold text-xs">{formatUSD(totalNetoMens)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-emerald-50 text-emerald-800 font-extrabold text-xs">{formatUSD(totalNetoHE)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-amber-100 text-amber-900 font-extrabold text-xs">{formatUSD(totalHEPendiente)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-100 text-blue-900 font-extrabold text-xs">{formatUSD(totalNeto)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-green-100 text-green-700 font-extrabold text-xs">{formatUSD(totalAbonado)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 bg-orange-100 text-orange-700 font-extrabold text-xs">{formatUSD(totalPendiente)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-100 text-blue-950 font-black text-xs">{formatUSD(totalSubtotalLiquidacion)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-green-700 text-xs bg-green-100">+{formatUSD(totalSumaIngresos)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-red-700 text-xs bg-red-100">-{formatUSD(totalSumaEgresos)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-blue-200 text-blue-950 font-black text-xs">{formatUSD(totalNeto)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-green-150 text-green-800 font-extrabold text-xs">{formatUSD(totalAbonado)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 bg-orange-150 text-orange-850 font-extrabold text-xs">{formatUSD(totalPendiente)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-400 bg-slate-100">—</td>
             </tr>
           </tfoot>
@@ -1462,21 +1399,27 @@ const QuincenaTable = ({
       <div className="md:hidden border-t border-slate-200 p-3 space-y-3 max-h-[70vh] overflow-y-auto bg-slate-50/40">
         {rows.map(({ emp, cp, raw }, idx) => {
           const hasContract = emp.tieneContrato !== false;
-          const diasLab = raw?.diasLaborables ?? cp?.diasLaborables ?? 15;
-          const diasT = cp?.diasLaborados ?? raw?.diasLaborados ?? 0;
-          const totalB = resolveTotalBruto(emp, cp, raw);
+          
+          const sueldo = cp?.sueldoDiario ?? 0;
+          const diasLab = cp?.diasLaborables ?? 15;
+          const totalTeorico = sueldo * diasLab;
+          
+          const diasT = cp?.diasLaborados ?? 0;
+          const permisoHoras = cp?.permisoHoras ?? 0;
+          const subtotalDias = cp?.subtotalDias ?? 0;
+          const dec4 = cp?.decimoCuarto ?? 0;
+          const dec3 = cp?.decimoTercero ?? 0;
+          const iessVal = cp?.iess ?? 0;
+          const subtotalLiq = cp?.subtotalLiquidacion ?? 0;
+          
+          const sumaIngresos = cp?.sumaIngresos ?? 0;
+          const sumaEgresos = cp?.sumaEgresos ?? 0;
+          const netoRecibir = cp?.netoRecibir ?? 0;
+          
           const totalAb = resolveAbonado(cp, raw);
-          const hePendiente = pendingHEByEmp[emp.id] || 0;
-          const he = cp?.ingresos?.horasExtras ?? raw?.ingresos?.horasExtras ?? 0;
-          const te = raw?.ingresos?.trabajosEnEmpresa ?? 0;
-          const ant = raw?.egresos?.anticipos ?? 0;
-          const multas = raw?.egresos?.multas ?? 0;
-          const otrosE = raw?.egresos?.dctoGenerico ?? 0;
+          const pendientePago = computePendientePago(cp, raw, 0);
           const ep = cp?.estadoPago ?? 'PENDIENTE';
           const badge = ESTADO_BADGE[ep] ?? ESTADO_BADGE.PENDIENTE;
-          const subtotalNeto = cp?.netoRecibir ?? totalB;
-          const { netoMensualidad, netoHorasExtras } = splitNetoPago(subtotalNeto, he);
-          const pendientePago = computePendientePago(cp, raw, totalB);
 
           return (
             <div key={emp.id} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
@@ -1488,10 +1431,10 @@ const QuincenaTable = ({
                   </p>
                   <span className={`inline-flex mt-1 items-center px-2 py-0.5 rounded-full font-bold text-[9px] uppercase border ${
                     hasContract
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                      ? 'bg-blue-50 text-blue-700 border-blue-100'
                       : 'bg-amber-50 text-amber-700 border-amber-100'
                   }`}>
-                    {hasContract ? 'Contrato' : 'Por Asis.'}
+                    {hasContract ? 'Fijo' : 'Eventual'}
                   </span>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-lg font-bold text-[9px] uppercase border shrink-0 ${badge.cls}`}>
@@ -1501,44 +1444,69 @@ const QuincenaTable = ({
 
               <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
                 <div>
-                  <span className="text-slate-400 font-semibold block">Sueldo Bruto</span>
-                  <span className="font-bold text-slate-800">{formatUSD(totalB)}</span>
+                  <span className="text-slate-400 font-semibold block">Sueldo Diario</span>
+                  <span className="font-bold text-slate-800">{formatUSD(sueldo)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Días Lab.</span>
+                  <span className="font-bold text-slate-800">{diasLab}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Total Teórico</span>
+                  <span className="font-bold text-slate-800">{formatUSD(totalTeorico)}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold block">Días Trab.</span>
                   <CellInput value={diasT} onChange={val => onCellChange(emp.id, 'diasLaborados', val)} />
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold block">H. Extras</span>
-                  <span className="font-bold text-emerald-700">{he > 0 ? formatUSD(he) : '—'}</span>
+                  <span className="text-slate-400 font-semibold block">Permisos Horas</span>
+                  <CellInput value={permisoHoras} onChange={val => onCellChange(emp.id, 'permisoHoras', val)} />
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold block">H.E. Pend.</span>
-                  <span className="font-bold text-amber-700">{hePendiente > 0 ? formatUSD(hePendiente) : '—'}</span>
+                  <span className="text-slate-400 font-semibold block">Subtotal Días</span>
+                  <span className="font-bold text-slate-800">{formatUSD(subtotalDias)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold block">Neto Mens.</span>
-                  <span className="font-bold text-blue-900">{formatUSD(netoMensualidad)}</span>
+                  <span className="text-slate-400 font-semibold block">Décimo 4to</span>
+                  <span className="font-bold text-slate-800">{dec4 > 0 ? formatUSD(dec4) : '—'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold block">Neto H.E.</span>
-                  <span className="font-bold text-emerald-800">{netoHorasExtras > 0 ? formatUSD(netoHorasExtras) : '—'}</span>
+                  <span className="text-slate-400 font-semibold block">Décimo 3ro</span>
+                  <span className="font-bold text-slate-800">{dec3 > 0 ? formatUSD(dec3) : '—'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold block">Total Neto</span>
-                  <span className="font-black text-blue-900">{formatUSD(subtotalNeto)}</span>
+                  <span className="text-slate-400 font-semibold block">IESS Override</span>
+                  <CellInput 
+                    value={raw?.egresos?.iess ?? ''} 
+                    onChange={val => onCellChange(emp.id, 'egresos.iess', val)} 
+                    placeholder={String(iessVal)} 
+                    disabled={!hasContract}
+                  />
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Subtotal</span>
+                  <span className="font-bold text-blue-900">{formatUSD(subtotalLiq)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Ingresos Var</span>
+                  <span className="font-bold text-green-700">+{formatUSD(sumaIngresos)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Egresos Var</span>
+                  <span className="font-bold text-red-700">-{formatUSD(sumaEgresos)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Total a Pagar</span>
+                  <span className="font-black text-blue-900">{formatUSD(netoRecibir)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Abonado</span>
+                  <span className="font-bold text-green-700">{formatUSD(totalAb)}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold block">Pendiente</span>
                   <span className="font-bold text-orange-700">{pendientePago > 0 ? formatUSD(pendientePago) : '—'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block">Pagado</span>
-                  <span className="font-bold text-green-700">{totalAb > 0 ? formatUSD(totalAb) : '—'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block">Egresos Var.</span>
-                  <span className="font-bold text-red-700">{formatUSD(ant + multas + otrosE)}</span>
                 </div>
               </div>
 
@@ -1546,22 +1514,22 @@ const QuincenaTable = ({
                 <button
                   type="button"
                   onClick={() => onOpenIngresos(emp.id, emp.nombre)}
-                  className="flex-1 min-w-[80px] py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px] font-bold"
+                  className="flex-1 min-w-[80px] py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px] font-bold cursor-pointer"
                 >
-                  Ingresos {te > 0 ? formatUSD(te) : ''}
+                  Ingresos
                 </button>
                 <button
                   type="button"
                   onClick={() => onOpenEgresos(emp.id, emp.nombre)}
-                  className="flex-1 min-w-[80px] py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-[10px] font-bold"
+                  className="flex-1 min-w-[80px] py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-[10px] font-bold cursor-pointer"
                 >
                   Egresos
                 </button>
                 {ep !== 'PAGADO' && (
                   <button
                     type="button"
-                    onClick={() => onPagar(emp, cp, subtotalNeto, pendientePago)}
-                    className="flex-1 min-w-[80px] py-2 rounded-lg bg-slate-800 text-white text-[10px] font-bold uppercase"
+                    onClick={() => onPagar(emp, cp, netoRecibir, pendientePago, quincenaNum)}
+                    className="flex-1 min-w-[80px] py-2 rounded-lg bg-slate-800 text-white text-[10px] font-bold uppercase cursor-pointer"
                   >
                     {ep === 'ABONO_PARCIAL' ? 'Abonar' : 'Pagar'}
                   </button>
