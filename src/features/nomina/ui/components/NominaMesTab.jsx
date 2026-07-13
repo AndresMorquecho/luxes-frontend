@@ -145,22 +145,51 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 overflow-hidden border border-slate-200 animate-slide-up animate-duration-200"
+      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 h-[520px] overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
         onClick={(e) => e.stopPropagation()}>
         
         {/* Minimalist Header */}
-        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200/80 flex justify-between items-center relative">
-          <div>
-            <h3 className="text-sm font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2">
-              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5m-18 0a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25m-18 0v12.5A2.25 2.25 0 0 0 5.25 17h13.5A2.25 2.25 0 0 0 21 14.75V4.5M9 9h.008v.008H9V9Zm.008 3h.008v.008H9.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Z" />
-              </svg>
-              Registro de Pago / Abono
-            </h3>
-            <p className="text-slate-500 text-xs mt-1 font-semibold tracking-wide">
-              {quincenaLabel} — {emp.nombre}
-            </p>
+        <div className="bg-slate-50 px-8 py-3.5 border-b border-slate-200/80 flex justify-between items-center relative shrink-0">
+          <div className="flex items-center gap-6">
+            <div>
+              <h3 className="text-sm font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2 leading-none">
+                <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5m-18 0a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25m-18 0v12.5A2.25 2.25 0 0 0 5.25 17h13.5A2.25 2.25 0 0 0 21 14.75V4.5M9 9h.008v.008H9V9Zm.008 3h.008v.008H9.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Z" />
+                </svg>
+                Registro de Pago
+              </h3>
+              <p className="text-slate-500 text-[10px] mt-1.5 font-bold tracking-wide leading-none">
+                {quincenaLabel} — {emp.nombre}
+              </p>
+            </div>
+
+            {/* Pill tabs inside header */}
+            <div className="flex bg-slate-200/50 rounded-lg p-0.5 border border-slate-300/30 ml-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab('registrar')}
+                className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-0 ${
+                  activeTab === 'registrar'
+                    ? 'bg-white text-blue-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                }`}
+              >
+                Registrar Pago
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('historial')}
+                className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-0 ${
+                  activeTab === 'historial'
+                    ? 'bg-white text-blue-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                }`}
+              >
+                Historial ({nomina?.abonos?.length || 0})
+              </button>
+            </div>
           </div>
+          
           <button onClick={onClose} className="text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 p-1.5 rounded-full transition-all cursor-pointer bg-transparent border-0 outline-none">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -168,32 +197,8 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
           </button>
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex border-b border-slate-200/60 bg-slate-50/50 px-8">
-          <button
-            onClick={() => setActiveTab('registrar')}
-            className={`py-3.5 px-5 text-center focus:outline-none transition-all font-bold text-xs uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
-              activeTab === 'registrar'
-                ? 'border-blue-900 text-blue-900 font-extrabold'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            Registrar Pago
-          </button>
-          <button
-            onClick={() => setActiveTab('historial')}
-            className={`py-3.5 px-5 text-center focus:outline-none transition-all font-bold text-xs uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
-              activeTab === 'historial'
-                ? 'border-blue-900 text-blue-900 font-extrabold'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            Historial de Pagos ({nomina?.abonos?.length || 0})
-          </button>
-        </div>
-
-        {/* Fixed-Size Content Wrapper without vertical scrollbar */}
-        <div className="px-8 py-6 flex flex-col justify-between space-y-6">
+        {/* Content Wrapper (Fixed height inside flex-col) */}
+        <div className="px-8 py-5 flex-1 min-h-0 flex flex-col justify-between">
           
           <div className="flex-1 min-h-0">
             {activeTab === 'registrar' ? (
