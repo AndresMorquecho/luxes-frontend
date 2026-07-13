@@ -58,7 +58,11 @@ export function calcularNomina(empleado, nomina, options = {}) {
   }
 
   // 7. IESS
-  const iess = isFijo ? roundTo2(sueldoMensual * 0.0945 / 2) : 0;
+  const iess = isFijo 
+    ? (empleado.iessValor !== null && empleado.iessValor !== undefined && empleado.iessValor !== ''
+      ? roundTo2(Number(empleado.iessValor) / 2)
+      : roundTo2(sueldoMensual * 0.0945 / 2))
+    : 0;
 
   // 8. Subtotal de Liquidación
   const subtotalLiquidacion = roundTo2(subtotalDias + decimoCuarto + decimoTercero - iess);

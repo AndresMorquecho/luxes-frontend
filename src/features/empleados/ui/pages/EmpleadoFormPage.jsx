@@ -35,6 +35,7 @@ const EMPTY_FORM = {
   sueldoDiario: '',
   decimoTerceroValor: '',
   decimoCuartoValor: '',
+  iessValor: '',
   direccion: '',
   foto: '',
 };
@@ -610,6 +611,7 @@ export const EmpleadoFormPage = () => {
           roleId: emp.roleId || '',
           decimoTerceroValor: emp.decimoTerceroValor !== null && emp.decimoTerceroValor !== undefined ? Number(emp.decimoTerceroValor) : '',
           decimoCuartoValor: emp.decimoCuartoValor !== null && emp.decimoCuartoValor !== undefined ? Number(emp.decimoCuartoValor) : '',
+          iessValor: emp.iessValor !== null && emp.iessValor !== undefined ? Number(emp.iessValor) : '',
         };
         setForm(loadedForm);
         setInitialForm(loadedForm);
@@ -833,6 +835,7 @@ export const EmpleadoFormPage = () => {
         sueldoDiario: sueldoDiarioFromMensual(Number(form.sueldoDiario) || 0),
         decimoTerceroValor: form.decimoTerceroValor !== '' && form.decimoTerceroValor !== null ? Number(form.decimoTerceroValor) : null,
         decimoCuartoValor: form.decimoCuartoValor !== '' && form.decimoCuartoValor !== null ? Number(form.decimoCuartoValor) : null,
+        iessValor: form.iessValor !== '' && form.iessValor !== null ? Number(form.iessValor) : null,
       });
 
       const docsToUpload = pendingDocs.map((doc) => ({
@@ -1073,6 +1076,10 @@ export const EmpleadoFormPage = () => {
                             <div>
                               <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Décimo Cuarto Mensual ($)</label>
                               <input name="decimoCuartoValor" type="number" step="0.01" min="0" value={form.decimoCuartoValor} onChange={handleChange} placeholder="Auto ($40.16)" className="input-field" />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Descuento IESS Mensual ($)</label>
+                              <input name="iessValor" type="number" step="0.01" min="0" value={form.iessValor} onChange={handleChange} placeholder="Auto (9.45% sueldo)" className="input-field" />
                             </div>
                           </>
                         )}
