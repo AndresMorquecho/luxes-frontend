@@ -115,6 +115,9 @@ export const saveEmpleado = async (empleado) => {
     tipoContrato: empleado.tipoContrato ?? 'Fijo',
     tieneContrato: empleado.tieneContrato ?? true,
     sueldoDiario: Number(empleado.sueldoDiario) || 0,
+    decimoTerceroValor: empleado.decimoTerceroValor !== undefined && empleado.decimoTerceroValor !== null && empleado.decimoTerceroValor !== '' ? Number(empleado.decimoTerceroValor) : null,
+    decimoCuartoValor: empleado.decimoCuartoValor !== undefined && empleado.decimoCuartoValor !== null && empleado.decimoCuartoValor !== '' ? Number(empleado.decimoCuartoValor) : null,
+    iessValor: empleado.iessValor !== undefined && empleado.iessValor !== null && empleado.iessValor !== '' ? Number(empleado.iessValor) : null,
     direccion: empleado.direccion ?? '',
     foto: empleado.foto ?? '',
   };
