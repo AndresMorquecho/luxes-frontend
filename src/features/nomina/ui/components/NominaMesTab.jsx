@@ -151,13 +151,13 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
         {/* Minimalist Header */}
         <div className="bg-slate-50 px-8 py-4 border-b border-slate-200/80 flex justify-between items-center relative">
           <div>
-            <h3 className="text-xs font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <h3 className="text-sm font-extrabold tracking-wider text-slate-800 uppercase flex items-center gap-2">
+              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5m-18 0a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25m-18 0v12.5A2.25 2.25 0 0 0 5.25 17h13.5A2.25 2.25 0 0 0 21 14.75V4.5M9 9h.008v.008H9V9Zm.008 3h.008v.008H9.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Zm3-3h.008v.008h-.008V9Zm0 3h.008v.008h-.008V12Z" />
               </svg>
               Registro de Pago / Abono
             </h3>
-            <p className="text-slate-500 text-[9px] mt-0.5 font-semibold tracking-wide">
+            <p className="text-slate-500 text-xs mt-1 font-semibold tracking-wide">
               {quincenaLabel} — {emp.nombre}
             </p>
           </div>
@@ -172,7 +172,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
         <div className="flex border-b border-slate-200/60 bg-slate-50/50 px-8">
           <button
             onClick={() => setActiveTab('registrar')}
-            className={`py-3 px-5 text-center focus:outline-none transition-all font-bold text-[10px] uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
+            className={`py-3.5 px-5 text-center focus:outline-none transition-all font-bold text-xs uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
               activeTab === 'registrar'
                 ? 'border-blue-900 text-blue-900 font-extrabold'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -182,7 +182,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
           </button>
           <button
             onClick={() => setActiveTab('historial')}
-            className={`py-3 px-5 text-center focus:outline-none transition-all font-bold text-[10px] uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
+            className={`py-3.5 px-5 text-center focus:outline-none transition-all font-bold text-xs uppercase tracking-wider border-b-2 -mb-[2px] cursor-pointer ${
               activeTab === 'historial'
                 ? 'border-blue-900 text-blue-900 font-extrabold'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -193,20 +193,20 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
         </div>
 
         {/* Fixed-Size Content Wrapper without vertical scrollbar */}
-        <div className="px-8 py-5 h-[410px] overflow-hidden flex flex-col justify-between">
+        <div className="px-8 py-6 flex flex-col justify-between space-y-6">
           
           <div className="flex-1 min-h-0">
             {activeTab === 'registrar' ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
                 
                 {/* Columna Izquierda: Datos del Colaborador y Banco */}
-                <div className="flex flex-col justify-center items-center space-y-3 min-h-0 h-full py-0.5">
+                <div className="flex flex-col justify-center items-center space-y-4 min-h-0 h-full py-1">
                   <div className="space-y-1.5 w-full text-center">
-                    <span className="text-[9px] font-extrabold text-blue-650 uppercase tracking-widest block">Colaborador Destinatario</span>
-                    <h4 className="text-lg font-black text-slate-800 uppercase leading-none tracking-tight">
+                    <span className="text-[10px] font-bold text-blue-650 uppercase tracking-widest block">Colaborador Destinatario</span>
+                    <h4 className="text-xl font-bold text-slate-800 uppercase leading-none tracking-tight">
                       {emp.nombre}
                     </h4>
-                    <p className="text-[10px] text-slate-500 font-semibold leading-snug max-w-sm mx-auto">
+                    <p className="text-xs text-slate-500 font-semibold leading-snug max-w-sm mx-auto">
                       Verifique que la cuenta destino coincida con el registro impreso antes de proceder con la transferencia bancaria.
                     </p>
                   </div>
@@ -219,7 +219,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
 
                     return (
                       <div
-                        className="relative rounded-2xl p-5 shadow-lg transition-all duration-300 w-full max-w-[360px] mx-auto aspect-[1.6/1] flex flex-col justify-between overflow-hidden"
+                        className="relative rounded-2xl p-5 shadow-md transition-all duration-300 w-full max-w-[350px] mx-auto aspect-[1.63/1] flex flex-col justify-between overflow-hidden"
                         style={{ background: theme.gradient }}
                       >
                         {/* Decorative circles */}
@@ -243,27 +243,27 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[0.5px] bg-black/20"></div>
                             <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[0.5px] bg-black/20"></div>
                           </div>
-                          <div className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${light ? 'bg-[#003087]/10 text-[#003087]' : 'bg-white/10 text-white'}`}>
+                          <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${light ? 'bg-[#003087]/10 text-[#003087]' : 'bg-white/10 text-white'}`}>
                             Cuenta
                           </div>
                         </div>
 
                         {/* Bank name */}
                         <div className="relative z-10">
-                          <p className={`text-[9px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
+                          <p className={`text-[10px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
                             Institución financiera
                           </p>
-                          <p className={`text-lg font-black uppercase tracking-tight mt-0.5 ${light ? 'text-[#003087]' : 'text-white'}`}>
+                          <p className={`text-xl font-black uppercase tracking-tight mt-0.5 ${light ? 'text-[#003087]' : 'text-white'}`}>
                             {emp.banco || 'Sin banco registrado'}
                           </p>
                         </div>
 
                         {/* Account number */}
                         <div className="relative z-10">
-                          <p className={`text-[9px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
+                          <p className={`text-[10px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
                             Número de cuenta
                           </p>
-                          <p className={`text-base font-mono tracking-[0.2em] font-bold mt-1 ${light ? 'text-[#003087]' : 'text-white'}`}>
+                          <p className={`text-lg font-mono tracking-[0.2em] font-bold mt-1 ${light ? 'text-[#003087]' : 'text-white'}`}>
                             {emp.cuentaBanco ? emp.cuentaBanco.match(/.{1,4}/g).join(' ') : '—— —— ——'}
                           </p>
                         </div>
@@ -271,10 +271,10 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                         {/* Beneficiary and logo */}
                         <div className="flex items-end justify-between relative z-10">
                           <div className="flex-1 min-w-0">
-                            <p className={`text-[9px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
+                            <p className={`text-[10px] font-bold uppercase tracking-widest ${light ? 'text-[#003087]/65' : 'text-white/60'}`}>
                               Beneficiario
                             </p>
-                            <p className={`text-xs font-bold uppercase truncate mt-0.5 ${light ? 'text-[#003087]' : 'text-white'}`}>
+                            <p className={`text-sm font-bold uppercase truncate mt-0.5 ${light ? 'text-[#003087]' : 'text-white'}`}>
                               {emp.nombre}
                             </p>
                           </div>
@@ -289,40 +289,40 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                 </div>
 
                 {/* Columna Derecha: Detalle de Liquidación / Abono y Selección de Caja */}
-                <div className="border border-slate-250/50 rounded-xl p-4 bg-slate-50/50 flex flex-col justify-between space-y-2 h-full min-h-0">
+                <div className="border border-slate-200 rounded-xl p-5 bg-slate-50/40 flex flex-col space-y-4 h-full min-h-0">
                   
                   {/* 1. Monto Total a Pagar */}
-                  <div className="flex justify-between items-center py-1.5 px-3 bg-white border border-slate-200 rounded-lg shadow-xs shrink-0">
+                  <div className="flex justify-between items-center py-2.5 px-4 bg-white border border-slate-200 rounded-xl shadow-xs shrink-0">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-blue-50/80 text-blue-655 rounded-lg">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                         </svg>
                       </div>
                       <div>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Monto Total a Pagar</span>
-                        <span className="text-[10px] font-semibold text-slate-500">Neto del período</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monto Total a Pagar</span>
+                        <span className="text-xs font-semibold text-slate-500">Neto del período</span>
                       </div>
                     </div>
-                    <span className="text-base font-black text-slate-800 tracking-tight">{formatUSD(maxMonto)}</span>
+                    <span className="text-lg font-black text-slate-800 tracking-tight">{formatUSD(maxMonto)}</span>
                   </div>
 
                   {/* 2. Caja/Cuenta de Salida */}
-                  <div className="space-y-0.5 bg-white border border-slate-200 rounded-lg p-3 shadow-xs shrink-0">
+                  <div className="space-y-1.5 bg-white border border-slate-200 rounded-xl p-4 shadow-xs shrink-0">
                     <div className="flex justify-between items-center">
-                      <label className="text-[8px] font-extrabold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <label className="text-[10px] font-bold text-slate-650 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
                         </svg>
                         Origen del Pago
                       </label>
-                      {loadingMps && <span className="text-[8px] text-blue-600 animate-pulse font-bold">Cargando...</span>}
+                      {loadingMps && <span className="text-xs text-blue-600 animate-pulse font-bold">Cargando...</span>}
                     </div>
                     <select
                       value={selectedMetodoPagoId}
                       onChange={(e) => setSelectedMetodoPagoId(e.target.value)}
                       disabled={loadingMps}
-                      className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner"
                     >
                       {loadingMps ? (
                         <option value="">Cargando cuentas...</option>
@@ -339,33 +339,33 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                   </div>
 
                   {/* 3. Input de Abono a realizar */}
-                  <div className="space-y-0.5 bg-white border border-slate-200 rounded-lg p-3 shadow-xs shrink-0">
+                  <div className="space-y-1.5 bg-white border border-slate-200 rounded-xl p-4 shadow-xs shrink-0">
                     <div className="flex justify-between items-center">
-                      <label className="text-[8px] font-extrabold text-slate-655 uppercase tracking-wider">
+                      <label className="text-[10px] font-bold text-slate-655 uppercase tracking-wider">
                         {isCross ? 'Abono pendiente de otra quincena' : 'Monto a pagar hoy'}
                       </label>
-                      <span className="text-[8px] font-bold text-slate-400">USD</span>
+                      <span className="text-[10px] font-bold text-slate-400">USD</span>
                     </div>
                     <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-455 font-extrabold text-xs">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-455 font-extrabold text-xs">$</span>
                       <input type="number" step="0.01" min="0.01" max={maxMonto}
                         value={monto}
                         onChange={(e) => onMontoChange(Math.min(parseFloat(e.target.value) || 0, maxMonto))}
-                        className="w-full pl-5 pr-2.5 py-1 text-base font-black text-slate-800 border border-slate-200 rounded bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
+                        className="w-full pl-6 pr-3 py-2 text-lg font-black text-slate-800 border border-slate-200 rounded-lg bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
                     </div>
 
                     <div className="flex gap-2 pt-1.5">
                       <button
                         type="button"
                         onClick={() => setPercentage(0.5)}
-                        className="flex-1 py-1 rounded border border-slate-200 text-[8px] font-extrabold text-slate-600 bg-white hover:bg-slate-55 transition-all cursor-pointer"
+                        className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600 bg-white hover:bg-slate-50 transition-all cursor-pointer"
                       >
                         Abonar 50%
                       </button>
                       <button
                         type="button"
                         onClick={() => setPercentage(1)}
-                        className="flex-1 py-1 rounded bg-blue-50 border border-blue-200 text-[8px] font-extrabold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
+                        className="flex-1 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-[10px] font-bold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
                       >
                         Pagar Total
                       </button>
@@ -373,26 +373,26 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                   </div>
 
                   {/* 4. Saldo Pendiente que quedaría */}
-                  <div className="flex justify-between items-center py-1.5 px-3 bg-white border border-slate-200 rounded-lg shadow-xs shrink-0">
+                  <div className="flex justify-between items-center py-2.5 px-4 bg-white border border-slate-200 rounded-xl shadow-xs shrink-0">
                     <div className="flex items-center gap-1.5">
                       <div className="p-1 bg-orange-50 text-orange-600 rounded-md">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" />
                         </svg>
                       </div>
                       <div>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Saldo Restante</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Saldo Restante</span>
                       </div>
                     </div>
                     {restante <= 0.01 ? (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
                         Liquidada
                       </span>
                     ) : (
-                      <span className="text-sm font-black text-orange-600 tracking-tight">{formatUSD(restante)}</span>
+                      <span className="text-base font-black text-orange-600 tracking-tight">{formatUSD(restante)}</span>
                     )}
                   </div>
 
@@ -402,10 +402,10 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
             ) : (
               /* Historial de Pagos Tab (Fixed-Size content) */
               <div className="space-y-3 h-full flex flex-col justify-start">
-                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">Pagos y Abonos Registrados en el Período</span>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Pagos y Abonos Registrados en el Período</span>
                 <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs flex-1 max-h-[340px] overflow-y-auto">
                   <table className="w-full text-xs text-left text-slate-600">
-                    <thead className="bg-slate-50 text-[9px] font-bold text-slate-500 uppercase border-b border-slate-200 sticky top-0 z-10">
+                    <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200 sticky top-0 z-10">
                       <tr>
                         <th className="px-4 py-3">Fecha y Hora</th>
                         <th className="px-4 py-3">Registrado Por</th>
@@ -414,7 +414,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                         <th className="px-4 py-3 text-center">Acción</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
+                    <tbody className="divide-y divide-slate-100 font-medium text-xs">
                       {(!nomina || !nomina.abonos || nomina.abonos.length === 0) ? (
                         <tr>
                           <td colSpan={5} className="px-4 py-12 text-center text-slate-400 italic">
@@ -427,7 +427,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                             {/* Fecha y Hora con Icono */}
                             <td className="px-4 py-3.5">
                               <span className="inline-flex items-center gap-1.5 text-slate-500 font-mono">
-                                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                                 </svg>
                                 {ab.fechaHora || ab.fecha}
@@ -436,7 +436,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                             {/* Registrado Por con Icono */}
                             <td className="px-4 py-3.5">
                               <span className="inline-flex items-center gap-1.5 text-slate-700">
-                                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                                 </svg>
                                 {ab.usuarioNombre || 'Usuario'}
@@ -444,8 +444,8 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                             </td>
                             {/* Caja / Cuenta de Salida con Icono */}
                             <td className="px-4 py-3.5">
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-bold">
-                                <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-bold">
+                                <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
                                 </svg>
                                 {ab.metodoPagoNombre || 'No especificado'}
