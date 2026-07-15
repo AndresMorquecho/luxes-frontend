@@ -566,6 +566,13 @@
   box-shadow: 0 2px 4px rgba(13, 148, 136, 0.15);
 }
 
+.avatar-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 /* Info del usuario */
 .profile-info {
   display: flex;
@@ -781,3 +788,173 @@
 .sidebar-switch-toggle.active .sidebar-switch-handle {
   transform: translateX(16px);
 }
+
+/* ==========================================
+   Micro-animations for Sidebar Icons
+   ========================================== */
+
+/* Dashboard Grid Pulse */
+.sidebar-nav a:hover .sidebar-icon-dashboard,
+.sidebar-nav li.active > a .sidebar-icon-dashboard {
+  animation: dashboard-pulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes dashboard-pulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.12); }
+}
+
+/* Bell Ringing */
+.sidebar-nav a:hover .sidebar-icon-bell,
+.sidebar-nav li.active > a .sidebar-icon-bell {
+  animation: bell-ring 0.6s ease-in-out infinite alternate;
+  transform-origin: top center;
+}
+@keyframes bell-ring {
+  0% { transform: rotate(-8deg); }
+  100% { transform: rotate(8deg); }
+}
+
+/* Payroll Dollar Bounce */
+.sidebar-submenu-toggle:hover .sidebar-icon-dollar,
+.sidebar-nav a:hover .sidebar-icon-dollar,
+.sidebar-nav li.active > a .sidebar-icon-dollar {
+  animation: dollar-bounce 0.8s ease-in-out infinite alternate;
+}
+@keyframes dollar-bounce {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-3px); }
+}
+
+/* Proformas Document Slide */
+.sidebar-nav a:hover .sidebar-icon-doc,
+.sidebar-nav li.active > a .sidebar-icon-doc {
+  animation: doc-slide 0.8s ease-in-out infinite alternate;
+}
+@keyframes doc-slide {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-2px); }
+}
+
+/* Inventory Box Bounce */
+.sidebar-submenu-toggle:hover .sidebar-icon-box,
+.sidebar-nav a:hover .sidebar-icon-box,
+.sidebar-nav li.active > a .sidebar-icon-box {
+  animation: box-bounce 0.8s ease-in-out;
+}
+@keyframes box-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.08); }
+}
+
+/* Print Shop Printer Wiggle */
+.sidebar-submenu-toggle:hover .sidebar-icon-printer,
+.sidebar-nav a:hover .sidebar-icon-printer,
+.sidebar-nav li.active > a .sidebar-icon-printer {
+  animation: printer-bounce 0.8s ease-in-out;
+}
+@keyframes printer-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: translateY(-2px) scale(1.05); }
+}
+
+/* Expenses Card Wiggle */
+.sidebar-nav a:hover .sidebar-icon-card,
+.sidebar-nav li.active > a .sidebar-icon-card {
+  animation: card-wiggle 0.6s ease-in-out;
+}
+@keyframes card-wiggle {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(-5deg); }
+  70% { transform: rotate(5deg); }
+}
+
+/* Finance Coin Rotate/Pulse */
+.sidebar-submenu-toggle:hover .sidebar-icon-finance,
+.sidebar-nav a:hover .sidebar-icon-finance,
+.sidebar-nav li.active > a .sidebar-icon-finance {
+  animation: finance-spin 1.2s ease-in-out infinite alternate;
+}
+@keyframes finance-spin {
+  0% { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1.1) rotate(15deg); }
+}
+
+/* Tasks Clipboard Bounce */
+.sidebar-nav a:hover .sidebar-icon-tasks,
+.sidebar-nav li.active > a .sidebar-icon-tasks {
+  animation: tasks-bounce 0.6s ease-in-out;
+}
+@keyframes tasks-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* Projects Briefcase Bounce */
+.sidebar-nav a:hover .sidebar-icon-briefcase,
+.sidebar-nav li.active > a .sidebar-icon-briefcase {
+  animation: briefcase-bounce 0.8s ease-in-out;
+}
+@keyframes briefcase-bounce {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.06) translateY(-2px); }
+}
+
+/* Installations Wrench Wiggle */
+.sidebar-nav a:hover .sidebar-icon-install,
+.sidebar-nav li.active > a .sidebar-icon-install {
+  animation: install-wiggle 0.8s ease-in-out;
+  transform-origin: bottom left;
+}
+@keyframes install-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-12deg); }
+  70% { transform: rotate(12deg); }
+}
+
+/* Purchases Bag Wasp */
+.sidebar-submenu-toggle:hover .sidebar-icon-bag,
+.sidebar-nav a:hover .sidebar-icon-bag,
+.sidebar-nav li.active > a .sidebar-icon-bag {
+  animation: bag-wiggle 0.8s ease-in-out;
+  transform-origin: top center;
+}
+@keyframes bag-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+/* Sales Cart Roll */
+.sidebar-nav a:hover .sidebar-icon-cart,
+.sidebar-nav li.active > a .sidebar-icon-cart {
+  animation: cart-roll 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+@keyframes cart-roll {
+  0% { transform: translateX(0); }
+  30% { transform: translateX(-3px) rotate(-4deg); }
+  70% { transform: translateX(3px) rotate(4deg); }
+  100% { transform: translateX(0); }
+}
+
+/* Relations Users Bounce */
+.sidebar-submenu-toggle:hover .sidebar-icon-users,
+.sidebar-nav a:hover .sidebar-icon-users,
+.sidebar-nav li.active > a .sidebar-icon-users {
+  animation: users-bounce 0.8s ease-in-out;
+}
+@keyframes users-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: translateY(-3px) scale(1.04); }
+}
+
+/* Configurations Gear Spin */
+.sidebar-submenu-toggle:hover .sidebar-icon-gear,
+.sidebar-nav a:hover .sidebar-icon-gear,
+.sidebar-nav li.active > a .sidebar-icon-gear {
+  animation: gear-spin 3s linear infinite;
+}
+@keyframes gear-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+

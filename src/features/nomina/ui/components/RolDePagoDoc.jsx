@@ -117,28 +117,16 @@ export const RolDePagoDoc = ({ empleado, calculatedPayroll, activePeriod }) => {
                   <span>Sueldo Bruto ({calculatedPayroll.diasLaborados} días):</span>
                   <span className="font-semibold">{formatUSD(calculatedPayroll.totalBruto)}</span>
                 </div>
-                {(calculatedPayroll.ingresos.provisionDecimo3 > 0 || calculatedPayroll.ingresos.acumuladoDecimo3 > 0) && (
-                  <div className="flex justify-between text-violet-800 text-xs border-t border-dashed border-violet-200 pt-2 mt-2">
-                    <span>Prov. Décimo 3 (no neto) / Acum.:</span>
-                    <span>{formatUSD(calculatedPayroll.ingresos.provisionDecimo3)} / {formatUSD(calculatedPayroll.ingresos.acumuladoDecimo3)}</span>
-                  </div>
-                )}
-                {(calculatedPayroll.ingresos.provisionDecimo4 > 0 || calculatedPayroll.ingresos.acumuladoDecimo4 > 0) && (
-                  <div className="flex justify-between text-violet-800 text-xs">
-                    <span>Prov. Décimo 4 (no neto) / Acum.:</span>
-                    <span>{formatUSD(calculatedPayroll.ingresos.provisionDecimo4)} / {formatUSD(calculatedPayroll.ingresos.acumuladoDecimo4)}</span>
-                  </div>
-                )}
-                {calculatedPayroll.ingresos.pagoDecimo3 > 0 && (
+                {calculatedPayroll.decimoTercero > 0 && (
                   <div className="flex justify-between">
-                    <span>Décimo 3 (mensualizado):</span>
-                    <span>{formatUSD(calculatedPayroll.ingresos.pagoDecimo3)}</span>
+                    <span>Décimo Tercero:</span>
+                    <span>{formatUSD(calculatedPayroll.decimoTercero)}</span>
                   </div>
                 )}
-                {calculatedPayroll.ingresos.pagoDecimo4 > 0 && (
+                {calculatedPayroll.decimoCuarto > 0 && (
                   <div className="flex justify-between">
-                    <span>Décimo 4 (mensualizado):</span>
-                    <span>{formatUSD(calculatedPayroll.ingresos.pagoDecimo4)}</span>
+                    <span>Décimo Cuarto:</span>
+                    <span>{formatUSD(calculatedPayroll.decimoCuarto)}</span>
                   </div>
                 )}
                 {calculatedPayroll.ingresos.horasExtras > 0 && (
@@ -162,7 +150,14 @@ export const RolDePagoDoc = ({ empleado, calculatedPayroll, activePeriod }) => {
               </div>
               <div className="bg-gray-50 border-t border-gray-800 px-3 py-2 font-bold flex justify-between">
                 <span>Total Ingresos (+):</span>
-                <span className="text-green-800">{formatUSD(calculatedPayroll.totalBruto + calculatedPayroll.sumaIngresos)}</span>
+                <span className="text-green-800">
+                  {formatUSD(
+                    calculatedPayroll.totalBruto +
+                      (calculatedPayroll.decimoTercero || 0) +
+                      (calculatedPayroll.decimoCuarto || 0) +
+                      calculatedPayroll.sumaIngresos
+                  )}
+                </span>
               </div>
             </div>
 
@@ -172,10 +167,10 @@ export const RolDePagoDoc = ({ empleado, calculatedPayroll, activePeriod }) => {
                 Egresos / Descuentos
               </div>
               <div className="p-3 space-y-2.5 flex-1">
-                {calculatedPayroll.egresos.iess > 0 && (
+                {calculatedPayroll.iess > 0 && (
                   <div className="flex justify-between">
                     <span>Aporte Personal IESS (9.45%):</span>
-                    <span>{formatUSD(calculatedPayroll.egresos.iess)}</span>
+                    <span>{formatUSD(calculatedPayroll.iess)}</span>
                   </div>
                 )}
                 {calculatedPayroll.egresos.extensionConyuge > 0 && (
@@ -196,10 +191,10 @@ export const RolDePagoDoc = ({ empleado, calculatedPayroll, activePeriod }) => {
                     <span>{formatUSD(calculatedPayroll.egresos.anticipos)}</span>
                   </div>
                 )}
-                {calculatedPayroll.egresos.dctoHorasNoLaboradas > 0 && (
+                {calculatedPayroll.valorPermisoHoras > 0 && (
                   <div className="flex justify-between">
                     <span>Dcto. Horas No Laboradas:</span>
-                    <span>{formatUSD(calculatedPayroll.egresos.dctoHorasNoLaboradas)}</span>
+                    <span>{formatUSD(calculatedPayroll.valorPermisoHoras)}</span>
                   </div>
                 )}
                 {calculatedPayroll.egresos.multas > 0 && (
@@ -229,7 +224,13 @@ export const RolDePagoDoc = ({ empleado, calculatedPayroll, activePeriod }) => {
               </div>
               <div className="bg-gray-50 border-t border-gray-800 px-3 py-2 font-bold flex justify-between">
                 <span>Total Egresos (-):</span>
-                <span className="text-red-800">{formatUSD(calculatedPayroll.sumaEgresos)}</span>
+                <span className="text-red-800">
+                  {formatUSD(
+                    (calculatedPayroll.iess || 0) +
+                      (calculatedPayroll.valorPermisoHoras || 0) +
+                      calculatedPayroll.sumaEgresos
+                  )}
+                </span>
               </div>
             </div>
 

@@ -32,6 +32,11 @@
   min-width: 0;
 }
 
+.layout-main:has(.co-compras-page),
+.layout-main:has(.co-tareas-page) {
+  background-color: #f8f9fc;
+}
+
 .sidebar-overlay {
   position: fixed;
   top: 0;
@@ -273,6 +278,15 @@
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
+  }
+
+  .layout-container.mobile-taller-layout .layout-main:has(.co-recepcion-page),
+  .layout-container.mobile-taller-layout .layout-main:has(.co-compras-page),
+  .layout-container.mobile-taller-layout .layout-main:has(.co-tareas-page) {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: calc(64px + 0.75rem) !important;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
   }
 
   .layout-container.mobile-taller-layout .layout-main:has(.nt-page) {

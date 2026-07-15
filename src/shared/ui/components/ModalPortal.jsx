@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect, useRef } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 function getRoot(id) {
@@ -12,35 +12,6 @@ export function getModalRoot() {
 
 export function getOverlayRoot() {
   return getRoot('overlay-root');
-}
-
-/**
- * Contenedor DOM aislado por instancia. El cleanup es síncrono en useLayoutEffect
- * (sin requestAnimationFrame) para no competir con el unmount del portal de React.
- */
-function usePortalContainer(rootId) {
-  const containerRef = useRef(null);
-  const [ready, setReady] = useState(false);
-
-  useLayoutEffect(() => {
-    const root = getRoot(rootId);
-    if (!root) return undefined;
-
-    const el = document.createElement('div');
-    el.dataset.portalHost = 'true';
-    root.appendChild(el);
-    containerRef.current = el;
-    setReady(true);
-
-    return () => {
-      if (el.parentNode === root) {
-        root.removeChild(el);
-      }
-      containerRef.current = null;
-    };
-  }, [rootId]);
-
-  return ready ? containerRef.current : null;
 }
 
 /**
@@ -61,18 +32,21 @@ export function useModalVisibility(isOpen) {
   return visible;
 }
 
+/**
+ * Portal directo a #modal-root / #overlay-root.
+ * No crea hosts intermedios: evita la carrera removeChild de React 19
+ * entre el unmount del portal y el cleanup de un contenedor dinámico.
+ */
 export function ModalPortal({ open = true, children }) {
-  const container = usePortalContainer('modal-root');
-
-  if (!container || !open || children == null || children === false) return null;
-  return createPortal(children, container);
+  const root = getModalRoot();
+  if (!root || !open || children == null || children === false) return null;
+  return createPortal(children, root);
 }
 
 export function OverlayPortal({ open = true, children }) {
-  const container = usePortalContainer('overlay-root');
-
-  if (!container || !open || children == null || children === false) return null;
-  return createPortal(children, container);
+  const root = getOverlayRoot();
+  if (!root || !open || children == null || children === false) return null;
+  return createPortal(children, root);
 }
 
 /**

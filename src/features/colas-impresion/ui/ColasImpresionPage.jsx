@@ -10,6 +10,8 @@ import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../
 import { createOrden } from '../../compras/application/comprasService';
 import { toast } from '../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../shared/ui/components/ConfirmModal';
+import { isAdminUser } from '../../../shared/utils/userRoleHelpers.js';
+import { User, Folder, Package, Crop, FileText, Clock, List, Printer, Monitor, Play, Pause, ArrowUp, Download, Trash2, XCircle, Tag, Check } from 'lucide-react';
 
 const renderPriorityBadge = (urgency) => {
   let bgColor = '#f1f5f9';
@@ -67,6 +69,91 @@ const renderPriorityBadge = (urgency) => {
     </span>
   );
 };
+
+function TvClock() {
+  const [time, setTime] = React.useState(new Date());
+  React.useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const dateStr = time.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase().replace('.', '');
+  const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const [hhmm, ampm] = timeStr.split(' ');
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <span style={{ fontSize: '1rem', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em' }}>
+        {dateStr}
+      </span>
+      <div style={{ width: '1px', height: '24px', backgroundColor: '#cbd5e1' }} />
+      <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', display: 'inline-flex', alignItems: 'baseline', gap: '0.2rem' }}>
+        {hhmm} <span style={{ fontSize: '1rem', fontWeight: 600, color: '#64748b' }}>{ampm}</span>
+      </span>
+    </div>
+  );
+}
+
+function TvElapsedTimer({ activeJob }) {
+  const [elapsedStr, setElapsedStr] = React.useState('00:00:00');
+
+  React.useEffect(() => {
+    if (!activeJob || activeJob.status !== 'Imprimiendo') {
+      setElapsedStr('00:00:00');
+      return;
+    }
+
+    const getStartTime = () => {
+      if (activeJob.startedAt) return new Date(activeJob.startedAt);
+      if (activeJob.fechaInicio) return new Date(activeJob.fechaInicio);
+      
+      if (typeof activeJob.startTime === 'string' && activeJob.startTime.includes(':')) {
+        const match = activeJob.startTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+        if (match) {
+          let [_, hours, minutes, ampm] = match;
+          hours = parseInt(hours, 10);
+          minutes = parseInt(minutes, 10);
+          if (ampm) {
+            if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+            if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+          }
+          const date = new Date();
+          date.setHours(hours, minutes, 0, 0);
+          if (date.getTime() > Date.now()) {
+            date.setDate(date.getDate() - 1);
+          }
+          return date;
+        }
+      }
+      
+      if (activeJob.createdAt) return new Date(activeJob.createdAt);
+      return new Date(Date.now() - 12 * 60 * 1000); // 12 mins fallback like mockup
+    };
+
+    const start = getStartTime();
+
+    const updateTimer = () => {
+      const diffMs = Math.max(0, Date.now() - start.getTime());
+      const totalSecs = Math.floor(diffMs / 1000);
+      const hrs = Math.floor(totalSecs / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
+      
+      const pad = (num) => String(num).padStart(2, '0');
+      setElapsedStr(`${pad(hrs)}:${pad(mins)}:${pad(secs)}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [activeJob]);
+
+  return (
+    <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#1d4ed8', fontFamily: 'monospace', lineHeight: 1 }}>
+      {elapsedStr}
+    </span>
+  );
+}
 
 const parseJobFiles = (job) => {
   if (!job || !job.fileUrl) return [];
@@ -150,17 +237,20 @@ export const ColasImpresionPage = () => {
   // Shopping Cart state
   const [cartItems, setCartItems] = useState([]);
 
-  const [isTvMode, setIsTvMode] = useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = isAdminUser(user);
+
+  const [isTvMode, setIsTvMode] = useState(isAdmin);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !isAdmin) {
         setIsTvMode(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isAdmin]);
 
   // Smart calculations for roll width consumption
   const calculateSuggestedQuantity = (material, width, height, copies) => {
@@ -519,644 +609,464 @@ export const ColasImpresionPage = () => {
 
   return (
     <div className="colas-impresion-container">
-      {/* Header section */}
-      <div className="colas-header-row">
-        <div className="colas-header-left">
-          <div className="colas-header-icon-box">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" className="colas-header-icon">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.82l-.24 2.24H4.5a2.25 2.25 0 00-2.25 2.25v2.25c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-2.25a2.25 2.25 0 00-2.25-2.25h-1.98l-.24-2.24m-11.28 0H18.72m-12 0h12m-12 0l1.24-11.13A2.25 2.25 0 018.21 2.25h7.58a2.25 2.25 0 012.23 1.99L19.28 13.82m-12 0h12" />
-            </svg>
-          </div>
-          <div className="colas-title-group">
-            <h1>Colas de Impresión</h1>
-            <p>Supervisión informativa y administración del estado de los trabajos en cola.</p>
-          </div>
-        </div>
-
-        {/* Navigation Buttons */}
-        <div className="colas-header-navigation">
-          <button 
-            type="button" 
-            className={`colas-header-nav-btn ${activeTab === 'cola' ? 'active' : 'inactive'}`}
-            onClick={() => setActiveTab('cola')}
-          >
-            Cola de Impresión
-          </button>
-          <button 
-            type="button" 
-            className={`colas-header-nav-btn ${activeTab === 'historial' ? 'active' : 'inactive'}`}
-            onClick={() => setActiveTab('historial')}
-          >
-            Historial de Impresión
-          </button>
-        </div>
-      </div>
-
-      {activeTab === 'cola' ? (
+      {!isAdmin && (
         <>
-          {/* KPI Cards section */}
-          <div className="colas-kpi-grid">
-            <div className="colas-kpi-card">
-              <span className="colas-kpi-title">Trabajo Seleccionado</span>
-              <span className="colas-kpi-value" style={{ fontSize: '1.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--color-primary-blue)' }}>
-                {activeJob ? activeJob.name : "Ninguno"}
-              </span>
-              <span className="colas-kpi-desc">
-                {activeJob ? `Cliente: ${activeJob.client || 'Sin cliente'} (${activeJob.status})` : "Elige un nuevo documento"}
-              </span>
+          {/* Header section */}
+          <div className="colas-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1d4ed8', flexShrink: 0 }}>
+                <Printer size={24} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Colas de Impresión</h1>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>Supervisión informativa y administración del estado de los trabajos en cola.</p>
+              </div>
             </div>
 
-            <div className="colas-kpi-card">
-              <span className="colas-kpi-title">Documentos en Espera</span>
-              <span className="colas-kpi-value">{queue.length}</span>
-              <span className="colas-kpi-desc">Pendientes en cola</span>
-            </div>
-
-            <div className="colas-kpi-card">
-              <span className="colas-kpi-title">Trabajos Procesados</span>
-              <span className="colas-kpi-value" style={{ color: '#0d9488' }}>
-                {completedJobs.length}
-              </span>
-              <span className="colas-kpi-desc">Completados / Cancelados</span>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <button 
+                onClick={() => setIsTvMode(true)} 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.backgroundColor = '#1e40af'}
+                onMouseOut={e => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+              >
+                <Monitor size={16} /> VISTA TV
+              </button>
+              <button 
+                onClick={() => setActiveTab(activeTab === 'cola' ? 'historial' : 'cola')} 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                onMouseOut={e => e.currentTarget.style.backgroundColor = '#fff'}
+              >
+                <Clock size={16} /> {activeTab === 'cola' ? 'HISTORIAL DE IMPRESIÓN' : 'VER COLA DE IMPRESIÓN'}
+              </button>
             </div>
           </div>
 
-          {/* Active Job (Full Width) */}
-          <div className="active-job-section-full">
-            {activeJob ? (
-              <div className={`active-job-card status-${activeJob.status.toLowerCase()}`}>
-                <div className="active-job-header">
-                  <div className="active-job-header-title">
-                    <span className="active-job-eyebrow">Trabajo en Proceso</span>
-                    <h3 className="active-job-file-name">{activeJob.name}</h3>
-                  </div>
+          {activeTab === 'cola' ? (
+            <>
+              {/* Active Job (Full Width) */}
+              <div className="active-job-section-full" style={{ marginBottom: '1.25rem' }}>
+                {activeJob ? (
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                          TRABAJO EN PROCESO
+                        </span>
+                        <h3 style={{ fontSize: '2rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>{activeJob.name}</h3>
+                      </div>
 
-                  <div className="active-job-header-badges" style={{ gap: '0.75rem' }}>
-                    <button 
-                      type="button" 
-                      onClick={() => setIsTvMode(true)}
-                      className="btn-control-premium"
-                      style={{ 
-                        padding: '0.2rem 0.5rem', 
-                        fontSize: '0.7rem', 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '0.25rem', 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #cbd5e1',
-                        color: '#334155',
-                        borderRadius: '6px',
-                        cursor: 'pointer'
-                      }}
-                      title="Pantalla Completa / Modo TV"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ width: '12px', height: '12px' }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v6.5m0-6.5h6.5m-6.5 0L9 9M3.75 20.25v-6.5m0 6.5h6.5m-6.5 0L9 15M20.25 3.75v6.5m0-6.5h-6.5m6.5 0L15 9m5.25 11.25v-6.5m0 6.5h-6.5m6.5 0L15 15" />
-                      </svg>
-                      Modo TV
-                    </button>
-                    {renderPriorityBadge(activeJob.urgency || 'Media')}
-                    <div className="status-badge-container">
-                      {activeJob.status === "Listo" ? (
-                        <div className="active-badge-ready">
-                          <span className="ready-dot"></span>
-                          <span>Listo para Iniciar</span>
-                        </div>
-                      ) : activeJob.status === "Imprimiendo" ? (
-                        <div className="active-badge-pulse">
-                          <span className="pulse-dot"></span>
-                          <span>Imprimiendo</span>
-                        </div>
-                      ) : activeJob.status === "Pausado" ? (
-                        <div className="active-badge-paused">
-                          <span className="pause-dot"></span>
-                          <span>Pausado</span>
-                        </div>
-                      ) : (
-                        <div className="active-badge-completed">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => setIsTvMode(true)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#fff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '8px', padding: '0.45rem 0.85rem', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                          onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                          onMouseOut={e => e.currentTarget.style.backgroundColor = '#fff'}
+                        >
+                          <Monitor size={14} /> Modo TV
+                        </button>
+                        {renderPriorityBadge(activeJob.urgency || 'Media')}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', border: '1px solid rgba(29, 78, 216, 0.2)', backgroundColor: 'rgba(239, 246, 255, 0.9)', color: '#1e40af' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#1d4ed8', display: 'inline-block' }}></span>
                           <span>{activeJob.status}</span>
                         </div>
-                      )}
+                      </div>
+                    </div>
+
+                    {/* Body contents */}
+                    <div style={{ display: 'flex', gap: '2.5rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
+                      {/* Left side: Preview Image */}
+                      <div style={{ width: '260px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {(() => {
+                          const files = parseJobFiles(activeJob);
+                          const firstImage = files.find(f => isImageFile(f.name, f.url));
+                          if (firstImage) {
+                            return (
+                              <ProjectMediaImage 
+                                archivo={firstImage} 
+                                alt={activeJob.name} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', aspectRatio: '4/3' }} 
+                              />
+                            );
+                          }
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '0.5rem', padding: '2rem 0' }}>
+                              <Package size={48} strokeWidth={1.5} />
+                              <span style={{ fontSize: '0.85rem' }}>Sin vista previa</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Center side: Details Grid */}
+                      <div style={{ flex: 1, minWidth: '300px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', alignContent: 'space-between' }}>
+                        {/* Column 1 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ backgroundColor: '#f8fafc', padding: '0.45rem', borderRadius: '8px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
+                              <User size={15} strokeWidth={2.2} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cliente</span>
+                              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{activeJob.client || 'Sin cliente'}</span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ backgroundColor: '#f8fafc', padding: '0.45rem', borderRadius: '8px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
+                              <Folder size={15} strokeWidth={2.2} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Proyecto</span>
+                              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{activeJob.proyectoNombre || (activeJob.createdAt ? new Date(activeJob.createdAt).toLocaleDateString('es-EC') : '—')}</span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ backgroundColor: '#f8fafc', padding: '0.45rem', borderRadius: '8px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
+                              <Package size={15} strokeWidth={2.2} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Material</span>
+                              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{activeJob.format || 'Sin material'}</span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ backgroundColor: '#f8fafc', padding: '0.45rem', borderRadius: '8px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
+                              <Crop size={15} strokeWidth={2.2} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Medidas</span>
+                              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{activeJob.width || 1.0}m x {activeJob.height || 1.0}m</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Column 2 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', justifyContent: 'flex-start' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ backgroundColor: '#f8fafc', padding: '0.45rem', borderRadius: '8px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
+                              <FileText size={15} strokeWidth={2.2} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cantidad</span>
+                              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'}</span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ backgroundColor: '#f8fafc', padding: '0.45rem', borderRadius: '8px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
+                              <Crop size={15} strokeWidth={2.2} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Área</span>
+                              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{((Number(activeJob.width) || 1.0) * (Number(activeJob.height) || 1.0)).toFixed(2)}m²</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right side: Operator Card Block */}
+                      <div style={{ width: '280px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontSize: '0.85rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {(activeJob.responsible || 'OP').substring(0, 2).toUpperCase()}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em' }}>OPERADOR</span>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{activeJob.responsible || 'Sin asignar'}</span>
+                          </div>
+                        </div>
+                        <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em' }}>HORA DE INICIO</span>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155', marginTop: '0.15rem' }}>{activeJob.startTime || 'Sin iniciar'}</span>
+                        </div>
+                        <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>TIEMPO TRANSCURRIDO</span>
+                          <TvElapsedTimer activeJob={activeJob} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Specs and Download block */}
+                    <div style={{ display: 'flex', gap: '2.5rem', flexWrap: 'wrap', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem', marginTop: '1.25rem' }}>
+                      {/* Archivo del Trabajo */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: '1 1 300px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Archivo del Trabajo</span>
+                        {parseJobFiles(activeJob).map((f, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem 0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                              <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {isImageFile(f.name, f.url) ? (
+                                  <ProjectMediaImage archivo={f} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <span style={{ fontSize: '10px' }}>📄</span>
+                                )}
+                              </div>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                            </div>
+                            <a href={f.url || '#'} download={f.name} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '0.35rem 0.65rem', fontSize: '0.75rem', fontWeight: 700 }}>
+                              <Download size={12} /> Descargar
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Especificaciones de Impresión */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: '1 1 300px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Especificaciones de Impresión</span>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.4rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                            <Tag size={12} /> {activeJob.format}
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.4rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                            <Crop size={12} /> {activeJob.width || 1.0}m x {activeJob.height || 1.0}m
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.4rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                            <FileText size={12} /> {activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions Row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        {activeJob.status === "Listo" ? (
+                          <>
+                            <button 
+                              type="button" 
+                              onClick={handleStartActiveJob}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', border: '1px solid #1d4ed8', color: '#1d4ed8', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                            >
+                              <Play size={14} /> Iniciar Impresión
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleReturnToQueue}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                            >
+                              Devolver a Cola
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              type="button" 
+                              onClick={handleTogglePause}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', border: '1px solid #1d4ed8', color: '#1d4ed8', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                            >
+                              {activeJob.status === "Imprimiendo" ? (
+                                <>
+                                  <Pause size={14} /> Pausar Impresión
+                                </>
+                              ) : (
+                                <>
+                                  <Play size={14} /> Reanudar Impresión
+                                </>
+                              )}
+                            </button>
+
+                            <button 
+                              type="button" 
+                              onClick={handleCompleteActiveJob}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                            >
+                              <Check size={14} /> Marcar como Completado
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      <button 
+                        type="button" 
+                        onClick={handleOpenCancelModal}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                        onMouseOver={e => e.currentTarget.style.backgroundColor = '#fecaca'}
+                        onMouseOut={e => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                      >
+                        <XCircle size={14} /> Cancelar Impresión
+                      </button>
                     </div>
                   </div>
+                ) : (
+                  <div className="active-job-empty-placeholder" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '48px', height: '48px', color: '#94a3b8' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                    </svg>
+                    <span className="active-job-empty-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#334155' }}>Elige un nuevo documento</span>
+                    <p className="active-job-empty-desc" style={{ fontSize: '0.9rem', color: '#64748b', maxWidth: '480px', margin: 0 }}>
+                      No hay ningún trabajo de impresión activo en este momento. Por favor, selecciona un documento de la cola de impresión que se encuentra a continuación para iniciar el proceso.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Queue Table Card */}
+              <div className="queue-section-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)' }}>
+                <div className="queue-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Documentos en Cola</h3>
+                  <span className="queue-count-badge" style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>{queue.length} en espera</span>
                 </div>
 
-                <div className="active-job-body">
-                  <div className="active-job-grid">
-                    
-                    {/* Panel Izquierdo: Identidad de Archivo y Specs */}
-                    <div className="active-job-left-panel">
-                      
-                      {/* Document Meta Row */}
-                      {/* Document Meta Row */}
-                      <div className="active-job-file-details" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div className="file-icon-wrapper">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" className="file-pdf-icon">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                            </svg>
-                          </div>
-                          <div className="file-info-text">
-                            <span className="client-label" style={{ display: 'block' }}>Cliente: <strong>{activeJob.client || 'Corporación Luxes'}</strong></span>
-                            {activeJob.proyectoNombre && (
-                              <span className="project-label" style={{ fontSize: '0.825rem', color: '#7c3aed', fontWeight: 700, display: 'block', margin: '0.1rem 0' }}>
-                                Proyecto: <strong>{activeJob.proyectoNombre}</strong>
-                              </span>
-                            )}                            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Área: {(activeJob.width * activeJob.height).toFixed(2)}m²</span>
-                          </div>
-                        </div>
-
-                        {/* List of files with download links */}
-                        <div className="active-job-files-list" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          <span className="section-mini-label" style={{ margin: 0 }}>Archivos del Trabajo ({parseJobFiles(activeJob).length})</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '120px', overflowY: 'auto' }}>
-                            {parseJobFiles(activeJob).map((f, idx) => (
-                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
-                                  <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                                    {isImageFile(f.name, f.url) ? (
-                                      <ProjectMediaImage archivo={f} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    ) : (
-                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                      </svg>
+                <div className="queue-table-wrapper">
+                  {queue.length > 0 ? (
+                    <>
+                      <div className="colas-desktop-only">
+                        <table className="queue-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                              <th style={{ width: '36px', padding: '1rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Pos</th>
+                              <th style={{ width: '18%', padding: '1rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Documento</th>
+                              <th style={{ width: '15%', padding: '1rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Cliente</th>
+                              <th style={{ width: '90px', padding: '1rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Urgencia</th>
+                              <th style={{ width: '90px', padding: '1rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Copias</th>
+                              <th style={{ width: '22%', padding: '1rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Sustrato / Medidas</th>
+                              <th style={{ width: '12%', padding: '1rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Enviado por</th>
+                              <th style={{ width: '130px', padding: '1rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Fecha Envío</th>
+                              <th style={{ width: '130px', padding: '1rem 0.75rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedQueue.map((job, index) => {
+                              const files = parseJobFiles(job);
+                              const posIndex = (queuePage - 1) * queueItemsPerPage + index + 1;
+                              return (
+                                <tr key={job.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '1rem 0.75rem', fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{posIndex}</td>
+                                  <td style={{ padding: '1rem 0.75rem', fontWeight: 700, color: '#0f172a' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                      <span>{job.name}</span>
+                                      {files.map((f, i) => (
+                                        <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.25rem 0.5rem', borderRadius: '6px', width: 'max-content', maxWidth: '220px' }}>
+                                          <div style={{ width: '20px', height: '20px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            {isImageFile(f.name, f.url) ? (
+                                              <ProjectMediaImage archivo={f} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                              <span style={{ fontSize: '9px' }}>📄</span>
+                                            )}
+                                          </div>
+                                          <span style={{ fontSize: '0.7rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{f.name}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '1rem 0.75rem', color: '#334155', fontWeight: 500 }}>
+                                    <div>{job.client || 'Sin cliente'}</div>
+                                    {job.proyectoNombre && (
+                                      <div style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.15rem' }}>
+                                        {job.proyectoNombre}
+                                      </div>
                                     )}
-                                  </div>
-                                  <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+                                  </td>
+                                  <td style={{ padding: '1rem 0.75rem' }}>{renderPriorityBadge(job.urgency)}</td>
+                                  <td style={{ padding: '1rem 0.75rem', color: '#334155', fontWeight: 600 }}>{job.copies} {job.copies === 1 ? 'copia' : 'copias'}</td>
+                                  <td style={{ padding: '1rem 0.75rem', color: '#334155' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                      <span style={{ fontWeight: 600 }}>{job.format}</span>
+                                      <span style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 600 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{job.sentBy || 'Usuario'}</td>
+                                  <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{job.sentAt || 'Sin fecha'}</td>
+                                  <td style={{ padding: '1rem 0.75rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                                      <button onClick={() => handleOpenPrepModal(job)} style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cargar e Imprimir">
+                                        <Play size={14} />
+                                      </button>
+                                      <button onClick={() => handleMoveUp(posIndex - 1)} disabled={posIndex - 1 === 0} style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#475569', cursor: posIndex - 1 === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: posIndex - 1 === 0 ? 0.4 : 1 }} title="Subir prioridad">
+                                        <ArrowUp size={14} />
+                                      </button>
+                                      <button onClick={() => handleCancelQueueJob(job.id)} style={{ padding: '0.4rem', border: '1px solid #fca5a5', borderRadius: '6px', backgroundColor: '#fee2e2', color: '#b91c1c', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cancelar trabajo">
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile Cards View */}
+                      <div className="colas-mobile-only">
+                        <div className="colas-mobile-cards-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginTop: '1rem' }}>
+                          {paginatedQueue.map((job, index) => {
+                            const files = parseJobFiles(job);
+                            const realIndex = (queuePage - 1) * queueItemsPerPage + index;
+                            return (
+                              <div key={job.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#ca8a04' }}>POSICIÓN #{realIndex + 1}</span>
+                                  {renderPriorityBadge(job.urgency)}
                                 </div>
-                                <a 
-                                  href={f.url || '#'} 
-                                  download={f.name}
-                                  className="file-download-link"
-                                  style={{ margin: 0, padding: '0.2rem 0.4rem', border: '1px solid var(--color-primary-blue)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}
-                                  title="Descargar este archivo"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ width: '12px', height: '12px' }}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                  </svg>
-                                  <span className="active-job-download-text">Descargar</span>
-                                </a>
+                                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{job.name}</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem', color: '#475569' }}>
+                                  <div>Cliente: <strong style={{ color: '#0f172a' }}>{job.client || 'Sin cliente'}</strong></div>
+                                  {job.proyectoNombre && <div>Proyecto: <strong style={{ color: '#0f172a' }}>{job.proyectoNombre}</strong></div>}
+                                  <div>Material: <strong>{job.format}</strong></div>
+                                  <div>Medidas: <strong style={{ color: '#1d4ed8' }}>{job.width || 1.0}m x {job.height || 1.0}m</strong></div>
+                                  <div>Copias: <strong>{job.copies}</strong></div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
+                                  <button onClick={() => handleOpenPrepModal(job)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.5rem', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+                                    <Play size={12} /> Cargar
+                                  </button>
+                                  <button onClick={() => handleCancelQueueJob(job.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+                                    <Trash2 size={12} /> Cancelar
+                                  </button>
+                                </div>
                               </div>
-                            ))}
-                          </div>
+                            );
+                          })}
                         </div>
                       </div>
-                      <div className="active-job-specs-section">
-                        <span className="section-mini-label">Especificaciones de Impresión</span>
-                        <div className="specs-pills-container">
-                          <div className="spec-pill" title="Material">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581a1.125 1.125 0 001.59 0l7.317-7.317a1.125 1.125 0 000-1.59L11.16 3.659A2.25 2.25 0 009.568 3z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 7.5h.008v.008H6V7.5z" />
-                            </svg>
-                            <span>{activeJob.format}</span>
-                          </div>
-
-                          <div className="spec-pill" title="Medidas">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v16.5m16.5-16.5v16.5M12 3.75v16.5m-9-8.25h18" />
-                            </svg>
-                            <span>{activeJob.width || 1.0}m x {activeJob.height || 1.0}m</span>
-                          </div>
-
-                          <div className="spec-pill" title="Copias">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H3.75A2.25 2.25 0 001.5 6v10.5A2.25 2.25 0 003.75 18.75h10.5A2.25 2.25 0 0016.5 16.5v-2.25m-1.5-6L12 9.75m0 0L9 6.75m3 3V15" />
-                            </svg>
-                            <span>{activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Panel Derecho: Progreso de Impresión y Operador */}
-                    <div className="active-job-right-panel">
-                      
-                      {/* Operator info with avatar */}
-                      <div className="operator-info-container">
-                        <div className="operator-avatar" title="Operador responsable">
-                          {(activeJob.responsible || 'Sin asignar').substring(0, 2).toUpperCase()}
-                        </div>
-                        <div className="operator-details">
-                          <span className="operator-label">Operador</span>
-                          <span className="operator-name">{activeJob.responsible || 'Sin asignar'}</span>
-                        </div>
-                        
-                        <div className="start-time-container">
-                          <span className="operator-label">Hora de Inicio</span>
-                          <span className="start-time-value">{activeJob.startTime || "Sin iniciar"}</span>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* Special Notes Alert Banner */}
-                  {activeJob.notes && (
-                    <div className="special-notes-alert-card">
-                      <div className="notes-icon-box">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                        </svg>
-                      </div>
-                      <div className="notes-content">
-                        <span className="notes-title">Indicaciones Especiales del Cliente:</span>
-                        <p className="notes-text">{activeJob.notes}</p>
-                      </div>
+                    </>
+                  ) : (
+                    <div className="empty-queue-msg" style={{ padding: '4rem 0', textAlign: 'center' }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: '48px', height: '48px', color: '#94a3b8', margin: '0 auto 1rem auto' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
+                      </svg>
+                      <p style={{ fontWeight: 600, color: '#475569' }}>La cola está vacía</p>
+                      <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No hay más trabajos en espera.</p>
                     </div>
                   )}
+                </div>
 
-                  {/* Action Buttons Row */}
-                  <div className="active-actions-row">
-                    <div className="active-actions-left">
-                      {activeJob.status === "Listo" ? (
-                        <>
-                          <button 
-                            type="button" 
-                            onClick={handleStartActiveJob}
-                            className="btn-control-premium btn-start"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                            </svg>
-                            Iniciar Impresión
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={handleReturnToQueue}
-                            className="btn-control-premium btn-return"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
-                            </svg>
-                            Devolver a Cola
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button 
-                            type="button" 
-                            onClick={handleTogglePause}
-                            className={`btn-control-premium ${activeJob.status === "Imprimiendo" ? 'btn-pause' : 'btn-resume'}`}
-                          >
-                            {activeJob.status === "Imprimiendo" ? (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
-                                </svg>
-                                Pausar Impresión
-                              </>
-                            ) : (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                                </svg>
-                                Reanudar Impresión
-                              </>
-                            )}
-                          </button>
-
-                          <button 
-                            type="button" 
-                            onClick={handleCompleteActiveJob}
-                            className="btn-control-premium btn-complete"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                            </svg>
-                            Marcar como Completado
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <button 
-                      type="button" 
-                      onClick={handleOpenCancelModal}
-                      className="btn-control-premium btn-cancel"
+                {/* Queue Pagination */}
+                {queueTotalPages > 1 && (
+                  <div className="history-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setQueuePage(prev => Math.max(1, prev - 1))}
+                      disabled={queuePage === 1}
+                      style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#334155', cursor: queuePage === 1 ? 'not-allowed' : 'pointer', opacity: queuePage === 1 ? 0.5 : 1, fontSize: '0.8rem', fontWeight: 600 }}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-                      </svg>
-                      Cancelar Impresión
+                      Anterior
+                    </button>
+                    <span className="page-info" style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>Página {queuePage} de {queueTotalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQueuePage(prev => Math.min(queueTotalPages, prev + 1))}
+                      disabled={queuePage >= queueTotalPages}
+                      style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#334155', cursor: queuePage >= queueTotalPages ? 'not-allowed' : 'pointer', opacity: queuePage >= queueTotalPages ? 0.5 : 1, fontSize: '0.8rem', fontWeight: 600 }}
+                    >
+                      Siguiente
                     </button>
                   </div>
-                </div>
+                )}
               </div>
-            ) : (
-              <div className="active-job-empty-placeholder">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="active-job-empty-icon">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                </svg>
-                <span className="active-job-empty-title">Elige un nuevo documento</span>
-                <p className="active-job-empty-desc">
-                  No hay ningún trabajo de impresión activo en este momento. Por favor, selecciona un documento de la cola de impresión que se encuentra a continuación para iniciar el proceso.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Queue Table Card */}
-          <div className="queue-section-card">
-            <div className="queue-header">
-              <h3>Documentos en Cola</h3>
-              <span className="queue-count-badge">{queue.length} en espera</span>
-            </div>
-
-            <div className="queue-table-wrapper">
-              {queue.length > 0 ? (
-                <>
-                  <div className="colas-desktop-only">
-                    <table className="queue-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '36px' }}>Pos</th>
-                          <th style={{ width: '18%' }}>Documento</th>
-                          <th style={{ width: '12%' }}>Cliente</th>
-                          <th style={{ width: '70px' }}>Urgencia</th>
-                          <th style={{ width: '90px' }}>Copias</th>
-                          <th style={{ width: '16%' }}>Sustrato / Medidas</th>
-                          <th style={{ width: '10%' }}>Enviado por</th>
-                          <th style={{ width: '110px' }}>Fecha Envío</th>
-                          <th style={{ width: '80px' }}>Estado</th>
-                          <th style={{ width: '130px', textAlign: 'center' }}>Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedQueue.map((job, index) => (
-                          <tr key={job.id}>
-                            <td>
-                              <span className="queue-position-badge">{(queuePage - 1) * queueItemsPerPage + index + 1}</span>
-                            </td>
-
-                             <td style={{ fontWeight: 600, color: '#1e293b', verticalAlign: 'middle' }}>
-                               {(() => {
-                                 const files = parseJobFiles(job);
-                                 return (
-                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                     <span style={{ color: '#0f172a', display: 'block' }}>{job.name}</span>
-                                     {files.length > 0 && (
-                                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.2rem' }}>
-                                         {files.map((f, i) => (
-                                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '0.15rem 0.35rem', borderRadius: '6px', maxWidth: '200px' }} title={f.name}>
-                                             <div style={{ width: '20px', height: '20px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                               {isImageFile(f.name, f.url) ? (
-                                                 <ProjectMediaImage archivo={f} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                               ) : (
-                                                 <span style={{ fontSize: '9px' }}>📄</span>
-                                               )}
-                                             </div>
-                                             <span style={{ fontSize: '0.65rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
-                                               {f.name}
-                                             </span>
-                                           </div>
-                                         ))}
-                                       </div>
-                                     )}
-                                   </div>
-                                 );
-                               })()}
-                             </td>
-
-                            <td style={{ fontWeight: 500, color: '#475569' }}>
-                              <div>{job.client || 'Sin cliente'}</div>
-                              {job.proyectoNombre && (
-                                <div style={{ fontSize: '0.725rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.15rem' }}>
-                                  {job.proyectoNombre}
-                                </div>
-                              )}
-                            </td>
-                            <td>{renderPriorityBadge(job.urgency)}</td>
-                            <td>{job.copies} {job.copies === 1 ? 'copia' : 'copias'}</td>
-                            <td>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                                <span style={{ fontWeight: 600 }}>{job.format}</span>
-                                <span style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 500 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
-                                {job.notes && (
-                                  <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={job.notes}>
-                                    Obs: {job.notes}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td>{job.sentBy || 'Usuario'}</td>
-                            <td style={{ fontSize: '0.85rem', color: '#64748b' }}>{job.sentAt || 'Sin fecha'}</td>
-                            <td>
-                              <span className="queue-status-badge status-waiting">
-                                {job.status}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="action-buttons-group" style={{ justifyContent: 'center' }}>
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleOpenPrepModal(job)}
-                                  className="btn-action btn-action-play" 
-                                  title="Cargar e Imprimir"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                                  </svg>
-                                </button>
-                                
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleMoveUp((queuePage - 1) * queueItemsPerPage + index)}
-                                  className="btn-action btn-action-up" 
-                                  title="Subir prioridad"
-                                  disabled={(queuePage - 1) * queueItemsPerPage + index === 0}
-                                  style={(queuePage - 1) * queueItemsPerPage + index === 0 ? { opacity: 0.35, cursor: 'not-allowed', pointerEvents: 'none' } : {}}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-                                  </svg>
-                                </button>
-
-                                <button 
-                                  type="button"
-                                  onClick={() => setDownloadJob(job)}
-                                  className="btn-action btn-action-download" 
-                                  title="Descargar archivo"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                  </svg>
-                                </button>
-
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleCancelQueueJob(job.id)}
-                                  className="btn-action btn-action-cancel" 
-                                  title="Cancelar trabajo"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="action-icon">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Mobile Cards View */}
-                  <div className="colas-mobile-only">
-                    <div className="colas-mobile-cards-grid">
-                      {paginatedQueue.map((job, index) => {
-                        const files = parseJobFiles(job);
-                        const realIndex = (queuePage - 1) * queueItemsPerPage + index;
-                        return (
-                          <div key={job.id} className="colas-mobile-card">
-                            <div className="colas-card-header">
-                              <span className="colas-card-pos">#{realIndex + 1}</span>
-                              <div className="colas-card-title-group">
-                                <span className="colas-card-title">{job.name}</span>
-                                <span className="colas-card-client">{job.client || 'Sin cliente'}</span>
-                                {job.proyectoNombre && (
-                                  <span className="colas-card-project">{job.proyectoNombre}</span>
-                                )}
-                              </div>
-                              {renderPriorityBadge(job.urgency)}
-                            </div>
-                            <div className="colas-card-body">
-                              {files.length > 0 && (
-                                <div className="colas-card-files">
-                                  {files.map((f, i) => (
-                                    <div key={i} className="colas-card-file-chip" title={f.name}>
-                                      <div className="colas-card-file-preview">
-                                        {isImageFile(f.name, f.url) ? (
-                                          <ProjectMediaImage archivo={f} alt="thumb" />
-                                        ) : (
-                                          <span>📄</span>
-                                        )}
-                                      </div>
-                                      <span className="colas-card-file-name">{f.name}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              <div className="colas-card-row">
-                                <span className="colas-card-label">Sustrato / Formato:</span>
-                                <span className="colas-card-value font-bold">{job.format}</span>
-                              </div>
-                              <div className="colas-card-row">
-                                <span className="colas-card-label">Medidas:</span>
-                                <span className="colas-card-value text-blue-600">{job.width || 1.0}m x {job.height || 1.0}m</span>
-                              </div>
-                              <div className="colas-card-row">
-                                <span className="colas-card-label">Copias:</span>
-                                <span className="colas-card-value">{job.copies}</span>
-                              </div>
-                              <div className="colas-card-row">
-                                <span className="colas-card-label">Enviado por:</span>
-                                <span className="colas-card-value">{job.sentBy || 'Usuario'}</span>
-                              </div>
-                              <div className="colas-card-row">
-                                <span className="colas-card-label">Fecha Envío:</span>
-                                <span className="colas-card-value date">{job.sentAt || 'Sin fecha'}</span>
-                              </div>
-                              {job.notes && (
-                                <div className="colas-card-notes">
-                                  <strong>Notas:</strong> {job.notes}
-                                </div>
-                              )}
-                            </div>
-                            <div className="colas-card-actions">
-                              <button 
-                                type="button" 
-                                onClick={() => handleOpenPrepModal(job)}
-                                className="btn-action-mobile btn-play" 
-                                title="Cargar e Imprimir"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                                </svg>
-                                <span>Imprimir</span>
-                              </button>
-                              
-                              <button 
-                                type="button" 
-                                onClick={() => handleMoveUp(realIndex)}
-                                className="btn-action-mobile btn-up" 
-                                title="Subir prioridad"
-                                disabled={realIndex === 0}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-                                </svg>
-                                <span>Priorizar</span>
-                              </button>
-
-                              <button 
-                                type="button"
-                                onClick={() => setDownloadJob(job)}
-                                className="btn-action-mobile btn-download" 
-                                title="Descargar archivo"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                </svg>
-                                <span>Bajar</span>
-                              </button>
-
-                              <button 
-                                type="button" 
-                                onClick={() => handleCancelQueueJob(job.id)}
-                                className="btn-action-mobile btn-cancel" 
-                                title="Cancelar trabajo"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                </svg>
-                                <span>Cancelar</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="empty-queue-msg" style={{ padding: '4rem 0' }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="empty-queue-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
-                  </svg>
-                  <p style={{ fontWeight: 600, color: '#475569' }}>La cola está vacía</p>
-                  <p style={{ fontSize: '0.85rem' }}>No hay más trabajos en espera.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Queue Pagination */}
-            {queueTotalPages > 1 && (
-              <div className="history-pagination">
-                <button
-                  type="button"
-                  onClick={() => setQueuePage(prev => Math.max(1, prev - 1))}
-                  disabled={queuePage === 1}
-                  className="btn-page"
-                >
-                  Anterior
-                </button>
-                <span className="page-info">Página {queuePage} de {queueTotalPages}</span>
-                <button
-                  type="button"
-                  onClick={() => setQueuePage(prev => Math.min(queueTotalPages, prev + 1))}
-                  disabled={queuePage >= queueTotalPages}
-                  className="btn-page"
-                >
-                  Siguiente
-                </button>
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        /* History of Completed Jobs Tab (Full Width Table) */
+            </>
+          ) : (
+            /* History of Completed Jobs Tab (Full Width Table) */
         <div className="queue-section-card">
           <div className="queue-header">
             <h3>Historial de Impresión</h3>
@@ -2006,229 +1916,315 @@ export const ColasImpresionPage = () => {
           </div>
         </div>
       )}
+        </>
+      )}
 
       {/* TV / Fullscreen Mode Overlay */}
-      {isTvMode && activeJob && (
+      {isTvMode && (
         <div 
-          className="colas-tv-overlay"
+          className={`colas-tv-overlay ${isAdmin ? 'tv-admin' : ''}`}
           style={{
-            position: 'fixed',
+            position: isAdmin ? 'relative' : 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: '#f1f5f9',
+            backgroundColor: '#fafafa',
             color: '#0f172a',
-            zIndex: 99999,
+            zIndex: isAdmin ? 1 : 99999,
             display: 'flex',
             flexDirection: 'column',
-            padding: '2rem',
+            padding: isAdmin ? '1rem' : '2.5rem 3rem',
             boxSizing: 'border-box',
-            height: '100vh',
-            width: '100vw',
+            height: isAdmin ? '100%' : '100vh',
+            width: isAdmin ? '100%' : '100vw',
             overflow: 'hidden',
-            fontFamily: 'system-ui, -apple-system, sans-serif'
+            fontFamily: '"Outfit", "Inter", system-ui, -apple-system, sans-serif'
           }}
         >
           <style>{`
-            @keyframes tv-pulse {
-              0% { transform: scale(1); opacity: 1; }
-              50% { transform: scale(1.15); opacity: 0.6; }
-              100% { transform: scale(1); opacity: 1; }
+            .colas-tv-overlay {
+              box-sizing: border-box;
             }
-            .tv-pulse-dot {
-              animation: tv-pulse 2s infinite ease-in-out;
+            .colas-tv-overlay.tv-admin {
+              height: calc(100vh - 120px) !important;
+              max-height: calc(100vh - 120px) !important;
+            }
+            .tv-grid-workspace {
+              display: flex;
+              gap: 2.5rem;
+              flex: 1;
+              min-height: 0;
+              overflow: hidden;
+            }
+            .tv-col-1 {
+              flex: 1.3 1 0px;
+              display: flex;
+              flex-direction: column;
+              min-height: 0;
+              box-sizing: border-box;
+            }
+            .tv-col-2 {
+              flex: 0.85 1 0px;
+              display: flex;
+              flex-direction: column;
+              min-height: 0;
+              box-sizing: border-box;
+            }
+            .tv-active-details {
+              display: flex;
+              gap: 2.5rem;
+              flex: 1;
+              min-height: 0;
+              align-items: stretch;
+            }
+            .tv-active-preview {
+              width: 48%;
+              border-radius: 12px;
+              overflow: hidden;
+              border: 1px solid #f1f5f9;
+              background-color: #f8fafc;
+              position: relative;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .tv-active-info {
+              width: 52%;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              gap: 0.75rem;
+            }
+            @media (max-width: 1024px) {
+              .colas-tv-overlay {
+                padding: 1.5rem !important;
+                overflow-y: auto !important;
+              }
+              .colas-tv-overlay.tv-admin {
+                height: auto !important;
+                max-height: none !important;
+              }
+              .tv-header-row {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1rem !important;
+                margin-bottom: 1.5rem !important;
+              }
+              .tv-grid-workspace {
+                flex-direction: column !important;
+                overflow: visible !important;
+                height: auto !important;
+                gap: 1.5rem !important;
+              }
+              .tv-col-1, .tv-col-2 {
+                flex: none !important;
+                width: 100% !important;
+                height: auto !important;
+              }
+              .tv-active-details {
+                flex-direction: column !important;
+                gap: 1.5rem !important;
+                height: auto !important;
+              }
+              .tv-active-preview {
+                width: 100% !important;
+                height: 250px !important;
+                aspect-ratio: auto !important;
+              }
+              .tv-active-info {
+                width: 100% !important;
+                gap: 1rem !important;
+              }
+              .tv-footer-row {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1rem !important;
+              }
+              .tv-footer-elapsed {
+                align-items: flex-start !important;
+              }
+              .tv-clock-divider {
+                display: none !important;
+              }
             }
           `}</style>
-          
+
           {/* Top Header Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '8vh', borderBottom: '1px solid #cbd5e1', paddingBottom: '1rem', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div 
-                className="tv-pulse-dot"
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  borderRadius: '50%',
-                  backgroundColor: activeJob.status === 'Imprimiendo' ? '#10b981' : '#f59e0b',
-                  boxShadow: activeJob.status === 'Imprimiendo' ? '0 0 10px rgba(16,185,129,0.4)' : '0 0 10px rgba(245,158,11,0.4)',
-                }} 
-              />
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.05em', color: '#0f172a' }}>
-                MONITOREO DE PRODUCCIÓN - TALLER
+          <div className="tv-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0, marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <h1 style={{ fontSize: '2.25rem', fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.025em' }}>COLAS DE IMPRESIÓN</h1>
+                <span 
+                  onClick={() => setIsTvMode(false)}
+                  style={{ 
+                    backgroundColor: '#1d4ed8', 
+                    color: '#ffffff', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 800, 
+                    padding: '0.2rem 0.6rem', 
+                    borderRadius: '6px',
+                    letterSpacing: '0.05em',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}
+                  title="Click para salir del Modo TV"
+                >
+                  VISTA TV
+                </span>
+              </div>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', marginTop: '0.25rem' }}>
+                TALLER DE PRODUCCIÓN
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-              <span style={{ fontSize: '0.95rem', color: '#64748b' }}>
-                Presiona <strong style={{ color: '#0f172a', backgroundColor: '#e2e8f0', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>ESC</strong> para salir
-              </span>
-              <button 
-                type="button" 
-                onClick={() => setIsTvMode(false)}
-                style={{
-                  padding: '0.45rem 1rem',
-                  backgroundColor: '#ffffff',
-                  color: '#0f172a',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}
-                onMouseOver={e => e.currentTarget.style.backgroundColor = '#ef4444'}
-                onMouseOut={e => e.currentTarget.style.backgroundColor = '#ffffff'}
-              >
-                Salir
-              </button>
-            </div>
+            <TvClock />
           </div>
 
           {/* Main Grid Workspace */}
-          <div style={{ display: 'flex', flex: 1, gap: '2rem', marginTop: '1.5rem', minHeight: 0, overflow: 'hidden' }}>
+          <div className="tv-grid-workspace">
             
             {/* Column 1: Active Job */}
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1.2, justifyContent: 'space-between', backgroundColor: '#ffffff', borderRadius: '16px', padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
-              
-              {/* Header Info */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary-blue)' }}>
-                    TRABAJO ACTIVO
+            <div className="tv-col-1" style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)' }}>
+              {activeJob ? (
+                <>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                    TRABAJO ACTUAL
                   </span>
-                  <span style={{ padding: '0.25rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', backgroundColor: activeJob.status === 'Imprimiendo' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: activeJob.status === 'Imprimiendo' ? '#0f766e' : '#b45309', border: activeJob.status === 'Imprimiendo' ? '1px solid rgba(16,185,129,0.2)' : '1px solid rgba(245,158,11,0.2)' }}>
-                    {activeJob.status}
-                  </span>
-                </div>
+                  <h2 style={{ fontSize: '2.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 1.5rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={activeJob.name}>
+                    {activeJob.name}
+                  </h2>
 
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.15, color: '#0f172a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }} title={activeJob.name}>
-                  {activeJob.name}
-                </h1>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <div style={{ fontSize: '1.35rem', color: '#334155' }}>
-                    Cliente: <strong style={{ color: '#0f172a' }}>{activeJob.client || 'Sin cliente'}</strong>
-                  </div>
-                  {activeJob.proyectoNombre && (
-                    <div style={{ fontSize: '1.15rem', color: '#64748b' }}>
-                      Proyecto: <strong style={{ color: '#334155' }}>{activeJob.proyectoNombre}</strong>
+                  <div className="tv-active-details">
+                    {/* Left part: Preview Image */}
+                    <div className="tv-active-preview">
+                      {(() => {
+                        const files = parseJobFiles(activeJob);
+                        const firstImage = files.find(f => isImageFile(f.name, f.url));
+                        if (firstImage) {
+                          return (
+                            <ProjectMediaImage 
+                              archivo={firstImage} 
+                              alt={activeJob.name} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
+                          );
+                        }
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '0.5rem' }}>
+                            <Package size={48} strokeWidth={1.5} />
+                            <span style={{ fontSize: '0.9rem' }}>Sin vista previa</span>
+                          </div>
+                        );
+                      })()}
                     </div>
-                  )}
+
+                    {/* Right part: Details List */}
+                    <div className="tv-active-info">
+                      {(() => {
+                        const details = [
+                          { label: 'Cliente', value: activeJob.client || 'Sin cliente', Icon: User },
+                          { label: 'Proyecto', value: activeJob.proyectoNombre || (activeJob.createdAt ? new Date(activeJob.createdAt).toLocaleDateString('es-EC') : '—'), Icon: Folder },
+                          { label: 'Material', value: activeJob.format || 'Sin material', Icon: Package },
+                          { label: 'Medidas', value: `${activeJob.width || 1.0}m x ${activeJob.height || 1.0}m`, Icon: Crop },
+                          { label: 'Cantidad', value: `${activeJob.copies} ${activeJob.copies === 1 ? 'copia' : 'copias'}`, Icon: FileText },
+                        ];
+                        return details.map((d, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ backgroundColor: '#f8fafc', padding: '0.5rem', borderRadius: '8px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
+                              <d.Icon size={16} strokeWidth={2.2} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{d.label}</span>
+                              <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', marginTop: '0.1rem' }}>{d.value}</span>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+
+                  <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '1.5rem 0 1.25rem 0' }} />
+
+                  <div className="tv-footer-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                    {/* Operator */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {(activeJob.responsible || 'OP').substring(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em' }}>OPERADOR</span>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>{activeJob.responsible || 'Sin asignar'}</span>
+                      </div>
+                    </div>
+
+                    {/* Time elapsed */}
+                    <div className="tv-footer-elapsed" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>TIEMPO TRANSCURRIDO</span>
+                      <TvElapsedTimer activeJob={activeJob} />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#94a3b8', textAlign: 'center', gap: '1rem' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '64px', height: '64px' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.82l-.24 2.24H4.5a2.25 2.25 0 00-2.25 2.25v2.25c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-2.25a2.25 2.25 0 00-2.25-2.25h-1.98l-.24-2.24m-11.28 0H18.72m-12 0h12m-12 0l1.24-11.13A2.25 2.25 0 018.21 2.25h7.58a2.25 2.25 0 012.23 1.99L19.28 13.82m-12 0h12" />
+                  </svg>
+                  <div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#334155', margin: 0 }}>Sin trabajo activo</h2>
+                    <p style={{ fontSize: '1rem', marginTop: '0.25rem' }}>Esperando a que el operador inicie una impresión...</p>
+                  </div>
                 </div>
-              </div>
-
-              {/* Specs Grid */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-                <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontWeight: 700 }}>Especificaciones</span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                  
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Material</span>
-                    <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={activeJob.format}>{activeJob.format}</span>
-                  </div>
-
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Medidas</span>
-                    <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem' }}>{activeJob.width || 1.0}m x {activeJob.height || 1.0}m</span>
-                  </div>
-
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', textTransform: 'uppercase' }}>Cantidad</span>
-                    <span style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', display: 'block', marginTop: '0.25rem' }}>{activeJob.copies} {activeJob.copies === 1 ? 'copia' : 'copias'}</span>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Operator and Timing */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {(activeJob.responsible || 'OP').substring(0, 2).toUpperCase()}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Operador</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f172a' }}>{activeJob.responsible || 'Sin asignar'}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Hora de Inicio</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f766e' }}>{activeJob.startTime || 'Sin iniciar'}</span>
-                </div>
-              </div>
-
+              )}
             </div>
 
             {/* Column 2: Siguientes en Cola */}
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 0.8, backgroundColor: '#ffffff', borderRadius: '16px', padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary-blue)', marginBottom: '1.25rem', display: 'block' }}>
+            <div className="tv-col-2" style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '1.5rem', display: 'block' }}>
                 SIGUIENTES EN COLA
               </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, overflow: 'hidden' }}>
-                {queue.slice(0, 4).map((qJob, idx) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', flex: 1, overflowY: 'auto', paddingRight: '0.25rem' }}>
+                {queue.slice(0, 6).map((qJob, idx) => (
                   <div 
                     key={qJob.id || idx}
                     style={{ 
-                      backgroundColor: '#f8fafc', 
-                      border: '1px solid #e2e8f0', 
-                      borderRadius: '10px', 
-                      padding: '1rem',
+                      backgroundColor: '#fafafa', 
+                      border: '1px solid #f1f5f9', 
+                      borderRadius: '12px', 
+                      padding: '0.85rem 1rem',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.4rem',
+                      alignItems: 'center',
+                      gap: '1rem',
                       minWidth: 0
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={qJob.name}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {idx + 2}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={qJob.name}>
                         {qJob.name}
                       </span>
-                      <span style={{ padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 'bold', textTransform: 'uppercase', backgroundColor: qJob.urgency === 'Alta' ? '#fee2e2' : '#fef3c7', color: qJob.urgency === 'Alta' ? '#b91c1c' : '#b45309' }}>
-                        {qJob.urgency || 'Media'}
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {qJob.format} &bull; {qJob.width || 1.0}m x {qJob.height || 1.0}m
                       </span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b' }}>
-                      <span>Cliente: <strong style={{ color: '#334155' }}>{qJob.client || 'Sin cliente'}</strong></span>
-                      <span>{qJob.format}</span>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', flexShrink: 0 }}>
+                      {qJob.copies} {qJob.copies === 1 ? 'copia' : 'copias'}
                     </div>
                   </div>
                 ))}
                 {queue.length === 0 && (
                   <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '0.5rem' }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '28px', height: '28px' }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
+                    <List size={32} strokeWidth={1.5} />
                     <span style={{ fontSize: '0.85rem' }}>No hay más trabajos en cola</span>
                   </div>
                 )}
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'flex-end', color: '#64748b', fontSize: '0.85rem', marginTop: '1.25rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem', flexShrink: 0 }}>
+                <List size={16} />
+                <span>{queue.length} trabajos en cola</span>
+              </div>
             </div>
-
-            {/* Column 3: Vista Previa */}
-            {(() => {
-              const files = parseJobFiles(activeJob);
-              const firstImage = files.find(f => isImageFile(f.name, f.url));
-              
-              if (firstImage) {
-                return (
-                  <div style={{ display: 'flex', flex: 0.9, flexDirection: 'column', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary-blue)', marginBottom: '1.25rem', display: 'block' }}>
-                      VISTA PREVIA DEL ARTE
-                    </span>
-                    <div style={{ display: 'flex', flex: 1, width: '100%', minHeight: 0, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                      <img 
-                        src={firstImage.url} 
-                        alt="TV preview" 
-                        style={{ maxWidth: '95%', maxHeight: '95%', objectFit: 'contain' }} 
-                      />
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })()}
 
           </div>
         </div>

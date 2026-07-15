@@ -12,6 +12,7 @@ import {
   mapOrdenToPDFFormat,
 } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { ComprasPageHeader, ComprasHeaderButton, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
 
 export const HistorialOrdenCompraDetallePage = () => {
@@ -68,23 +69,23 @@ export const HistorialOrdenCompraDetallePage = () => {
 
   return (
     <div className="co-page animate-slide-up">
-      <div className="co-card co-header">
-        <div>
-          <button type="button" onClick={() => navigate('/compras/historial')} className="co-back-link">
-            ← Volver al historial
-          </button>
-          <h1 className="co-title mt-2">{orden.numero}</h1>
-          <p className="co-subtitle">{orden.concepto || 'Orden de compra'}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="co-badge" style={{ background: badge.bg, color: badge.color, fontSize: '12px', padding: '6px 12px' }}>
-            {badge.label}
-          </span>
-          <button type="button" onClick={() => setIsPDFOpen(true)} className="co-btn-primary">
-            Ver PDF
-          </button>
-        </div>
-      </div>
+      <ComprasPageHeader
+        title={orden.numero}
+        subtitle={orden.concepto || 'Orden de compra'}
+        action={(
+          <>
+            <ComprasHeaderGhostButton onClick={() => navigate('/compras/historial')}>
+              ← Volver
+            </ComprasHeaderGhostButton>
+            <span className="co-badge" style={{ background: badge.bg, color: badge.color, fontSize: '12px', padding: '6px 12px' }}>
+              {badge.label}
+            </span>
+            <ComprasHeaderButton onClick={() => setIsPDFOpen(true)}>
+              Ver PDF
+            </ComprasHeaderButton>
+          </>
+        )}
+      />
 
       <ComprasOperativoNav />
 

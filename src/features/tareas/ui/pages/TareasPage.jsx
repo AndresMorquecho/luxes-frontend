@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import {
   getTareas,
   getMisTareas,
@@ -12,27 +12,33 @@ import {
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { notifyNotificationsUpdated } from '../../../notificaciones/application/notificationsService';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
+import { ComprasPageHeader, ComprasHeaderButton } from '../../../compras/ui/components/ComprasPageHeader';
+import '../../../compras/ui/pages/ComprasPage.css';
 import './TareasPage.css';
 
-const PRIORIDAD_CONFIG = {
-  alta:  { label: 'Alta',  class: 'prioridad-alta' },
-  media: { label: 'Media', class: 'prioridad-media' },
-  baja:  { label: 'Baja',  class: 'prioridad-baja' },
+const TA_PRIMARY = '#2b41b8';
+const TA_NAVY = '#1a1c3d';
+
+const PRIORIDAD_BADGES = {
+  alta:  { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'ALTA' },
+  media: { bg: 'bg-amber-50', color: 'text-amber-700', dot: 'bg-amber-500', label: 'MEDIA' },
+  baja:  { bg: 'bg-slate-100', color: 'text-slate-600', dot: 'bg-slate-400', label: 'BAJA' },
 };
 
-const ESTADO_CONFIG = {
-  pendiente:   { label: 'Generada',    class: 'estado-pendiente' },
-  en_progreso: { label: 'En Proceso',  class: 'estado-progreso' },
-  completada:  { label: 'Finalizada',  class: 'estado-completada' },
-  cancelada:   { label: 'Cancelada',   class: 'estado-cancelada' },
+const ESTADO_BADGES = {
+  pendiente:   { bg: 'bg-blue-50', color: 'text-[#2b41b8]', dot: 'bg-[#2b41b8]', label: 'GENERADA' },
+  en_progreso: { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'EN PROCESO' },
+  completada:  { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'FINALIZADA' },
+  cancelada:   { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'CANCELADA' },
 };
+
+const CHECK_ICON = 'M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z';
 
 export default function TareasPage() {
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = storedUser?.permissions?.includes('gestion_tareas') ||
     ['admin', 'administrador'].includes((storedUser?.rol || '').toLowerCase());
 
-  // ── State ──────────────────────────────────────────────────────────────────
   const [tareas, setTareas] = useState([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState(null);
@@ -43,12 +49,11 @@ export default function TareasPage() {
   const [filtroPrioridad, setFiltroPrioridad] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [fechas, setFechas] = useState({ start: '', end: '' });
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingTarea, setEditingTarea] = useState(null);
 
-  // Form state
   const [formTitulo, setFormTitulo] = useState('');
   const [formDescripcion, setFormDescripcion] = useState('');
   const [formPrioridad, setFormPrioridad] = useState('media');
@@ -56,15 +61,12 @@ export default function TareasPage() {
   const [formAsignados, setFormAsignados] = useState([]);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  
-  // Search state inside assignee list
   const [searchUserQuery, setSearchUserQuery] = useState('');
 
   const [activeTab, setActiveTab] = useState(isAdmin ? 'todas' : 'mis-tareas');
 
   const LIMIT = 25;
 
-  // ── Fetch Data ─────────────────────────────────────────────────────────────
   const fetchTareas = useCallback(async () => {
     setLoading(true);
     try {
@@ -72,17 +74,15 @@ export default function TareasPage() {
         page,
         limit: LIMIT,
         fechaInicio: fechas.start || undefined,
-        fechaFin: fechas.end || undefined
+        fechaFin: fechas.end || undefined,
       };
-      
+
       if (filtroEstado) {
         filters.estado = filtroEstado;
+      } else if (activeTab === 'historial') {
+        filters.estado = 'history';
       } else {
-        if (activeTab === 'historial') {
-          filters.estado = 'history';
-        } else {
-          filters.estado = 'active';
-        }
+        filters.estado = 'active';
       }
 
       if (filtroPrioridad) filters.prioridad = filtroPrioridad;
@@ -101,8 +101,8 @@ export default function TareasPage() {
           data = await getMisTareas(filters);
         }
       }
-      setTareas(data.items || []);
-      setTotal(data.total || 0);
+      setTareas(data?.items || []);
+      setTotal(data?.total || 0);
     } catch (err) {
       console.error('Error loading tareas:', err);
     } finally {
@@ -133,12 +133,8 @@ export default function TareasPage() {
   useEffect(() => { fetchTareas(); }, [fetchTareas]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => { setPage(1); }, [fechas, filtroEstado, filtroPrioridad, searchQuery, activeTab]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [fechas, filtroEstado, filtroPrioridad, searchQuery, activeTab]);
-
-  // ── Modal Handlers ─────────────────────────────────────────────────────────
   const openCreateModal = () => {
     setEditingTarea(null);
     setFormTitulo('');
@@ -157,7 +153,7 @@ export default function TareasPage() {
     setFormDescripcion(tarea.descripcion || '');
     setFormPrioridad(tarea.prioridad);
     setFormFechaLimite(tarea.fechaLimite ? tarea.fechaLimite.split('T')[0] : '');
-    setFormAsignados(tarea.asignaciones?.map(a => a.userId) || []);
+    setFormAsignados(tarea.asignaciones?.map((a) => a.userId) || []);
     setFormError('');
     setSearchUserQuery('');
     setShowModal(true);
@@ -166,15 +162,8 @@ export default function TareasPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
-
-    if (!formTitulo.trim()) {
-      setFormError('El título es requerido.');
-      return;
-    }
-    if (formAsignados.length === 0) {
-      setFormError('Debes asignar al menos un usuario.');
-      return;
-    }
+    if (!formTitulo.trim()) { setFormError('El título es requerido.'); return; }
+    if (formAsignados.length === 0) { setFormError('Debes asignar al menos un usuario.'); return; }
 
     setSubmitting(true);
     try {
@@ -185,12 +174,8 @@ export default function TareasPage() {
         fechaLimite: formFechaLimite || null,
         asignadoA: formAsignados,
       };
-
-      if (editingTarea) {
-        await updateTarea(editingTarea.id, payload);
-      } else {
-        await createTarea(payload);
-      }
+      if (editingTarea) await updateTarea(editingTarea.id, payload);
+      else await createTarea(payload);
       setShowModal(false);
       fetchTareas();
       fetchStats();
@@ -204,29 +189,12 @@ export default function TareasPage() {
 
   const handleStatusChange = async (tarea, newEstado) => {
     if (newEstado === 'en_progreso') {
-      const confirmed = await confirmDialog(
-        'Iniciar Tarea',
-        `¿Estás seguro de iniciar la tarea "${tarea.titulo}"?`,
-        {
-          type: 'info',
-          confirmLabel: 'Iniciar',
-          cancelLabel: 'Cancelar',
-        }
-      );
+      const confirmed = await confirmDialog('Iniciar Tarea', `¿Estás seguro de iniciar la tarea "${tarea.titulo}"?`, { type: 'info', confirmLabel: 'Iniciar', cancelLabel: 'Cancelar' });
       if (!confirmed) return;
     } else if (newEstado === 'completada') {
-      const confirmed = await confirmDialog(
-        'Finalizar Tarea',
-        `¿Estás seguro de finalizar la tarea "${tarea.titulo}"?`,
-        {
-          type: 'warning',
-          confirmLabel: 'Finalizar',
-          cancelLabel: 'Cancelar',
-        }
-      );
+      const confirmed = await confirmDialog('Finalizar Tarea', `¿Estás seguro de finalizar la tarea "${tarea.titulo}"?`, { type: 'warning', confirmLabel: 'Finalizar', cancelLabel: 'Cancelar' });
       if (!confirmed) return;
     }
-
     try {
       await updateTarea(tarea.id, { estado: newEstado });
       fetchTareas();
@@ -238,15 +206,7 @@ export default function TareasPage() {
   };
 
   const handleDelete = async (tarea) => {
-    const confirmed = await confirmDialog(
-      'Eliminar Tarea',
-      `¿Eliminar la tarea "${tarea.titulo}"?`,
-      {
-        type: 'danger',
-        confirmLabel: 'Eliminar',
-        cancelLabel: 'Cancelar',
-      }
-    );
+    const confirmed = await confirmDialog('Eliminar Tarea', `¿Eliminar la tarea "${tarea.titulo}"?`, { type: 'danger', confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' });
     if (!confirmed) return;
     try {
       await deleteTarea(tarea.id);
@@ -258,20 +218,16 @@ export default function TareasPage() {
   };
 
   const toggleAsignado = (userId) => {
-    setFormAsignados(prev =>
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+    setFormAsignados((prev) => prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]);
   };
 
-  const totalPages = Math.ceil(total / LIMIT);
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
+  const showingFrom = total === 0 ? 0 : (page - 1) * LIMIT + 1;
+  const showingTo = Math.min(page * LIMIT, total);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('es-EC', {
-      day: '2-digit', month: 'short', year: 'numeric'
-    });
+    return new Date(dateStr).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const isOverdue = (tarea) => {
@@ -279,437 +235,447 @@ export default function TareasPage() {
     return new Date(tarea.fechaLimite) < new Date();
   };
 
-  const renderPageButtons = () => {
-    const buttons = [];
-    const maxVisible = 5;
-    let start = Math.max(1, page - Math.floor(maxVisible / 2));
-    let end = Math.min(totalPages, start + maxVisible - 1);
-    
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-    
-    for (let i = start; i <= end; i++) {
-      buttons.push(
-        <button
-          key={i}
-          type="button"
-          className={`prest-page-btn ${page === i ? 'active-page' : ''}`}
-          onClick={() => setPage(i)}
-        >
-          {i}
-        </button>
-      );
-    }
-    return buttons;
+  const activeFiltersCount = [filtroEstado, filtroPrioridad, fechas.start, fechas.end].filter(Boolean).length;
+
+  const renderBadge = (badges, key, compact = false) => {
+    const b = badges[key];
+    if (!b) return null;
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-wide ${b.bg} ${b.color} ${
+        compact ? 'px-1.5 py-0.5 text-[8px] gap-0.5' : 'px-2.5 py-1 text-[10px] gap-1.5'
+      }`}>
+        <span className={`rounded-full shrink-0 ${b.dot} ${compact ? 'w-1 h-1' : 'w-1.5 h-1.5'}`} />
+        {b.label}
+      </span>
+    );
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <div className="tareas-page">
-      {/* Header */}
-      <div className="tareas-header">
-        <div className="tareas-header-info">
-          <h1>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="tareas-title-icon">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-            </svg>
-            Tareas
-          </h1>
-          <p className="tareas-subtitle">
-            {isAdmin ? 'Gestiona y asigna tareas al equipo' : 'Revisa y gestiona tus tareas asignadas'}
-          </p>
+  const kpiItems = stats ? [
+    { label: 'Total tareas', mobileLabel: 'Total', value: stats.total, hint: 'Registradas', accent: '#2b41b8', iconBg: 'bg-[#eef1fc]', iconColor: 'text-[#2b41b8]', icon: CHECK_ICON },
+    { label: 'Generadas', mobileLabel: 'Generadas', value: stats.pendientes, hint: 'Sin iniciar', accent: '#3b82f6', iconBg: 'bg-blue-50', iconColor: 'text-blue-600', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    { label: 'En proceso', mobileLabel: 'En proceso', value: stats.enProgreso, hint: 'Activas ahora', accent: '#f97316', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', icon: 'M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 0 1 0 1.971l-11.54 6.347a1.125 1.125 0 0 1-1.667-.985V5.653Z' },
+    { label: 'Finalizadas', mobileLabel: 'Finalizadas', value: stats.completadas, hint: 'Completadas', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+  ] : [];
+
+  const renderKpiCardDesktop = (kpi) => (
+    <div key={kpi.label} className="bg-white border border-slate-200/80 rounded-xl shadow-sm flex items-start gap-3 p-5 min-w-0">
+      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-5 h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-slate-500">{kpi.label}</p>
+        <p className="text-2xl font-bold mt-0.5 tabular-nums leading-none" style={{ color: TA_NAVY }}>{kpi.value}</p>
+        <p className="text-[11px] text-slate-400 mt-0.5">{kpi.hint}</p>
+      </div>
+    </div>
+  );
+
+  const renderKpiCardMobile = (kpi) => (
+    <div key={kpi.label} className="co-kpi-mobile bg-white rounded-xl border border-slate-200/80 shadow-sm flex items-center gap-2.5 p-3 min-w-0">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-4 h-4 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-medium text-slate-500 leading-tight truncate">{kpi.mobileLabel}</p>
+        <p className="text-base font-bold tabular-nums leading-none mt-0.5" style={{ color: TA_NAVY }}>{kpi.value}</p>
+      </div>
+    </div>
+  );
+
+  const tabClass = (active) =>
+    `px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+      active ? 'border-[#2b41b8] text-[#2b41b8]' : 'border-transparent text-slate-500 hover:text-slate-700'
+    }`;
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setFiltroEstado('');
+  };
+
+  const renderTabs = () => (
+    <div className="flex gap-1 border-b border-slate-200 mb-4 md:mb-5 overflow-x-auto">
+      {isAdmin && (
+        <button type="button" className={tabClass(activeTab === 'todas')} style={activeTab === 'todas' ? { color: TA_PRIMARY, borderColor: TA_PRIMARY } : undefined} onClick={() => switchTab('todas')}>
+          Todas las tareas
+        </button>
+      )}
+      <button type="button" className={tabClass(activeTab === 'mis-tareas')} style={activeTab === 'mis-tareas' ? { color: TA_PRIMARY, borderColor: TA_PRIMARY } : undefined} onClick={() => switchTab('mis-tareas')}>
+        Mis tareas
+      </button>
+      <button type="button" className={tabClass(activeTab === 'historial')} style={activeTab === 'historial' ? { color: TA_PRIMARY, borderColor: TA_PRIMARY } : undefined} onClick={() => switchTab('historial')}>
+        Historial
+      </button>
+    </div>
+  );
+
+  const renderFilters = (mobile = false) => (
+    <div className={`grid gap-2 ${mobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-4'}`}>
+      {isAdmin && (activeTab === 'todas' || activeTab === 'historial') && (
+        <div className={`relative ${mobile ? '' : 'col-span-2 lg:col-span-1'}`}>
+          <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Buscar tarea…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
+          />
         </div>
-        {isAdmin && (
-          <button className="tareas-btn-primary" onClick={openCreateModal}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Nueva Tarea
+      )}
+      <div className="min-w-0">
+        <DateRangePicker value={fechas} onChange={(val) => setFechas({ start: val.start, end: val.end })} placeholder="Rango de fechas" />
+      </div>
+      <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="h-10 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
+        {activeTab === 'historial' ? (
+          <>
+            <option value="">Todo el historial</option>
+            <option value="completada">Finalizada</option>
+            <option value="cancelada">Cancelada</option>
+          </>
+        ) : (
+          <>
+            <option value="">Todos los activos</option>
+            <option value="pendiente">Generada</option>
+            <option value="en_progreso">En proceso</option>
+          </>
+        )}
+      </select>
+      <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="h-10 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
+        <option value="">Todas las prioridades</option>
+        <option value="alta">Alta</option>
+        <option value="media">Media</option>
+        <option value="baja">Baja</option>
+      </select>
+    </div>
+  );
+
+  const renderTareaActions = (tarea, compact = false) => {
+    const isAssigned = tarea.asignaciones?.some((a) => a.userId === storedUser.id);
+    const btnClass = compact
+      ? 'h-8 px-2.5 inline-flex items-center gap-1 rounded-lg text-[11px] font-semibold whitespace-nowrap'
+      : 'h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold whitespace-nowrap';
+
+    return (
+      <div className={`flex flex-wrap items-center ${compact ? 'gap-1' : 'gap-1.5 justify-end'}`}>
+        {isAssigned && tarea.estado === 'pendiente' && (
+          <button type="button" onClick={() => handleStatusChange(tarea, 'en_progreso')} className={`${btnClass} text-white`} style={{ backgroundColor: TA_PRIMARY }}>
+            Iniciar
           </button>
+        )}
+        {isAssigned && tarea.estado === 'en_progreso' && (
+          <button type="button" onClick={() => handleStatusChange(tarea, 'completada')} className={`${btnClass} bg-emerald-600 text-white`}>
+            Completar
+          </button>
+        )}
+        {isAdmin && (
+          <>
+            <button type="button" onClick={() => openEditModal(tarea)} className={`${btnClass} border border-slate-200 text-slate-600 bg-white hover:bg-slate-50`}>
+              Editar
+            </button>
+            {tarea.estado !== 'cancelada' && (
+              <button type="button" onClick={() => handleStatusChange(tarea, 'cancelada')} className={`${btnClass} border border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100`}>
+                Cancelar
+              </button>
+            )}
+            <button type="button" onClick={() => handleDelete(tarea)} className={`${btnClass} border border-red-200 text-red-600 bg-red-50 hover:bg-red-100`}>
+              Eliminar
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderMobileRow = (tarea) => {
+    const overdue = isOverdue(tarea);
+    const asignados = (tarea.asignaciones || []).map((a) => a.user?.nombre || a.user?.username).filter(Boolean);
+
+    return (
+      <div key={tarea.id} className={`co-orden-row border-b border-slate-100 last:border-b-0 px-3 py-3 ${overdue ? 'bg-red-50/40' : ''}`}>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold leading-tight truncate" style={{ color: TA_NAVY }}>{tarea.titulo}</p>
+            {tarea.descripcion && <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{tarea.descripcion}</p>}
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {renderBadge(PRIORIDAD_BADGES, tarea.prioridad, true)}
+            {renderBadge(ESTADO_BADGES, tarea.estado, true)}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+          <div><span className="text-slate-400 block text-[10px]">Creador</span><span className="font-medium text-slate-700">{tarea.creadoPor?.nombre || '—'}</span></div>
+          <div><span className="text-slate-400 block text-[10px]">Fecha límite</span><span className={`font-medium ${overdue ? 'text-red-600' : 'text-slate-700'}`}>{formatDate(tarea.fechaLimite)}{overdue ? ' · Vencida' : ''}</span></div>
+          <div className="col-span-2"><span className="text-slate-400 block text-[10px]">Asignados</span><span className="font-medium text-slate-700">{asignados.join(', ') || '—'}</span></div>
+        </div>
+        {renderTareaActions(tarea, true)}
+      </div>
+    );
+  };
+
+  const renderPagination = () => (
+    <div className="px-4 md:px-5 py-3 border-t border-slate-100 bg-white flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      <p className="text-xs text-slate-500 text-center md:text-left">
+        Mostrando {showingFrom} a {showingTo} de {total} tareas
+      </p>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1">
+          <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&lt;</button>
+          <span className="md:hidden text-xs font-semibold px-2 tabular-nums" style={{ color: TA_NAVY }}>{page} / {totalPages}</span>
+          <div className="hidden md:flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const maxVisible = Math.min(5, totalPages);
+              let start = Math.max(1, page - Math.floor(maxVisible / 2));
+              const end = Math.min(totalPages, start + maxVisible - 1);
+              if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+              const pageNum = start + i;
+              if (pageNum > end) return null;
+              const isActive = page === pageNum;
+              return (
+                <button key={pageNum} type="button" onClick={() => setPage(pageNum)} className={`w-8 h-8 rounded-lg border text-sm font-medium ${isActive ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`} style={isActive ? { backgroundColor: TA_PRIMARY } : undefined}>{pageNum}</button>
+              );
+            })}
+          </div>
+          <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&gt;</button>
+        </div>
+      )}
+    </div>
+  );
+
+  const emptyMessage = activeTab === 'historial'
+    ? 'No hay tareas finalizadas o canceladas en el historial'
+    : (isAdmin ? 'Crea una nueva tarea para empezar' : 'No tienes tareas activas asignadas');
+
+  const headerAction = isAdmin ? (
+    <ComprasHeaderButton onClick={openCreateModal}>
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      Nueva Tarea
+    </ComprasHeaderButton>
+  ) : null;
+
+  const filteredUsers = users
+    .filter((u) => u.estado === 'activo')
+    .filter((u) => {
+      const query = searchUserQuery.trim().toLowerCase();
+      if (!query) return true;
+      return u.nombre.toLowerCase().includes(query) || (u.rol || '').toLowerCase().includes(query) || (u.username || '').toLowerCase().includes(query);
+    });
+
+  return (
+    <div className="co-tareas-page co-compras-page animate-slide-up overflow-x-hidden pb-6">
+      <ComprasPageHeader
+        title="Tareas"
+        subtitle={isAdmin ? 'Gestiona y asigna tareas al equipo' : 'Revisa y gestiona tus tareas asignadas'}
+        action={headerAction}
+      />
+
+      {stats && (
+        <>
+          <div className="md:hidden">
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
+            </div>
+          </div>
+          <div className="hidden md:block">
+            <div className="grid gap-4 mb-6 md:grid-cols-2 xl:grid-cols-4">
+              {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {renderTabs()}
+
+      {/* Móvil: filtros colapsables */}
+      <div className="md:hidden mb-3 space-y-2">
+        <div className="flex gap-2">
+          {isAdmin && (activeTab === 'todas' || activeTab === 'historial') && (
+            <div className="relative flex-1 min-w-0">
+              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input type="text" placeholder="Buscar tarea…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-xl bg-white text-sm outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15" />
+            </div>
+          )}
+          <button type="button" onClick={() => setMobileFiltersOpen((v) => !v)} className="w-10 h-10 shrink-0 inline-flex items-center justify-center border border-slate-200 rounded-xl bg-white text-slate-500 relative" aria-label="Filtros">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+            </svg>
+            {activeFiltersCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[1rem] h-4 px-1 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ backgroundColor: TA_PRIMARY }}>{activeFiltersCount}</span>
+            )}
+          </button>
+        </div>
+        {mobileFiltersOpen && renderFilters(true)}
+      </div>
+
+      {/* Escritorio: filtros en tarjeta */}
+      <div className="hidden md:block bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm mb-6">
+        <div className="px-5 py-4 border-b border-slate-100">
+          {renderFilters()}
+        </div>
+
+        <div className="overflow-x-auto relative min-h-[200px]">
+          {loading && (
+            <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+              <div className="co-spinner" />
+            </div>
+          )}
+          {!loading && tareas.length === 0 ? (
+            <p className="text-center text-slate-400 text-sm py-16 px-4">{emptyMessage}</p>
+          ) : (
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-[#f8f9fc] text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+                <tr>
+                  <th className="px-4 py-3">Título</th>
+                  <th className="px-4 py-3">Prioridad</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3">Creador</th>
+                  <th className="px-4 py-3">Fecha límite</th>
+                  <th className="px-4 py-3">Asignados</th>
+                  <th className="px-4 py-3 text-right w-64">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tareas.map((tarea) => {
+                  const overdue = isOverdue(tarea);
+                  const asignados = (tarea.asignaciones || []).map((a) => a.user?.nombre || a.user?.username).filter(Boolean);
+                  return (
+                    <tr key={tarea.id} className={`border-b border-slate-50 hover:bg-slate-50/60 ${overdue ? 'bg-red-50/30' : ''}`}>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800">{tarea.titulo}</p>
+                        {tarea.descripcion && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{tarea.descripcion}</p>}
+                      </td>
+                      <td className="px-4 py-3">{renderBadge(PRIORIDAD_BADGES, tarea.prioridad)}</td>
+                      <td className="px-4 py-3">{renderBadge(ESTADO_BADGES, tarea.estado)}</td>
+                      <td className="px-4 py-3 text-slate-700">{tarea.creadoPor?.nombre || '—'}</td>
+                      <td className={`px-4 py-3 ${overdue ? 'text-red-600 font-semibold' : 'text-slate-700'}`}>
+                        {formatDate(tarea.fechaLimite)}
+                        {overdue && <span className="ml-1 text-[10px] font-bold uppercase">Vencida</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 text-xs max-w-[180px]">
+                        <span className="line-clamp-2">{asignados.join(', ') || '—'}</span>
+                      </td>
+                      <td className="px-4 py-3">{renderTareaActions(tarea)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+        {renderPagination()}
+      </div>
+
+      {/* Móvil: lista en tarjeta */}
+      <div className="md:hidden bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
+        <div className="px-3 py-2.5 border-b border-slate-100">
+          <h2 className="text-sm font-bold" style={{ color: TA_NAVY }}>
+            {activeTab === 'historial' ? 'Historial de tareas' : activeTab === 'mis-tareas' ? 'Mis tareas' : 'Todas las tareas'}
+          </h2>
+        </div>
+        {loading && <div className="flex justify-center py-10"><div className="co-spinner" /></div>}
+        {!loading && tareas.length === 0 && <p className="text-center text-slate-400 text-sm py-10 px-4">{emptyMessage}</p>}
+        {!loading && tareas.map((t) => renderMobileRow(t))}
+      </div>
+
+      <div className="md:hidden px-1 py-2">
+        {totalPages > 1 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] text-slate-500 text-center">Mostrando {showingFrom} a {showingTo} de {total} tareas</p>
+            <div className="flex items-center justify-center gap-1">
+              <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 bg-white disabled:opacity-40">&lt;</button>
+              <span className="text-xs font-semibold px-2 tabular-nums" style={{ color: TA_NAVY }}>{page} / {totalPages}</span>
+              <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 bg-white disabled:opacity-40">&gt;</button>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="tareas-stats-grid">
-          <div className="tareas-stat-card stat-total">
-            <div className="stat-number">{stats.total}</div>
-            <div className="stat-label">Total</div>
-          </div>
-          <div className="tareas-stat-card stat-pendiente">
-            <div className="stat-number">{stats.pendientes}</div>
-            <div className="stat-label">Generadas</div>
-          </div>
-          <div className="tareas-stat-card stat-progreso">
-            <div className="stat-number">{stats.enProgreso}</div>
-            <div className="stat-label">En Proceso</div>
-          </div>
-          <div className="tareas-stat-card stat-completada">
-            <div className="stat-number">{stats.completadas}</div>
-            <div className="stat-label">Finalizadas</div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs + Filters */}
-      <div className="tareas-toolbar">
-        <div className="tareas-tabs">
-          {isAdmin && (
-            <button className={`tab-btn ${activeTab === 'todas' ? 'active' : ''}`} onClick={() => { setActiveTab('todas'); setFiltroEstado(''); }}>
-              Todas las Tareas
-            </button>
-          )}
-          <button className={`tab-btn ${activeTab === 'mis-tareas' ? 'active' : ''}`} onClick={() => { setActiveTab('mis-tareas'); setFiltroEstado(''); }}>
-            Mis Tareas
-          </button>
-          <button className={`tab-btn ${activeTab === 'historial' ? 'active' : ''}`} onClick={() => { setActiveTab('historial'); setFiltroEstado(''); }}>
-            Historial
-          </button>
-        </div>
-        <div className="tareas-filters" style={{ gap: '0.6rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
-          {isAdmin && (activeTab === 'todas' || activeTab === 'historial') && (
-            <input
-              type="text"
-              placeholder="Buscar tarea..."
-              className="tareas-search-input"
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); }}
-            />
-          )}
-          <div className="prest-datepicker-container" style={{ minWidth: '220px' }}>
-            <DateRangePicker
-              value={fechas}
-              onChange={(val) => setFechas({ start: val.start, end: val.end })}
-              placeholder="Rango de fechas"
-            />
-          </div>
-          <select value={filtroEstado} onChange={(e) => { setFiltroEstado(e.target.value); }} className="tareas-filter-select">
-            {activeTab === 'historial' ? (
-              <>
-                <option value="">Todo el historial</option>
-                <option value="completada">Finalizada</option>
-                <option value="cancelada">Cancelada</option>
-              </>
-            ) : (
-              <>
-                <option value="">Todos los activos</option>
-                <option value="pendiente">Generada</option>
-                <option value="en_progreso">En Proceso</option>
-              </>
-            )}
-          </select>
-          <select value={filtroPrioridad} onChange={(e) => { setFiltroPrioridad(e.target.value); }} className="tareas-filter-select">
-            <option value="">Todas las prioridades</option>
-            <option value="alta">Alta</option>
-            <option value="media">Media</option>
-            <option value="baja">Baja</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Task List */}
-      {loading ? (
-        <div className="tareas-loading">
-          <div className="tareas-spinner"></div>
-          <span>Cargando tareas...</span>
-        </div>
-      ) : tareas.length === 0 ? (
-        <div className="tareas-empty">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-          </svg>
-          <h3>No hay tareas</h3>
-          <p>
-            {activeTab === 'historial'
-              ? 'No tienes tareas finalizadas o canceladas en el historial'
-              : (isAdmin ? 'Crea una nueva tarea para empezar' : 'No tienes tareas activas asignadas')}
-          </p>
-        </div>
-      ) : (
-        <div className="tareas-list">
-          {tareas.map(tarea => {
-            const prio = PRIORIDAD_CONFIG[tarea.prioridad] || PRIORIDAD_CONFIG.media;
-            const estado = ESTADO_CONFIG[tarea.estado] || ESTADO_CONFIG.pendiente;
-            const overdue = isOverdue(tarea);
-            const isAssigned = tarea.asignaciones?.some(a => a.userId === storedUser.id);
-
-            return (
-              <div key={tarea.id} className={`tarea-card ${overdue ? 'tarea-overdue' : ''}`}>
-                <div className="tarea-card-header">
-                  <div className="tarea-card-title-row">
-                    <span className={`tarea-prioridad-badge ${prio.class}`}>
-                      <span className="prioridad-dot"></span>
-                      {prio.label}
-                    </span>
-                    <h3 className="tarea-titulo">{tarea.titulo}</h3>
-                  </div>
-                  <span className={`tarea-estado-badge ${estado.class}`}>{estado.label}</span>
-                </div>
-
-                {tarea.descripcion && (
-                  <p className="tarea-descripcion">{tarea.descripcion}</p>
-                )}
-
-                <div className="tarea-meta">
-                  <div className="tarea-meta-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0" />
-                    </svg>
-                    <span>Creada por: <strong>{tarea.creadoPor?.nombre || 'Desconocido'}</strong></span>
-                  </div>
-                  <div className="tarea-meta-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                    </svg>
-                    <span>Creada: {formatDate(tarea.fechaCreacion)}</span>
-                  </div>
-                  {tarea.fechaLimite && (
-                    <div className={`tarea-meta-item ${overdue ? 'meta-overdue' : ''}`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
-                      <span>Fecha límite: <strong>{formatDate(tarea.fechaLimite)}</strong></span>
-                      {overdue && <span className="overdue-label">Vencida</span>}
-                    </div>
-                  )}
-                </div>
-
-                {/* Assigned users */}
-                <div className="tarea-asignados">
-                  <span className="asignados-label">Asignados:</span>
-                  <div className="asignados-avatars">
-                    {(tarea.asignaciones || []).map(a => (
-                      <span key={a.id} className="asignado-chip" title={a.user?.nombre || a.user?.username}>
-                        <span className="asignado-chip-name">{a.user?.nombre || a.user?.username}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="tarea-actions">
-                  {/* Status transition buttons for the assigned user */}
-                  {isAssigned && (
-                    <>
-                      {tarea.estado === 'pendiente' && (
-                        <button className="tarea-action-btn btn-progress" onClick={() => handleStatusChange(tarea, 'en_progreso')}>
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="14" height="14" className="mr-1">
-                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.324-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                          </svg>
-                          Iniciar
-                        </button>
-                      )}
-                      {tarea.estado === 'en_progreso' && (
-                        <button className="tarea-action-btn btn-complete" onClick={() => handleStatusChange(tarea, 'completada')}>
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="14" height="14" className="mr-1">
-                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                          </svg>
-                          Completar
-                        </button>
-                      )}
-                    </>
-                  )}
-
-                  {isAdmin && (
-                    <>
-                      <button className="tarea-action-btn btn-edit" onClick={() => openEditModal(tarea)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="14" height="14" className="mr-1">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                        </svg>
-                        Editar
-                      </button>
-                      {tarea.estado !== 'cancelada' && (
-                        <button className="tarea-action-btn btn-cancel" onClick={() => handleStatusChange(tarea, 'cancelada')}>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="14" height="14" className="mr-1">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          Cancelar
-                        </button>
-                      )}
-                      <button className="tarea-action-btn btn-delete" onClick={() => handleDelete(tarea)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="14" height="14" className="mr-1">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                        </svg>
-                        Eliminar
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="prest-pagination" style={{ background: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(20px)' }}>
-          <span className="prest-pagination-info">
-            {total} tareas ({page} de {totalPages})
-          </span>
-          <div className="prest-pagination-pages">
-            <button
-              type="button"
-              className="prest-page-btn"
-              disabled={page <= 1}
-              onClick={() => setPage(p => p - 1)}
-            >
-              &lt;
-            </button>
-            {renderPageButtons()}
-            <button
-              type="button"
-              className="prest-page-btn"
-              disabled={page >= totalPages}
-              onClick={() => setPage(p => p + 1)}
-            >
-              &gt;
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Create/Edit Modal ─────────────────────────────────────────────── */}
+      {/* Modal crear/editar */}
       {showModal && (
         <ModalPortal>
-        <div className="tareas-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="tareas-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingTarea ? 'Editar Tarea' : 'Nueva Tarea'}</h2>
-              <button className="modal-close-btn" onClick={() => setShowModal(false)}>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="modal-form-wrapper">
-              <div className="modal-form-body">
-                {formError && <div className="form-error">{formError}</div>}
-
-                <div className="modal-desktop-grid">
-                  {/* Left Column: Task Info */}
-                  <div className="modal-details-col">
-                    <div className="form-group">
-                      <label>Título *</label>
-                      <input
-                        type="text"
-                        value={formTitulo}
-                        onChange={(e) => setFormTitulo(e.target.value)}
-                        placeholder="Ej: Instalar letrero en local norte"
-                        className="form-input"
-                        autoFocus
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Descripción</label>
-                      <textarea
-                        value={formDescripcion}
-                        onChange={(e) => setFormDescripcion(e.target.value)}
-                        placeholder="Detalles adicionales de la tarea..."
-                        className="form-textarea"
-                        rows={4}
-                      />
-                    </div>
-
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Prioridad</label>
-                        <select value={formPrioridad} onChange={(e) => setFormPrioridad(e.target.value)} className="form-input">
-                          <option value="baja">Baja</option>
-                          <option value="media">Media</option>
-                          <option value="alta">Alta</option>
-                        </select>
+          <div className="co-portal-root">
+            <div className="co-overlay" onClick={() => setShowModal(false)} />
+            <div className="co-modal-wrap">
+              <div className="co-modal co-modal-lg animate-co-modal-in" onClick={(e) => e.stopPropagation()}>
+              <div className="co-modal-header">
+                <h2 className="text-base font-bold text-slate-800">{editingTarea ? 'Editar Tarea' : 'Nueva Tarea'}</h2>
+                <button type="button" onClick={() => setShowModal(false)} className="co-modal-close">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="co-modal-body">
+                  {formError && (
+                    <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{formError}</div>
+                  )}
+                  <div className="ta-modal-grid">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="co-label">Título *</label>
+                        <input type="text" value={formTitulo} onChange={(e) => setFormTitulo(e.target.value)} placeholder="Ej: Instalar letrero en local norte" className="co-input w-full" autoFocus />
                       </div>
-                      <div className="form-group">
-                        <label>Fecha Límite</label>
-                        <input
-                          type="date"
-                          value={formFechaLimite}
-                          onChange={(e) => setFormFechaLimite(e.target.value)}
-                          className="form-input"
-                        />
+                      <div>
+                        <label className="co-label">Descripción</label>
+                        <textarea value={formDescripcion} onChange={(e) => setFormDescripcion(e.target.value)} placeholder="Detalles adicionales…" className="co-input w-full min-h-[100px] resize-y" rows={4} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="co-label">Prioridad</label>
+                          <select value={formPrioridad} onChange={(e) => setFormPrioridad(e.target.value)} className="co-input w-full">
+                            <option value="baja">Baja</option>
+                            <option value="media">Media</option>
+                            <option value="alta">Alta</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="co-label">Fecha límite</label>
+                          <input type="date" value={formFechaLimite} onChange={(e) => setFormFechaLimite(e.target.value)} className="co-input w-full" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Right Column: Assignees with Search bar */}
-                  <div className="modal-assignees-col">
-                    <div className="form-group flex flex-col h-full">
-                      <label>Asignar a *</label>
-                      <div className="user-search-wrapper" style={{ marginBottom: '8px', position: 'relative' }}>
-                        <input
-                          type="text"
-                          placeholder="Buscar por nombre o rol..."
-                          className="form-input user-search-input"
-                          value={searchUserQuery}
-                          onChange={(e) => setSearchUserQuery(e.target.value)}
-                          style={{ paddingLeft: '2rem' }}
-                        />
-                        <svg 
-                           xmlns="http://www.w3.org/2000/svg" 
-                           fill="none" 
-                           viewBox="0 0 24 24" 
-                           stroke="currentColor" 
-                           strokeWidth="2" 
-                           width="16" 
-                           height="16" 
-                           style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
-                        >
+                    <div className="flex flex-col min-h-0">
+                      <label className="co-label">Asignar a *</label>
+                      <div className="relative mb-2">
+                        <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                         </svg>
+                        <input type="text" placeholder="Buscar por nombre o rol…" className="co-input w-full pl-10" value={searchUserQuery} onChange={(e) => setSearchUserQuery(e.target.value)} />
                       </div>
-                      
-                      <div className="user-selector">
-                        {users
-                          .filter(u => u.estado === 'activo')
-                          .filter(u => {
-                            const query = searchUserQuery.trim().toLowerCase();
-                            if (!query) return true;
-                            return (
-                              u.nombre.toLowerCase().includes(query) ||
-                              (u.rol || '').toLowerCase().includes(query) ||
-                              (u.username || '').toLowerCase().includes(query)
-                            );
-                          })
-                          .map(u => (
-                          <label key={u.id} className={`user-option ${formAsignados.includes(u.id) ? 'selected' : ''}`}>
-                            <input
-                              type="checkbox"
-                              checked={formAsignados.includes(u.id)}
-                              onChange={() => toggleAsignado(u.id)}
-                            />
-                            <div className="user-option-avatar">{(u.nombre || 'U').charAt(0).toUpperCase()}</div>
-                            <div className="user-option-info">
-                              <span className="user-option-name">{u.nombre}</span>
-                              <span className="user-option-role">{u.rol}</span>
-                            </div>
+                      <div className="ta-user-selector">
+                        {filteredUsers.map((u) => (
+                          <label key={u.id} className={`ta-user-option ${formAsignados.includes(u.id) ? 'selected' : ''}`}>
+                            <input type="checkbox" checked={formAsignados.includes(u.id)} onChange={() => toggleAsignado(u.id)} />
+                            <span className="ta-user-avatar">{(u.nombre || 'U').charAt(0).toUpperCase()}</span>
+                            <span>
+                              <span className="block text-sm font-semibold text-slate-800">{u.nombre}</span>
+                              <span className="block text-xs text-slate-500">{u.rol}</span>
+                            </span>
                           </label>
                         ))}
-                        {users.filter(u => u.estado === 'activo').filter(u => {
-                          const query = searchUserQuery.trim().toLowerCase();
-                          if (!query) return true;
-                          return u.nombre.toLowerCase().includes(query) || (u.rol || '').toLowerCase().includes(query);
-                        }).length === 0 && (
-                          <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
-                            No se encontraron usuarios activos.
-                          </div>
+                        {filteredUsers.length === 0 && (
+                          <p className="text-center text-slate-400 text-xs py-6">No se encontraron usuarios activos.</p>
                         )}
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-                <button type="submit" className="tareas-btn-primary" disabled={submitting}>
-                  {submitting ? 'Guardando...' : (editingTarea ? 'Actualizar' : 'Crear Tarea')}
-                </button>
-              </div>
-            </form>
+                <div className="co-modal-fixed-footer flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
+                  <button type="button" onClick={() => setShowModal(false)} className="co-btn-ghost">Cancelar</button>
+                  <button type="submit" className="co-btn-primary" disabled={submitting} style={{ background: TA_PRIMARY }}>
+                    {submitting ? 'Guardando…' : (editingTarea ? 'Actualizar' : 'Crear Tarea')}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
         </ModalPortal>

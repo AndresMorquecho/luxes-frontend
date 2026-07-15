@@ -25,8 +25,12 @@ export class HoraExtra {
     valorPorHora = 2.50,
     total,
     estado = 'DEUDOR',
+    aprobacionEstado = 'APROBADA',
+    origen = 'MANUAL',
   }) {
-    this.id = id || Math.random().toString(36).substr(2, 9);
+    this.id = id || (typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substr(2, 9));
     this.fecha = fecha;
     this.colaboradorId = colaboradorId;
     this.horas = Number(horas);
@@ -35,6 +39,8 @@ export class HoraExtra {
     this.valorPorHora = Number(valorPorHora);
     this.total = total !== undefined ? Number(total) : this.horas * this.valorPorHora;
     this.estado = estado;
+    this.aprobacionEstado = aprobacionEstado;
+    this.origen = origen;
   }
 
   /**

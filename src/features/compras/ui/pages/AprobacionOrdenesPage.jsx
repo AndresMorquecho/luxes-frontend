@@ -4,6 +4,7 @@ import { getOrdenes } from '../../application/comprasService';
 import { getOrdenProyectoLabel, mapOrdenToPDFFormat } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { ComprasPageHeader, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
 
 const ESTADO_BADGES = {
@@ -91,31 +92,15 @@ export const AprobacionOrdenesPage = () => {
 
   return (
     <div className="co-page animate-slide-up">
-      {/* Header */}
-      <div className="co-card co-header-aprobacion" style={{ border: '1.5px solid #e2e8f0', marginBottom: '1rem' }}>
-        <button
-          type="button"
-          onClick={() => navigate('/compras')}
-          className="co-back-top md:hidden"
-        >
-          ← Volver a Compras
-        </button>
-
-        <div className="co-header-aprobacion-body">
-          <div className="min-w-0">
-            <h1 className="co-title">Panel de Aprobaciones</h1>
-            <p className="co-subtitle">Revisa, aprueba o rechaza solicitudes de órdenes de compra entrantes</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/compras')}
-            className="co-btn-ghost hidden md:inline-flex"
-            style={{ color: '#2563eb', fontWeight: 700, shrink: 0 }}
-          >
+      <ComprasPageHeader
+        title="Panel de Aprobaciones"
+        subtitle="Revisa, aprueba o rechaza solicitudes de órdenes de compra entrantes"
+        action={(
+          <ComprasHeaderGhostButton onClick={() => navigate('/compras')} className="md:inline-flex">
             ← Volver a Compras
-          </button>
-        </div>
-      </div>
+          </ComprasHeaderGhostButton>
+        )}
+      />
 
       {/* Filter Tabs */}
       <div className="co-aprobacion-tabs mb-4">

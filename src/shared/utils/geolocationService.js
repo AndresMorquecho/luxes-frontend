@@ -268,7 +268,7 @@ export async function resolveUbicacion() {
   if (cached) return cached;
 
   if (!isGeolocationSupported() || !isSecureGeolocationContext()) {
-    return DEFAULT_UBICACION;
+    return null;
   }
 
   return new Promise((resolve) => {
@@ -281,7 +281,7 @@ export async function resolveUbicacion() {
         notify();
         resolve(loc);
       },
-      () => resolve(cached || DEFAULT_UBICACION),
+      () => resolve(null),
       GEO_OPTIONS_LOW
     );
   });

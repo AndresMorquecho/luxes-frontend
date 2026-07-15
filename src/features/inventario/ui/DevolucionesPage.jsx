@@ -76,7 +76,7 @@ export function DevolucionesPage() {
         searchTool: searchTool || undefined,
         filterPersona: filterPersona || undefined
       });
-      
+
       if (data && typeof data === 'object' && 'items' in data) {
         setItems(data.items || []);
         setTotal(data.total || 0);
@@ -114,7 +114,7 @@ export function DevolucionesPage() {
     })();
     return () => { cancelled = true; };
     // Solo al montar: sincroniza instalaciones ya cerradas y recarga la lista
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps.
   }, []);
 
   useEffect(() => {
@@ -171,11 +171,11 @@ export function DevolucionesPage() {
     const maxButtons = 5;
     let startPage = Math.max(1, page - 2);
     let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-    
+
     if (endPage - startPage + 1 < maxButtons) {
       startPage = Math.max(1, endPage - maxButtons + 1);
     }
-    
+
     for (let i = startPage; i <= endPage; i++) {
       buttons.push(
         <button

@@ -11,6 +11,8 @@ const ORIGEN_LABELS = {
   gasto: 'Gasto',
   orden_compra: 'Pago en caja',
   cuenta_por_pagar: 'Saldo OC',
+  ingreso_manual: 'Ingreso Manual',
+  transferencia: 'Transferencia',
 };
 
 const ORIGEN_COLORS = {
@@ -18,6 +20,8 @@ const ORIGEN_COLORS = {
   gasto: { bg: 'rgba(239,68,68,0.08)', color: '#dc2626', border: 'rgba(239,68,68,0.2)' },
   orden_compra: { bg: 'rgba(245,158,11,0.08)', color: '#d97706', border: 'rgba(245,158,11,0.2)' },
   cuenta_por_pagar: { bg: 'rgba(139,92,246,0.08)', color: '#7c3aed', border: 'rgba(139,92,246,0.2)' },
+  ingreso_manual: { bg: 'rgba(16,185,129,0.08)', color: '#059669', border: 'rgba(16,185,129,0.2)' },
+  transferencia: { bg: 'rgba(59,130,246,0.08)', color: '#2563eb', border: 'rgba(59,130,246,0.2)' },
 };
 
 export const MovimientosPage = () => {
@@ -409,7 +413,7 @@ export const MovimientosPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="mv-card px-5 py-4 mb-5 animate-mv-in" style={{ animationDelay: '0.1s' }}>
+      <div className="mv-card px-5 py-4 mb-5 animate-mv-in" style={{ animationDelay: '0.1s', overflow: 'visible', position: 'relative', zIndex: 50 }}>
         <div className="mv-filter-bar">
           {/* Date range */}
           <div className="flex items-center gap-2" style={{ minWidth: '240px' }}>
@@ -512,8 +516,11 @@ export const MovimientosPage = () => {
                     const origenStyle = ORIGEN_COLORS[m.origen] || {};
                     return (
                       <tr key={m.id + m.origen}>
-                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#334155', fontSize: '12.5px' }}>
-                          {new Date(m.fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#334155', fontSize: '12.5px', padding: '10px 12px' }}>
+                          <div>{new Date(m.fecha).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', fontWeight: 500 }}>
+                            {new Date(m.fecha).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </div>
                         </td>
                         <td>
                           <span className={`mv-badge ${m.tipo === 'ingreso' ? 'mv-badge-ingreso' : 'mv-badge-egreso'}`}>

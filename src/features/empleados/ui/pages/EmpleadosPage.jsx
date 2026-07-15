@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { getAvatarPalette, getPersonInitials, AVATAR_PALETTES } from '../../../../shared/utils/personInitials.js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { toast } from '../../../../shared/ui/components/Toast';
-import { sueldoMensualEfectivo, sueldoQuincenaBase } from '../../../../shared/utils/sueldoHelpers.js';
+import { sueldoMensualEfectivo, sueldoQuincenaBase, sueldoDiarioEfectivo } from '../../../../shared/utils/sueldoHelpers.js';
+import { CredencialesPanel } from '../components/CredencialesPanel';
 import {
   getEmpleados,
   deleteEmpleado,
@@ -108,6 +109,8 @@ const EmpleadoBankCell = ({ banco, cuentaBanco }) => {
 
 export const EmpleadosPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const vista = searchParams.get('vista') === 'credenciales' ? 'credenciales' : 'empleados';
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -132,8 +135,20 @@ export const EmpleadosPage = () => {
   };
 
   useEffect(() => {
-    load();
-  }, []);
+    if (vista === 'empleados') {
+      load();
+    }
+  }, [vista]);
+
+  const setVista = (next) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'credenciales') {
+      params.set('vista', 'credenciales');
+    } else {
+      params.delete('vista');
+    }
+    setSearchParams(params, { replace: true });
+  };
 
   const openNew = () => {
     navigate('/nomina/empleados/nuevo');
@@ -149,7 +164,7 @@ export const EmpleadosPage = () => {
     try {
       const docs = await getEmpleadoDocumentos(emp.id);
       setViewingDocs(docs);
-      
+
       const fullEmp = await getEmpleadoById(emp.id);
       setViewingEmpleado(fullEmp);
     } catch (err) {
@@ -170,18 +185,18 @@ export const EmpleadosPage = () => {
 
   const q = search.toLowerCase();
   const filteredAll = empleados.filter(e =>
-    e.nombre.toLowerCase().includes(q) ||
-    e.id.toLowerCase().includes(q) ||
-    e.cedula.includes(q) ||
-    e.cargo.toLowerCase().includes(q) ||
-    e.departamento.toLowerCase().includes(q) ||
-    e.cuentaBanco.includes(q) ||
-    e.banco.toLowerCase().includes(q)
+    (e.nombre || '').toLowerCase().includes(q) ||
+    (e.id || '').toLowerCase().includes(q) ||
+    (e.cedula || '').includes(q) ||
+    (e.cargo || '').toLowerCase().includes(q) ||
+    (e.departamento || '').toLowerCase().includes(q) ||
+    (e.cuentaBanco || '').includes(q) ||
+    (e.banco || '').toLowerCase().includes(q)
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
   const safePage = page > totalPages ? 1 : page;
-  
+
   // Evitar bucle de renderizado si la página cambia
   useEffect(() => {
     if (safePage !== page) {
@@ -211,7 +226,7 @@ export const EmpleadosPage = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 xl:p-8 w-full animate-slide-up empleados-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="space-y-3 sm:space-y-5 animate-slide-up empleados-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
         .empleados-page, .empleados-page * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
         .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
@@ -239,587 +254,649 @@ export const EmpleadosPage = () => {
         }
       `}</style>
 
-      <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${vista === 'credenciales' ? 'bg-violet-50 border-violet-100' : 'bg-blue-50 border-blue-100'}`}>
+              {vista === 'credenciales' ? (
+                <svg className="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                </svg>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">
+                  {vista === 'credenciales' ? 'Credenciales' : 'Colaboradores'}
+                </h1>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide ${vista === 'credenciales' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {vista === 'credenciales' ? 'Carnets QR' : 'Lista'}
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                {vista === 'credenciales'
+                  ? 'Imprime y gestiona los carnets de identificación con código QR'
+                  : 'Registro y gestión de colaboradores'}
+              </p>
+            </div>
+          </div>
+
+          {vista === 'empleados' && (
+            <button
+              type="button"
+              onClick={openNew}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm whitespace-nowrap transition-opacity hover:opacity-90 shadow-sm w-full sm:w-auto bg-blue-600 hover:bg-blue-700 shrink-0"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Nuevo colaborador
+            </button>
+          )}
+        </div>
+
+        <div className="px-4 sm:px-5 pb-4 flex gap-1 border-t border-slate-100 pt-3 bg-slate-50/50">
+          <button
+            type="button"
+            onClick={() => setVista('empleados')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${vista === 'empleados'
+              ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+              : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+              }`}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
             </svg>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">Colaboradores</h1>
-            <p className="text-sm text-slate-500">Registro y gestión de colaboradores</p>
-          </div>
+            Empleados
+          </button>
+          <button
+            type="button"
+            onClick={() => setVista('credenciales')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${vista === 'credenciales'
+              ? 'bg-white text-violet-700 shadow-sm border border-violet-100'
+              : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+              }`}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z" />
+            </svg>
+            Credenciales
+          </button>
         </div>
-        <button onClick={openNew} className="flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm w-full sm:w-auto shrink-0"
-          style={{ backgroundColor: '#1d4ed8' }}>
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nuevo Colaborador
-        </button>
       </div>
 
-      {/* Table Card */}
-      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-gray-800">Lista de Colaboradores</h2>
-            <span className="text-xs font-medium text-gray-400">{filteredAll.length} registros</span>
-          </div>
-          <div className="relative w-full sm:w-auto">
-            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar colaborador..."
-              className="pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-full sm:w-80 sm:min-w-[280px] transition-colors"
-            />
-          </div>
+      {vista === 'credenciales' ? (
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden p-4 sm:p-6">
+          <CredencialesPanel />
         </div>
-
-        {/* Escritorio: tabla */}
-        <div className="hidden md:block overflow-x-auto relative">
-          {loading && (
-            <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px]">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+      ) : (
+        <>
+          {/* Table Card */}
+          <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-semibold text-gray-800">Lista de Colaboradores</h2>
+                <span className="text-xs font-medium text-gray-400">{filteredAll.length} registros</span>
+              </div>
+              <div className="relative w-full sm:w-auto">
+                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar colaborador..."
+                  className="pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-full sm:w-80 sm:min-w-[280px] transition-colors"
+                />
+              </div>
             </div>
-          )}
-          <table className="w-full text-sm empleados-table">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Colaborador</th>
-                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cédula</th>
 
-                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Rol en el Sistema</th>
-                  <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map(emp => {
-                  const depto = getDeptoStyle(emp.departamento);
+            {/* Escritorio: tabla */}
+            <div className="hidden md:block overflow-x-auto relative">
+              {loading && (
+                <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px]">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+                </div>
+              )}
+              <table className="w-full text-sm empleados-table">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Colaborador</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cédula</th>
 
-                  return (
-                    <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-900 leading-tight truncate normal-case">{emp.nombre}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{emp.id}</p>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Rol en el Sistema</th>
+                    <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filtered.map(emp => {
+                    const depto = getDeptoStyle(emp.departamento);
+
+                    return (
+                      <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" image={emp.foto} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-slate-900 leading-tight truncate normal-case">{emp.nombre}</p>
+                              <p className="text-xs text-slate-400 mt-0.5">{emp.id}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 text-sm text-slate-700">{emp.cedula}</td>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-slate-700">{emp.cedula}</td>
 
-                      <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                        <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                          {emp.rol ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 capitalize">
+                              {emp.rol}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleView(emp)}
+                              className="p-1.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                              title="Ver detalle del colaborador"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => openEdit(emp)}
+                              className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                              title="Editar colaborador"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(emp)}
+                              className="p-1.5 rounded-lg bg-rose-50 text-rose-500 border border-rose-100 hover:bg-rose-100 hover:text-rose-600 transition-colors"
+                              title="Eliminar colaborador"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-12 text-sm text-slate-400">
+                        {search ? 'No se encontraron colaboradores' : 'No hay colaboradores registrados'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Móvil: cards */}
+            <div className="md:hidden relative p-3 sm:p-4 space-y-3">
+              {loading && (
+                <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px] rounded-lg">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+                </div>
+              )}
+              {filtered.map((emp) => {
+                const depto = getDeptoStyle(emp.departamento);
+
+                return (
+                  <div
+                    key={emp.id}
+                    className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" image={emp.foto} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-900 leading-snug normal-case">{emp.nombre}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{emp.id}</p>
+
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 pt-3 border-t border-slate-100 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 font-medium block">Cédula</span>
+                        <span className="text-slate-700 font-semibold">{emp.cedula || '—'}</span>
+                      </div>
+
+                      <div className="col-span-2">
+                        <span className="text-slate-400 font-medium block mb-1">Rol en el sistema</span>
                         {emp.rol ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 capitalize">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 capitalize">
                             {emp.rol}
                           </span>
                         ) : (
-                          <span className="text-sm text-slate-400">—</span>
+                          <span className="text-sm font-semibold text-slate-400">—</span>
                         )}
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleView(emp)}
-                            className="p-1.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                            title="Ver detalle del colaborador"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => openEdit(emp)}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 hover:bg-blue-100 hover:text-blue-600 transition-colors"
-                            title="Editar colaborador"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(emp)}
-                            className="p-1.5 rounded-lg bg-rose-50 text-rose-500 border border-rose-100 hover:bg-rose-100 hover:text-rose-600 transition-colors"
-                            title="Eliminar colaborador"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="text-center py-12 text-sm text-slate-400">
-                      {search ? 'No se encontraron colaboradores' : 'No hay colaboradores registrados'}
-                    </td>
-                  </tr>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleView(emp)}
+                        className="flex-1 py-2 rounded-lg bg-slate-50 text-slate-600 border border-slate-200 text-[11px] font-bold"
+                      >
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(emp)}
+                        className="flex-1 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[11px] font-bold"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(emp)}
+                        className="px-3 py-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100"
+                        title="Eliminar"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {!loading && filtered.length === 0 && (
+                <div className="text-center py-10 text-sm text-slate-400">
+                  {search ? 'No se encontraron colaboradores' : 'No hay colaboradores registrados'}
+                </div>
+              )}
+            </div>
+
+            {/* Paginación */}
+            {filteredAll.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-gray-100">
+                <div className="flex items-center gap-4">
+                  <span className="text-[11px] font-medium text-gray-400">
+                    Página {page} de {totalPages}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-gray-400">Mostrar:</span>
+                    <select
+                      value={perPage}
+                      onChange={(e) => {
+                        setPerPage(Number(e.target.value));
+                        setPage(1);
+                      }}
+                      className="px-2 py-1 text-[11px] font-semibold text-gray-500 border border-gray-200 rounded-lg outline-none bg-white focus:border-blue-300 transition-colors cursor-pointer"
+                    >
+                      <option value={20}>20 por página</option>
+                      <option value={50}>50 por página</option>
+                      <option value={100}>100 por página</option>
+                    </select>
+                  </div>
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      disabled={page <= 1}
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    >
+                      Anterior
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setPage(n)}
+                        className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${n === page ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                    <button
+                      disabled={page >= totalPages}
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
-
-        {/* Móvil: cards */}
-        <div className="md:hidden relative p-3 sm:p-4 space-y-3">
-          {loading && (
-            <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px] rounded-lg">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
-            </div>
-          )}
-          {filtered.map((emp) => {
-            const depto = getDeptoStyle(emp.departamento);
-
-            return (
-              <div
-                key={emp.id}
-                className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm"
-              >
-                <div className="flex items-start gap-3">
-                  <PersonInitialsAvatar name={emp.nombre} seed={emp.id || emp.nombre} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900 leading-snug normal-case">{emp.nombre}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{emp.id}</p>
-
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 pt-3 border-t border-slate-100 text-[11px]">
-                  <div>
-                    <span className="text-slate-400 font-medium block">Cédula</span>
-                    <span className="text-slate-700 font-semibold">{emp.cedula || '—'}</span>
-                  </div>
-
-                  <div className="col-span-2">
-                    <span className="text-slate-400 font-medium block mb-1">Rol en el sistema</span>
-                    {emp.rol ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 capitalize">
-                        {emp.rol}
-                      </span>
-                    ) : (
-                      <span className="text-sm font-semibold text-slate-400">—</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => handleView(emp)}
-                    className="flex-1 py-2 rounded-lg bg-slate-50 text-slate-600 border border-slate-200 text-[11px] font-bold"
-                  >
-                    Ver
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openEdit(emp)}
-                    className="flex-1 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[11px] font-bold"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(emp)}
-                    className="px-3 py-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100"
-                    title="Eliminar"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-          {!loading && filtered.length === 0 && (
-            <div className="text-center py-10 text-sm text-slate-400">
-              {search ? 'No se encontraron colaboradores' : 'No hay colaboradores registrados'}
-            </div>
-          )}
-        </div>
-
-        {/* Paginación */}
-        {filteredAll.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-gray-100">
-            <div className="flex items-center gap-4">
-              <span className="text-[11px] font-medium text-gray-400">
-                Página {page} de {totalPages}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-medium text-gray-400">Mostrar:</span>
-                <select
-                  value={perPage}
-                  onChange={(e) => {
-                    setPerPage(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="px-2 py-1 text-[11px] font-semibold text-gray-500 border border-gray-200 rounded-lg outline-none bg-white focus:border-blue-300 transition-colors cursor-pointer"
-                >
-                  <option value={20}>20 por página</option>
-                  <option value={50}>50 por página</option>
-                  <option value={100}>100 por página</option>
-                </select>
-              </div>
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                >
-                  Anterior
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setPage(n)}
-                    className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${n === page ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-                  >
-                    {n}
-                  </button>
-                ))}
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                >
-                  Siguiente
-                </button>
               </div>
             )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Modal de Detalle de Colaborador */}
       <ModalPortal open={!!viewingEmpleado}>
         {viewingEmpleado && (
-        <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-md z-[10000] flex items-center justify-center p-6 md:p-12 animate-fade-in">
-          <div className="relative w-full max-w-4xl max-h-[82vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
-                </svg>
-                <h2 className="text-base font-bold text-slate-800">Expediente del Colaborador</h2>
-              </div>
-              <button
-                onClick={() => deferClose(() => setViewingEmpleado(null))}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8">
-                
-                {/* Left Panel: Profile Summary */}
-                <div className="flex flex-col items-center border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-8">
-                  <div className="w-32 h-32 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50 flex items-center justify-center shrink-0">
-                    {viewingEmpleado.foto ? (
-                      <img src={viewingEmpleado.foto} alt={viewingEmpleado.nombre} className="w-full h-full object-cover" />
-                    ) : (
-                      <div
-                        className="w-full h-full flex items-center justify-center font-bold normal-case overflow-hidden"
-                        style={{
-                          backgroundColor: getAvatarStyle(viewingEmpleado.id || viewingEmpleado.nombre).bg,
-                          color: getAvatarStyle(viewingEmpleado.id || viewingEmpleado.nombre).text,
-                        }}
-                      >
-                        <span className="text-3xl leading-none tracking-tight normal-case">
-                          {getPersonInitials(viewingEmpleado.nombre)}
-                        </span>
-                      </div>
-                    )}
+          <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-[5px] z-[10000] flex items-center justify-center p-6 md:p-12 animate-fade-in">
+            <div className="relative w-full max-w-4xl max-h-[82vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border border-blue-100 bg-blue-50 text-blue-600">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                    </svg>
                   </div>
-                  <h3 className="text-base font-bold text-slate-800 text-center mt-4 leading-tight">{viewingEmpleado.nombre}</h3>
-                  <p className="text-xs font-semibold text-slate-400 mt-1">{viewingEmpleado.id}</p>
-                  
-                  {viewingEmpleado.departamento && (
-                    <span
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-3"
-                      style={{
-                        backgroundColor: getDeptoStyle(viewingEmpleado.departamento).bg,
-                        color: getDeptoStyle(viewingEmpleado.departamento).text,
-                      }}
-                    >
-                      {viewingEmpleado.departamento}
-                    </span>
-                  )}
-
-                  {/* Acceso Box */}
-                  <div className="w-full mt-6 bg-slate-50 border border-slate-100 rounded-xl p-3.5 space-y-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-left">Acceso al Sistema</p>
-                    <div className="text-xs space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Usuario:</span>
-                        <span className="font-semibold text-slate-700">@{viewingEmpleado.username || '—'}</span>
-                      </div>
-                      <div className="flex flex-col text-left">
-                        <span className="text-slate-400">Correo:</span>
-                        <span className="font-medium text-slate-700 truncate w-full" title={viewingEmpleado.correo}>{viewingEmpleado.correo || '—'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contacto Box */}
-                  <div className="w-full mt-4 space-y-2 text-left text-xs text-slate-600">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Contacto</p>
-                    <div className="flex items-start gap-2">
-                      <svg className="w-4.5 h-4.5 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-                      </svg>
-                      <span className="font-medium">{viewingEmpleado.telefono || 'Sin teléfono'}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <svg className="w-4.5 h-4.5 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                      </svg>
-                      <span className="font-medium leading-tight">{viewingEmpleado.direccion || 'Sin dirección registrada'}</span>
-                    </div>
+                  <div>
+                    <h2 className="font-bold text-blue-800 text-xl m-0">Expediente del Colaborador</h2>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => deferClose(() => setViewingEmpleado(null))}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none bg-transparent border-none cursor-pointer"
+                  title="Cerrar"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-                {/* Right Panel: Detailed Tabs info */}
-                <div className="space-y-6">
-                  {/* Contratación & Finanzas */}
-                  <div className="bg-slate-50/40 border border-slate-100 rounded-2xl p-5 space-y-4">
-                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 text-left">
-                      <span className="w-1.5 h-3.5 bg-blue-500 rounded-full" />
-                      Información Contratación y Banco
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4 text-xs text-left">
-                      <div>
-                        <p className="text-slate-400 font-medium">Cargo</p>
-                        <p className="text-slate-800 font-semibold mt-0.5">{viewingEmpleado.cargo || '—'}</p>
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8">
+
+                  {/* Left Panel: Profile Summary */}
+                  <div className="flex flex-col items-center border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-8">
+                    <div className="w-32 h-32 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50 flex items-center justify-center shrink-0">
+                      {viewingEmpleado.foto ? (
+                        <img src={viewingEmpleado.foto} alt={viewingEmpleado.nombre} className="w-full h-full object-cover" />
+                      ) : (
+                        <div
+                          className="w-full h-full flex items-center justify-center font-bold normal-case overflow-hidden"
+                          style={{
+                            backgroundColor: getAvatarStyle(viewingEmpleado.id || viewingEmpleado.nombre).bg,
+                            color: getAvatarStyle(viewingEmpleado.id || viewingEmpleado.nombre).text,
+                          }}
+                        >
+                          <span className="text-3xl leading-none tracking-tight normal-case">
+                            {getPersonInitials(viewingEmpleado.nombre)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <h3 className="text-base font-bold text-slate-800 text-center mt-4 leading-tight">{viewingEmpleado.nombre}</h3>
+                    <p className="text-xs font-semibold text-slate-400 mt-1">{viewingEmpleado.id}</p>
+
+                    {viewingEmpleado.departamento && (
+                      <span
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-3"
+                        style={{
+                          backgroundColor: getDeptoStyle(viewingEmpleado.departamento).bg,
+                          color: getDeptoStyle(viewingEmpleado.departamento).text,
+                        }}
+                      >
+                        {viewingEmpleado.departamento}
+                      </span>
+                    )}
+
+                    {/* Acceso Info */}
+                    <div className="w-full mt-8 text-left">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-1.5 mb-5">Acceso al Sistema</p>
+                      <div className="text-xs grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 items-center">
+                        <span className="text-slate-500">Usuario:</span>
+                        <span className="font-semibold text-slate-800 truncate">{viewingEmpleado.username || '—'}</span>
+
+                        <span className="text-slate-500">Correo:</span>
+                        <span className="font-medium text-slate-800 truncate" title={viewingEmpleado.correo}>{viewingEmpleado.correo || '—'}</span>
                       </div>
-                      <div>
-                        <p className="text-slate-400 font-medium">Contratación</p>
-                        <div className="mt-1">
-                          {viewingEmpleado.tieneContrato !== false ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-emerald-100">
-                              Bajo Relación
-                            </span>
+                    </div>
+
+                    {/* Contacto Info */}
+                    <div className="w-full mt-6 text-left text-xs text-slate-700">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-1.5 mb-5">Contacto</p>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <svg className="w-4.5 h-4.5 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+                          </svg>
+                          <span className="font-medium">{viewingEmpleado.telefono || 'Sin teléfono'}</span>
+                        </div>
+                        <div className="flex items-start gap-2.5">
+                          <svg className="w-4.5 h-4.5 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                          </svg>
+                          <span className="font-medium leading-tight">{viewingEmpleado.direccion || 'Sin dirección registrada'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Panel: Detailed Tabs info */}
+                  <div className="space-y-6">
+                    {/* Contratación & Finanzas */}
+                    <div className="space-y-4 pb-6 border-b border-slate-100">
+                      <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 text-left">
+                        <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                        Información Contratación y Banco
+                      </h4>
+                      <div className="grid grid-cols-2 gap-6 text-xs text-left pt-2">
+                        <div>
+                          <p className="text-slate-400 font-medium">Cargo</p>
+                          <p className="text-slate-800 font-semibold mt-0.5">{viewingEmpleado.cargo || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400 font-medium">Contratación</p>
+                          <div className="mt-1">
+                            {viewingEmpleado.tieneContrato !== false ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-emerald-100">
+                                Bajo Relación
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-amber-100">
+                                Por Asistencia
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-slate-400 font-medium">Tipo de contrato</p>
+                          <p className="text-slate-800 font-semibold mt-0.5">
+                            {viewingEmpleado.tieneContrato !== false
+                              ? (viewingEmpleado.tipoContrato || 'Fijo')
+                              : 'Sin contrato'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400 font-medium">Sueldo Mensual</p>
+                          <p className="text-slate-800 font-semibold mt-0.5">
+                            ${sueldoMensualEfectivo(viewingEmpleado.sueldoDiario).toFixed(2)}
+                          </p>
+                          <div className="flex gap-3 text-[10px] text-slate-400 mt-1">
+                            <span>Quincena: ${sueldoQuincenaBase(viewingEmpleado.sueldoDiario).toFixed(2)}</span>
+                            <span>Diario: ${sueldoDiarioEfectivo(viewingEmpleado.sueldoDiario).toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-slate-400 font-medium">Detalle de Cuenta</p>
+                          {viewingEmpleado.cuentaBanco ? (
+                            <div className="mt-0.5 leading-snug">
+                              <span className="font-bold text-[#003087] block text-[10px] uppercase tracking-wider">{viewingEmpleado.banco}</span>
+                              <span className="font-mono font-semibold text-slate-700">{viewingEmpleado.cuentaBanco}</span>
+                            </div>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold text-[9px] uppercase tracking-wide border border-amber-100">
-                              Por Asistencia
-                            </span>
+                            <p className="text-slate-400 mt-0.5">Sin cuenta bancaria</p>
                           )}
                         </div>
                       </div>
-                      <div>
-                        <p className="text-slate-400 font-medium">Tipo de contrato</p>
-                        <p className="text-slate-800 font-semibold mt-0.5">
-                          {viewingEmpleado.tieneContrato !== false 
-                            ? (viewingEmpleado.tipoContrato || 'Fijo') 
-                            : 'Sin contrato'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-slate-400 font-medium">Sueldo Diario</p>
-                        <p className="text-slate-800 font-semibold mt-0.5">
-                          ${sueldoMensualEfectivo(viewingEmpleado.sueldoDiario).toFixed(2)}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          Quincena: ${sueldoQuincenaBase(viewingEmpleado.sueldoDiario).toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-slate-400 font-medium">Detalle de Cuenta</p>
-                        {viewingEmpleado.cuentaBanco ? (
-                          <div className="mt-0.5 leading-snug">
-                            <span className="font-bold text-[#003087] block text-[10px] uppercase tracking-wider">{viewingEmpleado.banco}</span>
-                            <span className="font-mono font-semibold text-slate-700">{viewingEmpleado.cuentaBanco}</span>
-                          </div>
-                        ) : (
-                          <p className="text-slate-400 mt-0.5">Sin cuenta bancaria</p>
-                        )}
-                      </div>
+                    </div>
+
+                    {/* Expediente Digital / Documentos */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 text-left">
+                        <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+                        Expediente Digital
+                        <span className="text-[10px] font-normal text-slate-400 ml-1">(Clic en documento para ver)</span>
+                      </h4>
+                      {loadingDocs ? (
+                        <div className="flex flex-col items-center justify-center py-6">
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-slate-500 mb-2" />
+                          <p className="text-[11px] font-medium text-slate-400">Cargando expediente digital...</p>
+                        </div>
+                      ) : viewingDocs.length === 0 ? (
+                        <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-slate-500 text-xs flex flex-col items-center justify-center gap-2">
+                          <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                          </svg>
+                          <span>No hay documentos cargados en el expediente de este colaborador.</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-6 mt-2">
+                          {viewingDocs.map((doc) => {
+                            const isPdf = doc.mimeType === 'application/pdf' || /\.pdf$/i.test(doc.archivoUrl || doc.nombre || '');
+                            return (
+                              <div
+                                key={doc.id}
+                                className="flex flex-col items-center justify-start text-center w-28 group cursor-pointer"
+                                onClick={() => handlePreview(doc, doc.nombre)}
+                                title="Ver documento"
+                              >
+                                <div className="relative flex flex-col items-center justify-center mb-2 transition-transform group-hover:scale-110 drop-shadow-sm group-hover:drop-shadow-md">
+                                  <svg className={`w-11 h-11 ${isPdf ? 'text-red-400' : 'text-emerald-400'} drop-shadow-sm`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                  </svg>
+                                  {/* Badge superpuesto */}
+                                  <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded shadow-sm font-black text-[8px] tracking-wider border ${isPdf ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                    }`}>
+                                    {isPdf ? 'PDF' : 'IMG'}
+                                  </div>
+                                </div>
+                                <span className="font-bold text-slate-700 text-[10px] leading-tight truncate w-full px-1 mt-1 group-hover:text-blue-600 transition-colors" title={doc.nombre}>{doc.nombre}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Expediente Digital / Documentos */}
-                  <div className="bg-slate-50/40 border border-slate-100 rounded-2xl p-5 space-y-4">
-                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 text-left">
-                      <span className="w-1.5 h-3.5 bg-emerald-500 rounded-full" />
-                      Expediente Digital (Clic en documento para ver)
-                    </h4>
-                    {loadingDocs ? (
-                      <div className="flex flex-col items-center justify-center py-6">
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-slate-500 mb-2" />
-                        <p className="text-[11px] font-medium text-slate-400">Cargando expediente digital...</p>
-                      </div>
-                    ) : viewingDocs.length === 0 ? (
-                      <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-slate-400 italic text-xs flex flex-col items-center justify-center gap-2">
-                        <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                        </svg>
-                        <span>No hay documentos cargados en el expediente de este colaborador.</span>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        {viewingDocs.map((doc) => {
-                          const isPdf = doc.mimeType === 'application/pdf' || /\.pdf$/i.test(doc.archivoUrl || doc.nombre || '');
-                          return (
-                            <div
-                              key={doc.id}
-                              className="flex items-center gap-2.5 p-3 rounded-xl border border-emerald-100 bg-emerald-50/20 hover:bg-emerald-50/40 cursor-pointer hover:scale-[1.01] hover:shadow-sm transition-all"
-                              onClick={() => handlePreview(doc, doc.nombre)}
-                            >
-                              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                                {isPdf ? (
-                                  <span className="text-[9px] font-black uppercase text-center block w-full text-emerald-800">PDF</span>
-                                ) : (
-                                  <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                                  </svg>
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1 text-left">
-                                <p className="text-xs font-bold text-slate-700 leading-tight truncate">{doc.nombre}</p>
-                                <p className="text-[10px] font-medium text-slate-400 leading-normal truncate mt-0.5">
-                                  {doc.archivoUrl.split('/').pop()}
-                                </p>
-                              </div>
-                              <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                              </svg>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
                 </div>
+              </div>
 
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end shrink-0">
+                <button
+                  onClick={() => deferClose(() => setViewingEmpleado(null))}
+                  className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold tracking-wide transition-colors shadow-sm cursor-pointer"
+                >
+                  Cerrar Expediente
+                </button>
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-              <button
-                onClick={() => deferClose(() => setViewingEmpleado(null))}
-                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer"
-              >
-                Cerrar Expediente
-              </button>
-            </div>
           </div>
-        </div>
         )}
       </ModalPortal>
 
       {/* Modal de Vista Previa de Documento */}
       <ModalPortal open={!!previewDoc}>
         {previewDoc && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[10050] flex items-center justify-center p-6 md:p-12 animate-fade-in">
-          <div className="relative w-full max-w-4xl max-h-[80vh] h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                </svg>
-                <div className="text-left min-w-0">
-                  <h2 className="text-sm font-bold text-slate-800 truncate">{previewDoc.label}</h2>
-                  <p className="text-[10px] text-slate-400 font-medium mt-0.5 truncate max-w-lg">{previewDoc.nombre}</p>
+          <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-[5px] z-[10050] flex items-center justify-center p-6 md:p-12 animate-fade-in">
+            <div className="relative w-full max-w-4xl max-h-[80vh] h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  </svg>
+                  <div className="text-left min-w-0">
+                    <h2 className="text-sm font-bold text-slate-800 truncate">{previewDoc.label}</h2>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5 truncate max-w-lg">{previewDoc.nombre}</p>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Botón Descargar */}
-                <a
-                  href={previewDoc.archivoUrl}
-                  download={previewDoc.nombre}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3.5 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors border border-blue-100"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                  </svg>
-                  Descargar
-                </a>
-                
-                <button
-                  onClick={() => setPreviewDoc(null)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
 
-            {/* Viewer Content */}
-            <div className="flex-1 bg-slate-900/5 overflow-hidden relative">
-              {previewDoc.isPdf ? (
-                <iframe
-                  src={`${previewDoc.archivoUrl}#toolbar=0&navpanes=0`}
-                  className="w-full h-full border-none bg-white"
-                  title={previewDoc.nombre}
-                />
-              ) : previewDoc.isImage ? (
-                <div className="w-full h-full overflow-auto flex items-center justify-center p-6 bg-slate-900/[0.02]">
-                  <img
-                    src={previewDoc.archivoUrl}
-                    alt={previewDoc.nombre}
-                    className="max-w-full max-h-full object-contain rounded-lg shadow-lg border border-slate-200 bg-white"
-                  />
-                </div>
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-4">
-                  <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center">
-                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800">No hay vista previa disponible</h3>
-                    <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">Este formato de archivo no se puede previsualizar directamente en el navegador. Puedes descargarlo para visualizarlo localmente.</p>
-                  </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Botón Descargar */}
                   <a
                     href={previewDoc.archivoUrl}
                     download={previewDoc.nombre}
-                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors border border-blue-100"
                   >
-                    Descargar archivo
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Descargar
                   </a>
-                </div>
-              )}
-            </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-              <button
-                onClick={() => deferClose(() => setPreviewDoc(null))}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
-              >
-                Cerrar Vista Previa
-              </button>
+                  <button
+                    onClick={() => setPreviewDoc(null)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Viewer Content */}
+              <div className="flex-1 bg-slate-900/5 overflow-hidden relative">
+                {previewDoc.isPdf ? (
+                  <iframe
+                    src={`${previewDoc.archivoUrl}#toolbar=0&navpanes=0`}
+                    className="w-full h-full border-none bg-white"
+                    title={previewDoc.nombre}
+                  />
+                ) : previewDoc.isImage ? (
+                  <div className="w-full h-full overflow-auto flex items-center justify-center p-6 bg-slate-900/[0.02]">
+                    <img
+                      src={previewDoc.archivoUrl}
+                      alt={previewDoc.nombre}
+                      className="max-w-full max-h-full object-contain rounded-lg shadow-lg border border-slate-200 bg-white"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-4">
+                    <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800">No hay vista previa disponible</h3>
+                      <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">Este formato de archivo no se puede previsualizar directamente en el navegador. Puedes descargarlo para visualizarlo localmente.</p>
+                    </div>
+                    <a
+                      href={previewDoc.archivoUrl}
+                      download={previewDoc.nombre}
+                      className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+                    >
+                      Descargar archivo
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <button
+                  onClick={() => deferClose(() => setPreviewDoc(null))}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+                >
+                  Cerrar Vista Previa
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         )}
       </ModalPortal>
     </div>

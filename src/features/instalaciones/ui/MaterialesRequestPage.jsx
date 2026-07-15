@@ -103,7 +103,11 @@ export function MaterialesRequestPage() {
       return;
     }
     try {
-      const data = await getOrdenes({ proyectoId: id, limit: 100 });
+      const queryParams = { proyectoId: id, limit: 100 };
+      if (isTallerUser(user)) {
+        queryParams.creadorRol = 'taller';
+      }
+      const data = await getOrdenes(queryParams);
       const items = (data?.items || []).map(mapOrdenCompraParaInstalacion).filter(Boolean);
       setOrdenesCompraProyecto(items);
     } catch (err) {
@@ -113,7 +117,7 @@ export function MaterialesRequestPage() {
         .filter(Boolean);
       setOrdenesCompraProyecto(fallback);
     }
-  }, [id, proyecto?.ordenesCompra]);
+  }, [id, proyecto?.ordenesCompra, user]);
 
   useEffect(() => {
     cargarOrdenesProyecto();
@@ -125,12 +129,22 @@ export function MaterialesRequestPage() {
     }
   }, [activeTab, cargarOrdenesProyecto]);
 
-  const ordenesProyecto = filterOrdenesPorProyecto(
+  const ordenesProyectoRaw = filterOrdenesPorProyecto(
     ordenesCompraProyecto.length > 0
       ? ordenesCompraProyecto
       : (proyecto?.ordenesCompra || []).map(mapOrdenCompraParaInstalacion).filter(Boolean),
     id,
   );
+
+  const ordenesProyecto = useMemo(() => {
+    if (isTallerUser(user)) {
+      return ordenesProyectoRaw.filter(oc => {
+        const creatorRol = oc.usuario?.rol?.toLowerCase() || '';
+        return creatorRol === 'taller';
+      });
+    }
+    return ordenesProyectoRaw;
+  }, [ordenesProyectoRaw, user]);
   const bloqueosCierre = getInstalacionCompletionBlockers(datosInstalacion, {
     ordenesCompra: ordenesProyecto,
   });
@@ -232,6 +246,7 @@ export function MaterialesRequestPage() {
           tipo: item.subtipo === 'herramienta' || item.esPrestable
             ? 'herramienta'
             : (item.tipo || 'consumible'),
+          descargaStock: item.descargaStock !== undefined ? item.descargaStock : true,
         }));
       setInventarioDb(mapped);
     } catch (err) {
@@ -312,7 +327,11 @@ export function MaterialesRequestPage() {
   );
 
   const esItemSeleccionable = useCallback((item) => {
-    if ((item.stock ?? 0) <= 0) return false;
+    // Si descarga stock (consumible normal), requiere stock > 0
+    if ((item.descargaStock ?? true) && (item.stock ?? 0) <= 0) {
+      return false;
+    }
+    // Si es herramienta, debe estar en bodega y no estar prestada
     if (item.tipo === 'herramienta') {
       const estado = String(item.estadoUso || 'BODEGA').toUpperCase();
       if (estado !== 'BODEGA') return false;
@@ -383,8 +402,8 @@ export function MaterialesRequestPage() {
   }
 
   // Quitar item del Borrador (Tab 2)
-  function handleRemoveFromDraft(itemName) {
-    setMaterialesLocales(prev => prev.filter(item => item.nombre !== itemName));
+  function handleRemoveFromDraft(itemIdentifier) {
+    setMaterialesLocales(prev => prev.filter(item => item.sku !== itemIdentifier && item.nombre !== itemIdentifier));
   }
 
   // Guardar Consumo de Bodega completo (Tab 2)
@@ -393,12 +412,12 @@ export function MaterialesRequestPage() {
 
     showModal(
       'Registrar Materiales para Instalación',
-      `¿Estás seguro de que deseas registrar y guardar estos ${materialesLocales.length} materiales para esta instalación?`,
+      `¿Estás seguro de que deseas registrar y guardar estos ${materialesConStock.length} materiales para esta instalación?`,
       'confirm',
       async () => {
         try {
           await updateFaseDatos('INSTALACION', {
-            materiales: materialesLocales
+            materiales: materialesConStock
           });
 
           // Recargar inventario local
@@ -429,7 +448,7 @@ export function MaterialesRequestPage() {
   // Iniciar montaje / instalación en sitio
   async function handleIniciarInstalacion() {
     const hasTeam = personalLocal && personalLocal.length > 0;
-    const hasMaterials = materialesLocales && materialesLocales.length > 0;
+    const hasMaterials = materialesConStock && materialesConStock.length > 0;
 
     if (!hasTeam || !hasMaterials) {
       if (!hasTeam && !hasMaterials) {
@@ -456,7 +475,7 @@ export function MaterialesRequestPage() {
             horaInstalacion: now.toTimeString().slice(0, 5),
             direccionInstalacion: datosInstalacion.direccionInstalacion || proyecto.cliente?.direccion || '',
             personalAsignado: personalLocal,
-            materiales: materialesLocales
+            materiales: materialesConStock
           });
 
           toast.success('Instalación iniciada con éxito, equipo/materiales guardados y administración notificada');
@@ -560,7 +579,7 @@ export function MaterialesRequestPage() {
         await updateFaseDatos('INSTALACION', {
           ...buildInicioObraSiFalta(datosInstalacion, now),
           personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
-          materiales: materialesLocales.length ? materialesLocales : datosInstalacion.materiales,
+          materiales: materialesConStock.length ? materialesConStock : datosInstalacion.materiales,
         });
       }
 
@@ -628,7 +647,7 @@ export function MaterialesRequestPage() {
           await updateFaseDatos('INSTALACION', {
             ...buildInicioObraSiFalta(datosInstalacion, now),
             personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
-            materiales: materialesLocales.length ? materialesLocales : datosInstalacion.materiales,
+            materiales: materialesConStock.length ? materialesConStock : datosInstalacion.materiales,
             instalacionCompletada: true,
             notasCierre: observacionesCierre,
             fechaFin,
@@ -666,7 +685,7 @@ export function MaterialesRequestPage() {
 
   const proyectoEncuesta = proyectoParaEncuesta || proyecto;
 
-  const herramientasSinResponsable = getHerramientasSinResponsable(materialesLocales);
+  const herramientasSinResponsable = getHerramientasSinResponsable(materialesConStock);
   const bloqueoPorHerramientas = herramientasSinResponsable.length > 0;
 
   function validarResponsablesHerramientas() {
@@ -729,10 +748,12 @@ export function MaterialesRequestPage() {
   };
 
   const materialesConStock = (materialesLocales || []).map(m => {
-    const invItem = inventarioDb.find(item => item.nombre === m.nombre);
+    const invItem = inventarioDb.find(item => item.nombre === m.nombre || (m.sku && item.sku === m.sku));
     return {
       ...m,
-      stock: invItem ? invItem.stock : 0
+      stock: invItem ? invItem.stock : 0,
+      tipo: invItem ? invItem.tipo : (m.tipo || 'consumible'),
+      descargaStock: invItem ? invItem.descargaStock : (m.descargaStock ?? true),
     };
   });
 
@@ -1025,9 +1046,23 @@ export function MaterialesRequestPage() {
                   {/* Selección y Cantidad */}
                   {selectedItem && (
                     <div className="item-add-control-panel mt-2 animate-slide-up">
-                      <div className="selected-item-display">
-                        <span className="font-bold text-slate-800">{selectedItem.nombre}</span>
-                        <span className="text-xs text-slate-500">Stock: {selectedItem.stock} {selectedItem.unidad}s</span>
+                      <div className="selected-item-display flex justify-between items-start">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800">{selectedItem.nombre}</span>
+                          <span className="text-xs text-slate-500">Stock: {selectedItem.stock} {selectedItem.unidad}s</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedItem(null);
+                            setQty(1);
+                            setMaterialSearch('');
+                          }}
+                          className="text-slate-400 hover:text-red-500 p-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          title="Cancelar selección"
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
 
                       <div className="qty-inputs-box">
@@ -1172,7 +1207,7 @@ export function MaterialesRequestPage() {
                               {!esSoloLectura && (
                                 <td style={{ textAlign: 'center' }} data-label="Acción">
                                   <button
-                                    onClick={() => handleRemoveFromDraft(m.nombre)}
+                                    onClick={() => handleRemoveFromDraft(m.sku || m.nombre)}
                                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                     title="Eliminar material"
                                   >

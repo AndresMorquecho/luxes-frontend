@@ -21,11 +21,18 @@ export async function getMetodosPago(desde, hasta) {
 
 // ── Gastos Generales ─────────────────────────────────────────────────────────
 
-export async function getGastos() {
-  const res = await fetch('/api/gastos', { headers: getHeaders() });
+export async function getGastos(page = 1, limit = 25, search = '', origen = 'todos', filters = {}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search) params.append('search', search);
+  if (origen && origen !== 'todos') params.append('origen', origen);
+  if (filters.usuarioId) params.append('usuarioId', filters.usuarioId);
+  if (filters.metodoPagoId) params.append('metodoPagoId', filters.metodoPagoId);
+  if (filters.startDate) params.append('startDate', filters.startDate);
+  if (filters.endDate) params.append('endDate', filters.endDate);
+  const res = await fetch(`/api/gastos?${params.toString()}`, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener gastos');
-  return data.data;
+  return data;
 }
 
 export async function saveGasto(gasto) {
@@ -155,6 +162,16 @@ export async function getCierres() {
   return data.data;
 }
 
+export async function deleteCierre(id) {
+  const res = await fetch(`/api/gastos/cierre/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar cierre de caja');
+  return data.data;
+}
+
 export async function getDashboardSummary(desde = '', hasta = '') {
   let url = '/api/gastos/reportes/dashboard-summary';
   const params = [];
@@ -167,4 +184,36 @@ export async function getDashboardSummary(desde = '', hasta = '') {
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener resumen de operaciones');
   return data.data;
 }
+
+export async function getMovimientos(desde, hasta) {
+  const params = new URLSearchParams();
+  if (desde) params.append('desde', desde);
+  if (hasta) params.append('hasta', hasta);
+  const url = `/api/gastos/movimientos${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener movimientos');
+  return data.data;
+}
+
+// ── Controles de Vehículo ────────────────────────────────────────────────────
+
+export async function getVehiculoControles(vehiculoId) {
+  const res = await fetch(`/api/vehiculos/${vehiculoId}/controles`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener controles del vehículo');
+  return data.data;
+}
+
+export async function addVehiculoControl(vehiculoId, control) {
+  const res = await fetch(`/api/vehiculos/${vehiculoId}/controles`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(control),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar control del vehículo');
+  return data.data;
+}
+
 

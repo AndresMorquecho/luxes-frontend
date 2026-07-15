@@ -32,6 +32,7 @@ import { ToastContainer } from '../shared/ui/components/Toast';
 import { isAsistenciaUser, isTallerUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
 import { ErrorBoundary } from '../shared/ui/components/ErrorBoundary';
+import { TallerControlPage } from '../features/gastos/ui/pages/TallerControlPage';
 
 function LegacyRecepcionRedirect() {
   const { ordenId } = useParams();
@@ -211,7 +212,24 @@ function App() {
     );
   }
 
-  const isAsistenciaMode = isAsistenciaUser(user);
+  // Render Kiosk view outside Layout for full-screen layout on tablets/screens
+  const queryParams = new URLSearchParams(location.search);
+  const isKioskRoute = location.pathname === '/nomina/registro-asistencia' && queryParams.get('kiosk') === 'true';
+
+  if (isKioskRoute) {
+    return (
+      <>
+        <ToastContainer />
+        <ConfirmDialogContainer />
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
+          </Routes>
+        </ErrorBoundary>
+      </>
+    );
+  }
+
   const isTallerMode = isTallerUser(user);
   const userRole = (user?.rol || '').toUpperCase();
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
@@ -226,12 +244,7 @@ function App() {
       <PrintQueueProvider>
       <ProyectosProvider>
         <Layout user={user} onLogout={handleLogout}>
-          {isAsistenciaMode ? (
-            <Routes>
-              <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
-              <Route path="*" element={<Navigate to="/nomina/registro-asistencia" replace />} />
-            </Routes>
-          ) : isTallerMode ? (
+          {isTallerMode ? (
             <Routes>
               <Route path="/notificaciones" element={<NotificacionesPage />} />
               <Route path="/instalaciones" element={<InstalacionesPage />} />
@@ -242,7 +255,9 @@ function App() {
               <Route path="/inventario/*" element={<InventarioFeature />} />
               <Route path="/inventario/recepcion" element={<Navigate to="/compras/recepcion" replace />} />
               <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
-              <Route path="*" element={<Navigate to="/notificaciones" replace />} />
+              <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
+              <Route path="/taller/control" element={<TallerControlPage />} />
+              <Route path="*" element={<Navigate to="/taller/control" replace />} />
             </Routes>
           ) : (
             <Routes>
@@ -269,6 +284,7 @@ function App() {
               {!isImpresion && <Route path="/movimientos/*" element={<MovimientosPage />} />}
               <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
               <Route path="/tareas/*" element={<TareasFeature />} />
+              <Route path="/taller/control" element={<TallerControlPage />} />
               {/* Redirección por defecto */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -7,6 +7,7 @@ import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProformaPDF } from '../components/ProformaPDF';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
+import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft } from 'lucide-react';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -22,6 +23,15 @@ const formatDateTime = (val) => {
     minute: '2-digit',
     hour12: false
   });
+};
+
+const formatFecha = (dateStr) => {
+  if (!dateStr) return '—';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
 };
 
 export const ProformaDetallePage = () => {
@@ -85,7 +95,7 @@ export const ProformaDetallePage = () => {
 
   if (!proforma) {
     return (
-      <div className="max-w-4xl mx-auto py-12 text-center">
+      <div className="max-w-4xl mx-auto py-12 text-center" style={{ fontFamily: "'Inter', sans-serif" }}>
         <p className="text-slate-600 font-semibold mb-4">Proforma no encontrada</p>
         <button onClick={() => navigate('/proformas')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
           Volver a Proformas
@@ -121,7 +131,6 @@ export const ProformaDetallePage = () => {
   };
 
   const handleOpenAprobar = () => {
-    // Default abono form to total amount
     setAbonoForm(prev => ({
       ...prev,
       monto: total.toFixed(2),
@@ -130,7 +139,6 @@ export const ProformaDetallePage = () => {
   };
 
   const handleOpenRegistrarAbono = () => {
-    // Default abono form to pending amount
     setAbonoForm(prev => ({
       ...prev,
       monto: totalPendiente.toFixed(2),
@@ -235,145 +243,209 @@ export const ProformaDetallePage = () => {
     }
   };
 
-  const badgeStyle = (estado) => {
-    switch (estado) {
-      case 'Aprobada': return 'bg-emerald-50/70 text-emerald-700 border-emerald-200/60';
-      case 'Rechazada': return 'bg-rose-50/70 text-rose-700 border-rose-200/60';
-      case 'Pagada': return 'bg-blue-50/70 text-blue-700 border-blue-200/60';
-      default: return 'bg-amber-50/70 text-amber-700 border-amber-200/60';
+  // UI helpers
+  const badgeStyle = (est) => {
+    switch (est) {
+      case 'Aprobada':
+      case 'Pagada':
+        return {
+          bg: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+          dot: 'bg-emerald-500'
+        };
+      case 'Rechazada':
+        return {
+          bg: 'bg-rose-50 text-rose-700 border-rose-100',
+          dot: 'bg-rose-500'
+        };
+      default:
+        return {
+          bg: 'bg-amber-50 text-amber-700 border-amber-100',
+          dot: 'bg-amber-500'
+        };
     }
   };
+
+  const getCondicionesList = () => {
+    if (proforma.condiciones && proforma.condiciones.trim()) {
+      return proforma.condiciones.split('\n').filter(Boolean);
+    }
+    return [
+      "60% de anticipo y 40% contra entrega, efectivo o transferencias bancarias",
+      "Entrega en 15 días hábiles después de la confirmación de diseño",
+      "Esta cotización es válida por 3 días después de su fecha de emisión",
+      "Nuestros productos cuentan con garantía mínima de 12 meses, no cubre daños por mal uso o instalación incorrecta"
+    ];
+  };
+
+  const estStyle = badgeStyle(proforma.estado);
 
   return (
     <div className="w-full pb-12" style={{ fontFamily: "'Inter', sans-serif" }}>
       
-      {/* Back link */}
+      {/* Back button */}
       <div className="mb-4">
         <button onClick={() => navigate('/proformas')} className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5">
-          ← Volver a Proformas
+          <ArrowLeft size={16} /> Volver a Proformas
         </button>
       </div>
 
       {/* Main Header Box */}
-      <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-extrabold text-slate-800">Proforma: {proforma.id}</h1>
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${badgeStyle(proforma.estado === 'Pagada' ? 'Aprobada' : proforma.estado)}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                (proforma.estado === 'Aprobada' || proforma.estado === 'Pagada') ? 'bg-emerald-500' : 
-                proforma.estado === 'Rechazada' ? 'bg-rose-500' : 'bg-amber-500'
-              }`} />
-              {proforma.estado === 'Pagada' ? 'Aprobada' : proforma.estado}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5 mb-5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+              <FileText size={24} />
+            </div>
+            <div>
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">PROFORMA</span>
+              <div className="flex items-center gap-2.5 mt-1.5">
+                <h1 className="text-2xl font-black text-slate-900 leading-none">{proforma.id}</h1>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${estStyle.bg}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${estStyle.dot}`} />
+                  {proforma.estado === 'Pagada' ? 'Aprobada' : proforma.estado}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => setPreview(proforma)}
+              className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
+            >
+              <Download size={14} className="text-slate-500" /> Ver PDF
+            </button>
+
+            {isAdmin && proforma.estado === 'Pendiente' && (
+              <>
+                <button
+                  onClick={handleRechazar}
+                  className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl transition-colors"
+                >
+                  Rechazar Proforma
+                </button>
+                <button
+                  onClick={handleOpenAprobar}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shadow-blue-100"
+                >
+                  Aprobar y Registrar Abono
+                </button>
+              </>
+            )}
+
+            {isAdmin && (proforma.estado === 'Aprobada' || proforma.estado === 'Pagada') && totalPendiente > 0.01 && (
+              <button
+                onClick={handleOpenRegistrarAbono}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shadow-blue-100"
+              >
+                Registrar Nuevo Abono
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Meta Info Row */}
+        <div className="flex items-center gap-8 flex-wrap text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-2">
+            <Calendar size={15} className="text-slate-400" />
+            <span>Fecha de emisión: <strong className="text-slate-700 font-bold">{formatFecha(proforma.fecha)}</strong></span>
+          </div>
+          
+          {proforma.vencimiento && (
+            <div className="flex items-center gap-2">
+              <Calendar size={15} className="text-slate-400" />
+              <span>Vence: <strong className="text-slate-700 font-bold">{formatFecha(proforma.vencimiento)}</strong></span>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={15} className="text-slate-400" />
+            <span>
+              {proforma.estado === 'Pendiente' ? (
+                'Pendiente de aprobación'
+              ) : (
+                <>Aprobada: <strong className="text-slate-700 font-bold">{proforma.fechaAprobacion ? formatDateTime(proforma.fechaAprobacion) : formatFecha(proforma.fecha)}</strong></>
+              )}
             </span>
           </div>
-          <p className="text-sm text-slate-400 mt-1 font-medium">
-            Fecha de emisión: <strong className="text-slate-600 font-semibold">{proforma.fecha}</strong>
-            {proforma.vencimiento && <> · Vence: <strong className="text-slate-600 font-semibold">{proforma.vencimiento}</strong></>}
-            {proforma.fechaEnvio && <> · Enviada: <strong className="text-slate-600 font-semibold">{proforma.fechaEnvio}</strong></>}
-            {proforma.fechaAprobacion && <> · Aprobada: <strong className="text-slate-600 font-semibold">{proforma.fechaAprobacion}</strong></>}
-          </p>
-        </div>
-        
-        {/* Top actions */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setPreview(proforma)}
-            className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition-colors shrink-0 flex items-center gap-1.5 animate-pulse-subtle"
-            title="Ver PDF"
-          >
-            <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-            </svg>
-            Ver PDF
-          </button>
-
-          {isAdmin && proforma.estado === 'Pendiente' && (
-            <>
-              <button
-                onClick={handleRechazar}
-                className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl transition-colors shrink-0"
-              >
-                Rechazar Proforma
-              </button>
-              <button
-                onClick={handleOpenAprobar}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shadow-blue-100 shrink-0"
-              >
-                Aprobar y Registrar Abono
-              </button>
-            </>
-          )}
-
-          {isAdmin && proforma.estado === 'Aprobada' && totalPendiente > 0.01 && (
-            <button
-              onClick={handleOpenRegistrarAbono}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
-            >
-              Registrar Nuevo Abono
-            </button>
-          )}
         </div>
       </div>
 
       {/* Grid Client & Emisión */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Client details card */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3 mb-4">
-            Información del Cliente
-          </h2>
-          <div className="space-y-2 text-sm">
-            <p className="text-slate-800 font-bold text-base">{proforma.cliente}</p>
-            {proforma.email && (
-              <p className="text-slate-500 flex items-center gap-2">
-                <span className="font-semibold text-slate-600">Email:</span> {proforma.email}
-              </p>
-            )}
-            {proforma.telefono && (
-              <p className="text-slate-500 flex items-center gap-2">
-                <span className="font-semibold text-slate-600">Teléfono:</span> {proforma.telefono}
-              </p>
-            )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Cliente Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-4">
+              Cliente
+            </h2>
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+                <User size={22} />
+              </div>
+              <div className="min-w-0">
+                <span className="block font-extrabold text-slate-800 text-sm">{proforma.cliente}</span>
+                <span className="block text-xs text-slate-500 font-medium mt-1">
+                  {proforma.clienteCedula ? `RUC/CC: ${proforma.clienteCedula}` : proforma.telefono ? `Teléfono: ${proforma.telefono}` : '—'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Emisión details card */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3 mb-4">
-            Detalles del Ejecutivo y Emisión
-          </h2>
-          <div className="space-y-3 text-sm">
+        {/* Ejecutivo y validez Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-4">
+              Ejecutivo y validez
+            </h2>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Atendido por</span>
-                <span className="text-slate-700 font-semibold">{proforma.atiende || 'No especificado'}</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
+                  <User size={16} />
+                </div>
+                <div>
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Atendido por</span>
+                  <span className="block text-xs text-slate-700 font-bold uppercase mt-0.5">{proforma.atiende || 'No asignado'}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Días de Validez</span>
-                <span className="text-slate-700 font-semibold">{proforma.diasValidez} días</span>
+              
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
+                  <Calendar size={16} />
+                </div>
+                <div>
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Días de validez</span>
+                  <span className="block text-xs text-slate-700 font-bold mt-0.5">{proforma.diasValidez || 3} días</span>
+                </div>
               </div>
             </div>
-            {proforma.condiciones && (
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Condiciones de pago</span>
-                <span className="text-slate-500 text-xs whitespace-pre-line">{proforma.condiciones}</span>
-              </div>
-            )}
-            {proforma.notas && (
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Observaciones</span>
-                <span className="text-slate-500 text-xs italic">{proforma.notas}</span>
-              </div>
-            )}
           </div>
+        </div>
+
+        {/* Condiciones de pago Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-3">
+            Condiciones de pago
+          </h2>
+          <ul className="space-y-2">
+            {getCondicionesList().map((cond, idx) => (
+              <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-500 font-medium">
+                <span className="w-4 h-4 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check size={10} strokeWidth={3} />
+                </span>
+                <span className="leading-snug">{cond}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
       {/* Items Card */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-6">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-bold text-slate-800">Ítems de la Proforma</h2>
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-sm font-bold text-slate-800">Detalle de la Proforma</h2>
         </div>
 
         {isMobileSm ? (
@@ -393,20 +465,20 @@ export const ProformaDetallePage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
+                <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
                   <th className="text-left px-6 py-3.5">Descripción</th>
-                  <th className="text-center px-4 py-3.5 w-24">Cantidad</th>
-                  <th className="text-right px-4 py-3.5 w-32">P. Unitario</th>
-                  <th className="text-right px-4 py-3.5 w-32">Subtotal</th>
+                  <th className="text-center px-4 py-3.5 w-28">Cantidad</th>
+                  <th className="text-right px-4 py-3.5 w-36">Precio Unitario</th>
+                  <th className="text-right px-6 py-3.5 w-36">Subtotal</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-100">
                 {(proforma.items || []).map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-800 font-medium">{item.descripcion}</td>
-                    <td className="px-4 py-4 text-center text-slate-600 font-mono">{item.cantidad.toFixed(2)}</td>
-                    <td className="px-4 py-4 text-right text-slate-600 font-mono">{formatUSD(item.precioUnitario)}</td>
-                    <td className="px-4 py-4 text-right text-slate-800 font-bold font-mono">{formatUSD(item.cantidad * item.precioUnitario)}</td>
+                    <td className="px-6 py-4 text-slate-800 font-semibold">{item.descripcion}</td>
+                    <td className="px-4 py-4 text-center text-slate-600 font-mono font-semibold">{item.cantidad.toFixed(2)}</td>
+                    <td className="px-4 py-4 text-right text-slate-600 font-mono font-semibold">{formatUSD(item.precioUnitario)}</td>
+                    <td className="px-6 py-4 text-right text-slate-800 font-bold font-mono">{formatUSD(item.cantidad * item.precioUnitario)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -415,19 +487,19 @@ export const ProformaDetallePage = () => {
         )}
 
         {/* Totals Summary */}
-        <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4 flex flex-col items-end">
+        <div className="border-t border-slate-100 bg-slate-50/30 px-6 py-4 flex flex-col items-end">
           <div className="w-full max-w-xs space-y-2 text-sm">
-            <div className="flex justify-between text-slate-500">
+            <div className="flex justify-between text-slate-500 font-semibold">
               <span>Subtotal:</span>
-              <span className="font-mono font-semibold">{formatUSD(subtotal)}</span>
+              <span className="font-mono font-bold text-slate-700">{formatUSD(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-slate-500">
+            <div className="flex justify-between text-slate-500 font-semibold">
               <span>IVA ({Number(proforma.iva * 100)}%):</span>
-              <span className="font-mono font-semibold">{formatUSD(subtotal * Number(proforma.iva))}</span>
+              <span className="font-mono font-bold text-slate-700">{formatUSD(subtotal * Number(proforma.iva))}</span>
             </div>
             <div className="flex justify-between text-slate-800 font-bold text-base border-t border-slate-200 pt-2">
               <span>Total Proforma:</span>
-              <span className="font-mono text-blue-700">{formatUSD(total)}</span>
+              <span className="font-mono text-blue-600 font-extrabold">{formatUSD(total)}</span>
             </div>
           </div>
         </div>
@@ -435,18 +507,21 @@ export const ProformaDetallePage = () => {
 
       {/* Payments History Card */}
       {proforma.estado !== 'Pendiente' && (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-4">
           {/* Header */}
-          <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h2 className="text-sm font-bold text-slate-800">Historial de Cobros y Abonos</h2>
-            <div className="flex items-center gap-3 text-xs font-semibold">
-              <span className="text-emerald-600">Cobrado: {formatUSD(totalCobrado)}</span>
+            
+            <div className="flex items-center gap-2 text-xs font-bold">
+              <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg px-3 py-1">
+                Cobrado: {formatUSD(totalCobrado)}
+              </span>
               {totalPendiente > 0.01 ? (
-                <span className="px-2 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg">
+                <span className="bg-orange-50 text-orange-700 border border-orange-100 rounded-lg px-3 py-1">
                   Pendiente: {formatUSD(totalPendiente)}
                 </span>
               ) : (
-                <span className="px-2 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
+                <span className="bg-blue-50 text-blue-700 border border-blue-100 rounded-lg px-3 py-1">
                   Liquidada totalmente
                 </span>
               )}
@@ -496,44 +571,40 @@ export const ProformaDetallePage = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 text-xs font-semibold text-slate-600 bg-slate-50">
-                      <th className="text-left px-5 py-3">Fecha y Hora</th>
-                      <th className="text-left px-5 py-3">Caja / Cuenta</th>
-                      <th className="text-left px-5 py-3">Referencia</th>
-                      <th className="text-left px-5 py-3">Usuario</th>
-                      <th className="text-right px-5 py-3">Monto</th>
-                      <th className="text-right px-5 py-3 w-40">Acciones</th>
+                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
+                      <th className="text-left px-6 py-3.5">Fecha y Hora</th>
+                      <th className="text-left px-6 py-3.5">Caja / Cuenta</th>
+                      <th className="text-left px-6 py-3.5">Referencia</th>
+                      <th className="text-left px-6 py-3.5">Usuario</th>
+                      <th className="text-right px-6 py-3.5 font-semibold">Monto</th>
+                      <th className="text-right px-6 py-3.5 w-48">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-100">
                     {proforma.abonos.map((ab, idx) => (
                       <tr key={ab.id} className="hover:bg-slate-50/20 transition-colors">
-                        <td className="px-5 py-3 text-slate-600 font-mono text-xs">{formatDateTime(ab.fecha)}</td>
-                        <td className="px-5 py-3 font-semibold text-slate-700">{ab.metodoPago?.nombre || 'General'}</td>
-                        <td className="px-5 py-3 text-slate-500 text-xs">{ab.referencia || 'N/A'}</td>
-                        <td className="px-5 py-3 text-slate-500 text-xs">{ab.registradoPor?.nombre || 'N/A'}</td>
-                        <td className="px-5 py-3 text-right font-bold text-slate-800 font-mono">{formatUSD(ab.monto)}</td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="px-6 py-4 text-slate-600 font-mono text-xs">{formatDateTime(ab.fecha)}</td>
+                        <td className="px-6 py-4 font-bold text-slate-700">{ab.metodoPago?.nombre || 'General'}</td>
+                        <td className="px-6 py-4 text-slate-500 text-xs font-medium">{ab.referencia || 'N/A'}</td>
+                        <td className="px-6 py-4 text-slate-500 text-xs font-medium">{ab.registradoPor?.nombre || 'N/A'}</td>
+                        <td className="px-6 py-4 text-right font-bold text-slate-800 font-mono">{formatUSD(ab.monto)}</td>
+                        <td className="px-6 py-4 text-right">
                           {isAdmin && idx === proforma.abonos.length - 1 && (
-                            <div className="flex justify-end gap-3">
+                            <div className="flex justify-end gap-3.5">
                               <button
                                 onClick={() => handleOpenEditarAbono(ab)}
-                                className="text-blue-600 hover:text-blue-800 font-semibold text-xs flex items-center gap-1"
+                                className="text-blue-600 hover:text-blue-800 font-bold text-xs flex items-center gap-1"
                                 title="Editar Abono"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                                </svg>
+                                <Edit2 size={13} />
                                 Editar
                               </button>
                               <button
                                 onClick={() => handleEliminarAbono(ab.id)}
-                                className="text-red-600 hover:text-red-800 font-semibold text-xs flex items-center gap-1"
+                                className="text-red-600 hover:text-red-800 font-bold text-xs flex items-center gap-1"
                                 title="Eliminar Abono"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                </svg>
+                                <Trash2 size={13} />
                                 Eliminar
                               </button>
                             </div>
@@ -546,20 +617,28 @@ export const ProformaDetallePage = () => {
               </div>
             )
           ) : (
-            <div className="p-6 text-center text-slate-400 text-sm">
+            <div className="p-6 text-center text-slate-400 text-sm font-medium">
               No se han registrado abonos en esta proforma.
             </div>
           )}
         </div>
       )}
 
+      {/* Watermark/Footer metadata */}
+      {proforma.fechaAprobacion && (
+        <div className="text-center text-[10px] text-slate-400 font-semibold tracking-wider uppercase mt-6">
+          Última actualización: {formatDateTime(proforma.fechaAprobacion)}
+        </div>
+      )}
+
+      {/* Abonos Modal */}
       {showAbonoModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
           {/* Backdrop */}
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={handleCloseModal} />
           
-          {/* Box (Wider max-w-3xl) */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl w-full max-w-3xl overflow-hidden relative z-[201] animate-ve-modal-in" style={{ fontFamily: "'Inter', sans-serif" }}>
+          {/* Box */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl w-full max-w-3xl overflow-hidden relative z-[201] animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="font-bold text-slate-800 text-base">
                 {editingAbono 
@@ -573,7 +652,7 @@ export const ProformaDetallePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Columna Izquierda: Información Financiera y Monto */}
                 <div className="space-y-4">
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
                     {editingAbono 
                       ? 'Modifica los valores del abono. El total del abono no debe superar el saldo pendiente.'
                       : 'Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.'}
@@ -581,13 +660,13 @@ export const ProformaDetallePage = () => {
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
-                      <span className="text-slate-400 font-medium text-[10px] uppercase">Valor Total</span>
-                      <span className="font-bold text-blue-700 font-mono text-base mt-1">{formatUSD(total)}</span>
+                      <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Valor Total</span>
+                      <span className="font-extrabold text-blue-600 font-mono text-base mt-1">{formatUSD(total)}</span>
                     </div>
 
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
-                      <span className="text-slate-400 font-medium text-[10px] uppercase">Saldo Pendiente</span>
-                      <span className="font-bold text-amber-700 font-mono text-base mt-1">
+                      <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Saldo Pendiente</span>
+                      <span className="font-extrabold text-amber-600 font-mono text-base mt-1">
                         {proforma.estado === 'Pendiente' 
                           ? formatUSD(total) 
                           : formatUSD(editingAbono ? total - sumOtrosAbonos : totalPendiente)}
@@ -608,11 +687,11 @@ export const ProformaDetallePage = () => {
                         required
                         value={abonoForm.monto}
                         onChange={e => setAbonoForm(prev => ({ ...prev, monto: e.target.value }))}
-                        className="w-full pl-7 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full pl-7 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="0.00"
                       />
                     </div>
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-2.5 mt-2">
                       <button
                         type="button"
                         onClick={() => setAbonoForm(prev => ({ ...prev, monto: (proforma.estado === 'Pendiente' ? total : totalPendiente).toFixed(2) }))}
@@ -634,42 +713,40 @@ export const ProformaDetallePage = () => {
                 </div>
 
                 {/* Columna Derecha: Detalles del Pago */}
-                <div className="space-y-4 flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                        Caja / Método de Pago *
-                      </label>
-                      <select
-                        required
-                        value={abonoForm.metodoPagoId}
-                        onChange={e => setAbonoForm(prev => ({ ...prev, metodoPagoId: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Seleccione una caja...</option>
-                        {metodosPago.map(m => (
-                          <option key={m.id} value={m.id}>{m.nombre}</option>
-                        ))}
-                      </select>
-                    </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Caja / Método de Pago *
+                    </label>
+                    <select
+                      required
+                      value={abonoForm.metodoPagoId}
+                      onChange={e => setAbonoForm(prev => ({ ...prev, metodoPagoId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Seleccione una caja...</option>
+                      {metodosPago.map(m => (
+                        <option key={m.id} value={m.id}>{m.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                        Referencia / N° Comprobante
-                      </label>
-                      <input
-                        type="text"
-                        value={abonoForm.referencia}
-                        onChange={e => setAbonoForm(prev => ({ ...prev, referencia: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Ej. Transf 88910, Depósito, Efectivo"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Referencia / N° Comprobante
+                    </label>
+                    <input
+                      type="text"
+                      value={abonoForm.referencia}
+                      onChange={e => setAbonoForm(prev => ({ ...prev, referencia: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Ej. Transf 88910, Depósito, Efectivo"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Botones de acción en la parte inferior */}
+              {/* Action buttons */}
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
@@ -681,7 +758,7 @@ export const ProformaDetallePage = () => {
                 <button
                   type="submit"
                   disabled={submittingAbono}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-200 flex items-center gap-1.5"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-100 flex items-center gap-1.5"
                 >
                   {submittingAbono && (
                     <span
@@ -697,7 +774,6 @@ export const ProformaDetallePage = () => {
         </div>
       )}
 
-      {/* PDF Preview Portal */}
       {preview && (
         <ProformaPDF
           proforma={preview}
@@ -706,6 +782,28 @@ export const ProformaDetallePage = () => {
         />
       )}
 
+      <style>{`
+        .co-desktop-only { display: block; }
+        .co-mobile-only { display: none; }
+        @media (max-width: 768px) {
+          .co-desktop-only { display: none !important; }
+          .co-mobile-only { display: block !important; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.2s ease-out forwards;
+        }
+        .animate-slide-up {
+          animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
     </div>
   );
 };

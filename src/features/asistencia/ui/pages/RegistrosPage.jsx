@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig } from '../../application/asistenciaService';
+import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, eliminarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig } from '../../application/asistenciaService';
 import { getOpcionesMarcacion, puedeRegistrarMarcacion } from '../../helpers/asistenciaHelpers';
 import { MarcacionPickerModal } from '../components/MarcacionPickerModal';
 import { getHorarioEsperado, getHorarioLabel, getEstadoAlmuerzo, normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../helpers/horarioLaboral';
@@ -13,6 +13,8 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { isAsistenciaUser, normalizeUserForSession } from '../../../../shared/utils/userRoleHelpers';
 import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
+import { OverlayPortal } from '../../../../shared/ui/components/ModalPortal';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -205,6 +207,22 @@ const KioskView = () => {
   const { error: ubicacionError, status: gpsStatus, secure: gpsSecure, resolveUbicacion, retryGeolocation } = useGeolocation();
   const gpsBadge = getGpsBadgeProps({ status: gpsStatus, error: ubicacionError, secure: gpsSecure });
   const [horarioHoy, setHorarioHoy] = useState(null);
+  const [recentRegistros, setRecentRegistros] = useState([]);
+
+  const loadRecentRegistros = async () => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const data = await getAsistencias(todayStr, todayStr);
+      data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
+      setRecentRegistros(data.slice(0, 5));
+    } catch (err) {
+      console.error('Error loading recent registrations:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadRecentRegistros();
+  }, []);
   const [isKioskDesktop, setIsKioskDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
   );
@@ -237,6 +255,9 @@ const KioskView = () => {
 
     try {
       const ubicacionFinal = await resolveUbicacion();
+      if (!ubicacionFinal) {
+        throw new Error('La ubicación (GPS) es obligatoria para registrar la asistencia. Por favor, activa los permisos de ubicación en tu navegador y vuelve a intentarlo.');
+      }
       const registro = await registrarAsistencia({
         empleadoId: empleadoId.trim(),
         ubicacion: ubicacionFinal,
@@ -261,9 +282,12 @@ const KioskView = () => {
         empleadoId: empleadoId.trim(),
         nombreEmpleado: registro.nombreEmpleado || empleadoId,
         marcaciones,
+        lapsos,
+        horasExtra: registro.horasExtra,
       });
 
       setIsCameraActive(false);
+      loadRecentRegistros();
       setTimeout(() => setLastScan(null), 8000);
     } catch (err) {
       console.error(err);
@@ -282,15 +306,23 @@ const KioskView = () => {
     setScanError(null);
 
     try {
+      // Validar GPS antes de continuar con la marcación
+      if (gpsStatus === 'denied' || gpsStatus === 'unavailable' || gpsStatus === 'unsupported' || ubicacionError) {
+        throw new Error('La ubicación (GPS) es obligatoria para registrar la asistencia. Por favor, activa los permisos de ubicación en tu navegador.');
+      }
+
       const [marcaciones, proxima] = await Promise.all([
         getTodayMarcaciones(empleadoId),
         getProximaMarcacion(empleadoId),
       ]);
 
+      const lapsos = calculateLapses(marcaciones);
+
       setKioskSession({
         empleadoId,
         nombreEmpleado: marcaciones[0]?.nombreEmpleado || empleadoId,
         marcaciones,
+        lapsos,
       });
 
       if (!puedeRegistrarMarcacion(marcaciones)) {
@@ -330,19 +362,16 @@ const KioskView = () => {
   }, []);
 
   return (
-    <div
-      className="kiosk-view h-full w-full flex flex-col overflow-hidden bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-2 sm:p-4 lg:p-6"
-      style={{ fontFamily: "'Inter', sans-serif" }}
-    >
+    <div className="min-h-screen w-full bg-slate-50 text-slate-800 p-6 flex flex-col gap-6" style={{ fontFamily: "'Inter', sans-serif" }}>
       <style>{`
         html.kiosk-no-scroll,
         body.kiosk-no-scroll {
-          overflow: hidden !important;
-          height: 100%;
+          overflow-y: auto !important;
+          height: auto !important;
         }
         @keyframes borderPulse {
-          0%, 100% { border-color: rgba(59, 130, 246, 0.4); box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
-          50% { border-color: rgba(59, 130, 246, 0.9); box-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
+          0%, 100% { border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 15px rgba(16, 185, 129, 0.1); }
+          50% { border-color: rgba(16, 185, 129, 0.9); box-shadow: 0 0 25px rgba(16, 185, 129, 0.3); }
         }
         .pulse-border-active { animation: borderPulse 2s infinite; }
         .scan-overlay-line {
@@ -359,293 +388,345 @@ const KioskView = () => {
           from { opacity: 0; transform: scale(0.96) translateY(8px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
-        .animate-pulse-glow {
-          animation: pulseGlow 2s infinite ease-in-out;
-        }
-        @keyframes pulseGlow {
-          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.3)); }
-          50% { transform: scale(1.05); filter: drop-shadow(0 0 25px rgba(59, 130, 246, 0.6)); }
-        }
       `}</style>
 
-      {isKioskDesktop ? (
-        <div className="flex-1 min-h-0 w-full max-w-[1400px] mx-auto grid grid-cols-12 gap-5 items-stretch overflow-hidden">
-          {/* Izquierda: Horario */}
-          <div className="col-span-3 flex flex-col min-h-0">
-            {horarioHoy ? (
-              <HorarioDelDiaBanner
-                label={horarioHoy.label}
-                esperado={horarioHoy.esperado}
-                theme="dark"
-                kioskColumn
-              />
-            ) : (
-              <div className="h-full rounded-2xl border border-white/10 bg-gradient-to-b from-slate-800/90 to-slate-950 p-5 flex items-center justify-center">
-                <p className="text-sm text-slate-500 text-center">Sin horario configurado</p>
-              </div>
-            )}
-          </div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Registro de asistencia</h1>
+          <p className="text-xs text-slate-500 font-medium capitalize mt-1">
+            {currentTime.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
 
-          {/* Centro: Reloj + escáner */}
-          <div className="col-span-6 relative flex flex-col min-h-0 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/70 via-slate-900/90 to-indigo-950/50 p-6 shadow-xl shadow-black/30 overflow-hidden">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(56,189,248,0.14),transparent_50%)]" />
-            <div className="pointer-events-none absolute -bottom-24 left-1/2 -translate-x-1/2 w-80 h-40 bg-indigo-500/10 blur-3xl rounded-full" />
+        <div>
+          {gpsBadge.tone === 'amber' ? (
+            <button
+              type="button"
+              onClick={retryGeolocation}
+              className="px-3.5 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-full inline-flex items-center gap-2 cursor-pointer"
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              {gpsBadge.text.includes('limitado') || gpsBadge.text.includes('inactivo') ? 'GPS inactivo · Marcación bloqueada' : gpsBadge.text}
+            </button>
+          ) : gpsBadge.tone === 'emerald' ? (
+            <span className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full inline-flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              GPS activo y listo
+            </span>
+          ) : (
+            <span className="px-3.5 py-1.5 text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full inline-flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-slate-400" />
+              Obteniendo GPS…
+            </span>
+          )}
+        </div>
+      </div>
 
-            <div className="relative text-center shrink-0">
-              <p className="text-[clamp(2.5rem,4.5vw,3.75rem)] font-black text-white tracking-tight leading-none tabular-nums drop-shadow-[0_0_30px_rgba(56,189,248,0.25)]">
-                {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </p>
-              <p className="text-xs font-medium text-slate-400 mt-3 capitalize">
-                {currentTime.toLocaleDateString('es-ES', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-              </p>
-              <div className="mt-2.5 flex justify-center">
-                {gpsBadge.tone === 'amber' ? (
-                  <button
-                    type="button"
-                    onClick={retryGeolocation}
-                    className="px-3 py-1 text-[11px] font-semibold text-amber-400 bg-amber-950/50 border border-amber-500/30 rounded-full inline-flex items-center gap-1.5 cursor-pointer"
-                  >
-                    ⚠️ {gpsBadge.text}
-                  </button>
-                ) : gpsBadge.tone === 'emerald' ? (
-                  <span className="px-3 py-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 rounded-full inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    {gpsBadge.text}
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 text-[11px] font-semibold text-slate-400 bg-slate-950/60 border border-slate-700/60 rounded-full inline-flex items-center gap-1.5">
-                    ⌛ {gpsBadge.text}
-                  </span>
+      {/* Main Grid: 3 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        {/* Left Card: Horario */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[350px]">
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-bold text-slate-800">Horario laboral</h2>
+              <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+              </svg>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { label: 'Entrada', key: 'ENTRADA', time: '08:00', icon: 'bg-emerald-50 text-emerald-600', svg: (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                  </svg>
+                )},
+                { label: 'Almuerzo', key: 'INICIO_ALMUERZO', time: '13:00 - 14:00', icon: 'bg-amber-50 text-amber-600', svg: (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                  </svg>
+                )},
+                { label: 'Regreso almuerzo', key: 'FIN_ALMUERZO', time: '14:00', icon: 'bg-blue-50 text-blue-600', svg: (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                  </svg>
+                )},
+                { label: 'Salida', key: 'SALIDA', time: '17:30', icon: 'bg-purple-50 text-purple-600', svg: (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                  </svg>
                 )}
-              </div>
-            </div>
-
-            <div className="relative flex-1 min-h-0 flex flex-col mt-5 justify-center">
-              {!isCameraActive ? (
-                <div className="animate-fade-in flex flex-col items-center justify-center gap-5 w-full">
-                  <div className="w-20 h-20 rounded-2xl border border-dashed border-sky-500/30 bg-sky-500/5 flex items-center justify-center">
-                    <svg className="w-9 h-9 text-sky-400/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 15.75h4.5M16.5 14.25v4.5" />
-                    </svg>
-                  </div>
-                  <p className="text-sm text-slate-400 text-center max-w-xs leading-relaxed">
-                    {kioskSession
-                      ? 'Escanea de nuevo para la siguiente marcación'
-                      : 'Acerca tu credencial QR a la cámara'}
-                  </p>
-                  <button
-                    onClick={() => setIsCameraActive(true)}
-                    className="w-full max-w-sm py-4 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-base rounded-2xl shadow-lg shadow-sky-900/40 ring-1 ring-white/10 hover:ring-sky-400/30 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
-                  >
-                    <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
-                    </svg>
-                    Abrir Cámara
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-3 animate-fade-in flex-1 min-h-0 w-full">
-                  <div className="w-full max-w-[min(100%,22rem)] aspect-square rounded-2xl overflow-hidden relative border border-sky-500/40 bg-slate-950 shadow-inner shadow-sky-950/50 pulse-border-active shrink-0">
-                    {isProcessingScan && (
-                      <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center">
-                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-white/20 border-t-white" />
-                        <p className="text-sm font-semibold text-white mt-3">Procesando marcación...</p>
+              ].map((slot) => {
+                const valorEsperado = horarioHoy?.esperado?.[slot.key];
+                const timeText = slot.key === 'INICIO_ALMUERZO' && horarioHoy?.esperado?.INICIO_ALMUERZO && horarioHoy?.esperado?.FIN_ALMUERZO
+                  ? `${horarioHoy.esperado.INICIO_ALMUERZO.label} - ${horarioHoy.esperado.FIN_ALMUERZO.label}`
+                  : valorEsperado?.label || slot.time;
+                
+                return (
+                  <div key={slot.key} className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-none">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${slot.icon} shrink-0`}>
+                        {slot.svg}
                       </div>
-                    )}
-
-                    <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent z-40 scan-overlay-line opacity-95" />
-
-                    <div className="absolute inset-0 z-30 pointer-events-none p-4">
-                      <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-md" />
-                      <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-md" />
-                      <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-md" />
-                      <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-md" />
+                      <span className="text-sm font-semibold text-slate-700">{slot.label}</span>
                     </div>
-
-                    <Scanner
-                      onScan={handleKioskScan}
-                      onError={(err) => console.error('Error en Scanner Kiosco', err)}
-                      constraints={{ facingMode: 'environment' }}
-                      styles={{
-                        container: { width: '100%', height: '100%', paddingTop: 0, margin: 0 },
-                        video: { width: '100%', height: '100%', objectFit: 'cover' },
-                      }}
-                    />
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono font-bold text-slate-800">{timeText}</span>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                        Pendiente
+                      </span>
+                    </div>
                   </div>
-
-                  <button
-                    onClick={() => setIsCameraActive(false)}
-                    className="w-full max-w-[min(100%,22rem)] py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-600 shrink-0"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                    </svg>
-                    Cerrar Cámara
-                  </button>
-                </div>
-              )}
+                );
+              })}
             </div>
           </div>
-
-          {/* Derecha: Marcaciones */}
-          <div className="col-span-3 flex flex-col min-h-0">
-            <KioskMarcadoresPanel
-              marcaciones={kioskSession?.marcaciones ?? []}
-              empleadoNombre={kioskSession?.nombreEmpleado}
-              empleadoId={kioskSession?.empleadoId}
-              highlightTipo={lastScan?.tipo}
-              kioskColumn
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 min-h-0 w-full max-w-[1400px] mx-auto flex flex-col gap-2 overflow-hidden">
-        <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-slate-600/50 bg-slate-900/50 p-3 shadow-lg overflow-hidden">
-          <div className="text-center shrink-0">
-            <p className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none drop-shadow-lg">
-              {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          
+          <div className="mt-4 pt-4 border-t border-slate-100/80">
+            <p className="text-xs font-medium text-slate-400">
+              Tu jornada laboral: <span className="font-extrabold text-blue-900">8h 30m</span>
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 mt-1">
-              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wide leading-snug">
-                {currentTime.toLocaleDateString('es-ES', {
-                  weekday: 'long',
-                  day: '2-digit',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-              </p>
-              {gpsBadge.tone === 'amber' ? (
-                <button
-                  type="button"
-                  onClick={retryGeolocation}
-                  className="px-2 py-0.5 text-[9px] font-bold text-amber-500 bg-amber-950/40 border border-amber-500/25 rounded-full inline-flex items-center gap-1 cursor-pointer"
-                >
-                  ⚠️ {gpsBadge.text}
-                </button>
-              ) : gpsBadge.tone === 'emerald' ? (
-                <span className="px-2 py-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 rounded-full inline-flex items-center gap-1">
-                  📍 {gpsBadge.text}
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 text-[9px] font-bold text-slate-400 bg-slate-900 border border-slate-700 rounded-full inline-flex items-center gap-1">
-                  ⌛ {gpsBadge.text}
-                </span>
+          </div>
+        </div>
+
+        {/* Center Card: Scanner / Reloj */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center min-h-[350px]">
+          <p className="text-4xl font-extrabold text-slate-800 tracking-tight leading-none tabular-nums">
+            {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </p>
+          <p className="text-xs font-semibold text-slate-400 mt-2 capitalize">
+            {currentTime.toLocaleDateString('es-ES', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
+
+          {!isCameraActive ? (
+            <div className="flex flex-col items-center gap-4 mt-6 w-full">
+              <button
+                onClick={() => {
+                  if (gpsBadge.tone === 'amber') {
+                    toast.error('La ubicación (GPS) es obligatoria para registrar asistencia. Actívala e intenta nuevamente.');
+                  } else {
+                    setIsCameraActive(true);
+                  }
+                }}
+                className={`w-40 h-40 border-2 rounded-full flex flex-col items-center justify-center gap-1.5 transition-all duration-300 transform hover:scale-[1.03] cursor-pointer ${
+                  gpsBadge.tone === 'amber'
+                    ? 'border-dashed border-rose-300 bg-rose-50/10'
+                    : 'border-dashed border-emerald-400 hover:border-emerald-500 bg-emerald-50/20 hover:bg-emerald-50/40'
+                }`}
+              >
+                <svg className={`w-8 h-8 ${gpsBadge.tone === 'amber' ? 'text-rose-400' : 'text-emerald-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 15.75h4.5M16.5 14.25v4.5" />
+                </svg>
+                <span className={`text-xs font-black ${gpsBadge.tone === 'amber' ? 'text-rose-700' : 'text-emerald-800'}`}>Escanear QR</span>
+                <span className={`text-[9px] font-semibold ${gpsBadge.tone === 'amber' ? 'text-rose-500/80' : 'text-emerald-600/70'}`}>para registrar</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (gpsBadge.tone === 'amber') {
+                    toast.error('La ubicación (GPS) es obligatoria para registrar asistencia. Actívala en tu navegador.');
+                  } else {
+                    setIsCameraActive(true);
+                  }
+                }}
+                className={`w-full max-w-xs py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer border ${
+                  gpsBadge.tone === 'amber'
+                    ? 'bg-rose-50/50 border-rose-100 text-rose-400 cursor-not-allowed'
+                    : 'bg-blue-950 hover:bg-blue-900 text-white border-blue-900/40 shadow-sm shadow-blue-900/20'
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+                </svg>
+                Abrir cámara
+              </button>
+              
+              {gpsBadge.tone === 'amber' && (
+                <p className="text-[10px] text-rose-600 font-bold bg-rose-50 border border-rose-100 rounded-lg p-2.5 mt-2 leading-relaxed">
+                  ⚠️ Ubicación GPS obligatoria desactivada. Activa los permisos de ubicación en tu navegador para poder registrar asistencia.
+                </p>
               )}
             </div>
-          </div>
-
-          <div className="flex-1 min-h-0 flex flex-col mt-2">
-            {!isCameraActive ? (
-              <div className="animate-fade-in flex flex-col flex-1 min-h-0 w-full">
-                <div className="flex-1 min-h-2" />
-                <button
-                  onClick={() => setIsCameraActive(true)}
-                  className="w-full shrink-0 py-4 sm:py-5 min-h-[3.75rem] sm:min-h-[4.25rem] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
-                >
-                  <svg className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
-                  </svg>
-                  Abrir Cámara para Escanear
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-2 animate-fade-in flex-1 min-h-0 w-full">
-                <div className="w-full max-w-[min(92vw,20rem)] aspect-square rounded-xl overflow-hidden relative border-2 bg-slate-950 shadow-inner border-blue-500 pulse-border-active shrink-0">
-                  {isProcessingScan && (
-                    <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center">
-                      <div className="animate-spin rounded-full h-10 w-10 border-2 border-white/20 border-t-white" />
-                      <p className="text-sm font-semibold text-white mt-3">Procesando marcación...</p>
-                    </div>
-                  )}
-
-                  <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent z-40 scan-overlay-line opacity-95" />
-
-                  <div className="absolute inset-0 z-30 pointer-events-none p-4">
-                    <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-md" />
-                    <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-md" />
-                    <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-md" />
-                    <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-md" />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 animate-fade-in w-full mt-4">
+              <div className="w-full max-w-[15rem] aspect-square rounded-2xl overflow-hidden relative border border-slate-200 bg-black shadow-inner shrink-0 pulse-border-active">
+                {isProcessingScan && (
+                  <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-white/20 border-t-white" />
+                    <p className="text-[11px] font-semibold text-white mt-2">Procesando marcación...</p>
                   </div>
-
-                  <Scanner
-                    onScan={handleKioskScan}
-                    onError={(err) => console.error('Error en Scanner Kiosco', err)}
-                    constraints={{ facingMode: 'environment' }}
-                    styles={{
-                      container: { width: '100%', height: '100%', paddingTop: 0, margin: 0 },
-                      video: { width: '100%', height: '100%', objectFit: 'cover' },
-                    }}
-                  />
-                </div>
-
-                <button
-                  onClick={() => setIsCameraActive(false)}
-                  className="w-full max-w-[min(92vw,20rem)] py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-600 shrink-0"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                  </svg>
-                  Cerrar Cámara
-                </button>
+                )}
+                <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent z-40 scan-overlay-line opacity-95" />
+                <Scanner
+                  onScan={handleKioskScan}
+                  onError={(err) => console.error('Error en Scanner Kiosco', err)}
+                  constraints={{ facingMode: 'environment' }}
+                  styles={{
+                    container: { width: '100%', height: '100%', paddingTop: 0, margin: 0 },
+                    video: { width: '100%', height: '100%', objectFit: 'cover' },
+                  }}
+                />
               </div>
-            )}
-          </div>
+
+              <button
+                onClick={() => setIsCameraActive(false)}
+                className="w-full max-w-[15rem] py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-200 shrink-0"
+              >
+                Cerrar cámara
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="shrink-0 rounded-xl border border-slate-600/50 bg-slate-900/55 p-2 sm:p-2.5 shadow-lg">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 items-stretch min-h-[10.5rem] sm:min-h-[11.5rem]">
-            <div className="min-h-0 h-full flex flex-col border-r border-slate-700/40 pr-2 sm:pr-2.5 text-center sm:text-left">
-              {horarioHoy ? (
-                <HorarioDelDiaBanner
-                  label={horarioHoy.label}
-                  esperado={horarioHoy.esperado}
-                  theme="dark"
-                  kioskColumn
-                  embedded
-                />
-              ) : (
-                <div className="h-full flex items-center justify-center">
-                  <p className="text-[10px] text-slate-500 text-center">Sin horario</p>
-                </div>
+        {/* Right Card: Marcaciones del día */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[350px]">
+          <div>
+            <div className="flex flex-col gap-1 mb-5">
+              <h2 className="text-base font-bold text-slate-800">Marcaciones del día</h2>
+              {kioskSession?.nombreEmpleado && (
+                <p className="text-xs font-bold text-blue-600 truncate uppercase">
+                  Colaborador: {kioskSession.nombreEmpleado}
+                </p>
               )}
             </div>
 
-            <div className="min-h-0 h-full flex flex-col text-center sm:text-left">
-              <KioskMarcadoresPanel
-                marcaciones={kioskSession?.marcaciones ?? []}
-                empleadoNombre={kioskSession?.nombreEmpleado}
-                empleadoId={kioskSession?.empleadoId}
-                highlightTipo={lastScan?.tipo}
-                kioskColumn
-                embedded
-              />
+            <div className="space-y-3.5">
+              {[
+                { label: 'Entrada', type: 'ENTRADA' },
+                { label: 'Salida almuerzo', type: 'INICIO_ALMUERZO' },
+                { label: 'Regreso almuerzo', type: 'FIN_ALMUERZO' },
+                { label: 'Salida', type: 'SALIDA' },
+                { label: 'Horas extras', type: 'FIN_HORAS_EXTRA' }
+              ].map((slot) => {
+                const mark = kioskSession?.marcaciones?.find(m => m.tipo === slot.type);
+                const isRegistered = !!mark;
+                const timeVal = mark?.fechaHora 
+                  ? new Date(mark.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : '--:--';
+                
+                return (
+                  <div key={slot.type} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-none">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${isRegistered ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <span className="text-sm font-semibold text-slate-700 truncate">{slot.label}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono font-bold text-slate-600">{timeVal}</span>
+                      {isRegistered ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                          Registrado
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                          Pendiente
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-        </div>
-      )}
 
+          <div className="mt-4 pt-4 border-t border-slate-100/80">
+            <p className="text-[10px] text-slate-400 font-medium">
+              ℹ️ Los registros se realizan en la fecha y hora actual.
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+
+      {/* Recent Logs Table */}
+      <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+        <h2 className="text-sm font-bold text-slate-800 mb-4">Registros recientes (Hoy)</h2>
+        {recentRegistros.length === 0 ? (
+          <p className="text-xs text-slate-400 text-center py-6">No hay marcaciones registradas el día de hoy.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <th className="py-2.5 px-3">Colaborador</th>
+                  <th className="py-2.5 px-3">Fecha</th>
+                  <th className="py-2.5 px-3 text-center">Tipo</th>
+                  <th className="py-2.5 px-3 text-center">Hora</th>
+                  <th className="py-2.5 px-3 text-center">Ubicación</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {recentRegistros.map((reg) => (
+                  <tr key={reg.id} className="hover:bg-slate-50/50">
+                    <td className="py-2.5 px-3 font-bold text-slate-700 normal-case">{reg.nombreEmpleado}</td>
+                    <td className="py-2.5 px-3 text-slate-500 font-medium">
+                      {new Date(reg.fechaHora).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span className={`inline-block font-extrabold px-2 py-0.5 rounded text-[9px] uppercase ${
+                        reg.tipo === 'ENTRADA' ? 'text-emerald-700 bg-emerald-50' :
+                        reg.tipo === 'INICIO_ALMUERZO' ? 'text-amber-700 bg-amber-50' :
+                        reg.tipo === 'FIN_ALMUERZO' ? 'text-blue-700 bg-blue-50' :
+                        'text-purple-700 bg-purple-50'
+                      }`}>
+                        {reg.tipo.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-600">
+                      {new Date(reg.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      {reg.ubicacionLat && reg.ubicacionLng ? (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${reg.ubicacionLat},${reg.ubicacionLng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-semibold"
+                          title="Ver en Google Maps"
+                        >
+                          <span className="text-rose-500">📍</span> {reg.ubicacionLat.toFixed(5)}, {reg.ubicacionLng.toFixed(5)}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 font-medium">Sin GPS</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Success / Error / Picker Overlays */}
       {(lastScan || scanError || pendingScan) && (
-        <div className="fixed inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-[100] animate-fade-in overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-[100] animate-fade-in overflow-y-auto">
+          <div className="bg-white border border-slate-100 rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6">
             {scanError ? (
               <div className="space-y-4">
-                <div className="w-20 h-20 rounded-full bg-red-950/50 border border-red-500/50 flex items-center justify-center mx-auto shadow-lg shadow-red-500/10">
-                  <svg className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto shadow-sm">
+                  <svg className="w-8 h-8 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-red-500">Error de Registro</h3>
-                  <p className="text-sm text-slate-400 mt-2 max-w-xs leading-relaxed">{scanError}</p>
+                  <h3 className="text-lg font-black text-rose-700">Error de marcación</h3>
+                  <p className="text-xs text-slate-500 mt-2 leading-relaxed">{scanError}</p>
                 </div>
+                <button
+                  onClick={() => { setScanError(null); setIsCameraActive(true); }}
+                  className="w-full mt-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all"
+                >
+                  Entendido
+                </button>
               </div>
             ) : pendingScan ? (
               <MarcacionPickerModal
@@ -658,57 +739,54 @@ const KioskView = () => {
                 onCancel={() => { setPendingScan(null); setIsCameraActive(true); }}
               />
             ) : (
-              <div className="space-y-5 w-full max-w-sm">
-                <div className={`w-20 h-20 rounded-full border flex items-center justify-center mx-auto shadow-lg ${toastDetails.iconBg}`}>
-                  <svg className={`w-10 h-10 ${toastDetails.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <div className="space-y-5 w-full flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto shadow-sm">
+                  <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                   </svg>
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-black text-white">¡Hola, {lastScan.nombreEmpleado}!</h3>
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">ID: {lastScan.empleadoId}</p>
+                <div className="space-y-1 text-center">
+                  <h3 className="text-xl font-black text-slate-800">¡Hola, {lastScan.nombreEmpleado}!</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID: {lastScan.empleadoId}</p>
                 </div>
-                <div className="py-2.5 px-6 rounded-2xl bg-slate-900 border border-slate-800/80 inline-block">
-                  <p className={`text-base font-extrabold uppercase tracking-wider ${toastDetails.text}`}>
-                    {toastDetails.label} Registrada
+                <div className="py-2 px-5 rounded-2xl bg-emerald-50 border border-emerald-100 inline-block text-center">
+                  <p className="text-sm font-extrabold text-emerald-800 uppercase tracking-wide">
+                    {lastScan.label} Registrada
                   </p>
-                  <p className="text-xs font-mono text-slate-400 mt-1 flex items-center justify-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                  <p className="text-[10px] font-mono text-emerald-600 mt-0.5">
                     Hora: {new Date(lastScan.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </p>
                 </div>
                 <div className="w-full">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Marcaciones del día</p>
-                  <MarcacionesTimeline marcaciones={lastScan.marcaciones} highlightTipo={lastScan.tipo} compact />
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Marcaciones del día</p>
+                  <MarcacionesTimeline marcaciones={lastScan.marcaciones} highlightTipo={lastScan.tipo} compact theme="light" />
                 </div>
                 {(lastScan.lapsos?.trabajo !== '—' || lastScan.lapsos?.almuerzo !== '—') && (
-                  <div className="flex gap-3 justify-center text-xs flex-wrap">
+                  <div className="flex gap-2 justify-center text-[10px] flex-wrap w-full">
                     {lastScan.lapsos.trabajo !== '—' && (
-                      <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
-                        Trabajo: <span className="font-bold text-white">{lastScan.lapsos.trabajo}</span>
+                      <span className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-100 text-slate-600">
+                        Trabajo: <span className="font-extrabold text-slate-800">{lastScan.lapsos.trabajo}</span>
                       </span>
                     )}
                     {lastScan.lapsos.almuerzo !== '—' && (
-                      <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
-                        Almuerzo: <span className="font-bold text-white">{lastScan.lapsos.almuerzo}</span>
+                      <span className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-100 text-slate-600">
+                        Almuerzo: <span className="font-extrabold text-slate-800">{lastScan.lapsos.almuerzo}</span>
                       </span>
                     )}
                   </div>
                 )}
                 {lastScan.horasExtra && (
-                  <div className="w-full px-4 py-3 rounded-xl bg-violet-950/50 border border-violet-500/30 text-center">
-                    <p className="text-violet-300 text-xs font-bold uppercase tracking-wide">Horas extras registradas</p>
-                    <p className="text-white font-black text-lg mt-1">{lastScan.horasExtra.horas} h</p>
-                    <p className="text-violet-200/80 text-[10px] mt-1">{lastScan.horasExtra.detalleHorario}</p>
-                    <p className="text-amber-300 text-[10px] font-semibold mt-2">Pendiente de validación del administrador</p>
+                  <div className="w-full px-4 py-2.5 rounded-xl bg-purple-50 border border-purple-100 text-center">
+                    <p className="text-purple-700 text-[10px] font-bold uppercase tracking-wide">Horas extras registradas</p>
+                    <p className="text-purple-900 font-black text-sm mt-0.5">{lastScan.horasExtra.horas} h</p>
+                    <p className="text-purple-600 text-[9px] mt-0.5">{lastScan.horasExtra.detalleHorario}</p>
                   </div>
                 )}
               </div>
             )}
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 };
@@ -716,7 +794,10 @@ const KioskView = () => {
 export const RegistrosPage = () => {
   const userStr = localStorage.getItem('user');
   const userObj = userStr ? normalizeUserForSession(JSON.parse(userStr)) : null;
-  const isKioskMode = isAsistenciaUser(userObj);
+  
+  const queryParams = new URLSearchParams(window.location.search);
+  const forceKiosk = queryParams.get('kiosk') === 'true' || queryParams.get('vista') === 'kiosk';
+  const isKioskMode = isAsistenciaUser(userObj) || forceKiosk;
 
   if (isKioskMode) {
     return <KioskView />;
@@ -802,38 +883,30 @@ const TotalHorasDisplay = ({ isAsistio, isPermiso, lapsos }) => {
   return <span className="text-slate-300 text-xs">—</span>;
 };
 
-const AsistenciaAcciones = ({ isFalto, mapsUrl, onConcederPermiso }) => {
-  if (isFalto) {
+const AsistenciaAcciones = ({ isPermiso, onConcederPermiso, onCancelarPermiso }) => {
+  if (isPermiso) {
     return (
       <button
         type="button"
-        onClick={onConcederPermiso}
-        className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+        onClick={onCancelarPermiso}
+        className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
       >
-        Conceder Permiso
+        Cancelar Permiso
       </button>
     );
   }
-  if (mapsUrl) {
-    return (
-      <a
-        href={mapsUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center justify-center gap-1 w-full sm:w-auto px-3 py-1.5 border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
-      >
-        <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-        </svg>
-        Ver Mapa
-      </a>
-    );
-  }
-  return <span className="text-xs text-slate-400">—</span>;
+  return (
+    <button
+      type="button"
+      onClick={onConcederPermiso}
+      className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+    >
+      Conceder Permiso
+    </button>
+  );
 };
 
-const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horarioDia, onConcederPermiso }) => {
+const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horarioDia, onConcederPermiso, onCancelarPermiso }) => {
   const { entrada, inicioAlm, finAlm, salida, isFalto, isPermiso, isAsistio, mapsUrl, lapsos } =
     buildAsistenciaRowMeta(marcaciones, estado);
 
@@ -848,7 +921,7 @@ const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horario
     <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" />
+          <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" image={emp.foto} />
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-800 leading-snug normal-case">{emp.nombre}</p>
             <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
@@ -884,8 +957,9 @@ const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horario
       <div className="mt-3 pt-3 border-t border-slate-100">
         <AsistenciaAcciones
           isFalto={isFalto}
-          mapsUrl={mapsUrl}
+          isPermiso={isPermiso}
           onConcederPermiso={onConcederPermiso}
+          onCancelarPermiso={onCancelarPermiso}
         />
       </div>
     </div>
@@ -900,7 +974,7 @@ const AdminView = () => {
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('TODOS'); // TODOS | ASISTIO | FALTO | PERMISO | SIN_ALMUERZO
+  const [filtroEstado, setFiltroEstado] = useState('TODOS');
   const [horariosConfig, setHorariosConfig] = useState(DEFAULT_HORARIOS_CONFIG);
 
   const horarioDia = useMemo(() => getHorarioEsperado(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
@@ -941,6 +1015,39 @@ const AdminView = () => {
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'Error al registrar el permiso');
+    }
+  };
+
+  const handleCancelarPermiso = async (empleadoId) => {
+    try {
+      await eliminarPermiso({ empleadoId, fecha: fechaFiltro });
+      toast.success('Permiso pagado cancelado con éxito');
+      loadData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Error al cancelar el permiso');
+    }
+  };
+
+  const requestConcederPermiso = async (empleadoId, nombreEmpleado) => {
+    const confirmed = await confirmDialog(
+      'Conceder Permiso Pagado',
+      `¿Estás seguro de que deseas conceder un permiso pagado para ${nombreEmpleado} en la fecha ${fechaFiltro}? Esto registrará el día como laborado.`,
+      { confirmLabel: 'Sí, continuar', cancelLabel: 'No, cancelar', type: 'primary' }
+    );
+    if (confirmed) {
+      handleConcederPermiso(empleadoId);
+    }
+  };
+
+  const requestCancelarPermiso = async (empleadoId, nombreEmpleado) => {
+    const confirmed = await confirmDialog(
+      'Cancelar Permiso Pagado',
+      `¿Estás seguro de que deseas revocar el permiso pagado para ${nombreEmpleado} el día ${fechaFiltro}? El registro volverá a estar pendiente o ausente.`,
+      { confirmLabel: 'Sí, continuar', cancelLabel: 'No, cancelar', type: 'primary' }
+    );
+    if (confirmed) {
+      handleCancelarPermiso(empleadoId);
     }
   };
 
@@ -1067,7 +1174,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 
 
   return (
-    <div className="p-4 sm:p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="space-y-4 sm:space-y-6 animate-slide-up w-full" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
         .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
         .kpi-card { position: relative; overflow: hidden; }
@@ -1081,10 +1188,22 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
       `}</style>
 
       {/* Header Panel */}
-      <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Control de Asistencia Diario</h1>
-          <p className="text-sm text-slate-500">Supervisión diaria, control de ausencias y asignación de permisos.</p>
+      <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-card">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-800">Control de Asistencia Diario</h1>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-emerald-100 text-emerald-700">
+                Activo
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">Supervisión diaria, control de ausencias y asignación de permisos.</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={descargarExcel}
@@ -1100,7 +1219,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 
 
       {/* KPIs Grid - placed above calendar selector, in a single row */}
-      <div className="flex flex-wrap lg:flex-nowrap gap-3 mb-6">
+      <div className="flex flex-wrap lg:flex-nowrap gap-3">
         {[
           { label: 'Colaboradores', value: kpis.total, cssClass: 'total', color: 'text-blue-600' },
           { label: 'Asistencias', value: kpis.asistieron, cssClass: 'asistencias', color: 'text-emerald-600' },
@@ -1115,88 +1234,102 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         ))}
       </div>
 
-      {/* Selector de Semana / Fecha en forma de Cards Navigables */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-5 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handlePrevWeek} 
-              className="w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 font-bold transition-all cursor-pointer"
-              title="Semana Anterior"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-              </svg>
-            </button>
-            
-            <button 
-              onClick={() => setFechaFiltro(new Date().toISOString().split('T')[0])} 
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
-            >
-              Hoy
-            </button>
+      {/* Selector de Semana / Fecha */}
+      <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3">
+          {/* Controles de semana */}
+          <div className="flex items-center justify-between gap-2 lg:justify-start lg:shrink-0">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePrevWeek}
+                className="w-7 h-7 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600 transition-all cursor-pointer"
+                title="Semana anterior"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+              </button>
 
-            <button 
-              onClick={handleNextWeek} 
-              className="w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 font-bold transition-all cursor-pointer"
-              title="Semana Siguiente"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
+              <button
+                onClick={() => setFechaFiltro(new Date().toISOString().split('T')[0])}
+                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
+              >
+                Hoy
+              </button>
 
-            <span className="text-sm font-bold text-slate-700 ml-2">
-              Semana del {weekDays[0] && formatFecha(weekDays[0])} al {weekDays[6] && formatFecha(weekDays[6])}
-            </span>
-          </div>
+              <button
+                onClick={handleNextWeek}
+                className="w-7 h-7 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600 transition-all cursor-pointer"
+                title="Semana siguiente"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ir a fecha / cambiar mes o año:</span>
+              <span className="text-[11px] font-semibold text-slate-500 ml-1 hidden sm:inline whitespace-nowrap">
+                {weekDays[0] && formatFecha(weekDays[0])} – {weekDays[6] && formatFecha(weekDays[6])}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 lg:hidden">
+              <label htmlFor="fecha-filtro-mobile" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Fecha</label>
               <input
+                id="fecha-filtro-mobile"
                 type="date"
                 value={fechaFiltro}
                 onChange={e => setFechaFiltro(e.target.value)}
-                className="px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white cursor-pointer"
+                className="px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all bg-white cursor-pointer"
               />
             </div>
           </div>
-        </div>
 
-        {/* Tarjetas de Días de la Semana */}
-        <div className="flex justify-start md:justify-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {weekDays.map((d, i) => {
-            const iso = toISODate(d);
-            const isSelected = iso === fechaFiltro;
-            const isToday = iso === new Date().toISOString().split('T')[0];
-            
-            return (
-              <button 
-                key={i} 
-                onClick={() => setFechaFiltro(iso)}
-                className={`flex flex-col items-center p-3 rounded-2xl text-[10px] font-bold transition-all min-w-[70px] shrink-0 border cursor-pointer ${
-                  isSelected 
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-md transform scale-[1.02]' 
-                    : isToday
-                    ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
-                    : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <span className={`uppercase tracking-wider text-[9px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                  {DIAS_LABEL[d.getDay() === 0 ? 6 : d.getDay() - 1]}
-                </span>
-                <span className="text-lg font-black mt-1 leading-none">
-                  {d.getDate()}
-                </span>
-                {isToday && (
-                  <span className={`text-[7px] font-bold mt-1 px-1 rounded-sm ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-200/50 text-blue-700'}`}>
-                    HOY
+          {/* Días de la semana */}
+          <div className="flex gap-1 overflow-x-auto no-scrollbar flex-1 lg:justify-center min-w-0">
+            {weekDays.map((d, i) => {
+              const iso = toISODate(d);
+              const isSelected = iso === fechaFiltro;
+              const isToday = iso === new Date().toISOString().split('T')[0];
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => setFechaFiltro(iso)}
+                  className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-lg text-[9px] font-bold transition-all min-w-[44px] shrink-0 border cursor-pointer ${
+                    isSelected
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                      : isToday
+                      ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                      : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className={`uppercase tracking-wide leading-none ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                    {DIAS_LABEL[d.getDay() === 0 ? 6 : d.getDay() - 1]}
                   </span>
-                )}
-              </button>
-            );
-          })}
+                  <span className="text-sm font-black mt-0.5 leading-none">
+                    {d.getDate()}
+                  </span>
+                  {isToday && (
+                    <span className={`text-[6px] font-bold mt-0.5 leading-none ${isSelected ? 'text-slate-300' : 'text-blue-500'}`}>
+                      hoy
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selector de fecha (escritorio) */}
+          <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+            <label htmlFor="fecha-filtro-desktop" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Ir a fecha</label>
+            <input
+              id="fecha-filtro-desktop"
+              type="date"
+              value={fechaFiltro}
+              onChange={e => setFechaFiltro(e.target.value)}
+              className="px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all bg-white cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 
@@ -1261,7 +1394,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                     <th className="px-4 py-3 text-center border-l border-slate-200/80" colSpan={4}>Marcaciones por horario</th>
                     <th className="px-4 py-4 text-center" rowSpan={2}>Almuerzo</th>
                     <th className="px-6 py-4 text-center" rowSpan={2}>Total Horas</th>
-                    <th className="px-6 py-4 text-right" rowSpan={2}>Acción / Mapa</th>
+                    <th className="px-6 py-4 text-right" rowSpan={2}>Acción</th>
                   </tr>
                   <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
                     <th className="px-4 py-2 border-l border-slate-200/80">
@@ -1295,7 +1428,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                       <tr key={emp.id} className="hover:bg-slate-50/40 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3 min-w-0">
-                            <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" />
+                            <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" image={emp.foto} />
                             <div className="min-w-0">
                               <p className="text-sm font-bold text-slate-800 truncate normal-case">{emp.nombre}</p>
                               <p className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {emp.id} • {emp.cargo || 'General'}</p>
@@ -1339,8 +1472,9 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <AsistenciaAcciones
                             isFalto={isFalto}
-                            mapsUrl={mapsUrl}
-                            onConcederPermiso={() => handleConcederPermiso(emp.id)}
+                            isPermiso={isPermiso}
+                            onConcederPermiso={() => requestConcederPermiso(emp.id, emp.nombre)}
+                            onCancelarPermiso={() => requestCancelarPermiso(emp.id, emp.nombre)}
                           />
                         </td>
                       </tr>
@@ -1360,12 +1494,14 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                 estado={estado}
                 almuerzo={almuerzo}
                 horarioDia={horarioDia}
-                onConcederPermiso={() => handleConcederPermiso(emp.id)}
+                onConcederPermiso={() => requestConcederPermiso(emp.id, emp.nombre)}
+                onCancelarPermiso={() => requestCancelarPermiso(emp.id, emp.nombre)}
               />
             ))}
           </div>
         </>
       )}
+
     </div>
   );
 };

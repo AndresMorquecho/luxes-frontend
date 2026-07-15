@@ -37,6 +37,9 @@ export const ScannerModal = ({ isOpen, onClose, onSuccess }) => {
     setIsProcessing(true);
     try {
       const ubicacionFinal = await resolveUbicacion();
+      if (!ubicacionFinal) {
+        throw new Error('La ubicación (GPS) es obligatoria para registrar la asistencia. Por favor, activa los permisos de ubicación en tu navegador y vuelve a intentarlo.');
+      }
       const registro = await registrarAsistencia({ empleadoId, ubicacion: ubicacionFinal, omitirAlmuerzo });
       const marcaciones = await getTodayMarcaciones(empleadoId);
       const proxima = await getProximaMarcacion(empleadoId);

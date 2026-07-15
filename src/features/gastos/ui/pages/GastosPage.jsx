@@ -1,25 +1,53 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { 
   getGastos, saveGasto, deleteGasto, CATEGORIAS,
   getMetodosPago, getCierrePreview, saveCierre, getCierres,
   getVehiculos, getVehiculoDetails, saveVehiculo, deleteVehiculo,
-  addMantenimiento, updateMantenimiento, deleteMantenimiento 
+  addMantenimiento, updateMantenimiento, deleteMantenimiento,
+  getVehiculoControles, addVehiculoControl
 } from '../../application/gastosService';
+import { getUsuarios } from '../../../usuarios/application/usuariosService';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal.jsx';
 import { 
   Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus, 
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
-  ClipboardCheck
+  ClipboardCheck, BarChart3, Filter, ArrowUp, ArrowDown, Scale, Wallet,
+  Eye
 } from 'lucide-react';
+import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
 
 const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
 const EMPTY_VEHICULO_FORM = { placa: '', marca: '', modelo: '', anio: '', color: '', kilometraje: '', responsable: '', notas: '', estado: 'activo' };
 
+const esMetodoEfectivo = (nombre) => {
+  const name = (nombre || '').toLowerCase();
+  return name.includes('efectivo') || name.includes('caja') || name.includes('chica') || name.includes('principal') || name.includes('cash');
+};
+
 const EMPTY_MAINT_FORM = { tipo: 'Cambio de Aceite', descripcion: '', fechaRealizado: new Date().toISOString().split('T')[0], fechaProxima: '', kilometraje: '', kmProximo: '', monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
+
+const EMPTY_CONTROL_FORM = {
+  fecha: '',
+  kilometraje: '',
+  combustible: 'bueno',
+  nivelAceite: false,
+  nivelAgua: false,
+  aceiteHidraulico: false,
+  liquidoFrenos: false,
+  gataLlave: false,
+  extintorBotiquin: false,
+  bandas: false,
+  otroCheckNombre: '',
+  otroCheckValor: false,
+  observacion: '',
+  sugerencia: ''
+};
 
 const CAT_BADGES = {
   oficina: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', label: 'Oficina' },
@@ -29,6 +57,7 @@ const CAT_BADGES = {
   vehiculos: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Vehículos' },
   varios: { bg: 'rgba(236,72,153,0.1)', color: '#ec4899', label: 'Varios' },
   compras: { bg: 'rgba(245,158,11,0.1)', color: '#d97706', label: 'Orden de Compra' },
+  recursos_humanos: { bg: 'rgba(16,185,129,0.1)', color: '#059669', label: 'Nómina y Anticipos' }
 };
 
 const fmt = (n) => '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -107,8 +136,54 @@ const computeVehicleAlerts = (vehiculo) => {
   return { oilAlert, tiresAlert, brakesAlert, hasWarning };
 };
 
+const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, trendText, sparklineSvg }) => {
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-slate-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{title}</h3>
+          <div className="text-[22px] font-black text-slate-800 tracking-tight leading-none">{amount}</div>
+        </div>
+        <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0" style={{ backgroundColor: bg }}>
+          <Icon size={18} style={{ color: color }} strokeWidth={2.5} />
+        </div>
+      </div>
+      
+      <div className="flex items-end justify-between mt-auto">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${trendUp ? 'bg-emerald-100/60 text-emerald-600' : 'bg-rose-100/60 text-rose-500'}`}>
+              {trendUp ? '↑' : '↓'} {trendValue}
+            </span>
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">vs mes anterior</span>
+          </div>
+          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{trendText}</div>
+        </div>
+        
+        {/* Sparkline */}
+        <div className="w-16 h-8 opacity-80 -mr-2 -mb-1">
+          <svg viewBox="0 0 100 30" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+             <path 
+               d={sparklineSvg} 
+               fill="none" 
+               stroke={trendUp ? '#10b981' : '#f43f5e'} 
+               strokeWidth="2" 
+               strokeLinecap="round" 
+               strokeLinejoin="round" 
+               style={{ filter: trendUp ? 'drop-shadow(0 2px 2px rgba(16,185,129,0.2))' : 'drop-shadow(0 2px 2px rgba(244,63,94,0.2))' }}
+             />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'vehiculos' | 'cierre'
+  
+  const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = loggedInUser?.rol?.toLowerCase() === 'admin' || loggedInUser?.rol?.toLowerCase() === 'administrador';
 
   useEffect(() => {
     setActiveTab(defaultTab);
@@ -126,8 +201,15 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filtroOrigen, setFiltroOrigen] = useState('todos');
+  const [filtroUsuarioId, setFiltroUsuarioId] = useState('');
+  const [filtroMetodoPagoId, setFiltroMetodoPagoId] = useState('');
+  const [dateRange, setDateRange] = useState({ desde: '', hasta: '' });
   const [page, setPage] = useState(1);
-  const perPage = 8;
+  const [limit, setLimit] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totales, setTotales] = useState({ total: 0, otrosGastos: 0, nomina: 0, vehiculos: 0, ordenesCompra: 0 });
+  const [usuarios, setUsuarios] = useState([]);
 
   // --- ESTADOS VEHÍCULOS ---
   const [vehiculos, setVehiculos] = useState([]);
@@ -138,11 +220,25 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [vehiculoForm, setVehiculoForm] = useState(EMPTY_VEHICULO_FORM);
   const [savingVehiculo, setSavingVehiculo] = useState(false);
 
+  // --- ESTADOS CONTROLES ---
+  const [controles, setControles] = useState([]);
+  const [loadingControles, setLoadingControles] = useState(false);
+  const [controlFormOpen, setControlFormOpen] = useState(false);
+  const [viewingControl, setViewingControl] = useState(null);
+  const [controlForm, setControlForm] = useState(EMPTY_CONTROL_FORM);
+  const [formError, setFormError] = useState('');
+
   // --- ESTADOS MANTENIMIENTOS ---
   const [maintFormOpen, setMaintFormOpen] = useState(false);
   const [editingMaint, setEditingMaint] = useState(null);
+  const [maintPage, setMaintPage] = useState(1);
+  const maintLimit = 25;
   const [maintForm, setMaintForm] = useState(EMPTY_MAINT_FORM);
   const [savingMaint, setSavingMaint] = useState(false);
+  const [maintFiltroTipo, setMaintFiltroTipo] = useState('todos');
+  const [maintFiltroUsuarioId, setMaintFiltroUsuarioId] = useState('');
+  const [maintFiltroMetodoPagoId, setMaintFiltroMetodoPagoId] = useState('');
+  const [maintDateRange, setMaintDateRange] = useState({ desde: '', hasta: '' });
 
   // --- ESTADOS CIERRE DE CAJA ---
   const [cierreHistory, setCierreHistory] = useState([]);
@@ -155,19 +251,52 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   });
   const [cierreObservaciones, setCierreObservaciones] = useState('');
   const [savingCierre, setSavingCierre] = useState(false);
+  const [efectivoFisicoContado, setEfectivoFisicoContado] = useState('');
+  const [selectedCierreDetail, setSelectedCierreDetail] = useState(null);
+  const [pdfCierre, setPdfCierre] = useState(null);
+
+  useEffect(() => {
+    setEfectivoFisicoContado('');
+  }, [cierrePreview]);
 
   // --- CARGA DE DATOS ---
   const loadGastosData = async () => {
     setLoading(true);
     try {
-      const data = await getGastos();
-      setItems(data);
+      const filters = {
+        usuarioId: filtroUsuarioId,
+        metodoPagoId: filtroMetodoPagoId,
+        startDate: dateRange.desde,
+        endDate: dateRange.hasta,
+      };
+      const response = await getGastos(page, limit, search, filtroOrigen, filters);
+      if (response && response.data) {
+        setItems(response.data);
+        if (response.totales) {
+          setTotales(response.totales);
+        }
+        if (response.pagination) {
+          setTotalPages(response.pagination.totalPages);
+          setTotalCount(response.pagination.totalCount);
+        }
+      } else {
+        setItems([]);
+      }
     } catch (err) {
       toast.error('Error al cargar gastos: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'gastos') {
+      const timeout = setTimeout(() => {
+        loadGastosData();
+      }, 300); // debounce search
+      return () => clearTimeout(timeout);
+    }
+  }, [page, limit, search, filtroOrigen, filtroUsuarioId, filtroMetodoPagoId, dateRange, activeTab]);
 
   const loadVehiculosData = async () => {
     setLoadingVehiculos(true);
@@ -181,11 +310,41 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     }
   };
 
+  const loadControles = async (vehId) => {
+    setLoadingControles(true);
+    try {
+      const data = await getVehiculoControles(vehId);
+      setControles(data);
+    } catch (err) {
+      toast.error('Error al cargar historial de controles: ' + err.message);
+    } finally {
+      setLoadingControles(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedVehiculo?.id) {
+      loadControles(selectedVehiculo.id);
+    }
+  }, [selectedVehiculo]);
+
   const loadCierreHistory = async () => {
     setLoadingCierreHistory(true);
     try {
       const data = await getCierres();
       setCierreHistory(data || []);
+
+      if (data && data.length > 0) {
+        const latestCierre = data[0];
+        if (latestCierre.fechaFin) {
+          const nextDay = new Date(latestCierre.fechaFin);
+          nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+          setCierreDates(prev => ({
+            ...prev,
+            desde: nextDay.toISOString().split('T')[0]
+          }));
+        }
+      }
     } catch (err) {
       toast.error('Error al cargar historial de cierres: ' + err.message);
     } finally {
@@ -208,21 +367,53 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   const handleSaveCierre = async () => {
     if (!cierrePreview) return;
-    if (!window.confirm('¿Confirmar registro de cierre de caja para el rango seleccionado?')) return;
+    const confirmed = await confirmDialog(
+      'Confirmar Cierre de Caja',
+      '¿Confirmar registro de cierre de caja para el rango seleccionado?'
+    );
+    if (!confirmed) return;
     setSavingCierre(true);
     try {
-      await saveCierre({
+      const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
+        .filter(m => esMetodoEfectivo(m.nombre))
+        .reduce((sum, m) => sum + Number(m.balance), 0);
+
+      const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
+      const ratio = totalEfectivoEsperado > 0 ? (physicalEfectivo / totalEfectivoEsperado) : 1;
+
+      const metodosConFisico = (cierrePreview.metodosDetalle || []).map(m => {
+        const esEfectivo = esMetodoEfectivo(m.nombre);
+        const physical = esEfectivo ? (Number(m.balance) * ratio) : Number(m.balance);
+        return {
+          ...m,
+          montoFisico: physical,
+          diferencia: physical - Number(m.balance),
+        };
+      });
+
+      const saved = await saveCierre({
         fechaInicio: cierrePreview.fechaInicio,
         fechaFin: cierrePreview.fechaFin,
         totalIngresos: cierrePreview.totalIngresos,
         totalEgresos: cierrePreview.totalEgresos,
-        metodosDetalle: cierrePreview.metodosDetalle,
+        metodosDetalle: {
+          metodos: metodosConFisico,
+          efectivoFisicoContado: physicalEfectivo,
+          diferenciaEfectivo: physicalEfectivo - totalEfectivoEsperado,
+          seccionIngresos: cierrePreview.seccionIngresos || {},
+          seccionEgresos: cierrePreview.seccionEgresos || {},
+          usuariosDetalle: cierrePreview.usuariosDetalle || [],
+        },
         observaciones: cierreObservaciones,
       });
       toast.success('Cierre de caja guardado con éxito');
       setCierreObservaciones('');
+      setEfectivoFisicoContado('');
       setCierrePreview(null);
       loadCierreHistory();
+      if (saved) {
+        setPdfCierre(saved);
+      }
     } catch (err) {
       toast.error('Error al registrar cierre de caja: ' + err.message);
     } finally {
@@ -230,7 +421,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     }
   };
 
-  // Carga inicial de métodos de pago
+  // Carga inicial de métodos de pago y usuarios
   useEffect(() => {
     getMetodosPago()
       .then(data => {
@@ -238,6 +429,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       })
       .catch(err => {
         console.error('Error al cargar métodos de pago:', err);
+      });
+      
+    getUsuarios()
+      .then(data => {
+        setUsuarios(data || []);
+      })
+      .catch(err => {
+        console.error('Error al cargar usuarios:', err);
       });
   }, []);
 
@@ -313,7 +512,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleDeleteGasto = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este gasto? Si está asociado a un mantenimiento, se eliminará el registro de mantenimiento correspondiente.')) return;
+    const confirmed = await confirmDialog(
+      'Eliminar Gasto',
+      '¿Estás seguro de eliminar este gasto? Si está asociado a un mantenimiento, se eliminará el registro de mantenimiento correspondiente.'
+    );
+    if (!confirmed) return;
     try {
       await deleteGasto(id);
       toast.success('Gasto eliminado');
@@ -382,7 +585,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleDeleteVehiculo = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar este vehículo? Esto eliminará todos sus mantenimientos y sus gastos asociados en la contabilidad.')) return;
+    const confirmed = await confirmDialog(
+      'Eliminar Vehículo',
+      '¿Estás seguro de eliminar este vehículo? Esto eliminará todos sus mantenimientos y sus gastos asociados en la contabilidad.'
+    );
+    if (!confirmed) return;
     try {
       await deleteVehiculo(id);
       toast.success('Vehículo eliminado con éxito');
@@ -450,7 +657,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleDeleteMaint = async (maintId) => {
-    if (!window.confirm('¿Eliminar este mantenimiento? Esto también eliminará su entrada asociada en la lista de gastos generales.')) return;
+    const confirmed = await confirmDialog(
+      'Eliminar Mantenimiento',
+      '¿Eliminar este mantenimiento? Esto también eliminará su entrada asociada en la lista de gastos generales.'
+    );
+    if (!confirmed) return;
     try {
       await deleteMantenimiento(maintId);
       toast.success('Registro de mantenimiento eliminado');
@@ -460,54 +671,79 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     }
   };
 
-  // --- FILTRADOS Y PAGINACIÓN DE GASTOS ---
-  const q = search.toLowerCase();
-  const itemsPorOrigen = items.filter((g) => {
-    if (filtroOrigen === 'gasto') return g.origen !== 'orden_compra' && g.origen !== 'cuenta_por_pagar';
-    if (filtroOrigen === 'orden_compra') return g.origen === 'orden_compra';
-    if (filtroOrigen === 'cuenta_por_pagar') return g.origen === 'cuenta_por_pagar';
-    return true;
-  });
-  const filteredAll = itemsPorOrigen.filter(g =>
-    !q
-    || g.concepto?.toLowerCase().includes(q)
-    || g.categoria?.includes(q)
-    || g.proveedor?.toLowerCase().includes(q)
-    || g.referencia?.toLowerCase().includes(q)
-    || g.notas?.toLowerCase().includes(q)
-    || g.registradoPor?.nombre?.toLowerCase().includes(q)
-    || g.ordenNumero?.toLowerCase?.().includes(q)
-  );
-  const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
-  const safePage = Math.min(page, totalPages);
-  const paginated = filteredAll.slice((safePage - 1) * perPage, safePage * perPage);
-
-  useEffect(() => { setPage(1); }, [search, filtroOrigen]);
-
-  // --- TOTALES KPI GASTOS ---
-  const gastosManuales = items.filter((g) => g.origen !== 'orden_compra' && g.origen !== 'cuenta_por_pagar');
-  const pagosOC = items.filter((g) => g.origen === 'orden_compra');
-  const saldosOC = items.filter((g) => g.origen === 'cuenta_por_pagar');
-  const sumMontos = (list) => list.reduce((s, g) => s + Number(g.monto || 0), 0);
-
-  const totalMesManuales = gastosManuales.filter(g => {
-    const d = new Date(g.fecha);
-    const ahora = new Date();
-    return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
-  }).reduce((s, g) => s + Number(g.monto || 0), 0);
-
-  const totales = {
-    total: items.length,
-    totalMonto: sumMontos(items),
-    totalGastosManuales: sumMontos(gastosManuales),
-    totalPagosOC: sumMontos(pagosOC),
-    totalSaldosOC: sumMontos(saldosOC),
-    totalComprometidoOC: sumMontos(pagosOC) + sumMontos(saldosOC),
-    promedio: gastosManuales.length ? sumMontos(gastosManuales) / gastosManuales.length : 0,
-    totalMes: totalMesManuales,
-    pagosCompra: pagosOC.length,
-    gastosManuales: gastosManuales.length,
+  const openNewControl = () => {
+    if (!selectedVehiculo) return;
+    setControlForm({
+      ...EMPTY_CONTROL_FORM,
+      fecha: new Date().toISOString().slice(0, 16),
+      kilometraje: selectedVehiculo.kilometraje || '',
+    });
+    setFormError('');
+    setControlFormOpen(true);
   };
+
+  const handleControlChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setControlForm((p) => ({
+      ...p,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSaveControl = async (e) => {
+    e.preventDefault();
+    if (!selectedVehiculo) return;
+    if (!controlForm.kilometraje || Number(controlForm.kilometraje) <= 0) {
+      setFormError('El kilometraje debe ser mayor a 0');
+      return;
+    }
+
+    setSavingMaint(true);
+    setFormError('');
+    try {
+      const payload = {
+        ...controlForm,
+        kilometraje: Number(controlForm.kilometraje),
+      };
+      const saved = await addVehiculoControl(selectedVehiculo.id, payload);
+      toast.success('Control registrado correctamente');
+      
+      setControles((prev) => [saved, ...prev]);
+
+      setSelectedVehiculo((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          kilometraje: Math.max(prev.kilometraje, Number(controlForm.kilometraje)),
+        };
+      });
+      setVehiculos((prev) =>
+        prev.map((v) => {
+          if (v.id === selectedVehiculo.id) {
+            return {
+              ...v,
+              kilometraje: Math.max(v.kilometraje, Number(controlForm.kilometraje)),
+            };
+          }
+          return v;
+        })
+      );
+
+      setControlFormOpen(false);
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSavingMaint(false);
+    }
+  };
+
+  // El filtrado y paginación ahora se hacen en el backend
+  const paginated = items;
+  
+  // Resetea a la página 1 cuando el filtro o la búsqueda cambian
+  useEffect(() => { setPage(1); }, [search, filtroOrigen, filtroUsuarioId, filtroMetodoPagoId, dateRange]);
+
+  // Totales ahora provienen del estado `totales` cargado desde el backend
 
   // --- TOTALES KPI VEHÍCULOS ---
   const vehiculosConAlertas = vehiculos.filter(v => computeVehicleAlerts(v).hasWarning).length;
@@ -533,12 +769,14 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
         .ga-tab-bar {
           display: flex;
+          flex-wrap: wrap;
           gap: 4px;
           background: rgba(241,245,249,0.7);
           padding: 4px;
           border-radius: 12px;
           border: 1px solid rgba(226,232,240,0.8);
-          width: max-content;
+          width: 100%;
+          max-width: max-content;
           margin-bottom: 24px;
         }
 
@@ -673,7 +911,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         }
         .animate-ga-modal-in { animation: ga-modal-in 0.22s cubic-bezier(0.16,1,0.3,1) forwards; }
         @media (min-width: 768px) {
-          .cc-desktop-table { display: block; }
+          .cc-desktop-table { display: table; }
           .cc-mobile-cards { display: none; }
         }
         @media (max-width: 767px) {
@@ -694,7 +932,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       `}</style>
 
       {/* Título Principal */}
-      <div className="ga-card px-6 py-5 flex items-center justify-between gap-4 flex-wrap mb-6">
+      <div className="ga-card px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2.5">
             {PAGE_META[activeTab]?.title || 'Finanzas'}
@@ -703,17 +941,21 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             {PAGE_META[activeTab]?.subtitle || ''}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           {activeTab === 'gastos' ? (
-            <button onClick={openNewGasto} className="ga-btn-primary">
+            <button onClick={openNewGasto} className="ga-btn-primary whitespace-nowrap">
               <Plus size={16} />
               Registrar Gasto
             </button>
           ) : activeTab === 'vehiculos' && !selectedVehiculo ? (
-            <button onClick={openNewVehiculo} className="ga-btn-primary">
+            <button onClick={openNewVehiculo} className="ga-btn-primary whitespace-nowrap">
               <Plus size={16} />
               Registrar Vehículo
             </button>
+          ) : activeTab === 'cierre' ? (
+            <Link to="/cierre-caja/historial" className="ga-btn-secondary text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 shadow-sm whitespace-nowrap">
+              <Clock size={15} /> Historial de cierres
+            </Link>
           ) : null}
         </div>
       </div>
@@ -742,73 +984,121 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {activeTab === 'gastos' && (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
-                <FileText size={20} style={{ color: '#3b82f6' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gastos manuales</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{totales.gastosManuales}</div>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+            <StatCard 
+              title="Total General" 
+              amount={fmt(totales.total || 0)} 
+              icon={BarChart3} 
+              color="#3b82f6" 
+              bg="rgba(59,130,246,0.1)"
+              trendValue="12.5%" trendUp={false} trendText="GASTO GLOBAL"
+              sparklineSvg="M0,5 C20,5 30,15 50,15 C70,15 80,25 100,25"
+            />
+            <StatCard 
+              title="Otros Gastos" 
+              amount={fmt(totales.otrosGastos || 0)} 
+              icon={DollarSign} 
+              color="#10b981" 
+              bg="rgba(16,185,129,0.1)"
+              trendValue="5.2%" trendUp={false} trendText="GASTOS MANUALES"
+              sparklineSvg="M0,10 C20,10 40,20 60,15 C80,10 90,25 100,20"
+            />
+            <StatCard 
+              title="Órdenes de Compra" 
+              amount={fmt(totales.ordenesCompra || 0)} 
+              icon={FileText} 
+              color="#f59e0b" 
+              bg="rgba(245,158,11,0.1)"
+              trendValue="8.1%" trendUp={true} trendText="PAGOS A PROVEEDOR"
+              sparklineSvg="M0,25 C20,25 30,15 50,15 C70,15 80,5 100,5"
+            />
+            <StatCard 
+              title="Nómina y Anticipos" 
+              amount={fmt(totales.nomina || 0)} 
+              icon={User} 
+              color="#8b5cf6" 
+              bg="rgba(139,92,246,0.1)"
+              trendValue="2.0%" trendUp={true} trendText="RECURSOS HUMANOS"
+              sparklineSvg="M0,20 C30,20 40,10 70,10 C80,10 90,5 100,5"
+            />
+            <StatCard 
+              title="Vehículos" 
+              amount={fmt(totales.vehiculos || 0)} 
+              icon={Car} 
+              color="#ec4899" 
+              bg="rgba(236,72,153,0.1)"
+              trendValue="15.3%" trendUp={false} trendText="MANTENIMIENTOS"
+              sparklineSvg="M0,5 C30,5 50,20 70,15 C80,10 90,25 100,25"
+            />
+          </div>
+
+
+          {/* Contenedor de Filtros Avanzados */}
+          <div className="ga-card mb-4 relative z-30">
+            <div className="px-5 py-3 border-b border-slate-100/60 bg-slate-50/50 flex items-center gap-2 rounded-t-xl">
+              <Filter size={16} className="text-slate-400" />
+              <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Filtros Avanzados</span>
             </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                <DollarSign size={20} style={{ color: '#10b981' }} />
-              </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Egresos manuales</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalGastosManuales)}</div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Tipo de Gasto</label>
+                <select
+                  value={filtroOrigen}
+                  onChange={(e) => setFiltroOrigen(e.target.value)}
+                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                >
+                  <option value="todos">Todos los Tipos</option>
+                  <option value="otros_gastos">Otros Gastos</option>
+                  <option value="orden_compra">Órdenes de Compra</option>
+                  <option value="nomina">Nómina y Anticipos</option>
+                  <option value="vehiculo">Vehículos</option>
+                </select>
               </div>
-            </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.1)' }}>
-                <RefreshCw size={20} style={{ color: '#f59e0b' }} />
-              </div>
+
               <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pagos OC (caja)</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalPagosOC)}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  + {fmt(totales.totalSaldosOC)} por pagar = {fmt(totales.totalComprometidoOC)} comprometido
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Usuario</label>
+                <select
+                  value={filtroUsuarioId}
+                  onChange={(e) => setFiltroUsuarioId(e.target.value)}
+                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                >
+                  <option value="">Cualquier Usuario</option>
+                  {usuarios.map(u => (
+                    <option key={u.id} value={u.id}>{u.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Método de Pago</label>
+                <select
+                  value={filtroMetodoPagoId}
+                  onChange={(e) => setFiltroMetodoPagoId(e.target.value)}
+                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                >
+                  <option value="">Cualquier Método de Pago</option>
+                  {metodosPago.map(m => (
+                    <option key={m.id} value={m.id}>{m.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Fechas</label>
+                <div className="h-10 w-full">
+                  <DateRangePicker 
+                    value={dateRange}
+                    onChange={setDateRange}
+                    placeholder="Rango de fechas"
+                    size="sm"
+                  />
                 </div>
               </div>
             </div>
-            <div className="ga-card px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(236,72,153,0.1)' }}>
-                <Calendar size={20} style={{ color: '#ec4899' }} />
-              </div>
-              <div>
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gastos del mes</div>
-                <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totales.totalMes)}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-4 px-4 py-3 rounded-xl text-[12px] text-slate-600 leading-relaxed" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
-            Los <strong>pagos de órdenes de compra</strong> solo aparecen cuando se registran al aprobar la orden o al marcar explícitamente
-            {' '}<strong>“Registrar pago del ajuste”</strong> al editar precios. Cambiar precios sin pagar no genera egresos nuevos.
-          </div>
-
-          <div className="ga-tab-bar mb-4">
-            {[
-              { id: 'todos', label: 'Todos' },
-              { id: 'gasto', label: 'Gastos manuales' },
-              { id: 'orden_compra', label: 'Pagos en caja' },
-              { id: 'cuenta_por_pagar', label: 'Saldos OC' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setFiltroOrigen(tab.id)}
-                className={`ga-tab-btn ${filtroOrigen === tab.id ? 'active' : ''}`}
-              >
-                {tab.label}
-              </button>
-            ))}
           </div>
 
           {/* Tabla de Gastos */}
-          <div className="ga-card">
+          <div className="ga-card relative z-10">
             <div className="px-5 py-4 border-b border-slate-100/60 flex items-center gap-3">
               <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -826,100 +1116,128 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[13px]">
+              <div className="overflow-x-auto overflow-y-hidden">
+                <table className="cc-desktop-table w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-32">Fecha Hora</th>
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-40">Tipo</th>
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Concepto</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Categoría</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Fecha</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Proveedor</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Usuario</th>
-                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Método</th>
-                      <th className="text-right px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Monto</th>
-                      <th className="text-center px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-24">Acciones</th>
+                      <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-48">Método de Pago</th>
+                      <th className="text-right px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-32">Monto</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/40">
-                    {paginated.map((g) => (
-                      <tr key={`${g.origen || 'gasto'}-${g.id}`} className="ga-tr">
-                        <td className="px-5 py-4">
-                          <div className="font-semibold text-slate-800">{g.concepto}</div>
-                          {g.origen === 'orden_compra' && g.ordenTotal != null && (
-                            <div className="text-[11px] text-slate-500 mt-0.5">
-                              Pago en caja · Total orden {fmt(g.ordenTotal)}
-                              {g.ordenSaldo > 0.01 ? ` · Saldo pendiente ${fmt(g.ordenSaldo)}` : ' · Pagada'}
+                    {paginated.map((g) => {
+                      const origenStyles = {
+                        otros_gastos: { label: 'Otros Gastos', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+                        orden_compra: { label: 'Ordenes de Compra', bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
+                        nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
+                        vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
+                      };
+                      const style = origenStyles[g.origen] || origenStyles.otros_gastos;
+                      const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
+
+                      return (
+                        <tr 
+                          key={`${g.origen || 'gasto'}-${g.id}`} 
+                          className={`ga-tr ${canEdit ? 'cursor-pointer hover:bg-blue-50/50 transition-colors' : ''}`}
+                          onClick={() => { if (canEdit) openEditGasto(g); }}
+                          title={canEdit ? "Clic para editar" : ""}
+                        >
+                          <td className="px-5 py-4">
+                            <div className="text-[12px] font-medium text-slate-700 whitespace-nowrap">
+                              {g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
                             </div>
-                          )}
-                          {g.origen === 'cuenta_por_pagar' && g.ordenTotal != null && (
-                            <div className="text-[11px] text-violet-600 mt-0.5 font-medium">
-                              Por pagar · Total orden {fmt(g.ordenTotal)} · Ya pagado {fmt(g.ordenPagado)}
+                            <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">
+                              {g.registradoPor?.nombre || 'Automático'}
                             </div>
-                          )}
-                          {g.notas && g.origen !== 'orden_compra' && (
-                            <div className="text-[11px] text-slate-400 mt-0.5">{g.notas}</div>
-                          )}
-                          {g.referencia && g.origen === 'orden_compra' && (
-                            <div className="text-[11px] text-slate-500 mt-0.5">Ref: {g.referencia}</div>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                            style={{ background: CAT_BADGES[g.categoria]?.bg, color: CAT_BADGES[g.categoria]?.color }}>
-                            {CAT_BADGES[g.categoria]?.label ?? g.categoria}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-slate-500 text-[12px]">
-                          {g.fecha ? new Date(g.fecha).toLocaleDateString('es-EC') : '—'}
-                        </td>
-                        <td className="px-5 py-4 text-slate-600">{g.proveedor || <span className="text-slate-300">—</span>}</td>
-                        <td className="px-5 py-4 text-slate-600 text-[12px]">
-                          {g.registradoPor?.nombre || <span className="text-slate-300">—</span>}
-                        </td>
-                        <td className="px-5 py-4 text-slate-600 font-medium">
-                          {g.metodoPago?.nombre || <span className="text-slate-300">No especificado</span>}
-                        </td>
-                        <td className="px-5 py-4 text-right font-bold text-slate-800">{fmt(Number(g.monto))}</td>
-                        <td className="px-5 py-4">
-                          {g.readonly || g.origen === 'orden_compra' ? (
-                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Solo lectura</span>
-                          ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <button 
-                              onClick={() => openEditGasto(g)}
-                              className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" 
-                              title="Editar"
+                          </td>
+                          <td className="px-5 py-4">
+                            <span 
+                              className="font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider whitespace-nowrap"
+                              style={{ backgroundColor: style.bg, color: style.color }}
                             >
-                              <Edit size={14} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteGasto(g.id)}
-                              className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" 
-                              title="Eliminar"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                              {style.label}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="font-semibold text-slate-800">{g.concepto}</div>
+                            {g.notas && g.origen !== 'orden_compra' && (
+                              <div className="text-[11px] text-slate-400 mt-0.5">{g.notas}</div>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 text-slate-600 font-medium text-[12px]">
+                            {g.metodoPago?.nombre || <span className="text-slate-300">No especificado</span>}
+                          </td>
+                          <td className="px-5 py-4 text-right font-bold text-slate-800">{fmt(Number(g.monto))}</td>
+                        </tr>
+                      );
+                    })}
                     {paginated.length === 0 && (
-                      <tr><td colSpan={8} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron gastos</td></tr>
+                      <tr><td colSpan={5} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron gastos</td></tr>
                     )}
                   </tbody>
                 </table>
+                
+                {/* Vista Móvil (Cards) */}
+                <div className="cc-mobile-cards">
+                  <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
+                    {paginated.map((g) => {
+                    const origenStyles = {
+                      otros_gastos: { label: 'Otros Gastos', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+                      orden_compra: { label: 'Ordenes de Compra', bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
+                      nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
+                      vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
+                    };
+                    const style = origenStyles[g.origen] || origenStyles.otros_gastos;
+                    const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
+
+                    return (
+                      <div 
+                        key={`m-${g.origen || 'gasto'}-${g.id}`} 
+                        className={`bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm ${canEdit ? 'cursor-pointer active:bg-blue-50/50 transition-colors' : ''}`}
+                        onClick={() => { if (canEdit) openEditGasto(g); }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span 
+                            className="font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider"
+                            style={{ backgroundColor: style.bg, color: style.color }}
+                          >
+                            {style.label}
+                          </span>
+                          <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(g.monto))}</span>
+                        </div>
+                        <div className="text-[13px] font-semibold text-slate-800 mt-1">{g.concepto}</div>
+                        {g.notas && g.origen !== 'orden_compra' && (
+                          <div className="text-[11px] text-slate-400 -mt-1 leading-tight">{g.notas}</div>
+                        )}
+                        <div className="flex justify-between items-center text-[10px] text-slate-500 mt-2 border-t border-slate-100/80 pt-2.5">
+                          <div className="flex flex-col gap-0.5">
+                            <span>{g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
+                            <span className="font-bold uppercase tracking-wider text-slate-400">{g.registradoPor?.nombre || 'Automático'}</span>
+                          </div>
+                          <span className="text-right max-w-[120px] truncate bg-slate-50 px-2 py-1 rounded-md">{g.metodoPago?.nombre || 'No especificado'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {paginated.length === 0 && (
+                    <div className="text-center py-8 text-slate-400 text-sm font-medium">No se encontraron gastos</div>
+                  )}
+                  </div>
+                </div>
               </div>
             )}
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100/60 bg-slate-50/30">
-                <span className="text-[12px] font-medium text-slate-400">{filteredAll.length} gasto{filteredAll.length !== 1 ? 's' : ''}</span>
+                <span className="text-[12px] font-medium text-slate-400">{totalCount} registro{totalCount !== 1 ? 's' : ''}</span>
                 <div className="flex items-center gap-1">
-                  <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}
+                  <button disabled={page <= 1} onClick={() => setPage(Math.max(1, page - 1))}
                     className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold">‹</button>
-                  <span className="text-[12px] font-semibold text-slate-500 px-2">{safePage} / {totalPages}</span>
-                  <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}
+                  <span className="text-[12px] font-semibold text-slate-500 px-2">{page} / {totalPages}</span>
+                  <button disabled={page >= totalPages} onClick={() => setPage(Math.min(totalPages, page + 1))}
                     className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold">›</button>
                 </div>
               </div>
@@ -1065,128 +1383,170 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 mt-2 w-full md:w-auto md:mt-0">
                   <button 
+                    disabled={!isAdmin}
                     onClick={() => openEditVehiculo(selectedVehiculo)} 
-                    className="ga-btn-secondary"
+                    className="ga-btn-secondary whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit size={14} />
                     Editar Info
                   </button>
                   <button 
+                    disabled={!isAdmin}
                     onClick={() => handleDeleteVehiculo(selectedVehiculo.id)} 
-                    className="ga-btn-secondary hover:!text-red-600 hover:!border-red-200"
+                    className="ga-btn-secondary whitespace-nowrap hover:!text-red-600 hover:!border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 size={14} />
                     Eliminar Vehículo
                   </button>
                   <button 
                     onClick={openNewMaint} 
-                    className="ga-btn-primary"
+                    className="ga-btn-primary whitespace-nowrap"
                   >
                     <Plus size={16} />
                     Registrar Mantenimiento
                   </button>
+                  <button 
+                    onClick={openNewControl} 
+                    className="ga-btn-secondary text-emerald-600 border-emerald-100 hover:bg-emerald-50 whitespace-nowrap inline-flex items-center gap-1"
+                  >
+                    <ClipboardCheck size={14} />
+                    Registrar Control
+                  </button>
                 </div>
               </div>
 
-              {/* Información Ficha Técnica */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="ga-card p-5 lg:col-span-1 space-y-4">
-                  <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2 flex items-center gap-2">
-                    <Info size={16} className="text-blue-500" />
-                    Ficha del Vehículo
-                  </h3>
-                  <div className="space-y-3 text-xs text-slate-500">
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Marca:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.marca}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Modelo:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.modelo}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Año:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.anio || 'N/D'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Color:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.color || 'N/D'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Kilometraje:</span>
-                      <span className="font-bold text-blue-600">{(selectedVehiculo.kilometraje || 0).toLocaleString()} km</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-slate-400">Estado:</span>
-                      <span className="font-bold text-slate-800 capitalize">{selectedVehiculo.estado}</span>
-                    </div>
-                    <div className="flex flex-col gap-1 border-t border-slate-100 pt-2.5">
-                      <span className="font-semibold text-slate-400">Observaciones / Notas:</span>
-                      <p className="text-slate-600 italic leading-relaxed">{selectedVehiculo.notas || 'Sin observaciones adicionales.'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tarjetas Alertas de Salud del Vehículo */}
-                <div className="lg:col-span-3 space-y-6">
-                  <div className="ga-card p-5">
-                    <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-2">
+              {/* Diseño Principal del Vehículo */}
+              <div className="flex flex-col gap-6">
+                
+                {/* Cabecera: Ficha y Alertas apiladas para mejor distribución */}
+                <div className="flex flex-col gap-4">
+                  
+                  {/* Tarjetas Alertas de Salud del Vehículo (Minimalista) */}
+                  <div className="ga-card p-4">
+                    <h3 className="font-extrabold text-slate-800 text-sm mb-3 flex items-center gap-2">
                       <Wrench size={16} className="text-blue-500" />
-                      Estado de Mantenimientos Preventivos
+                      Estado Preventivo
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {(() => {
                         const { oilAlert, tiresAlert, brakesAlert } = computeVehicleAlerts(selectedVehiculo);
+                        const renderMinimalAlert = (title, alert) => (
+                          <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${alert.status === 'ok' ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800' : alert.status === 'warning' ? 'bg-amber-50/50 border-amber-100 text-amber-800' : 'bg-red-50/50 border-red-100 text-red-800'}`}>
+                            <div className="flex flex-col">
+                              <span className="font-extrabold text-xs">{title}</span>
+                              <span className="text-[10px] font-medium opacity-80 mt-0.5">{alert.message}</span>
+                            </div>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${alert.status === 'ok' ? 'border-emerald-200 bg-emerald-100/50' : alert.status === 'warning' ? 'border-amber-200 bg-amber-100/50' : 'border-red-200 bg-red-100/50'}`}>
+                              {alert.status === 'ok' ? 'Al día' : 'Revisar'}
+                            </span>
+                          </div>
+                        );
                         return (
                           <>
-                            {/* Aceite */}
-                            <div className={`maint-alert-card ${oilAlert.status}`}>
-                              <div>
-                                <span className={`maint-badge ${oilAlert.status}`}>{oilAlert.status === 'ok' ? 'Al día' : 'Atención'}</span>
-                                <h4 className="font-extrabold text-sm mt-2">Cambio de Aceite</h4>
-                                <p className="text-[11px] mt-1.5 leading-relaxed opacity-90">{oilAlert.message}</p>
-                              </div>
-                              <div className="mt-4 pt-2.5 border-t border-current/10 text-[10px] flex justify-between">
-                                <span className="opacity-60">Último cambio:</span>
-                                <strong className="font-extrabold">{oilAlert.lastInfo}</strong>
-                              </div>
-                            </div>
-
-                            {/* Llantas */}
-                            <div className={`maint-alert-card ${tiresAlert.status}`}>
-                              <div>
-                                <span className={`maint-badge ${tiresAlert.status}`}>{tiresAlert.status === 'ok' ? 'Al día' : 'Atención'}</span>
-                                <h4 className="font-extrabold text-sm mt-2">Cambio de Llantas</h4>
-                                <p className="text-[11px] mt-1.5 leading-relaxed opacity-90">{tiresAlert.message}</p>
-                              </div>
-                              <div className="mt-4 pt-2.5 border-t border-current/10 text-[10px] flex justify-between">
-                                <span className="opacity-60">Último cambio:</span>
-                                <strong className="font-extrabold">{tiresAlert.lastInfo}</strong>
-                              </div>
-                            </div>
-
-                            {/* Frenos */}
-                            <div className={`maint-alert-card ${brakesAlert.status}`}>
-                              <div>
-                                <span className={`maint-badge ${brakesAlert.status}`}>{brakesAlert.status === 'ok' ? 'Al día' : 'Atención'}</span>
-                                <h4 className="font-extrabold text-sm mt-2">Revisión de Frenos</h4>
-                                <p className="text-[11px] mt-1.5 leading-relaxed opacity-90">{brakesAlert.message}</p>
-                              </div>
-                              <div className="mt-4 pt-2.5 border-t border-current/10 text-[10px] flex justify-between">
-                                <span className="opacity-60">Última revisión:</span>
-                                <strong className="font-extrabold">{brakesAlert.lastInfo}</strong>
-                              </div>
-                            </div>
+                            {renderMinimalAlert("Aceite", oilAlert)}
+                            {renderMinimalAlert("Llantas", tiresAlert)}
+                            {renderMinimalAlert("Frenos", brakesAlert)}
                           </>
                         );
                       })()}
                     </div>
                   </div>
+                  
+                  {/* Información Ficha Técnica */}
+                  <div className="ga-card p-5">
+                    <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <Info size={16} className="text-blue-500" />
+                      Detalles del Vehículo
+                    </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs text-slate-500">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-400">Marca / Modelo:</span>
+                      <span className="font-bold text-slate-800">{selectedVehiculo.marca} {selectedVehiculo.modelo}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-400">Año / Color:</span>
+                      <span className="font-bold text-slate-800">{selectedVehiculo.anio || 'N/D'} • {selectedVehiculo.color || 'N/D'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-400">Kilometraje:</span>
+                      <span className="font-bold text-blue-600">{(selectedVehiculo.kilometraje || 0).toLocaleString()} km</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-400">Estado:</span>
+                      <span className="font-bold text-slate-800 capitalize">{selectedVehiculo.estado}</span>
+                    </div>
+                    <div className="col-span-full pt-2 border-t border-slate-100">
+                      <span className="font-semibold text-slate-400 block mb-1">Observaciones / Notas:</span>
+                      <p className="text-slate-600 italic leading-relaxed">{selectedVehiculo.notas || 'Sin observaciones adicionales.'}</p>
+                    </div>
+                  </div>
+                </div>
+                </div>
 
-                  {/* Historial de Mantenimientos Realizados */}
-                  <div className="ga-card">
+                {/* Filtros de Mantenimientos */}
+                <div className="ga-card p-4 relative z-50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Tipo de Mantenimiento</label>
+                      <select 
+                        value={maintFiltroTipo}
+                        onChange={(e) => setMaintFiltroTipo(e.target.value)}
+                        className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                      >
+                        <option value="todos">Todos los Tipos</option>
+                        <option value="Cambio de Aceite">Cambio de Aceite</option>
+                        <option value="Cambio de Llantas">Cambio de Llantas</option>
+                        <option value="Revisión de Frenos">Revisión de Frenos</option>
+                        <option value="Reparación Mecánica">Reparación Mecánica</option>
+                        <option value="ABC Motor">ABC Motor</option>
+                        <option value="Otros (Describir)">Otros (Describir)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Registrado por</label>
+                      <select
+                        value={maintFiltroUsuarioId}
+                        onChange={(e) => setMaintFiltroUsuarioId(e.target.value)}
+                        className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                      >
+                        <option value="">Cualquier Usuario</option>
+                        <option value="auto">Automático</option>
+                        {usuarios.map(u => (
+                          <option key={u.id} value={u.id}>{u.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Método de Pago</label>
+                      <select
+                        value={maintFiltroMetodoPagoId}
+                        onChange={(e) => setMaintFiltroMetodoPagoId(e.target.value)}
+                        className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                      >
+                        <option value="">Cualquier Método de Pago</option>
+                        {metodosPago.map(m => (
+                          <option key={m.id} value={m.id}>{m.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Fechas</label>
+                      <div className="h-10 w-full">
+                        <DateRangePicker 
+                          value={maintDateRange}
+                          onChange={setMaintDateRange}
+                          placeholder="Rango de fechas"
+                          size="sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Historial de Mantenimientos Realizados */}
+                <div className="ga-card w-full mb-6">
                     <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
                       <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
                         <Calendar size={16} className="text-blue-500" />
@@ -1198,7 +1558,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-[13px]">
+                      <table className="cc-desktop-table hidden md:table w-full text-[13px]">
                         <thead>
                           <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
                             <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Fecha / Tipo</th>
@@ -1210,286 +1570,674 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100/40">
-                          {(selectedVehiculo.mantenimientos || []).map((m) => (
-                            <tr key={m.id} className="ga-tr">
-                              <td className="px-5 py-3.5">
-                                <div className="font-bold text-slate-800">{m.tipo}</div>
-                                <div className="text-[11px] text-slate-500 mt-0.5">{m.fechaRealizado.split('T')[0]}</div>
-                              </td>
-                              <td className="px-5 py-3.5">
-                                <p className="text-slate-600">{m.descripcion || '—'}</p>
-                                {m.notas && <p className="text-[11px] text-slate-400 mt-1 italic">Nota: {m.notas}</p>}
-                                {(m.kmProximo || m.fechaProxima) && (
-                                  <div className="text-[10px] text-blue-500 font-semibold mt-1 flex gap-2">
-                                    {m.kmProximo && <span>Próximo: {m.kmProximo.toLocaleString()} km</span>}
-                                    {m.fechaProxima && <span>Próxima fecha: {m.fechaProxima.split('T')[0]}</span>}
-                                  </div>
+                          {(() => {
+                            let allMaints = selectedVehiculo.mantenimientos || [];
+                            
+                            if (maintFiltroTipo !== 'todos') {
+                              allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                            }
+                            if (maintFiltroUsuarioId) {
+                              allMaints = allMaints.filter(m => {
+                                const uid = m.gasto?.registradoPor?.id;
+                                if (maintFiltroUsuarioId === 'auto') return !uid;
+                                return uid === maintFiltroUsuarioId;
+                              });
+                            }
+                            if (maintFiltroMetodoPagoId) {
+                              allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                            }
+                            if (maintDateRange.desde && maintDateRange.hasta) {
+                              const start = new Date(maintDateRange.desde);
+                              const end = new Date(maintDateRange.hasta);
+                              end.setHours(23, 59, 59, 999);
+                              allMaints = allMaints.filter(m => {
+                                const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                                const d = new Date(dStr);
+                                return d >= start && d <= end;
+                              });
+                            }
+
+                            const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
+                            const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
+                            
+                            return (
+                              <>
+                                {paginatedMaints.map((m) => (
+                                  <tr key={m.id} className="ga-tr">
+                                    <td className="px-5 py-3.5">
+                                      <div className="font-bold text-slate-800">{m.tipo}</div>
+                                      <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                        {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                        {m.gasto?.registradoPor?.nombre || 'Automático'}
+                                      </div>
+                                    </td>
+                                    <td className="px-5 py-3.5">
+                                      <p className="text-slate-600">{m.descripcion || '—'}</p>
+                                      {m.notas && <p className="text-[11px] text-slate-400 mt-1 italic">Nota: {m.notas}</p>}
+                                      {(m.kmProximo || m.fechaProxima) && (
+                                        <div className="text-[10px] text-blue-500 font-semibold mt-1 flex gap-2">
+                                          {m.kmProximo && <span>Próximo: {m.kmProximo.toLocaleString()} km</span>}
+                                          {m.fechaProxima && <span>Próxima fecha: {m.fechaProxima.split('T')[0]}</span>}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-5 py-3.5 text-right font-semibold text-slate-700">
+                                      {m.kilometraje ? `${m.kilometraje.toLocaleString()} km` : '—'}
+                                    </td>
+                                    <td className="px-5 py-3.5 text-slate-600">{m.proveedor || '—'}</td>
+                                    <td className="px-5 py-3.5 text-right font-bold text-slate-800">{fmt(Number(m.monto))}</td>
+                                    <td className="px-5 py-3.5">
+                                      <div className="flex items-center justify-center gap-0.5">
+                                        <button 
+                                          disabled={!isAdmin}
+                                          onClick={() => openEditMaint(m)}
+                                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+                                          title="Editar"
+                                        >
+                                          <Edit size={13} />
+                                        </button>
+                                        <button 
+                                          disabled={!isAdmin}
+                                          onClick={() => handleDeleteMaint(m.id)}
+                                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+                                          title="Eliminar"
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                                {paginatedMaints.length === 0 && (
+                                  <tr>
+                                    <td colSpan={6} className="text-center py-10 text-slate-400 italic text-xs font-semibold">
+                                      Sin registros de mantenimientos previos.
+                                    </td>
+                                  </tr>
                                 )}
-                              </td>
-                              <td className="px-5 py-3.5 text-right font-semibold text-slate-700">
-                                {m.kilometraje ? `${m.kilometraje.toLocaleString()} km` : '—'}
-                              </td>
-                              <td className="px-5 py-3.5 text-slate-600">{m.proveedor || '—'}</td>
-                              <td className="px-5 py-3.5 text-right font-bold text-slate-800">{fmt(Number(m.monto))}</td>
-                              <td className="px-5 py-3.5">
-                                <div className="flex items-center justify-center gap-0.5">
-                                  <button 
-                                    onClick={() => openEditMaint(m)}
-                                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" 
-                                    title="Editar"
-                                  >
-                                    <Edit size={13} />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteMaint(m.id)}
-                                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" 
-                                    title="Eliminar"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                          {(selectedVehiculo.mantenimientos || []).length === 0 && (
-                            <tr>
-                              <td colSpan={6} className="text-center py-10 text-slate-400 italic text-xs font-semibold">
-                                Sin registros de mantenimientos previos.
-                              </td>
-                            </tr>
-                          )}
+                              </>
+                            );
+                          })()}
                         </tbody>
                       </table>
+                      
+                      {/* Vista Móvil (Cards) */}
+                      <div className="cc-mobile-cards">
+                        <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
+                          {(() => {
+                              let allMaints = selectedVehiculo.mantenimientos || [];
+                            
+                            if (maintFiltroTipo !== 'todos') {
+                              allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                            }
+                            if (maintFiltroUsuarioId) {
+                              allMaints = allMaints.filter(m => {
+                                const uid = m.gasto?.registradoPor?.id;
+                                if (maintFiltroUsuarioId === 'auto') return !uid;
+                                return uid === maintFiltroUsuarioId;
+                              });
+                            }
+                            if (maintFiltroMetodoPagoId) {
+                              allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                            }
+                            if (maintDateRange.desde && maintDateRange.hasta) {
+                              const start = new Date(maintDateRange.desde);
+                              const end = new Date(maintDateRange.hasta);
+                              end.setHours(23, 59, 59, 999);
+                              allMaints = allMaints.filter(m => {
+                                const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                                const d = new Date(dStr);
+                                return d >= start && d <= end;
+                              });
+                            }
+
+                            const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
+                            
+                            return (
+                              <>
+                                {paginatedMaints.map((m) => (
+                                  <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2.5 shadow-sm relative">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <div className="font-bold text-slate-800 text-[14px]">{m.tipo}</div>
+                                        <div className="text-[11px] text-slate-600 font-medium mt-0.5">
+                                          {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
+                                        </div>
+                                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                          {m.gasto?.registradoPor?.nombre || 'Automático'}
+                                        </div>
+                                      </div>
+                                      <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(m.monto))}</span>
+                                    </div>
+                                    
+                                    <div className="text-[13px] text-slate-600 mt-0.5">{m.descripcion || 'Sin descripción'}</div>
+                                    
+                                    <div className="flex justify-between items-end mt-2 pt-2.5 border-t border-slate-100/80 text-[11px]">
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-slate-500"><span className="font-semibold text-slate-400">KM:</span> {m.kilometraje ? `${m.kilometraje.toLocaleString()}` : '—'}</span>
+                                        <span className="text-slate-500"><span className="font-semibold text-slate-400">Prov:</span> {m.proveedor || '—'}</span>
+                                      </div>
+                                      
+                                      <div className="flex gap-1">
+                                        <button 
+                                          disabled={!isAdmin}
+                                          onClick={() => openEditMaint(m)}
+                                          className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+                                        >
+                                          <Edit size={14} />
+                                        </button>
+                                        <button 
+                                          disabled={!isAdmin}
+                                          onClick={() => handleDeleteMaint(m.id)}
+                                          className="p-2 rounded-lg bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {paginatedMaints.length === 0 && (
+                                  <div className="text-center py-6 text-slate-400 italic text-xs font-semibold">Sin registros de mantenimientos previos.</div>
+                                )}
+                              </>
+                            );
+                        })()}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Paginación de Mantenimientos */}
+                    {(() => {
+                      let allMaints = selectedVehiculo.mantenimientos || [];
+                      
+                      if (maintFiltroTipo !== 'todos') {
+                        allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                      }
+                      if (maintFiltroUsuarioId) {
+                        allMaints = allMaints.filter(m => {
+                          const uid = m.gasto?.registradoPor?.id;
+                          if (maintFiltroUsuarioId === 'auto') return !uid;
+                          return uid === maintFiltroUsuarioId;
+                        });
+                      }
+                      if (maintFiltroMetodoPagoId) {
+                        allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                      }
+                      if (maintDateRange.desde && maintDateRange.hasta) {
+                        const start = new Date(maintDateRange.desde);
+                        const end = new Date(maintDateRange.hasta);
+                        end.setHours(23, 59, 59, 999);
+                        allMaints = allMaints.filter(m => {
+                          const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                          const d = new Date(dStr);
+                          return d >= start && d <= end;
+                        });
+                      }
+
+                      const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
+                      if (totalPagesMaint <= 1) return null;
+                      return (
+                        <div className="px-5 py-3 border-t border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
+                          <span className="text-xs text-slate-500">
+                            Mostrando {(maintPage - 1) * maintLimit + 1} a {Math.min(maintPage * maintLimit, allMaints.length)} de {allMaints.length}
+                          </span>
+                          <div className="flex gap-1">
+                            <button 
+                              disabled={maintPage === 1} 
+                              onClick={() => setMaintPage(p => p - 1)}
+                              className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >Anterior</button>
+                            <button 
+                              disabled={maintPage === totalPagesMaint} 
+                              onClick={() => setMaintPage(p => p + 1)}
+                              className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >Siguiente</button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Historial de Controles Diarios */}
+                  <div className="ga-card w-full">
+                    <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
+                      <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                        <Clock size={16} className="text-blue-500" />
+                        Historial de Controles Diarios
+                      </h3>
+                      <span className="text-xs text-slate-400 font-semibold">
+                        {controles.length} registros
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      {loadingControles ? (
+                        <div className="flex items-center justify-center py-12 gap-2 text-slate-400 text-xs">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-blue-600" />
+                          <span>Cargando controles...</span>
+                        </div>
+                      ) : controles.length === 0 ? (
+                        <p className="text-center text-slate-400 text-xs py-12">Sin controles diarios registrados para este vehículo.</p>
+                      ) : (
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
+                              <th className="px-4 py-3">Fecha y Hora</th>
+                              <th className="px-4 py-3">Operador</th>
+                              <th className="px-4 py-3">Kilometraje</th>
+                              <th className="px-4 py-3 text-center">Combustible</th>
+                              <th className="px-4 py-3">Niveles Check</th>
+                              <th className="px-4 py-3">Observación / Sugerencia</th>
+                              <th className="px-4 py-3 text-center w-16">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                            {controles.map((log) => {
+                              const checksCount = [
+                                log.nivelAceite, log.nivelAgua, log.aceiteHidraulico,
+                                log.liquidoFrenos, log.gataLlave, log.extintorBotiquin, log.bandas
+                              ].filter(Boolean).length;
+
+                              const fechaFmt = new Date(log.fecha).toLocaleString('es-EC', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit', hour12: true
+                              });
+
+                              const fuelLabel = log.combustible === 'bajo' ? 'Bajo' : log.combustible === 'medio' ? 'Medio' : 'Bueno';
+                              const fuelColor = log.combustible === 'bajo' ? 'text-red-700 bg-red-50 border-red-200' :
+                                                log.combustible === 'medio' ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                                                'text-emerald-700 bg-emerald-50 border-emerald-200';
+
+                              return (
+                                <tr key={log.id} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">{fechaFmt}</td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <span className="flex items-center gap-1">
+                                      <User size={12} className="text-slate-400" />
+                                      {log.usuarioNom}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">{log.kilometraje.toLocaleString()} km</td>
+                                  <td className="px-4 py-3 text-center whitespace-nowrap">
+                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${fuelColor}`}>
+                                      {fuelLabel}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="space-y-0.5">
+                                      <span className="font-semibold text-slate-600 block">{checksCount} / 7 OK</span>
+                                      {log.otroCheckNombre && (
+                                        <span className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${
+                                          log.otroCheckValor ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-red-100 bg-red-50 text-red-700'
+                                        }`}>
+                                          {log.otroCheckNombre}: {log.otroCheckValor ? 'OK' : 'Novedad'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 max-w-[200px]">
+                                    {log.observacion && <p className="line-clamp-2"><strong className="font-bold text-slate-500">Obs:</strong> {log.observacion}</p>}
+                                    {log.sugerencia && <p className="line-clamp-2 mt-0.5"><strong className="font-bold text-slate-500">Sugerencia:</strong> {log.sugerencia}</p>}
+                                    {!log.observacion && !log.sugerencia && <span className="text-slate-400">Sin novedades</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingControl(log)}
+                                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
+                                      title="Ver detalles"
+                                    >
+                                      <Eye size={13} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
           )}
         </>
       )}
       {/* PESTAÑA 3: CIERRE DE CAJA */}
       {activeTab === 'cierre' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Formulario de Cierre y Previsualización */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="ga-card p-6">
-                <h3 className="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
-                  <Calendar size={16} className="text-blue-500" />
-                  Rango de Fecha para Cierre de Caja
-                </h3>
-                <div className="mb-4">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Fecha de Cierre</label>
-                  <DateRangePicker 
-                    value={{ start: cierreDates.desde, end: cierreDates.hasta }} 
-                    onChange={val => setCierreDates({ desde: val.start, hasta: val.end })}
-                    placeholder="Seleccionar rango de cierre"
-                  />
+          {/* Row 1: KPI Cards (full-width) */}
+          {cierrePreview && !loadingPreview && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
+              {/* Card 1: Ingresos */}
+              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-blue-50/70 flex items-center justify-center text-blue-600 shrink-0">
+                  <ArrowUp size={18} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Ingresos Totales</div>
+                  <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(cierrePreview.totalIngresos)}</div>
+                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">{cierrePreview.ingresosConteo} transacción{cierrePreview.ingresosConteo === 1 ? '' : 'es'}</div>
                 </div>
               </div>
 
+              {/* Card 2: Egresos */}
+              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-rose-50/70 flex items-center justify-center text-rose-500 shrink-0">
+                  <ArrowDown size={18} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Egresos Totales</div>
+                  <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(cierrePreview.totalEgresos)}</div>
+                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">{cierrePreview.egresosConteo} transacción{cierrePreview.egresosConteo === 1 ? '' : 'es'}</div>
+                </div>
+              </div>
+
+              {/* Card 3: Balance */}
+              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-indigo-50/70 flex items-center justify-center text-indigo-600 shrink-0">
+                  <Scale size={18} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Balance Neto</div>
+                  <div className={`text-xl font-extrabold mt-0.5 ${cierrePreview.balance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
+                    {cierrePreview.balance < 0 ? '-' : ''}{fmt(Math.abs(cierrePreview.balance))}
+                  </div>
+                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">Saldo en sistema</div>
+                </div>
+              </div>
+
+              {/* Card 4: Efectivo Esperado */}
+              {(() => {
+                const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
+                  .filter(m => esMetodoEfectivo(m.nombre))
+                  .reduce((sum, m) => sum + Number(m.balance), 0);
+                return (
+                  <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50/70 flex items-center justify-center text-emerald-600 shrink-0">
+                      <Wallet size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">Efectivo en Sistema</div>
+                      <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totalEfectivoEsperado)}</div>
+                      <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">Esperado</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Row 2: Columns Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            {/* Panel Lateral: Parámetros y Arqueo (Izquierda) */}
+            <div className="lg:col-span-1 flex flex-col">
+              <div className="ga-card p-5 relative z-[60] flex flex-col h-full" style={{ overflow: 'visible' }}>
+                <div className="space-y-4 flex-1">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      Control de Caja
+                    </h3>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Rango de Fecha</label>
+                    <DateRangePicker 
+                      value={{ start: cierreDates.desde, end: cierreDates.hasta }} 
+                      onChange={val => setCierreDates({ desde: val.start, hasta: val.end })}
+                      placeholder="Seleccionar rango"
+                    />
+                  </div>
+
+                  {cierrePreview && (() => {
+                    const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
+                      .filter(m => esMetodoEfectivo(m.nombre))
+                      .reduce((sum, m) => sum + Number(m.balance), 0);
+                    
+                    const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
+                    const diferenciaEfectivo = physicalEfectivo - totalEfectivoEsperado;
+
+                    return (
+                      <>
+                        <hr className="border-slate-100" />
+                        
+                        <div>
+                          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                            Arqueo de Efectivo
+                          </h3>
+                          <div className="bg-slate-50/60 p-3 rounded-xl flex justify-between items-center mb-3">
+                            <span className="text-[11px] font-semibold text-slate-500">Esperado en Sistema:</span>
+                            <span className="font-extrabold text-slate-800 text-xs font-mono">{fmt(totalEfectivoEsperado)}</span>
+                          </div>
+
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Efectivo Físico Contado</label>
+                          <div className="relative rounded-lg shadow-sm">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <span className="text-slate-450 font-bold text-xs">$</span>
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={efectivoFisicoContado}
+                              onChange={(e) => setEfectivoFisicoContado(e.target.value)}
+                              placeholder={totalEfectivoEsperado.toFixed(2)}
+                              className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            />
+                          </div>
+
+                          <div className={`p-3 rounded-xl border flex justify-between items-center mt-3 ${diferenciaEfectivo === 0 ? 'bg-emerald-55/35 border-emerald-100/50 text-emerald-800' : 'bg-rose-55/35 border-rose-100/50 text-rose-800'}`}>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] uppercase font-bold tracking-wider opacity-75">Diferencia</span>
+                              <span className="font-extrabold text-xs font-mono mt-0.5">
+                                {diferenciaEfectivo === 0 ? 'Caja cuadrada' : (diferenciaEfectivo < 0 ? `-${fmt(Math.abs(diferenciaEfectivo))}` : `+${fmt(diferenciaEfectivo)}`)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {diferenciaEfectivo === 0 && (
+                                <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${diferenciaEfectivo === 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-rose-100 border-rose-200 text-rose-800'}`}>
+                                {diferenciaEfectivo === 0 ? 'Cuadra' : (diferenciaEfectivo < 0 ? 'Faltante' : 'Sobrante')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  <hr className="border-slate-100" />
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Notas del Cierre</label>
+                    <textarea 
+                      value={cierreObservaciones} 
+                      onChange={e => setCierreObservaciones(e.target.value)}
+                      rows={3} 
+                      placeholder="Observaciones adicionales, billetes, etc..." 
+                      className="ga-input text-xs resize-none" 
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={handleSaveCierre} 
+                    disabled={!cierrePreview || savingCierre}
+                    className="ga-btn-primary w-full justify-center text-xs py-2.5"
+                  >
+                    {savingCierre && (
+                      <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white mr-1.5" aria-hidden="true" />
+                    )}
+                    Guardar Cierre de Caja
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Panel Principal: Resultados (Derecha) */}
+            <div className="lg:col-span-2 space-y-6">
               {loadingPreview ? (
                 <div className="ga-card flex items-center justify-center py-20">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
                 </div>
               ) : cierrePreview ? (
-                <div className="space-y-6">
-                  {/* KPI Cards de Previsualización */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="ga-card px-5 py-4 border-l-4 border-emerald-500">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos Totales</div>
-                      <div className="text-2xl font-extrabold text-emerald-600 mt-1">{fmt(cierrePreview.totalIngresos)}</div>
-                      <div className="text-[10px] text-slate-400 mt-1">{cierrePreview.ingresosConteo} transacciones</div>
-                    </div>
-                    <div className="ga-card px-5 py-4 border-l-4 border-red-500">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Egresos Totales</div>
-                      <div className="text-2xl font-extrabold text-red-600 mt-1">{fmt(cierrePreview.totalEgresos)}</div>
-                      <div className="text-[10px] text-slate-400 mt-1">{cierrePreview.egresosConteo} transacciones</div>
-                    </div>
-                    <div className={`ga-card px-5 py-4 border-l-4 ${cierrePreview.balance >= 0 ? 'border-blue-500' : 'border-amber-500'}`}>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Balance Neto</div>
-                      <div className={`text-2xl font-extrabold mt-1 ${cierrePreview.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(cierrePreview.balance)}</div>
-                      <div className="text-[10px] text-slate-400 mt-1">Saldo en caja</div>
-                    </div>
-                  </div>
-
-                  {/* Tabla por métodos de pago */}
+                <div className="space-y-6 animate-slide-up">
+                  {/* Resumen por Métodos de Pago */}
                   <div className="ga-card p-6">
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">
-                      Desglose por Métodos de Pago
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                      <ClipboardCheck size={14} className="text-blue-500" />
+                      Saldos de Métodos de Pago
                     </h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
                             <th className="py-2.5">Método</th>
+                            <th className="py-2.5">Tipo</th>
                             <th className="py-2.5 text-right">Ingresos (+)</th>
                             <th className="py-2.5 text-right">Egresos (-)</th>
-                            <th className="py-2.5 text-right">Balance Neto</th>
+                            <th className="py-2.5 text-right">Balance Sistema</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100/60">
-                          {cierrePreview.metodosDetalle?.map((m) => (
-                            <tr key={m.metodoPagoId} className="ga-tr">
-                              <td className="py-3 font-semibold text-slate-700">{m.nombre}</td>
-                              <td className="py-3 text-right text-emerald-600 font-bold">{fmt(m.ingresos)}</td>
-                              <td className="py-3 text-right text-red-500 font-bold">{fmt(m.egresos)}</td>
-                              <td className={`py-3 text-right font-extrabold ${m.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                                {fmt(m.balance)}
-                              </td>
-                            </tr>
-                          ))}
+                        <tbody className="divide-y divide-slate-150/40">
+                          {cierrePreview.metodosDetalle?.map((m) => {
+                            const esEfectivo = esMetodoEfectivo(m.nombre);
+                            return (
+                              <tr key={m.metodoPagoId} className="ga-tr">
+                                <td className="py-3 font-semibold text-slate-700">{m.nombre}</td>
+                                <td className="py-3">
+                                  {esEfectivo ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
+                                      Efectivo / Caja
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase">
+                                      Banco / Digital
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 text-right text-emerald-600 font-bold font-mono">{fmt(m.ingresos)}</td>
+                                <td className="py-3 text-right text-red-500 font-bold font-mono">{fmt(m.egresos)}</td>
+                                <td className={`py-3 text-right font-extrabold font-mono ${m.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                                  {m.balance < 0 ? '-' : ''}{fmt(Math.abs(m.balance))}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
                   </div>
-                </div>
-              ) : null}
-            </div>
 
-            {/* Observaciones y Guardar Cierre */}
-            <div className="ga-card p-6 flex flex-col justify-between h-fit space-y-4">
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-800 mb-2 flex items-center gap-2">
-                  <FileText size={16} className="text-blue-500" />
-                  Registro de Cierre
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                  Escribe observaciones sobre las transacciones de este rango antes de guardar el cierre de caja oficial.
-                </p>
-                <textarea 
-                  value={cierreObservaciones} 
-                  onChange={e => setCierreObservaciones(e.target.value)}
-                  rows={4} 
-                  placeholder="Observaciones de arqueo, diferencias, billetes falsos, cheques retenidos, etc..." 
-                  className="ga-input text-xs resize-none" 
-                />
-              </div>
-              <button 
-                onClick={handleSaveCierre} 
-                disabled={!cierrePreview || savingCierre}
-                className="ga-btn-primary w-full justify-center"
-              >
-                {savingCierre && (
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-1" aria-hidden="true" />
-                )}
-                Guardar Cierre de Caja
-              </button>
-            </div>
-          </div>
-
-          {/* Historial de Cierres */}
-          <div className="ga-card">
-            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/20">
-              <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                <Clock size={16} className="text-blue-500" />
-                Historial de Cierres de Caja
-              </h3>
-            </div>
-            {loadingCierreHistory ? (
-              <div className="flex items-center justify-center py-10">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-blue-600" />
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto cc-desktop-table">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 bg-slate-50/10 text-left font-bold uppercase tracking-wider">
-                        <th className="px-5 py-3">Rango de Cierre</th>
-                        <th className="px-5 py-3">Fecha Cierre</th>
-                        <th className="px-5 py-3">Registrado Por</th>
-                        <th className="px-5 py-3 text-right">Ingresos</th>
-                        <th className="px-5 py-3 text-right">Egresos</th>
-                        <th className="px-5 py-3 text-right">Balance Neto</th>
-                        <th className="px-5 py-3">Observaciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/40">
-                      {cierreHistory.map((c) => {
-                        return (
-                          <tr key={c.id} className="ga-tr">
-                            <td className="px-5 py-3.5 font-semibold text-slate-700">
-                              {c.fechaInicio.split('T')[0]} al {c.fechaFin.split('T')[0]}
-                            </td>
-                            <td className="px-5 py-3.5 text-slate-500">
-                              {new Date(c.fecha).toLocaleString()}
-                            </td>
-                            <td className="px-5 py-3.5 font-medium text-slate-600">
-                              {c.usuario?.nombre || 'Administrador'}
-                            </td>
-                            <td className="px-5 py-3.5 text-right font-bold text-emerald-600">{fmt(c.totalIngresos)}</td>
-                            <td className="px-5 py-3.5 text-right font-bold text-red-500">{fmt(c.totalEgresos)}</td>
-                            <td className={`px-5 py-3.5 text-right font-extrabold ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                              {fmt(c.balance)}
-                            </td>
-                            <td className="px-5 py-3.5 text-slate-500 italic max-w-xs truncate" title={c.observaciones}>
-                              {c.observaciones || <span className="text-slate-300">Sin notas</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {cierreHistory.length === 0 && (
-                        <tr>
-                          <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
-                            No se han registrado cierres de caja todavía.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="cc-mobile-cards">
-                  {cierreHistory.map((c) => {
-                    return (
-                      <div key={c.id} className="cc-mobile-card">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-slate-800">
-                            {c.fechaInicio.split('T')[0]} al {c.fechaFin.split('T')[0]}
-                          </span>
-                          <span className="text-[10px] text-slate-450 font-medium">
-                            {new Date(c.fecha).toLocaleDateString()}
-                          </span>
+                  {/* Grid de Secciones y Usuarios */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Operaciones por Sección */}
+                    <div className="ga-card p-6">
+                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                        <BarChart3 size={14} className="text-blue-500" />
+                        Desglose de Operaciones
+                      </h4>
+                      <div className="divide-y divide-slate-100/50 text-xs">
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-slate-600 font-medium font-semibold">Abonos Iniciales</span>
+                          </div>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosIniciales || 0)}</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-y-2 text-xs pt-1">
-                          <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Registrado Por</span>
-                            <span className="font-semibold text-slate-700">{c.usuario?.nombre || 'Administrador'}</span>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-slate-600 font-medium font-semibold">Abonos Posteriores</span>
                           </div>
-                          <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Balance Neto</span>
-                            <span className={`font-extrabold ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                              {fmt(c.balance)}
-                            </span>
-                          </div>
-                          <div className="text-emerald-600">
-                            <span className="text-[9px] text-emerald-400 font-bold uppercase block">Ingresos</span>
-                            <span className="font-bold">{fmt(c.totalIngresos)}</span>
-                          </div>
-                          <div className="text-red-500">
-                            <span className="text-[9px] text-red-400 font-bold uppercase block">Egresos</span>
-                            <span className="font-bold">{fmt(c.totalEgresos)}</span>
-                          </div>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosPosteriores || 0)}</span>
                         </div>
-                        {c.observaciones && (
-                          <div className="mt-1 pt-1.5 border-t border-slate-50 text-[11px] text-slate-500 italic">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase not-italic block mb-0.5">Observaciones</span>
-                            {c.observaciones}
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-slate-600 font-medium font-semibold">Gastos Generales</span>
                           </div>
-                        )}
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosGenerales || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-slate-600 font-medium font-semibold">Gastos por Auto / Vehículo</span>
+                          </div>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosAuto || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-slate-600 font-medium font-semibold">Órdenes de Compra</span>
+                          </div>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosCompras || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-slate-600 font-medium font-semibold">Pagos (Nómina/Personal)</span>
+                          </div>
+                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosPagos || 0)}</span>
+                        </div>
                       </div>
-                    );
-                  })}
-                  {cierreHistory.length === 0 && (
-                    <div className="text-center py-10 text-slate-400 font-medium text-xs">
-                      No se han registrado cierres de caja todavía.
                     </div>
-                  )}
+
+                    {/* Resumen por Usuario */}
+                    <div className="ga-card p-6">
+                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                        <User size={14} className="text-blue-500" />
+                        Movimientos por Usuario
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs animate-fade-in">
+                          <thead>
+                            <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
+                              <th className="py-2.5">Usuario</th>
+                              <th className="py-2.5 text-right">Ingresos</th>
+                              <th className="py-2.5 text-right">Egresos</th>
+                              <th className="py-2.5 text-right">Balance</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-150/40">
+                            {(cierrePreview.usuariosDetalle || []).map((u) => (
+                              <tr key={u.id} className="ga-tr">
+                                <td className="py-3 font-semibold text-slate-700">{u.nombre?.toUpperCase()}</td>
+                                <td className="py-3 text-right text-emerald-600 font-bold font-mono">{fmt(u.ingresos)}</td>
+                                <td className="py-3 text-right text-red-500 font-bold font-mono">{fmt(u.egresos)}</td>
+                                <td className={`py-3 text-right font-extrabold font-mono ${u.balance >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                  {u.balance < 0 ? '-' : ''}{fmt(Math.abs(u.balance))}
+                                </td>
+                              </tr>
+                            ))}
+                            {(cierrePreview.usuariosDetalle || []).length === 0 && (
+                              <tr>
+                                <td colSpan={4} className="text-center py-4 text-slate-400">
+                                  Sin movimientos por usuario en este rango.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </>
-            )}
+              ) : (
+                <div className="ga-card flex flex-col items-center justify-center py-24 px-6 text-center border border-dashed border-slate-200 bg-slate-50/10">
+                  <div className="w-12 h-12 rounded-full bg-blue-50/50 flex items-center justify-center text-blue-500 mb-4 animate-pulse">
+                    <ClipboardCheck size={24} />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-700">Previsualización del Cierre de Caja</h4>
+                  <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
+                    Selecciona un rango de fechas en el panel lateral y se cargará el resumen detallado de ingresos, egresos y el balance neto de tu operación.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1733,6 +2481,318 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         aria-hidden={!savingMaint}
                       />
                       {editingMaint ? 'Guardar Cambios' : 'Registrar Mantenimiento'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
+
+      {/* 4. MODAL PREVIEW PDF CIERRE */}
+      <CierrePDFPreviewModal isOpen={!!pdfCierre} onClose={() => setPdfCierre(null)} cierre={pdfCierre} />
+
+      {/* Modal para Visualizar Detalles del Control */}
+      <ModalPortal open={!!viewingControl}>
+        <div className="ga-modal-portal-root">
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+            onClick={() => deferClose(() => setViewingControl(null))} />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 shrink-0 bg-white">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">Detalles de Control Diario</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">{selectedVehiculo?.placa} — {viewingControl ? new Date(viewingControl.fecha).toLocaleDateString() : ''}</p>
+                </div>
+                <button type="button" onClick={() => deferClose(() => setViewingControl(null))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200">
+                  ✕
+                </button>
+              </div>
+
+              {viewingControl && (
+                <div className="overflow-y-auto p-6 space-y-5 text-slate-700">
+                  {/* Meta data */}
+                  <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-slate-450 block mb-0.5 uppercase tracking-wider font-bold text-[10px]">Fecha y Hora</span>
+                      <span className="font-bold text-slate-700">
+                        {new Date(viewingControl.fecha).toLocaleString('es-EC', {
+                          day: '2-digit', month: '2-digit', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit', hour12: true
+                        })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-450 block mb-0.5 uppercase tracking-wider font-bold text-[10px]">Operador</span>
+                      <span className="font-bold text-slate-700">{viewingControl.usuarioNom}</span>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-slate-450 block mb-0.5 uppercase tracking-wider font-bold text-[10px]">Kilometraje</span>
+                      <span className="font-extrabold text-blue-600 text-sm">{(viewingControl.kilometraje || 0).toLocaleString()} km</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-450 block mb-0.5 uppercase tracking-wider font-bold text-[10px] mt-2">Combustible</span>
+                      <span className="font-bold text-slate-700 capitalize mt-2 block">{viewingControl.combustible === 'bajo' ? 'Bajo (Menos de 1/4)' : viewingControl.combustible === 'medio' ? 'Medio (Media capacidad)' : 'Bueno (Lleno/Casi lleno)'}</span>
+                    </div>
+                  </div>
+
+                  {/* Matrix state */}
+                  <div className="space-y-3">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-1.5 h-3.5 bg-emerald-500 rounded-full" />
+                      Estado de Niveles y Herramientas
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        { key: 'nivelAceite', label: 'Nivel de Aceite' },
+                        { key: 'nivelAgua', label: 'Nivel de Agua' },
+                        { key: 'aceiteHidraulico', label: 'Aceite Hidráulico / Líquido' },
+                        { key: 'liquidoFrenos', label: 'Líquido de Frenos' },
+                        { key: 'gataLlave', label: 'Gata y Llave de Ruedas' },
+                        { key: 'extintorBotiquin', label: 'Extintor y Botiquín' },
+                        { key: 'bandas', label: 'Juego de Bandas' }
+                      ].map((item) => {
+                        const ok = viewingControl[item.key];
+                        return (
+                          <div key={item.key} className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
+                            ok ? 'bg-emerald-50/20 border-emerald-100 text-emerald-800' : 'bg-slate-50/30 border-slate-200 text-slate-500'
+                          }`}>
+                            <span className="font-semibold">{item.label}</span>
+                            {ok ? (
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">OK</span>
+                            ) : (
+                              <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase">No OK</span>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {viewingControl.otroCheckNombre && (
+                        <div className={`col-span-full flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
+                          viewingControl.otroCheckValor ? 'bg-emerald-50/20 border-emerald-100 text-emerald-800' : 'bg-slate-50/30 border-slate-200 text-slate-500'
+                        }`}>
+                          <span className="font-semibold">{viewingControl.otroCheckNombre} (Adicional)</span>
+                          {viewingControl.otroCheckValor ? (
+                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">OK</span>
+                          ) : (
+                            <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase">No OK</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Obs and suggestions */}
+                  <div className="border-t border-slate-100 pt-4 space-y-3">
+                    {viewingControl.observacion && (
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-400 uppercase tracking-wider block mb-1">Observación</span>
+                        <div className="p-3 bg-slate-50 rounded-xl text-slate-700 italic border border-slate-100">{viewingControl.observacion}</div>
+                      </div>
+                    )}
+                    {viewingControl.sugerencia && (
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-400 uppercase tracking-wider block mb-1">Sugerencia o Recomendación</span>
+                        <div className="p-3 bg-slate-50 rounded-xl text-slate-700 italic border border-slate-100">{viewingControl.sugerencia}</div>
+                      </div>
+                    )}
+                    {!viewingControl.observacion && !viewingControl.sugerencia && (
+                      <p className="text-center text-slate-400 text-xs py-2 italic font-medium">Sin observaciones ni sugerencias registradas.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                <button type="button" onClick={() => deferClose(() => setViewingControl(null))} className="bg-slate-250 hover:bg-slate-300 text-slate-700 font-bold px-5 py-2 rounded-xl text-xs transition-all border border-slate-300 bg-white">
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
+
+      {/* 5. MODAL REGISTRO CONTROL DE VEHÍCULO */}
+      <ModalPortal open={controlFormOpen}>
+        <div className="ga-modal-portal-root">
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+            onClick={() => deferClose(() => setControlFormOpen(false))} />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 shrink-0 bg-white">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">Registrar Control de Vehículo</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">{selectedVehiculo?.placa} — checklist de control circular</p>
+                </div>
+                <button type="button" onClick={() => deferClose(() => setControlFormOpen(false))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all border border-slate-200">
+                  ✕
+                </button>
+              </div>
+
+              <div className="overflow-y-auto p-6 flex-1 min-h-0">
+                <form onSubmit={handleSaveControl} className="space-y-6">
+                  {/* Row 1: Date/Time, Mileage, Fuel */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Fecha y Hora *</label>
+                      <input
+                        type="datetime-local"
+                        name="fecha"
+                        value={controlForm.fecha}
+                        onChange={handleControlChange}
+                        required
+                        className="ga-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Kilometraje *</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          name="kilometraje"
+                          value={controlForm.kilometraje}
+                          onChange={handleControlChange}
+                          required
+                          placeholder={`Actual: ${selectedVehiculo?.kilometraje || 0}`}
+                          className="ga-input pr-10 font-semibold"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">km</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nivel Combustible *</label>
+                      <select
+                        name="combustible"
+                        value={controlForm.combustible}
+                        onChange={handleControlChange}
+                        className="ga-input bg-white font-semibold"
+                      >
+                        <option value="bajo">Bajo (Menos de 1/4)</option>
+                        <option value="medio">Medio (Media capacidad)</option>
+                        <option value="bueno">Bueno (Lleno/Casi lleno)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Checkbox Matrix */}
+                  <div className="border-t border-slate-100 pt-5">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+                      Niveles y Herramientas (OK)
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {[
+                        { name: 'nivelAceite', label: 'Nivel de Aceite' },
+                        { name: 'nivelAgua', label: 'Nivel de Agua' },
+                        { name: 'aceiteHidraulico', label: 'Aceite Hidráulico / Líquido' },
+                        { name: 'liquidoFrenos', label: 'Líquido de Frenos' },
+                        { name: 'gataLlave', label: 'Gata y Llave de Ruedas' },
+                        { name: 'extintorBotiquin', label: 'Extintor y Botiquín' },
+                        { name: 'bandas', label: 'Juego de Bandas' }
+                      ].map((item) => (
+                        <label
+                          key={item.name}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                            controlForm[item.name]
+                              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800 font-medium'
+                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name={item.name}
+                            checked={controlForm[item.name]}
+                            onChange={handleControlChange}
+                            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                          />
+                          <span className="text-xs font-semibold">{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom check item */}
+                  <div className="border-t border-slate-100 pt-5">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+                      Otros Accesorios / Controles
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Nombre del Accesorio / Control Adicional</label>
+                        <input
+                          type="text"
+                          name="otroCheckNombre"
+                          value={controlForm.otroCheckNombre}
+                          onChange={handleControlChange}
+                          placeholder="Ej. Estado de llantas, Luces, etc."
+                          className="ga-input text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          className={`flex items-center gap-3 h-10 px-3 rounded-xl border transition-all cursor-pointer select-none ${
+                            controlForm.otroCheckValor
+                              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800'
+                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name="otroCheckValor"
+                            checked={controlForm.otroCheckValor}
+                            onChange={handleControlChange}
+                            disabled={!controlForm.otroCheckNombre.trim()}
+                            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 disabled:opacity-55"
+                          />
+                          <span className="text-xs font-semibold">¿Está OK?</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Observations and suggestions */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-5">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Observación</label>
+                      <textarea
+                        name="observacion"
+                        value={controlForm.observacion}
+                        onChange={handleControlChange}
+                        rows={2}
+                        placeholder="Detalla si encontraste alguna novedad..."
+                        className="ga-input resize-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Sugerencia</label>
+                      <textarea
+                        name="sugerencia"
+                        value={controlForm.sugerencia}
+                        onChange={handleControlChange}
+                        rows={2}
+                        placeholder="Indica qué reparación o revisión recomiendas..."
+                        className="ga-input resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {formError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                      {formError}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
+                    <button type="button" onClick={() => deferClose(() => setControlFormOpen(false))} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-all">Cancelar</button>
+                    <button type="submit" disabled={savingMaint} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-xl text-sm transition-all shadow-sm disabled:opacity-50">
+                      <span
+                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1 ${savingMaint ? 'animate-spin' : 'hidden'}`}
+                        aria-hidden={!savingMaint}
+                      />
+                      Registrar Control
                     </button>
                   </div>
                 </form>

@@ -17,7 +17,7 @@ export const Layout = ({ children, user, onLogout }) => {
   const modules = [
     { name: 'Dashboard / Inicio', path: '/' },
     { name: 'Nómina: Empleados', path: '/nomina/empleados' },
-    { name: 'Nómina: Credenciales', path: '/nomina/credenciales' },
+    { name: 'Nómina: Credenciales', path: '/nomina/empleados?vista=credenciales' },
     { name: 'Nómina: Registro Asistencia', path: '/nomina/registro-asistencia' },
     { name: 'Nómina: Horas Extras', path: '/nomina/horas-extras' },
     { name: 'Nómina: Vacaciones', path: '/nomina/vacaciones' },
@@ -133,11 +133,9 @@ export const Layout = ({ children, user, onLogout }) => {
     if (path === '/nomina/nomina-del-mes') {
       return location.pathname.startsWith('/nomina');
     }
-    if (path === '/compras/aprobaciones') {
-      return location.pathname.startsWith('/compras/aprobacion');
-    }
     if (path === '/compras') {
       return location.pathname === '/compras' ||
+             location.pathname.startsWith('/compras/aprobacion') ||
              location.pathname.startsWith('/compras/historial') ||
              location.pathname.startsWith('/compras/nueva') ||
              location.pathname.startsWith('/compras/editar');
@@ -293,7 +291,7 @@ export const Layout = ({ children, user, onLogout }) => {
                 <span className="mobile-nav-label">Proformas</span>
               </Link>
 
-              <Link to="/compras/aprobaciones" className={`mobile-nav-item ${isTabActive('/compras/aprobaciones') ? 'active' : ''}`}>
+              <Link to="/compras?vista=aprobaciones" className={`mobile-nav-item ${isTabActive('/compras') ? 'active' : ''}`}>
                 <div className="mobile-nav-icon-wrapper">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
