@@ -38,14 +38,44 @@ export function calcularNomina(empleado, nomina, options = {}) {
   const totalBruto = roundTo2(sueldoDiario * diasLaborados);
 
   // 5. Permisos/Atrasos
+  // permisoHoras now stores the accumulated fine value in USD directly (from QR atraso records).
+  // Legacy records may still use the old hours * $2.50 model; we detect this via permisosDetalle.
   const permisoHoras = Number(nomina.permisoHoras || 0);
-  const valorPermisoHoras = roundTo2(permisoHoras * (sueldoDiario / 8));
+  const permisosDetalle = nomina.egresos?.permisosDetalle;
+  let valorPermisoHoras;
+  if (Array.isArray(permisosDetalle) && permisosDetalle.length > 0) {
+    // If ANY record has multaDolares, treat the whole accumulation as direct USD
+    const hasMulataDirecta = permisosDetalle.some(r => r.multaDolares !== undefined && !r.eliminado);
+    if (hasMulataDirecta) {
+      // Sum multaDolares for QR records + horas*2.50 for manual hour-based records
+      valorPermisoHoras = roundTo2(
+        permisosDetalle
+          .filter(r => !r.eliminado)
+          .reduce((s, r) => {
+            if (r.multaDolares !== undefined) return s + Number(r.multaDolares);
+            // Legacy manual permiso in hours
+            const h = Number(r.horas || 0);
+            return s + Math.floor(h) * 2.50 + ((h % 1) >= 0.499 ? 1.50 : 0);
+          }, 0)
+      );
+    } else {
+      // All-manual, legacy hours formula
+      const h = permisoHoras;
+      valorPermisoHoras = roundTo2(Math.floor(h) * 2.50 + ((h % 1) >= 0.499 ? 1.50 : 0));
+    }
+  } else {
+    // No detail → use permisoHoras as direct USD (new default) or hours if < 1 (safety)
+    // New system: permisoHoras stores $ directly; if it looks like hours (small int), keep compat
+    const h = permisoHoras;
+    valorPermisoHoras = roundTo2(h); // treat as $ directly
+  }
+
   const subtotalDias = roundTo2(Math.max(0, totalBruto - valorPermisoHoras));
 
-  // 6. Décimos
+  // 6. Décimos — solo si el empleado realmente trabó en esta quincena
   let decimoCuarto = 0;
   let decimoTercero = 0;
-  if (isFijo) {
+  if (isFijo && diasLaborados > 0) {
     const dec4Val = empleado.decimoCuartoValor !== null && empleado.decimoCuartoValor !== undefined && empleado.decimoCuartoValor !== ''
       ? Number(empleado.decimoCuartoValor)
       : 40.16;
@@ -57,8 +87,8 @@ export function calcularNomina(empleado, nomina, options = {}) {
     decimoTercero = roundTo2(dec3Val / 2);
   }
 
-  // 7. IESS
-  const iess = isFijo 
+  // 7. IESS — solo si el empleado realmente trabó en esta quincena
+  const iess = (isFijo && diasLaborados > 0)
     ? (empleado.iessValor !== null && empleado.iessValor !== undefined && empleado.iessValor !== ''
       ? roundTo2(Number(empleado.iessValor) / 2)
       : roundTo2(sueldoMensual * 0.0945 / 2))

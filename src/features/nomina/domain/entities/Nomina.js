@@ -65,7 +65,6 @@ export class Nomina {
       fondosReserva: Number(ingresos.fondosReserva ?? 0),
     };
 
-    // Egresos
     this.egresos = {
       iess: Number(egresos.iess ?? 0),
       extensionConyuge: Number(egresos.extensionConyuge ?? 0),
@@ -76,6 +75,7 @@ export class Nomina {
       dctoFiesta: Number(egresos.dctoFiesta ?? 0),
       dctoHerramientas: Number(egresos.dctoHerramientas ?? 0),
       dctoGenerico: Number(egresos.dctoGenerico ?? 0),
+      permisosDetalle: egresos.permisosDetalle || [],
     };
 
     this.abonos = abonos.map(abono => ({
@@ -86,6 +86,7 @@ export class Nomina {
       metodoPagoNombre: abono.metodoPagoNombre,
       usuarioNombre: abono.usuarioNombre,
       fechaHora: abono.fechaHora,
+      comprobanteUrl: abono.comprobanteUrl || null,
     }));
 
     this.estado = estado;

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Car, ClipboardCheck, Clock, User, Plus, Sparkles, CheckSquare, Eye } from 'lucide-react';
+import { Car, Clock, User, Plus, Eye, FileDown } from 'lucide-react';
 import { getVehiculos, getVehiculoControles, addVehiculoControl } from '../../application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
-import { MODAL_HEADER_STYLE } from '../shared/gastosUi';
+import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
+import { ControlVehiculoPDFModal } from '../components/ControlVehiculoPDFModal';
 
 const COMBUSTIBLE_OPTIONS = [
   { value: 'bajo', label: 'Bajo', color: 'text-red-700 bg-red-50 border-red-200' },
@@ -30,6 +31,8 @@ const INITIAL_FORM = {
   sugerencia: ''
 };
 
+// ────────────────────────────────────────────────────────────────────────────
+
 export const TallerControlPage = () => {
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const [vehiculos, setVehiculos] = useState([]);
@@ -37,12 +40,17 @@ export const TallerControlPage = () => {
   const [controles, setControles] = useState([]);
   const [loadingVehs, setLoadingVehs] = useState(true);
   const [loadingLogs, setLoadingLogs] = useState(false);
-  
+
   const [modalOpen, setModalOpen] = useState(false);
   const [viewingControl, setViewingControl] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Date range filter state — uses DateRangePicker format { start, end }
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  // PDF modal state
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   // Fetch active vehicles
   useEffect(() => {
@@ -79,9 +87,25 @@ export const TallerControlPage = () => {
       }
     };
     fetchLogs();
+    // Reset date range when switching vehicles
+    setDateRange({ start: '', end: '' });
   }, [selectedVehId]);
 
   const selectedVeh = vehiculos.find(v => v.id === selectedVehId);
+
+  // ── Apply date range filter ──────────────────────────────────────────────
+  const controlesFiltrados = controles.filter(log => {
+    const logDate = new Date(log.fecha);
+    if (dateRange.start) {
+      if (logDate < new Date(dateRange.start + 'T00:00:00')) return false;
+    }
+    if (dateRange.end) {
+      if (logDate > new Date(dateRange.end + 'T23:59:59')) return false;
+    }
+    return true;
+  });
+
+  const hayFiltroActivo = dateRange.start || dateRange.end;
 
   const openNewControl = () => {
     if (!selectedVeh) {
@@ -122,7 +146,7 @@ export const TallerControlPage = () => {
       };
       const saved = await addVehiculoControl(selectedVehId, payload);
       toast.success('Control registrado correctamente');
-      
+
       // Update local vehicle mileage
       setVehiculos(prev => prev.map(v => {
         if (v.id === selectedVehId) {
@@ -168,10 +192,11 @@ export const TallerControlPage = () => {
             <p className="text-xs text-slate-400">Selecciona la unidad para ver historial y registrar un nuevo control</p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Fixed: smaller font, wider, full text visible */}
             <select
               value={selectedVehId}
               onChange={(e) => setSelectedVehId(e.target.value)}
-              className="h-10 px-4 border border-slate-200 rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:border-blue-600 focus:bg-white transition-all w-full sm:w-60"
+              className="h-10 px-3 border border-slate-200 rounded-xl bg-slate-50 text-xs font-semibold text-slate-700 outline-none focus:border-blue-600 focus:bg-white transition-all w-full sm:w-72"
             >
               {vehiculos.map(v => (
                 <option key={v.id} value={v.id}>{v.placa} ({v.marca} {v.modelo})</option>
@@ -212,22 +237,53 @@ export const TallerControlPage = () => {
 
       {/* History table */}
       {selectedVehId && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+          {/* ── History Header with date filter + PDF export ── */}
+          <div className="px-5 py-3.5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+            <div className="flex items-center gap-2 shrink-0">
               <Clock size={16} className="text-slate-400" />
-              Historial de Controles Diarios
-            </h3>
+              <h3 className="font-bold text-slate-800 text-sm">Historial de Controles Diarios</h3>
+              {hayFiltroActivo && (
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                  {controlesFiltrados.length} resultado{controlesFiltrados.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Real DateRangePicker shared component */}
+              <DateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                placeholder="Filtrar por rango de fechas"
+              />
+
+              {/* Export PDF button — opens the PDF preview modal */}
+              <button
+                type="button"
+                onClick={() => setPdfOpen(true)}
+                disabled={controlesFiltrados.length === 0}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                title="Exportar a PDF"
+              >
+                <FileDown size={13} />
+                Exportar PDF
+              </button>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-b-xl">
             {loadingLogs ? (
               <div className="flex items-center justify-center py-12 gap-2 text-slate-400 text-sm">
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-blue-600" />
                 <span>Cargando historial...</span>
               </div>
-            ) : controles.length === 0 ? (
-              <p className="text-center text-slate-400 text-xs py-12">No hay controles diarios registrados para este vehículo.</p>
+            ) : controlesFiltrados.length === 0 ? (
+              <div className="text-center text-slate-400 text-xs py-12">
+                {hayFiltroActivo
+                  ? 'No hay controles en el rango de fechas seleccionado.'
+                  : 'No hay controles diarios registrados para este vehículo.'}
+              </div>
             ) : (
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
@@ -242,7 +298,7 @@ export const TallerControlPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {controles.map(log => {
+                  {controlesFiltrados.map(log => {
                     const checksCount = [
                       log.nivelAceite, log.nivelAgua, log.aceiteHidraulico,
                       log.liquidoFrenos, log.gataLlave, log.extintorBotiquin, log.bandas
@@ -326,7 +382,7 @@ export const TallerControlPage = () => {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                 </button>
               </div>
-              
+
               <form onSubmit={handleRegister} className="flex flex-col flex-1 min-h-0">
                 <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
                   {/* Row 1: Date/Time, Mileage, Fuel */}
@@ -623,6 +679,15 @@ export const TallerControlPage = () => {
         </>,
         document.body
       )}
+      {/* PDF Preview Modal */}
+      <ControlVehiculoPDFModal
+        isOpen={pdfOpen}
+        onClose={() => setPdfOpen(false)}
+        vehiculo={selectedVeh}
+        controles={controlesFiltrados}
+        desde={dateRange.start}
+        hasta={dateRange.end}
+      />
     </div>
   );
 };

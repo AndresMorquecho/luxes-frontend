@@ -6,18 +6,20 @@ import { HorarioDelDiaBanner, HorarioEditModal } from '../../../asistencia/ui/co
 import { normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../../asistencia/helpers/horarioLaboral';
 
 const AVAILABLE_MODULES = [
+  { key: 'finanzas', label: 'Finanzas' },
   { key: 'nomina', label: 'Nómina' },
   { key: 'proformas', label: 'Proformas' },
   { key: 'inventario', label: 'Inventario' },
   { key: 'tallerImpresion', label: 'Taller de Impresión' },
   { key: 'gastos', label: 'Gastos' },
-  { key: 'finanzas', label: 'Finanzas' },
   { key: 'tareas', label: 'Tareas' },
   { key: 'proyectos', label: 'Gestión de Proyectos' },
+  { key: 'devolucionesTaller', label: 'Devoluciones (Taller)' },
+  { key: 'controlVehiculos', label: 'Control de Vehículos' },
   { key: 'instalaciones', label: 'Instalaciones' },
   { key: 'compras', label: 'Compras' },
   { key: 'ventas', label: 'Ventas' },
-  { key: 'relaciones', label: 'Relaciones' },
+  { key: 'relaciones', label: 'Contactos' },
 ];
 
 const getHeaders = () => {

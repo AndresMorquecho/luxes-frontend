@@ -13,7 +13,6 @@ import { ProyectoRow } from '../components/ProyectoRow.jsx';
 import { ProyectoCard } from '../components/ProyectoCard.jsx';
 
 const PRIORIDADES = ['TODAS', 'BAJA', 'MEDIA', 'ALTA', 'URGENTE'];
-const ESTADOS = ['TODOS', 'ACTIVO', 'PAUSADO', 'COMPLETADO', 'CANCELADO'];
 
 export default function ProyectosPage() {
   const navigate = useNavigate();
@@ -50,7 +49,7 @@ export default function ProyectosPage() {
     { label: 'Total proyectos', value: estadisticas.total, Icon: Layers, color: '#1e40af', bg: '#eff6ff' },
     { label: 'En producción', value: estadisticas.enProduccion, Icon: Printer, color: '#3b82f6', bg: '#eff6ff' },
     { label: 'En instalación', value: estadisticas.enInstalacion, Icon: Wrench, color: '#f97316', bg: '#fff7ed' },
-    { label: 'Completados este mes', value: estadisticas.completadosMes, Icon: CheckCircle, color: '#059669', bg: '#ecfdf5' },
+    { label: 'Completados', value: estadisticas.completadosMes, Icon: CheckCircle, color: '#059669', bg: '#ecfdf5' },
   ];
 
   return (
@@ -146,19 +145,7 @@ export default function ProyectosPage() {
               </select>
             </div>
 
-            {/* Filtro estado */}
-            <div className="flex flex-col gap-1 proj-filter-select proj-filter-estado">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</label>
-              <select
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-full"
-                value={filtros.estado}
-                onChange={(e) => updateFiltro('estado', e.target.value)}
-              >
-                {ESTADOS.map((e) => (
-                  <option key={e} value={e}>{e === 'TODOS' ? 'Todos' : e}</option>
-                ))}
-              </select>
-            </div>
+
 
             {/* Filtro instalación */}
             <div className="flex flex-col gap-1 proj-filter-select proj-filter-instalacion">
@@ -420,9 +407,6 @@ export default function ProyectosPage() {
             grid-column: 1 / -1 !important;
           }
           .proj-filter-prioridad {
-            grid-column: span 1 !important;
-          }
-          .proj-filter-estado {
             grid-column: span 1 !important;
           }
           .proj-filter-instalacion {

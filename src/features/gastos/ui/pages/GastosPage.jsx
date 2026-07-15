@@ -17,7 +17,7 @@ import {
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
   ClipboardCheck, BarChart3, Filter, ArrowUp, ArrowDown, Scale, Wallet,
-  Eye
+  Eye, Pencil
 } from 'lucide-react';
 import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
 
@@ -55,6 +55,7 @@ const CAT_BADGES = {
   servicios: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1', label: 'Servicios' },
   logistica: { bg: 'rgba(16,185,129,0.1)', color: '#10b981', label: 'Logística' },
   vehiculos: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Vehículos' },
+  redes_y_programas: { bg: 'rgba(14,165,233,0.1)', color: '#0ea5e9', label: 'Redes y Programas' },
   varios: { bg: 'rgba(236,72,153,0.1)', color: '#ec4899', label: 'Varios' },
   compras: { bg: 'rgba(245,158,11,0.1)', color: '#d97706', label: 'Orden de Compra' },
   recursos_humanos: { bg: 'rgba(16,185,129,0.1)', color: '#059669', label: 'Nómina y Anticipos' }
@@ -1125,6 +1126,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Concepto</th>
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-48">Método de Pago</th>
                       <th className="text-right px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-32">Monto</th>
+                      <th className="text-center px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-24">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/40">
@@ -1135,15 +1137,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
                         vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
                       };
+                      const origenModulos = {
+                        orden_compra: 'Ir a Órdenes de Compra para editar/eliminar',
+                        nomina: 'Ir a Nómina y Anticipos para editar/eliminar',
+                        vehiculo: 'Ir al módulo de Vehículos para editar/eliminar',
+                      };
                       const style = origenStyles[g.origen] || origenStyles.otros_gastos;
                       const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
+                      const disabledTooltip = !canEdit ? (origenModulos[g.origen] || 'Este gasto no se puede editar desde aquí') : '';
 
                       return (
                         <tr 
                           key={`${g.origen || 'gasto'}-${g.id}`} 
-                          className={`ga-tr ${canEdit ? 'cursor-pointer hover:bg-blue-50/50 transition-colors' : ''}`}
-                          onClick={() => { if (canEdit) openEditGasto(g); }}
-                          title={canEdit ? "Clic para editar" : ""}
+                          className="ga-tr transition-colors"
                         >
                           <td className="px-5 py-4">
                             <div className="text-[12px] font-medium text-slate-700 whitespace-nowrap">
@@ -1171,11 +1177,59 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             {g.metodoPago?.nombre || <span className="text-slate-300">No especificado</span>}
                           </td>
                           <td className="px-5 py-4 text-right font-bold text-slate-800">{fmt(Number(g.monto))}</td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center justify-center gap-1">
+                              {/* Botón Editar */}
+                              <div title={canEdit ? 'Editar gasto' : disabledTooltip} className="relative group">
+                                <button
+                                  type="button"
+                                  disabled={!canEdit}
+                                  onClick={(e) => { e.stopPropagation(); if (canEdit) openEditGasto(g); }}
+                                  className={`p-1.5 rounded-lg transition-colors ${
+                                    canEdit
+                                      ? 'text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 cursor-pointer'
+                                      : 'text-slate-300 cursor-not-allowed'
+                                  }`}
+                                  aria-label="Editar gasto"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                {!canEdit && (
+                                  <div className="absolute z-50 hidden group-hover:flex bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-800 text-white text-[10px] font-medium rounded-lg whitespace-nowrap shadow-lg pointer-events-none">
+                                    {disabledTooltip}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+                                  </div>
+                                )}
+                              </div>
+                              {/* Botón Eliminar */}
+                              <div title={canEdit ? 'Eliminar gasto' : disabledTooltip} className="relative group">
+                                <button
+                                  type="button"
+                                  disabled={!canEdit}
+                                  onClick={(e) => { e.stopPropagation(); if (canEdit) handleDeleteGasto(g.id); }}
+                                  className={`p-1.5 rounded-lg transition-colors ${
+                                    canEdit
+                                      ? 'text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer'
+                                      : 'text-slate-300 cursor-not-allowed'
+                                  }`}
+                                  aria-label="Eliminar gasto"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                                {!canEdit && (
+                                  <div className="absolute z-50 hidden group-hover:flex bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-800 text-white text-[10px] font-medium rounded-lg whitespace-nowrap shadow-lg pointer-events-none">
+                                    {disabledTooltip}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
                     {paginated.length === 0 && (
-                      <tr><td colSpan={5} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron gastos</td></tr>
+                      <tr><td colSpan={6} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron gastos</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1190,14 +1244,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
                       vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
                     };
+                    const origenModulos = {
+                      orden_compra: 'Editar en Órdenes de Compra',
+                      nomina: 'Editar en Nómina y Anticipos',
+                      vehiculo: 'Editar en módulo de Vehículos',
+                    };
                     const style = origenStyles[g.origen] || origenStyles.otros_gastos;
                     const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
+                    const modLabel = origenModulos[g.origen];
 
                     return (
                       <div 
                         key={`m-${g.origen || 'gasto'}-${g.id}`} 
-                        className={`bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm ${canEdit ? 'cursor-pointer active:bg-blue-50/50 transition-colors' : ''}`}
-                        onClick={() => { if (canEdit) openEditGasto(g); }}
+                        className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm"
                       >
                         <div className="flex justify-between items-start">
                           <span 
@@ -1217,7 +1276,32 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             <span>{g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
                             <span className="font-bold uppercase tracking-wider text-slate-400">{g.registradoPor?.nombre || 'Automático'}</span>
                           </div>
-                          <span className="text-right max-w-[120px] truncate bg-slate-50 px-2 py-1 rounded-md">{g.metodoPago?.nombre || 'No especificado'}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-right max-w-[90px] truncate bg-slate-50 px-2 py-1 rounded-md">{g.metodoPago?.nombre || 'No especificado'}</span>
+                            {/* Acciones móvil */}
+                            {canEdit ? (
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditGasto(g)}
+                                  className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                                  title="Editar gasto"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteGasto(g.id)}
+                                  className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                                  title="Eliminar gasto"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            ) : modLabel ? (
+                              <span className="text-[9px] text-slate-400 italic max-w-[80px] text-right leading-tight">{modLabel}</span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     );

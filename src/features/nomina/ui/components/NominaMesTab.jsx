@@ -12,6 +12,7 @@ import {
   calcSueldoBrutoQuincena,
   sueldoQuincenaBase,
 } from '../../../../shared/utils/sueldoHelpers.js';
+import { calcularMultaAtraso, DEFAULT_HORARIOS_CONFIG } from '../../../asistencia/helpers/horarioLaboral.js';
 
 const MESES = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -115,6 +116,17 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   const [selectedMetodoPagoId, setSelectedMetodoPagoId] = useState('');
   const [loadingMps, setLoadingMps] = useState(true);
 
+  // Comprobante de pago (upload)
+  const [comprobanteUrl, setComprobanteUrl] = useState(null);
+  const [comprobantePreview, setComprobantePreview] = useState(null);
+  const [comprobanteName, setComprobanteName] = useState('');
+  const [uploadingComprobante, setUploadingComprobante] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const comprobanteInputRef = React.useRef(null);
+
+  // Modal para ver comprobante del historial
+  const [viewComprobanteUrl, setViewComprobanteUrl] = useState(null);
+
   useEffect(() => {
     let active = true;
     getMetodosPago()
@@ -142,10 +154,89 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
     onMontoChange(Math.min(val, maxMonto));
   };
 
+  // Upload comprobante
+  const handleUploadComprobante = async (file) => {
+    if (!file) return;
+    setUploadingComprobante(true);
+    setComprobanteName(file.name);
+
+    // Preview local
+    const isImage = file.type.startsWith('image/');
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = (e) => setComprobantePreview(e.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setComprobantePreview(null);
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('comprobante', file);
+      const res = await fetch('/api/nomina/comprobantes/upload', {
+        method: 'POST',
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+        body: formData,
+      });
+      const json = await res.json();
+      if (json.success && json.data?.url) {
+        setComprobanteUrl(json.data.url);
+      } else {
+        toast.error('Error al subir el comprobante');
+        setComprobantePreview(null);
+        setComprobanteName('');
+      }
+    } catch (err) {
+      console.error('Error uploading comprobante:', err);
+      toast.error('Error al subir el comprobante');
+      setComprobantePreview(null);
+      setComprobanteName('');
+    } finally {
+      setUploadingComprobante(false);
+    }
+  };
+
+  const handleRemoveComprobante = async () => {
+    if (comprobanteUrl) {
+      try {
+        const token = localStorage.getItem('token');
+        const filename = comprobanteUrl.split('/').pop();
+        await fetch(`/api/nomina/comprobantes/${filename}`, {
+          method: 'DELETE',
+          headers: { Authorization: token ? `Bearer ${token}` : '' },
+        });
+      } catch (err) {
+        console.error('Error deleting comprobante:', err);
+      }
+    }
+    setComprobanteUrl(null);
+    setComprobantePreview(null);
+    setComprobanteName('');
+    if (comprobanteInputRef.current) comprobanteInputRef.current.value = '';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleUploadComprobante(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 h-[570px] overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
+      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 h-[620px] overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
         onClick={(e) => e.stopPropagation()}>
         
         {/* Minimalist Header */}
@@ -359,21 +450,55 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                         className="w-full pl-6 pr-3 py-2 text-lg font-black text-slate-800 border border-slate-200 rounded-lg bg-slate-50/20 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner" />
                     </div>
 
-                    <div className="flex gap-2 pt-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setPercentage(0.5)}
-                        className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600 bg-white hover:bg-slate-50 transition-all cursor-pointer"
-                      >
-                        Abonar 50%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPercentage(1)}
-                        className="flex-1 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-[10px] font-bold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
-                      >
-                        Pagar Total
-                      </button>
+                    {/* Zona de comprobante de pago (drag & drop) */}
+                    <div className="pt-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Comprobante de pago <span className="text-slate-300 font-medium">(opcional)</span></label>
+                      {comprobanteUrl ? (
+                        <div className="flex items-center gap-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                          {comprobantePreview ? (
+                            <img src={comprobantePreview} alt="Comprobante" className="w-10 h-10 rounded-md object-cover border border-emerald-200 shrink-0 cursor-pointer" onClick={() => setViewComprobanteUrl(comprobantePreview)} />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-emerald-100 flex items-center justify-center shrink-0">
+                              <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                              </svg>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-emerald-800 truncate">{comprobanteName}</p>
+                            <p className="text-[10px] text-emerald-600 font-medium">Archivo subido correctamente</p>
+                          </div>
+                          <button type="button" onClick={handleRemoveComprobante} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all cursor-pointer bg-transparent border-0 outline-none shrink-0" title="Quitar comprobante">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          onDrop={handleDrop}
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onClick={() => comprobanteInputRef.current?.click()}
+                          className={`flex flex-col items-center justify-center gap-1 py-3 px-4 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+                            isDragOver
+                              ? 'border-blue-400 bg-blue-50/60'
+                              : 'border-slate-200 bg-slate-50/30 hover:border-blue-300 hover:bg-blue-50/30'
+                          } ${uploadingComprobante ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          {uploadingComprobante ? (
+                            <span className="text-xs text-blue-600 font-bold animate-pulse">Subiendo archivo...</span>
+                          ) : (
+                            <>
+                              <svg className={`w-6 h-6 ${isDragOver ? 'text-blue-500' : 'text-slate-300'} transition-colors`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v13.5A1.5 1.5 0 0 0 3.75 21Z" />
+                              </svg>
+                              <span className="text-[10px] font-bold text-slate-400">Arrastra el comprobante aquí o haz clic</span>
+                            </>
+                          )}
+                          <input ref={comprobanteInputRef} type="file" className="hidden" onChange={(e) => handleUploadComprobante(e.target.files?.[0])} />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -412,17 +537,18 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                   <table className="w-full text-xs text-left text-slate-600">
                     <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200 sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-3">Fecha y Hora</th>
-                        <th className="px-4 py-3">Registrado Por</th>
-                        <th className="px-4 py-3">Caja / Cuenta</th>
-                        <th className="px-4 py-3 text-right">Monto</th>
-                        <th className="px-4 py-3 text-center">Acción</th>
+                        <th className="px-3 py-3">Fecha y Hora</th>
+                        <th className="px-3 py-3">Registrado Por</th>
+                        <th className="px-3 py-3">Caja / Cuenta</th>
+                        <th className="px-3 py-3 text-right">Monto</th>
+                        <th className="px-3 py-3 text-center">Comprobante</th>
+                        <th className="px-3 py-3 text-center">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-xs">
                       {(!nomina || !nomina.abonos || nomina.abonos.length === 0) ? (
                         <tr>
-                          <td colSpan={5} className="px-4 py-12 text-center text-slate-400 italic">
+                          <td colSpan={6} className="px-4 py-12 text-center text-slate-400 italic">
                             No hay abonos registrados en este período para el colaborador.
                           </td>
                         </tr>
@@ -430,34 +556,52 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                         nomina.abonos.map((ab, idx) => (
                           <tr key={ab.id || idx} className="hover:bg-slate-50/50">
                             {/* Fecha y Hora con Icono */}
-                            <td className="px-4 py-3.5">
+                            <td className="px-3 py-3.5">
                               <span className="inline-flex items-center gap-1.5 text-slate-500 font-mono">
-                                <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                                 </svg>
                                 {ab.fechaHora || ab.fecha}
                               </span>
                             </td>
                             {/* Registrado Por con Icono */}
-                            <td className="px-4 py-3.5">
+                            <td className="px-3 py-3.5">
                               <span className="inline-flex items-center gap-1.5 text-slate-700">
-                                <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                                 </svg>
                                 {ab.usuarioNombre || 'Usuario'}
                               </span>
                             </td>
                             {/* Caja / Cuenta de Salida con Icono */}
-                            <td className="px-4 py-3.5">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-bold">
-                                <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <td className="px-3 py-3.5">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-bold">
+                                <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
                                 </svg>
                                 {ab.metodoPagoNombre || 'No especificado'}
                               </span>
                             </td>
-                            <td className="px-4 py-3.5 text-right font-black text-slate-800">{formatUSD(ab.monto)}</td>
-                            <td className="px-4 py-3.5 text-center">
+                            <td className="px-3 py-3.5 text-right font-black text-slate-800">{formatUSD(ab.monto)}</td>
+                            {/* Comprobante */}
+                            <td className="px-3 py-3.5 text-center">
+                              {ab.comprobanteUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setViewComprobanteUrl(ab.comprobanteUrl)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-[10px] font-bold hover:bg-blue-100 transition-all cursor-pointer border border-blue-200 outline-none"
+                                  title="Ver comprobante"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v13.5A1.5 1.5 0 0 0 3.75 21Z" />
+                                  </svg>
+                                  Ver
+                                </button>
+                              ) : (
+                                <span className="text-slate-300 text-[10px] font-medium">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3.5 text-center">
                               <button
                                 onClick={() => onDeleteAbono(nomina, ab.id)}
                                 className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-all cursor-pointer bg-transparent border-0 outline-none"
@@ -486,8 +630,8 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
             </button>
             {activeTab === 'registrar' && (
               <button
-                onClick={() => onConfirm(selectedMetodoPagoId)}
-                disabled={!monto || monto <= 0 || !selectedMetodoPagoId || loadingMps}
+                onClick={() => onConfirm(selectedMetodoPagoId, comprobanteUrl)}
+                disabled={!monto || monto <= 0 || !selectedMetodoPagoId || loadingMps || uploadingComprobante}
                 className="px-8 py-2.5 rounded-lg bg-blue-900 text-white font-extrabold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -498,14 +642,32 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
             )}
           </div>
         </div>
+
+        {/* Modal de visualización de comprobante */}
+        {viewComprobanteUrl && (
+          <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/75 backdrop-blur-sm animate-fade-in" onClick={() => setViewComprobanteUrl(null)}>
+            {/* Botón cerrar — fijo en esquina superior derecha del overlay */}
+            <button
+              onClick={() => setViewComprobanteUrl(null)}
+              className="fixed top-4 right-4 w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center text-slate-600 hover:text-slate-900 hover:scale-110 transition-all cursor-pointer border border-slate-200 z-[10002] outline-none"
+              title="Cerrar"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="mx-4 max-w-4xl w-full max-h-[90vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+              <img src={viewComprobanteUrl} alt="Comprobante de pago" className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain" />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 const DetallePermisosModal = ({
-  empleadoId,
-  empleadoNombre,
+  emp,
   fechaInicio,
   fechaFin,
   raw,
@@ -513,6 +675,11 @@ const DetallePermisosModal = ({
   onClose,
   onUpdate,
 }) => {
+  const empleadoId = emp?.id;
+  const empleadoNombre = emp?.nombre;
+  const sueldoDiarioVal = parseFloat(emp?.sueldoDiario) || 0;
+  const hourlyRate = sueldoDiarioVal / 8;
+
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -522,73 +689,159 @@ const DetallePermisosModal = ({
   const [motivo, setMotivo] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Local helper to calculate late hours
-  const calculateLateHours = (fechaHoraStr) => {
-    const date = new Date(fechaHoraStr);
-    const day = date.getDay(); // 0 = Sunday, 6 = Saturday, 1-5 = Weekday
-    if (day === 0) return 0; // Sundays don't count
-    
-    // Convert date to local time elements
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const timeInMinutes = hours * 60 + minutes;
-    
-    const expectedTime = (day === 6) ? (9 * 60) : (8 * 60); // 9:00 AM on Saturdays, 8:00 AM on weekdays
-    const diff = timeInMinutes - expectedTime;
-    
-    if (diff <= 5) return 0; // 5 mins grace period
-    
-    const halfHours = Math.round(diff / 30);
-    return Math.max(0.5, halfHours * 0.5);
-  };
-
   useEffect(() => {
     const initRecords = async () => {
       setLoading(true);
       try {
-        if (raw?.egresos?.permisosDetalle && Array.isArray(raw.egresos.permisosDetalle)) {
-          setRecords(raw.egresos.permisosDetalle);
-        } else {
-          // Fetch from QR asistencias
-          const desdeStr = fechaInicio ? fechaInicio.slice(0, 10) : '';
-          const hastaStr = fechaFin ? fechaFin.slice(0, 10) : '';
-          if (desdeStr && hastaStr) {
-            const res = await fetch(`/api/asistencias?desde=${desdeStr}&hasta=${hastaStr}`);
-            const json = await res.json();
-            if (json.success && Array.isArray(json.data)) {
-              const matched = json.data
-                .filter(a => a.empleadoId === empleadoId && a.tipo === 'ENTRADA')
-                .map(a => {
-                  const lateHours = calculateLateHours(a.fechaHora);
-                  if (lateHours <= 0) return null;
-                  const locTime = new Date(a.fechaHora).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: false });
-                  return {
-                    id: `qr-${a.id}-${Math.random()}`,
-                    fecha: a.fechaHora.slice(0, 10),
+        const desdeStr = fechaInicio ? fechaInicio.slice(0, 10) : '';
+        const hastaStr = fechaFin ? fechaFin.slice(0, 10) : '';
+        if (desdeStr && hastaStr) {
+          const token = localStorage.getItem('token');
+
+          // Load horario config to get toleranciaMinutos and day-specific schedules
+          let horariosConfig = DEFAULT_HORARIOS_CONFIG;
+          try {
+            const cfgRes = await fetch('/api/asistencias/horario-config', {
+              headers: { Authorization: token ? `Bearer ${token}` : '' }
+            });
+            const cfgJson = await cfgRes.json();
+            if (cfgJson.success && cfgJson.data) horariosConfig = cfgJson.data;
+          } catch {
+            // fallback to defaults silently
+          }
+          const toleranciaMinutos = Number(horariosConfig.toleranciaMinutos ?? DEFAULT_HORARIOS_CONFIG.toleranciaMinutos);
+
+          /**
+           * Resolves the expected entry time (in minutes since midnight) for a given date.
+           * Returns null for Sunday (day 0).
+           */
+          const getExpectedEntradaMins = (fechaHoraStr) => {
+            const date = new Date(fechaHoraStr);
+            const day = date.getDay();
+            if (day === 0) return null; // Sunday — skip
+            const diaConfig = day === 6 ? horariosConfig.sabado : horariosConfig.semana;
+            if (!diaConfig?.entrada) return null;
+            const [eh, em] = diaConfig.entrada.split(':').map(Number);
+            return eh * 60 + em;
+          };
+
+          /**
+           * Calculates the fine in $ for a late entry (ENTRADA).
+           * Returns null if there is no lateness or it is Sunday.
+           */
+          const calcMultaEntrada = (asistencia) => {
+            const expectedMins = getExpectedEntradaMins(asistencia.fechaHora);
+            if (expectedMins === null) return null;
+            const date = new Date(asistencia.fechaHora);
+            const realMins = date.getHours() * 60 + date.getMinutes();
+            const atrasoMins = realMins - expectedMins;
+            if (atrasoMins <= 0) return null;
+            const multa = calcularMultaAtraso(atrasoMins, toleranciaMinutos);
+            if (multa <= 0) return null;
+            return { multa, atrasoMins };
+          };
+
+          /**
+           * Calculates the fine in $ for a late return from lunch (FIN_ALMUERZO).
+           * The expected return is INICIO_ALMUERZO timestamp + 60 minutes.
+           * Returns null if no lateness or data is missing.
+           */
+          const calcMultaRegAlmuerzo = (finAlmuerzo, inicioAlmuerzo) => {
+            if (!inicioAlmuerzo) return null;
+            const expectedReturn = new Date(inicioAlmuerzo.fechaHora).getTime() + 60 * 60 * 1000;
+            const realReturn = new Date(finAlmuerzo.fechaHora).getTime();
+            const atrasoMins = Math.floor((realReturn - expectedReturn) / 60000);
+            if (atrasoMins <= 0) return null;
+            const multa = calcularMultaAtraso(atrasoMins, toleranciaMinutos);
+            if (multa <= 0) return null;
+            return { multa, atrasoMins };
+          };
+
+          const res = await fetch(`/api/asistencias?desde=${desdeStr}&hasta=${hastaStr}`, {
+            headers: { Authorization: token ? `Bearer ${token}` : '' }
+          });
+          const json = await res.json();
+
+          if (json.success && Array.isArray(json.data)) {
+            const empAsistencias = json.data.filter(a => a.empleadoId === empleadoId);
+
+            // Group by date to pair INICIO_ALMUERZO with FIN_ALMUERZO
+            const byDate = {};
+            for (const a of empAsistencias) {
+              const d = a.fechaHora.slice(0, 10);
+              if (!byDate[d]) byDate[d] = {};
+              byDate[d][a.tipo] = a;
+            }
+
+            const qrAtrasos = [];
+
+            for (const [dateStr, marcaciones] of Object.entries(byDate)) {
+              // 1. ENTRADA late fine
+              if (marcaciones.ENTRADA) {
+                const r = calcMultaEntrada(marcaciones.ENTRADA);
+                if (r) {
+                  const locTime = new Date(marcaciones.ENTRADA.fechaHora)
+                    .toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: false });
+                  qrAtrasos.push({
+                    id: `qr-ent-${marcaciones.ENTRADA.id}`,
+                    fecha: dateStr,
                     horaMarcacion: locTime,
-                    horas: lateHours,
-                    motivo: `Atraso QR (${locTime})`,
-                    tipo: 'ATRASO_QR'
-                  };
-                })
-                .filter(Boolean);
-              
-              if (matched.length > 0) {
-                const totalHours = matched.reduce((s, r) => s + r.horas, 0);
-                const updated = {
-                  ...raw,
-                  permisoHoras: totalHours,
-                  egresos: {
-                    ...raw.egresos,
-                    permisosDetalle: matched
-                  }
-                };
-                const saved = await adapter.savePayroll(updated);
-                setRecords(saved.egresos?.permisosDetalle || matched);
-                if (onUpdate) await onUpdate();
-              } else {
-                setRecords([]);
+                    // Store multa in `horas` field (semantically: multa en $)
+                    // calcularNomina.js will treat permisoHoras as $ directly after the fix below
+                    horas: r.multa,
+                    multaDolares: r.multa,
+                    atrasoMinutos: r.atrasoMins,
+                    motivo: `Atraso entrada QR ${locTime} (+${r.atrasoMins} min)`,
+                    tipo: 'ATRASO_QR',
+                  });
+                }
               }
+
+              // 2. REGRESO ALMUERZO late fine
+              if (marcaciones.FIN_ALMUERZO && marcaciones.INICIO_ALMUERZO) {
+                const r = calcMultaRegAlmuerzo(marcaciones.FIN_ALMUERZO, marcaciones.INICIO_ALMUERZO);
+                if (r) {
+                  const locTime = new Date(marcaciones.FIN_ALMUERZO.fechaHora)
+                    .toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', hour12: false });
+                  qrAtrasos.push({
+                    id: `qr-alm-${marcaciones.FIN_ALMUERZO.id}`,
+                    fecha: dateStr,
+                    horaMarcacion: locTime,
+                    horas: r.multa,
+                    multaDolares: r.multa,
+                    atrasoMinutos: r.atrasoMins,
+                    motivo: `Atraso reg. almuerzo QR ${locTime} (+${r.atrasoMins} min)`,
+                    tipo: 'ATRASO_QR_ALMUERZO',
+                  });
+                }
+              }
+            }
+
+            const existingList = (raw?.egresos?.permisosDetalle && Array.isArray(raw.egresos.permisosDetalle))
+              ? raw.egresos.permisosDetalle
+              : [];
+
+            // Add any QR atrasos not already saved (match by id to avoid duplicates)
+            const existingIds = new Set(existingList.map(ex => ex.id));
+            const missingAtrasos = qrAtrasos.filter(qr => !existingIds.has(qr.id));
+
+            if (missingAtrasos.length > 0) {
+              const newList = [...existingList, ...missingAtrasos];
+              // permisoHoras now accumulates multa $ values directly
+              const totalMultas = newList.reduce((s, r) => s + (r.multaDolares ?? r.horas ?? 0), 0);
+              const updated = {
+                ...raw,
+                permisoHoras: totalMultas,
+                egresos: {
+                  ...raw.egresos,
+                  permisosDetalle: newList
+                }
+              };
+              const saved = await adapter.savePayroll(updated);
+              setRecords(saved.egresos?.permisosDetalle || newList);
+              if (onUpdate) await onUpdate();
+            } else {
+              setRecords(existingList);
             }
           }
         }
@@ -619,16 +872,24 @@ const DetallePermisosModal = ({
       horas: parsedHoras,
       motivo: motivo.trim() || 'Permiso manual',
       tipo: tipo
+      // No multaDolares → will use horas * 2.50 formula in calcularNomina
     };
 
     const newList = [...records, newRecord];
-    const totalHours = newList.reduce((s, r) => s + r.horas, 0);
+    // Recalculate total: multa $ for QR records, horas formula for manual
+    const totalMultas = newList
+      .filter(r => !r.eliminado)
+      .reduce((s, r) => {
+        if (r.multaDolares !== undefined) return s + Number(r.multaDolares);
+        const h = Number(r.horas || 0);
+        return s + Math.floor(h) * 2.50 + ((h % 1) >= 0.499 ? 1.50 : 0);
+      }, 0);
 
     setSubmitting(true);
     try {
       const updated = {
         ...raw,
-        permisoHoras: totalHours,
+        permisoHoras: totalMultas,
         egresos: {
           ...raw.egresos,
           permisosDetalle: newList
@@ -648,14 +909,33 @@ const DetallePermisosModal = ({
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Está seguro de eliminar este registro?')) return;
-    const newList = records.filter(r => r.id !== id);
-    const totalHours = newList.reduce((s, r) => s + r.horas, 0);
+    const confirmed = await confirmDialog(
+      'Eliminar Registro',
+      '¿Está seguro de eliminar este registro?',
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' }
+    );
+    if (!confirmed) return;
+    
+    let newList;
+    if (String(id).startsWith('qr-')) {
+      // Zero out the multa and mark as eliminated for QR records
+      newList = records.map(r => r.id === id ? { ...r, horas: 0, multaDolares: 0, eliminado: true } : r);
+    } else {
+      newList = records.filter(r => r.id !== id);
+    }
+    // Recalculate total using the mixed formula
+    const totalMultas = newList
+      .filter(r => !r.eliminado)
+      .reduce((s, r) => {
+        if (r.multaDolares !== undefined) return s + Number(r.multaDolares);
+        const h = Number(r.horas || 0);
+        return s + Math.floor(h) * 2.50 + ((h % 1) >= 0.499 ? 1.50 : 0);
+      }, 0);
 
     try {
       const updated = {
         ...raw,
-        permisoHoras: totalHours,
+        permisoHoras: totalMultas,
         egresos: {
           ...raw.egresos,
           permisosDetalle: newList
@@ -672,10 +952,31 @@ const DetallePermisosModal = ({
   };
 
   // Summary calculations
-  const totalAtrasosQR = useMemo(() => records.filter(r => r.tipo === 'ATRASO_QR').reduce((s, r) => s + r.horas, 0), [records]);
-  const totalPermisosManual = useMemo(() => records.filter(r => r.tipo !== 'ATRASO_QR').reduce((s, r) => s + r.horas, 0), [records]);
-  const totalHoras = useMemo(() => records.reduce((s, r) => s + r.horas, 0), [records]);
-  const totalDescuentoValor = totalHoras * 2.5;
+  const visibleRecords = useMemo(() => records.filter(r => !r.eliminado), [records]);
+
+  // QR fine records (ATRASO_QR + ATRASO_QR_ALMUERZO) — values are in $ directly
+  const totalAtrasosQR = useMemo(
+    () => records.filter(r => (r.tipo === 'ATRASO_QR' || r.tipo === 'ATRASO_QR_ALMUERZO') && !r.eliminado)
+      .reduce((s, r) => s + (r.multaDolares ?? r.horas ?? 0), 0),
+    [records]
+  );
+
+  // Manual permiso records — values are hours to be converted
+  const totalPermisosManualHoras = useMemo(
+    () => records.filter(r => r.tipo !== 'ATRASO_QR' && r.tipo !== 'ATRASO_QR_ALMUERZO' && !r.eliminado)
+      .reduce((s, r) => s + Number(r.horas || 0), 0),
+    [records]
+  );
+
+  const calcularDescuentoManual = (h) => {
+    const hours = Number(h || 0);
+    return Math.floor(hours) * 2.50 + ((hours % 1) >= 0.499 ? 1.50 : 0);
+  };
+
+  const totalPermisosManualValor = calcularDescuentoManual(totalPermisosManualHoras);
+
+  const totalDescuentoValor = totalAtrasosQR + totalPermisosManualValor;
+
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
@@ -708,19 +1009,19 @@ const DetallePermisosModal = ({
           {/* Summary Cards */}
           <div className="grid grid-cols-4 gap-3 shrink-0">
             <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Atrasos QR</span>
-              <span className="text-sm font-bold text-slate-700 mt-1 block">{totalAtrasosQR} hs ({formatUSD(totalAtrasosQR * 2.5)})</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Multas QR</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{formatUSD(totalAtrasosQR)}</span>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Permisos Manuales</span>
-              <span className="text-sm font-bold text-slate-700 mt-1 block">{totalPermisosManual} hs ({formatUSD(totalPermisosManual * 2.5)})</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{totalPermisosManualHoras} hs ({formatUSD(totalPermisosManualValor)})</span>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-3 text-center hover:border-blue-200 transition-all shadow-xs">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Horas</span>
-              <span className="text-sm font-bold text-slate-700 mt-1 block">{totalHoras} hs</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Registros</span>
+              <span className="text-sm font-bold text-slate-700 mt-1 block">{visibleRecords.length}</span>
             </div>
             <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 text-center shadow-xs">
-              <span className="text-[9px] font-bold text-violet-650 uppercase tracking-wider block">Total Descuento Permisos</span>
+              <span className="text-[9px] font-bold text-violet-650 uppercase tracking-wider block">Total Descuento</span>
               <span className="text-sm font-extrabold text-violet-950 mt-1 block">{formatUSD(totalDescuentoValor)}</span>
             </div>
           </div>
@@ -801,7 +1102,7 @@ const DetallePermisosModal = ({
             <div className="flex-1 border border-slate-200 rounded-xl overflow-y-auto bg-slate-50/50 min-h-0">
               {loading ? (
                 <div className="p-3 text-center text-xs text-slate-500 font-semibold">Cargando registros...</div>
-              ) : records.length === 0 ? (
+              ) : visibleRecords.length === 0 ? (
                 <div className="p-5 text-center text-xs text-slate-400 font-medium italic">No hay registros de permisos ni atrasos para este período.</div>
               ) : (
                 <table className="min-w-full text-xs divide-y divide-slate-200 table-fixed border-collapse">
@@ -816,14 +1117,19 @@ const DetallePermisosModal = ({
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-slate-100 text-xs">
-                    {records.map((r) => {
-                      const valor = r.horas * 2.5;
+                    {visibleRecords.map((r) => {
+                      const isQR = r.tipo === 'ATRASO_QR' || r.tipo === 'ATRASO_QR_ALMUERZO';
+                      const valor = isQR
+                        ? (r.multaDolares ?? r.horas ?? 0)
+                        : calcularDescuentoManual(r.horas);
                       return (
                         <tr key={r.id} className="hover:bg-slate-50/50">
                           <td className="border border-slate-200 px-3 py-1.5 font-mono text-slate-600 truncate">{r.fecha}</td>
                           <td className="border border-slate-200 px-3 py-1.5 text-center truncate">
                             {r.tipo === 'ATRASO_QR' ? (
-                              <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold text-[9px] uppercase border border-amber-100">Atraso QR</span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold text-[9px] uppercase border border-amber-100">Atraso Entrada</span>
+                            ) : r.tipo === 'ATRASO_QR_ALMUERZO' ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-orange-50 text-orange-700 rounded-full font-bold text-[9px] uppercase border border-orange-100">Atraso Almuerzo</span>
                             ) : r.tipo === 'ATRASO_MANUAL' ? (
                               <span className="inline-flex items-center px-1.5 py-0.5 bg-yellow-50 text-yellow-850 rounded-full font-bold text-[9px] uppercase border border-yellow-100">Atraso Manual</span>
                             ) : r.tipo === 'PERMISO_MEDICO' ? (
@@ -835,7 +1141,11 @@ const DetallePermisosModal = ({
                             )}
                           </td>
                           <td className="border border-slate-200 px-3 py-1.5 font-medium text-slate-800 truncate" title={r.motivo}>{r.motivo || <span className="text-slate-400 italic">Sin motivo</span>}</td>
-                          <td className="border border-slate-200 px-3 py-1.5 text-right font-bold text-slate-700">{r.horas} hs</td>
+                          <td className="border border-slate-200 px-3 py-1.5 text-right font-bold text-slate-700">
+                            {isQR
+                              ? <span className="text-[9px] text-amber-700 font-bold">+{r.atrasoMinutos ?? '?'} min</span>
+                              : `${r.horas} hs`}
+                          </td>
                           <td className="border border-slate-200 px-3 py-1.5 text-right font-bold text-red-650">-{formatUSD(valor)}</td>
                           <td className="border border-slate-200 px-3 py-1.5 text-center">
                             <button
@@ -851,6 +1161,7 @@ const DetallePermisosModal = ({
                         </tr>
                       );
                     })}
+
                   </tbody>
                 </table>
               )}
@@ -1503,8 +1814,8 @@ const QuincenaTable = ({
     () => rows.reduce((s, r) => s + (r.cp?.diasLaborados ?? 0), 0),
     [rows],
   );
-  const totalPermisoHoras = useMemo(
-    () => rows.reduce((s, r) => s + (r.cp?.permisoHoras ?? 0), 0),
+  const totalValorPermisoHoras = useMemo(
+    () => rows.reduce((s, r) => s + (r.cp?.valorPermisoHoras ?? 0), 0),
     [rows],
   );
   const totalSubtotalDias = useMemo(
@@ -1624,6 +1935,7 @@ const QuincenaTable = ({
               
               const diasT = cp?.diasLaborados ?? 0;
               const permisoHoras = cp?.permisoHoras ?? 0;
+              const valorPermisoHoras = cp?.valorPermisoHoras ?? 0;
               const subtotalDias = cp?.subtotalDias ?? 0;
               const dec4 = cp?.decimoCuarto ?? 0;
               const dec3 = cp?.decimoTercero ?? 0;
@@ -1679,11 +1991,11 @@ const QuincenaTable = ({
                   {/* Permisos Horas (Clickable, abre modal) */}
                   <td
                     className="border border-slate-200 text-center px-2 py-2 text-slate-700 font-bold text-xs cursor-pointer hover:bg-slate-100 transition-colors group/cell"
-                    onClick={() => onOpenPermisos(emp.id, emp.nombre, raw)}
+                    onClick={() => onOpenPermisos(emp, raw)}
                     title="Haga clic para gestionar permisos de horas"
                   >
                     <div className="flex items-center justify-center gap-1">
-                      <span>{permisoHoras} hs</span>
+                      <span>{formatUSD(valorPermisoHoras)}</span>
                       <span className="text-[10px] text-blue-600 font-black opacity-0 group-hover/cell:opacity-100 transition-opacity">
                         [+]
                       </span>
@@ -1797,15 +2109,15 @@ const QuincenaTable = ({
               <td className="border border-slate-200 px-3 py-2.5 text-slate-700 uppercase tracking-widest sticky left-0 z-45 bg-slate-100 border-r-2 border-r-slate-300 w-[200px] min-w-[200px]">
                 <span>TOTALES</span>
               </td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalSueldoDiario)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalDiasLaborables}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-700 text-xs bg-slate-100">{formatUSD(totalSueldoDiario)}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-700 text-xs bg-slate-100">{totalDiasLaborables}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 font-extrabold text-xs bg-slate-200/55 border-r border-r-slate-300">{formatUSD(totalTeorico)}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalDiasTrabajados}</td>
-              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-800 text-xs bg-slate-100">{totalPermisoHoras} hs</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-700 text-xs bg-slate-100">{totalDiasTrabajados}</td>
+              <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-700 text-xs bg-slate-100">{formatUSD(totalValorPermisoHoras)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 text-slate-850 font-extrabold text-xs bg-slate-200/75 border-r border-r-slate-300">{formatUSD(totalSubtotalDias)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100/40">{formatUSD(totalDecimoCuarto)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-violet-850 text-xs bg-violet-100/40">{formatUSD(totalDecimoTercero)}</td>
-              <td className="border border-slate-200 text-center px-1 py-2.5 text-slate-800 text-xs bg-slate-100">{formatUSD(totalIESS)}</td>
+              <td className="border border-slate-200 text-center px-1 py-2.5 text-slate-700 text-xs bg-slate-100">{formatUSD(totalIESS)}</td>
               <td className="border border-slate-200 text-center px-2 py-2.5 bg-violet-100 text-violet-950 font-black text-xs border-r border-r-slate-300">{formatUSD(totalSubtotalLiquidacion)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-green-700 text-xs bg-green-100/40">+{formatUSD(totalSumaIngresos)}</td>
               <td className="border border-slate-200 text-center px-1 py-2.5 text-red-700 text-xs bg-red-100/40">-{formatUSD(totalSumaEgresos)}</td>
@@ -1831,7 +2143,7 @@ const QuincenaTable = ({
           const totalTeorico = sueldo * diasLab;
           
           const diasT = cp?.diasLaborados ?? 0;
-          const permisoHoras = cp?.permisoHoras ?? 0;
+          const valorPermisoHoras = cp?.valorPermisoHoras ?? 0;
           const subtotalDias = cp?.subtotalDias ?? 0;
           const dec4 = cp?.decimoCuarto ?? 0;
           const dec3 = cp?.decimoTercero ?? 0;
@@ -1888,10 +2200,10 @@ const QuincenaTable = ({
                 <div>
                   <span className="text-slate-400 font-semibold block">Permisos Horas</span>
                   <span
-                    onClick={() => onOpenPermisos(emp.id, emp.nombre, raw)}
+                    onClick={() => onOpenPermisos(emp, raw)}
                     className="font-bold text-blue-900 cursor-pointer underline hover:text-blue-800"
                   >
-                    {permisoHoras} hs [+]
+                    {formatUSD(valorPermisoHoras)} [+]
                   </span>
                 </div>
                 <div>
@@ -1944,7 +2256,7 @@ const QuincenaTable = ({
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => onOpenPermisos(emp.id, emp.nombre, raw)}
+                  onClick={() => onOpenPermisos(emp, raw)}
                   className="flex-1 min-w-[70px] py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 text-[10px] font-bold cursor-pointer"
                 >
                   Permisos
@@ -2039,11 +2351,10 @@ export const NominaMesTab = () => {
     });
   };
 
-  const handleOpenPermisos = (empleadoId, empleadoNombre, raw) => {
+  const handleOpenPermisos = (emp, raw) => {
     const dates = activeTab === 'q1' ? fechas1 : fechas2;
     setActivePermisoModal({
-      empleadoId,
-      empleadoNombre,
+      emp,
       fechaInicio: dates.fechaInicio,
       fechaFin: dates.fechaFin,
       raw
@@ -2202,7 +2513,7 @@ export const NominaMesTab = () => {
     setPayTarget(prev => ({ ...prev, monto: newMonto, restante: nuevoRestante }));
   };
 
-  const pagarQuincena = async (rawArr, setter, fechas, empId, monto, fecha, subtotal, metodoPagoId) => {
+  const pagarQuincena = async (rawArr, setter, fechas, empId, monto, fecha, subtotal, metodoPagoId, comprobanteUrl) => {
     let nomina = rawArr.find(p => p.empleadoId === empId);
     if (!nomina) {
       const created = await adapter.getPayrolls(fechas.fechaInicio, fechas.fechaFin);
@@ -2216,7 +2527,7 @@ export const NominaMesTab = () => {
       const pad = (n) => String(n).padStart(2, '0');
       const fechaHora = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-      const actualizada = registrarAbono(nomina, { monto, fecha, metodoPagoId, usuarioNombre, fechaHora });
+      const actualizada = registrarAbono(nomina, { monto, fecha, metodoPagoId, usuarioNombre, fechaHora, comprobanteUrl });
       const totalAb = actualizada.abonos.reduce((s, a) => s + a.monto, 0);
       if (subtotal > 0 && totalAb >= subtotal) {
         actualizada.estado = 'PAGADO';
@@ -2228,7 +2539,7 @@ export const NominaMesTab = () => {
     }
   };
 
-  const handleConfirmPago = async (metodoPagoId) => {
+  const handleConfirmPago = async (metodoPagoId, comprobanteUrl) => {
     if (!payTarget || !payTarget.monto || payTarget.monto <= 0) return;
     if (!metodoPagoId) {
       toast.error('Debe seleccionar una cuenta de pago (caja).');
@@ -2257,14 +2568,14 @@ export const NominaMesTab = () => {
         const arr   = qDest === 1 ? q1Raw : q2Raw;
         const set   = qDest === 1 ? setQ1Raw : setQ2Raw;
         const fec   = qDest === 1 ? fechas1 : fechas2;
-        await pagarQuincena(arr, set, fec, empId, payTarget.monto, hoy, sub, metodoPagoId);
+        await pagarQuincena(arr, set, fec, empId, payTarget.monto, hoy, sub, metodoPagoId, comprobanteUrl);
       } else {
         if (payTarget.quincenaOrigen === 2) {
-          await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId);
+          await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId, comprobanteUrl);
         } else {
           await Promise.all([
-            pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, hoy, subQ1, metodoPagoId),
-            pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId),
+            pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, hoy, subQ1, metodoPagoId, comprobanteUrl),
+            pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId, comprobanteUrl),
           ]);
         }
       }
@@ -2511,12 +2822,7 @@ export const NominaMesTab = () => {
       {/* Tab Selector */}
       <div className="flex border border-slate-200 bg-white rounded-t-xl overflow-hidden shadow-xs">
         <button
-          onClick={() => {
-            if (hasUnsavedChanges) {
-              if (!window.confirm('Tienes cambios sin guardar. ¿Estás seguro de cambiar de pestaña y perderlos?')) return;
-            }
-            setActiveTab('q1');
-          }}
+          onClick={() => setActiveTab('q1')}
           className={`flex-1 py-3 px-6 text-center focus:outline-none transition-all flex flex-col items-center justify-center gap-1 border-b-2 ${
             activeTab === 'q1'
               ? 'border-slate-700 text-slate-800 font-extrabold bg-slate-50/50'
@@ -2535,12 +2841,7 @@ export const NominaMesTab = () => {
         </button>
 
         <button
-          onClick={() => {
-            if (hasUnsavedChanges) {
-              if (!window.confirm('Tienes cambios sin guardar. ¿Estás seguro de cambiar de pestaña y perderlos?')) return;
-            }
-            setActiveTab('q2');
-          }}
+          onClick={() => setActiveTab('q2')}
           className={`flex-1 py-3 px-6 text-center focus:outline-none transition-all flex flex-col items-center justify-center gap-1 border-b-2 ${
             activeTab === 'q2'
               ? 'border-slate-700 text-slate-800 font-extrabold bg-slate-50/50'
@@ -2638,8 +2939,7 @@ export const NominaMesTab = () => {
       {activePermisoModal ? (
         <ModalPortal>
           <DetallePermisosModal
-            empleadoId={activePermisoModal.empleadoId}
-            empleadoNombre={activePermisoModal.empleadoNombre}
+            emp={activePermisoModal.emp}
             fechaInicio={activePermisoModal.fechaInicio}
             fechaFin={activePermisoModal.fechaFin}
             raw={activePermisoModal.raw}

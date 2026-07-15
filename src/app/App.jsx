@@ -29,6 +29,7 @@ import { NotificacionesPage } from '../features/notificaciones/ui/pages/Notifica
 import { FormOrdenCompraPage } from '../features/compras/ui/pages/FormOrdenCompraPage';
 import ConfiguracionFeature from '../features/configuracion/ui';
 import { MovimientosPage } from '../features/gastos/ui/pages/MovimientosPage';
+import { BalancesPage } from '../features/gastos/ui/pages/BalancesPage';
 import { ToastContainer } from '../shared/ui/components/Toast';
 import { isAsistenciaUser, isTallerUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
@@ -280,6 +281,7 @@ function App() {
               {!isImpresion && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
               {!isImpresion && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
               {!isImpresion && <Route path="/movimientos/*" element={<MovimientosPage />} />}
+              {!isImpresion && <Route path="/balances" element={<BalancesPage />} />}
               <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
               <Route path="/tareas/*" element={<TareasFeature />} />
               <Route path="/taller/control" element={<TallerControlPage />} />

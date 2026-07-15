@@ -6,6 +6,7 @@ import {
   getVehiculos, saveVehiculo, deleteVehiculo, saveMantenimiento, deleteMantenimiento,
   getVehiculoControles, addVehiculoControl,
   TIPOS_MANTENIMIENTO, labelTipoMantenimiento, estadoMantenimiento,
+  getMetodosPago,
 } from '../../application/gastosService';
 import { MODAL_HEADER_STYLE, MODAL_FORM_STYLES, fmt } from '../shared/gastosUi';
 
@@ -13,6 +14,7 @@ const EMPTY_VEHICULO = { placa: '', marca: '', modelo: '', anio: '', color: '', 
 const EMPTY_MANT = {
   tipo: 'cambio_aceite', descripcion: '', fechaRealizado: new Date().toISOString().split('T')[0],
   fechaProxima: '', kilometraje: '', kmProximo: '', monto: 0, proveedor: '', notas: '',
+  metodoPagoId: '',
 };
 const EMPTY_CONTROL = {
   fecha: new Date().toISOString().slice(0, 16),
@@ -54,6 +56,7 @@ export const GastosCarrosTab = () => {
 
   const [controles, setControles] = useState([]);
   const [loadingControles, setLoadingControles] = useState(false);
+  const [metodosPago, setMetodosPago] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -72,7 +75,18 @@ export const GastosCarrosTab = () => {
     } catch (e) { console.error(e); } finally { setLoadingControles(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const loadMetodos = async () => {
+      try {
+        const data = await getMetodosPago();
+        setMetodosPago(data);
+      } catch (err) {
+        console.error('Error loading payment methods:', err);
+      }
+    };
+    loadMetodos();
+  }, []);
 
   useEffect(() => {
     if (selectedId) {
@@ -117,6 +131,7 @@ export const GastosCarrosTab = () => {
       ...EMPTY_MANT,
       fechaRealizado: new Date().toISOString().split('T')[0],
       kilometraje: selected.kilometraje,
+      metodoPagoId: '',
     });
     setFormError('');
     setMantFormOpen(true);
@@ -129,6 +144,7 @@ export const GastosCarrosTab = () => {
       kilometraje: m.kilometraje ?? '',
       kmProximo: m.kmProximo ?? '',
       fechaProxima: m.fechaProxima ?? '',
+      metodoPagoId: m.gasto?.metodoPagoId ?? '',
     });
     setFormError('');
     setMantFormOpen(true);
@@ -514,10 +530,19 @@ export const GastosCarrosTab = () => {
                     </div>
                   </div>
                   <div className="border-t border-gray-100 pt-6">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2"><span className="w-1.5 h-4 bg-blue-500 rounded-full" />Costo</h3>
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2"><span className="w-1.5 h-4 bg-blue-500 rounded-full" />Costo y Pago</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div><label className="text-[11px] font-semibold text-gray-500 uppercase mb-1 block">Monto ($)</label><input name="monto" type="number" step="0.01" value={mantForm.monto} onChange={handleMantChange} className="input-field" /></div>
                       <div><label className="text-[11px] font-semibold text-gray-500 uppercase mb-1 block">Proveedor / taller</label><input name="proveedor" value={mantForm.proveedor} onChange={handleMantChange} className="input-field" /></div>
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-semibold text-gray-500 uppercase mb-1 block">Método de Pago *</label>
+                        <select name="metodoPagoId" value={mantForm.metodoPagoId} onChange={handleMantChange} required className="input-field bg-white">
+                          <option value="">Seleccione método...</option>
+                          {metodosPago.filter(m => m.activo).map(m => (
+                            <option key={m.id} value={m.id}>{m.nombre} ({fmt(m.saldoActual)})</option>
+                          ))}
+                        </select>
+                      </div>
                       <div className="sm:col-span-2"><label className="text-[11px] font-semibold text-gray-500 uppercase mb-1 block">Notas</label><textarea name="notas" value={mantForm.notas} onChange={handleMantChange} rows={2} className="input-field resize-none" /></div>
                     </div>
                   </div>

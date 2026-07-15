@@ -20,6 +20,12 @@ export const DEFAULT_HORARIOS_CONFIG = {
     almuerzoOpcional: true,
     nota: 'almuerzo opcional',
   },
+  /** Minutos de tolerancia antes de aplicar multa (aplica a entrada y regreso almuerzo) */
+  toleranciaMinutos: 8,
+  /** Valor por hora extra completa */
+  valorHoraExtra: 2.5,
+  /** Valor por media hora extra */
+  valorMediaHoraExtra: 1.5,
 };
 
 const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
@@ -58,10 +64,46 @@ function normalizeDia(raw, fallback) {
 
 export function normalizeHorariosConfig(raw) {
   if (!raw || typeof raw !== 'object') return DEFAULT_HORARIOS_CONFIG;
+  const rawTol = raw.toleranciaMinutos;
+  const toleranciaMinutos =
+    rawTol !== undefined && rawTol !== null && !Number.isNaN(Number(rawTol))
+      ? Math.max(0, Math.round(Number(rawTol)))
+      : DEFAULT_HORARIOS_CONFIG.toleranciaMinutos;
+  const rawHE = raw.valorHoraExtra;
+  const valorHoraExtra =
+    rawHE !== undefined && rawHE !== null && !Number.isNaN(Number(rawHE))
+      ? Math.max(0, Number(rawHE))
+      : DEFAULT_HORARIOS_CONFIG.valorHoraExtra;
+  const rawMHE = raw.valorMediaHoraExtra;
+  const valorMediaHoraExtra =
+    rawMHE !== undefined && rawMHE !== null && !Number.isNaN(Number(rawMHE))
+      ? Math.max(0, Number(rawMHE))
+      : DEFAULT_HORARIOS_CONFIG.valorMediaHoraExtra;
   return {
     semana: normalizeDia(raw.semana, DEFAULT_HORARIOS_CONFIG.semana),
     sabado: normalizeDia(raw.sabado, DEFAULT_HORARIOS_CONFIG.sabado),
+    toleranciaMinutos,
+    valorHoraExtra,
+    valorMediaHoraExtra,
   };
+}
+
+/**
+ * Calcula el valor de multa en dólares según los minutos de atraso y la tolerancia configurada.
+ * Aplica tanto para la entrada como para el regreso de almuerzo.
+ *
+ * Tramos (sobre el tiempo de tolerancia):
+ *   0 – tolerancia          → $0.00 (sin multa)
+ *   1 – 8 sobre tolerancia  → $2.00
+ *   9 – 16 sobre tolerancia → $3.00
+ *   ≥ 17 sobre tolerancia   → $4.00
+ */
+export function calcularMultaAtraso(minutosAtraso, toleranciaMinutos = DEFAULT_HORARIOS_CONFIG.toleranciaMinutos) {
+  if (minutosAtraso <= toleranciaMinutos) return 0;
+  const sobre = minutosAtraso - toleranciaMinutos;
+  if (sobre <= 8) return 2.0;
+  if (sobre <= 16) return 3.0;
+  return 4.0;
 }
 
 export const MARCACION_TIPOS = ['ENTRADA', 'INICIO_ALMUERZO', 'FIN_ALMUERZO', 'SALIDA'];
@@ -151,7 +193,10 @@ export function formatDiffMinutos(diff) {
   return diff > 0 ? `+${parte} tarde` : `-${parte} temprano`;
 }
 
-export function getEstadoAlmuerzo(marcaciones = [], dateStr, config) {
+export function getEstadoAlmuerzo(marcaciones = [], dateStr, config, tipoContrato = 'Tiempo Completo') {
+  if (tipoContrato === 'Medio Día') {
+    return { status: 'SIN_DATOS', label: '—', cls: 'slate' };
+  }
   const horario = getHorarioEsperado(dateStr, config);
   const tipos = new Set(marcaciones.map((m) => m.tipo));
   if (tipos.has('PERMISO')) return { status: 'PERMISO', label: 'Permiso pagado', cls: 'indigo' };

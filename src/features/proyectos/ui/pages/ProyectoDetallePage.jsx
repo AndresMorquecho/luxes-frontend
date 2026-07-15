@@ -514,6 +514,13 @@ export default function ProyectoDetallePage() {
                       </p>
                     </div>
                   </div>
+                  <div className="flex items-center gap-3">
+                    <Info size={16} className="text-slate-400 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Medio de consecución</p>
+                      <p className="text-sm font-semibold text-slate-700">{proyecto.medio || 'LUXES'}</p>
+                    </div>
+                  </div>
                   {proyecto.etiquetas?.length > 0 && (
                     <div className="flex items-start gap-3">
                       <Tag size={16} className="text-slate-400 mt-0.5 shrink-0" />
@@ -665,13 +672,14 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
     ? cotizacionesSeleccionadas.reduce((sum, c) => sum + (Number(c.total) || 0), 0)
     : (Number(proyecto.montoEstimado) || 0);
 
-  // Consumo Estimado de Bodega (10% de desgaste para herramientas, 100% para consumibles)
+  // Consumo Estimado de Bodega: solo consumibles generan costo, las herramientas no
   const materialesBodega = proyecto?.fases?.INSTALACION?.datos?.materiales || [];
   const costoMaterialesBodega = materialesBodega.reduce((sum, m) => {
     const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
     const price = Number(m.precioUnitario || 0);
     const isHerramienta = m.tipo === 'herramienta';
-    const sub = isHerramienta ? (cant * price * 0.10) : (cant * price);
+    if (isHerramienta) return sum; // las herramientas no generan gasto por amortización
+    const sub = cant * price;
     return sum + sub;
   }, 0);
 
@@ -1389,7 +1397,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
               <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
                 <div>
                   <h3 className="font-extrabold text-slate-800 text-base">Detalle de Consumo de Bodega</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Lista de materiales e insumos cargados y depreciados de bodega para este proyecto</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Lista de materiales e insumos de bodega. Las herramientas se registran sin costo imputado al proyecto.</p>
                 </div>
                 <button
                   type="button"
@@ -1416,7 +1424,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
                       const price = Number(m.precioUnitario || 0);
                       const isHerramienta = m.tipo === 'herramienta';
-                      const sub = isHerramienta ? (cant * price * 0.10) : (cant * price);
+                      const sub = isHerramienta ? 0 : (cant * price);
                       if (cant <= 0) return null;
                       
                       return (
@@ -1430,13 +1438,16 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                             </span>
                           </td>
                           <td className="p-3 text-center font-bold text-slate-800">{cant} {m.unidad || 'ud'}s</td>
-                          <td className="p-3 text-right font-medium">${price.toFixed(2)}</td>
+                          <td className="p-3 text-right font-medium">
+                            {isHerramienta ? (
+                              <span className="text-slate-400 italic">-</span>
+                            ) : (
+                              `$${price.toFixed(2)}`
+                            )}
+                          </td>
                           <td className="p-3 text-right font-black text-slate-800">
                             {isHerramienta ? (
-                              <div className="flex flex-col items-end">
-                                <span>${sub.toFixed(2)}</span>
-                                <span className="text-[8px] text-amber-655 font-normal mt-0.5">Amortizado al 10% por desgaste</span>
-                              </div>
+                              <span className="text-slate-400 italic">-</span>
                             ) : (
                               `$${sub.toFixed(2)}`
                             )}

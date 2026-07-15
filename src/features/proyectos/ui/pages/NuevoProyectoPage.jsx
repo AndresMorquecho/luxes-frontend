@@ -28,6 +28,7 @@ const EMPTY_FORM = {
   responsableId: '',
   requiereInstalacion: true,
   notasCotizacion: '',
+  medio: 'LUXES',
 };
 
 export default function NuevoProyectoPage() {
@@ -132,6 +133,7 @@ export default function NuevoProyectoPage() {
           direccion: clienteObj.direccion || '',
         },
         notasCotizacion: form.notasCotizacion,
+        medio: form.medio,
       });
       navigate(`/proyectos/${proyecto.id}`);
     } catch (err) {
@@ -401,6 +403,19 @@ export default function NuevoProyectoPage() {
                 value={form.fechaEntregaEstimada}
                 onChange={(e) => set('fechaEntregaEstimada', e.target.value)}
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Medio de consecución *</label>
+              <select
+                className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                value={form.medio}
+                onChange={(e) => set('medio', e.target.value)}
+              >
+                <option value="LUXES">LUXES</option>
+                <option value="REDES">REDES</option>
+                <option value="VENDEDORES">VENDEDORES</option>
+              </select>
             </div>
           </div>
 

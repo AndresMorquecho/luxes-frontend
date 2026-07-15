@@ -17,11 +17,11 @@ const getInitialRange = () => {
   const year = now.getFullYear();
   const month = now.getMonth(); // 0-indexed
   const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-  
+
   // Last day of current month
   const lastDay = new Date(year, month + 1, 0).getDate();
   const end = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  
+
   return { start, end };
 };
 
@@ -304,14 +304,11 @@ export const MetodosPagoPage = () => {
         <div className="flex items-center gap-4 flex-wrap">
           <div>
             <div className="co-label" style={{ marginBottom: '4px' }}>Rango de Fechas</div>
-            <DateRangePicker 
-              value={dateRange} 
-              onChange={setDateRange} 
+            <DateRangePicker
+              value={dateRange}
+              onChange={setDateRange}
               className="w-64"
             />
-          </div>
-          <div className="text-slate-400 max-w-[200px]" style={{ fontSize: '10px', fontWeight: 600, lineHeight: '1.3', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Filtra movimientos por rango de fechas para ver ingresos/egresos del periodo
           </div>
         </div>
 
@@ -444,7 +441,7 @@ export const MetodosPagoPage = () => {
                         {m.tipo || 'EFECTIVO'}
                       </span>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-y-2 text-xs pt-1">
                       <div>
                         <span className="text-[10px] text-slate-400 font-bold uppercase block">Saldo Actual</span>
@@ -502,187 +499,187 @@ export const MetodosPagoPage = () => {
       {/* New/Edit Modal */}
       {metodoFormOpen && (
         <ModalPortal>
-        <>
-          <div className="co-overlay" onClick={() => setMetodoFormOpen(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal animate-co-modal-in" style={{ maxWidth: '420px' }}>
-              <div className="co-modal-header">
-                <h2 className="text-lg font-bold text-slate-800">{editingMetodo ? 'Editar Método' : 'Nuevo Método de Pago'}</h2>
-                <button type="button" onClick={() => setMetodoFormOpen(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              <div className="co-modal-body">
-                <form onSubmit={handleMetodoSave} className="space-y-4">
-                  <div>
-                    <label className="co-label">Nombre</label>
-                    <input className="co-input" value={metodoForm.nombre} placeholder="Ej: Caja Chica, Diego Guayaquil 6357, Transferencia…"
-                      onChange={e => setMetodoForm(p => ({ ...p, nombre: e.target.value }))} required />
-                  </div>
-                  <div>
-                    <label className="co-label">Tipo de Cuenta</label>
-                    <select className="co-input" value={metodoForm.tipo}
-                      onChange={e => setMetodoForm(p => ({ ...p, tipo: e.target.value }))}>
-                      <option value="EFECTIVO">EFECTIVO (Caja Principal, Caja Chica, etc.)</option>
-                      <option value="BANCO">BANCO (Cuentas bancarias, Transferencia, etc.)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="co-label">Descripción</label>
-                    <input className="co-input" value={metodoForm.descripcion} placeholder="Opcional"
-                      onChange={e => setMetodoForm(p => ({ ...p, descripcion: e.target.value }))} />
-                  </div>
-                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setMetodoFormOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={metodoSaving} className="co-btn-primary">
-                      {metodoSaving && <div className="co-spinner-sm" />}
-                      {editingMetodo ? 'Guardar' : 'Crear Método'}
-                    </button>
-                  </div>
-                </form>
+          <>
+            <div className="co-overlay" onClick={() => setMetodoFormOpen(false)} />
+            <div className="co-modal-wrap">
+              <div className="co-modal animate-co-modal-in" style={{ maxWidth: '420px' }}>
+                <div className="co-modal-header">
+                  <h2 className="text-lg font-bold text-slate-800">{editingMetodo ? 'Editar Método' : 'Nuevo Método de Pago'}</h2>
+                  <button type="button" onClick={() => setMetodoFormOpen(false)} className="co-modal-close">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <div className="co-modal-body">
+                  <form onSubmit={handleMetodoSave} className="space-y-4">
+                    <div>
+                      <label className="co-label">Nombre</label>
+                      <input className="co-input" value={metodoForm.nombre} placeholder="Ej: Caja Chica, Diego Guayaquil 6357, Transferencia…"
+                        onChange={e => setMetodoForm(p => ({ ...p, nombre: e.target.value }))} required />
+                    </div>
+                    <div>
+                      <label className="co-label">Tipo de Cuenta</label>
+                      <select className="co-input" value={metodoForm.tipo}
+                        onChange={e => setMetodoForm(p => ({ ...p, tipo: e.target.value }))}>
+                        <option value="EFECTIVO">EFECTIVO (Caja Principal, Caja Chica, etc.)</option>
+                        <option value="BANCO">BANCO (Cuentas bancarias, Transferencia, etc.)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="co-label">Descripción</label>
+                      <input className="co-input" value={metodoForm.descripcion} placeholder="Opcional"
+                        onChange={e => setMetodoForm(p => ({ ...p, descripcion: e.target.value }))} />
+                    </div>
+                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                      <button type="button" onClick={() => setMetodoFormOpen(false)} className="co-btn-ghost">Cancelar</button>
+                      <button type="submit" disabled={metodoSaving} className="co-btn-primary">
+                        {metodoSaving && <div className="co-spinner-sm" />}
+                        {editingMetodo ? 'Guardar' : 'Crear Método'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </div>
-          </div>
-        </>
+          </>
         </ModalPortal>
       )}
 
       {ingresoFormOpen && (
         <ModalPortal>
-        <>
-          <div className="co-overlay" onClick={() => setIngresoFormOpen(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal animate-co-modal-in" style={{ maxWidth: '460px' }}>
-              <div className="co-modal-header">
-                <h2 className="text-lg font-bold text-slate-800">Registrar Ingreso Manual</h2>
-                <button type="button" onClick={() => setIngresoFormOpen(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              <div className="co-modal-body">
-                <form onSubmit={handleIngresoSave} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="co-label">Monto ($) *</label>
-                      <input type="number" className="co-input text-emerald-600 font-bold" value={ingresoForm.monto} placeholder="0.00" min="0.01" step="0.01"
-                        onChange={e => setIngresoForm(p => ({ ...p, monto: e.target.value }))} required />
+          <>
+            <div className="co-overlay" onClick={() => setIngresoFormOpen(false)} />
+            <div className="co-modal-wrap">
+              <div className="co-modal animate-co-modal-in" style={{ maxWidth: '460px' }}>
+                <div className="co-modal-header">
+                  <h2 className="text-lg font-bold text-slate-800">Registrar Ingreso Manual</h2>
+                  <button type="button" onClick={() => setIngresoFormOpen(false)} className="co-modal-close">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <div className="co-modal-body">
+                  <form onSubmit={handleIngresoSave} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="co-label">Monto ($) *</label>
+                        <input type="number" className="co-input text-emerald-600 font-bold" value={ingresoForm.monto} placeholder="0.00" min="0.01" step="0.01"
+                          onChange={e => setIngresoForm(p => ({ ...p, monto: e.target.value }))} required />
+                      </div>
+                      <div>
+                        <label className="co-label">Fecha *</label>
+                        <input type="date" className="co-input" value={ingresoForm.fecha}
+                          onChange={e => setIngresoForm(p => ({ ...p, fecha: e.target.value }))} required />
+                      </div>
                     </div>
                     <div>
-                      <label className="co-label">Fecha *</label>
-                      <input type="date" className="co-input" value={ingresoForm.fecha}
-                        onChange={e => setIngresoForm(p => ({ ...p, fecha: e.target.value }))} required />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="co-label">Cuenta de Depósito *</label>
-                    <select className="co-input" value={ingresoForm.metodoPagoId}
-                      onChange={e => setIngresoForm(p => ({ ...p, metodoPagoId: e.target.value }))} required>
-                      <option value="" disabled>Seleccione cuenta...</option>
-                      {metodos.filter(m => m.activo).map(m => (
-                        <option key={m.id} value={m.id}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="co-label">Concepto / Motivo *</label>
-                    <input className="co-input" value={ingresoForm.concepto} placeholder="Ej: Venta de desperdicio, Intereses, etc."
-                      onChange={e => setIngresoForm(p => ({ ...p, concepto: e.target.value }))} required />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="co-label">Cliente (Opcional)</label>
-                      <input className="co-input" value={ingresoForm.cliente} placeholder="Nombre del cliente"
-                        onChange={e => setIngresoForm(p => ({ ...p, cliente: e.target.value }))} />
+                      <label className="co-label">Cuenta de Depósito *</label>
+                      <select className="co-input" value={ingresoForm.metodoPagoId}
+                        onChange={e => setIngresoForm(p => ({ ...p, metodoPagoId: e.target.value }))} required>
+                        <option value="" disabled>Seleccione cuenta...</option>
+                        {metodos.filter(m => m.activo).map(m => (
+                          <option key={m.id} value={m.id}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
-                      <label className="co-label">Categoría (Opcional)</label>
-                      <input className="co-input" value={ingresoForm.categoria} placeholder="Ej: Varios, Reembolso"
-                        onChange={e => setIngresoForm(p => ({ ...p, categoria: e.target.value }))} />
+                      <label className="co-label">Concepto / Motivo *</label>
+                      <input className="co-input" value={ingresoForm.concepto} placeholder="Ej: Venta de desperdicio, Intereses, etc."
+                        onChange={e => setIngresoForm(p => ({ ...p, concepto: e.target.value }))} required />
                     </div>
-                  </div>
-                  <div>
-                    <label className="co-label">Notas / Observaciones</label>
-                    <textarea className="co-input h-20 resize-none p-2" value={ingresoForm.notas} placeholder="Detalles adicionales..."
-                      onChange={e => setIngresoForm(p => ({ ...p, notas: e.target.value }))} />
-                  </div>
-                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setIngresoFormOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={ingresoSaving} className="co-btn-primary" style={{ backgroundColor: '#10b981' }}>
-                      {ingresoSaving && <div className="co-spinner-sm" />}
-                      Registrar Ingreso
-                    </button>
-                  </div>
-                </form>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="co-label">Cliente (Opcional)</label>
+                        <input className="co-input" value={ingresoForm.cliente} placeholder="Nombre del cliente"
+                          onChange={e => setIngresoForm(p => ({ ...p, cliente: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="co-label">Categoría (Opcional)</label>
+                        <input className="co-input" value={ingresoForm.categoria} placeholder="Ej: Varios, Reembolso"
+                          onChange={e => setIngresoForm(p => ({ ...p, categoria: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="co-label">Notas / Observaciones</label>
+                      <textarea className="co-input h-20 resize-none p-2" value={ingresoForm.notas} placeholder="Detalles adicionales..."
+                        onChange={e => setIngresoForm(p => ({ ...p, notas: e.target.value }))} />
+                    </div>
+                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                      <button type="button" onClick={() => setIngresoFormOpen(false)} className="co-btn-ghost">Cancelar</button>
+                      <button type="submit" disabled={ingresoSaving} className="co-btn-primary" style={{ backgroundColor: '#10b981' }}>
+                        {ingresoSaving && <div className="co-spinner-sm" />}
+                        Registrar Ingreso
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </div>
-          </div>
-        </>
+          </>
         </ModalPortal>
       )}
 
       {transferenciaFormOpen && (
         <ModalPortal>
-        <>
-          <div className="co-overlay" onClick={() => setTransferenciaFormOpen(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal animate-co-modal-in" style={{ maxWidth: '460px' }}>
-              <div className="co-modal-header">
-                <h2 className="text-lg font-bold text-slate-800">Transferencia entre Cuentas</h2>
-                <button type="button" onClick={() => setTransferenciaFormOpen(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              <div className="co-modal-body">
-                <form onSubmit={handleTransferenciaSave} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="co-label">Monto ($) *</label>
-                      <input type="number" className="co-input text-blue-600 font-bold" value={transferenciaForm.monto} placeholder="0.00" min="0.01" step="0.01"
-                        onChange={e => setTransferenciaForm(p => ({ ...p, monto: e.target.value }))} required />
+          <>
+            <div className="co-overlay" onClick={() => setTransferenciaFormOpen(false)} />
+            <div className="co-modal-wrap">
+              <div className="co-modal animate-co-modal-in" style={{ maxWidth: '460px' }}>
+                <div className="co-modal-header">
+                  <h2 className="text-lg font-bold text-slate-800">Transferencia entre Cuentas</h2>
+                  <button type="button" onClick={() => setTransferenciaFormOpen(false)} className="co-modal-close">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <div className="co-modal-body">
+                  <form onSubmit={handleTransferenciaSave} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="co-label">Monto ($) *</label>
+                        <input type="number" className="co-input text-blue-600 font-bold" value={transferenciaForm.monto} placeholder="0.00" min="0.01" step="0.01"
+                          onChange={e => setTransferenciaForm(p => ({ ...p, monto: e.target.value }))} required />
+                      </div>
+                      <div>
+                        <label className="co-label">Fecha *</label>
+                        <input type="date" className="co-input" value={transferenciaForm.fecha}
+                          onChange={e => setTransferenciaForm(p => ({ ...p, fecha: e.target.value }))} required />
+                      </div>
                     </div>
                     <div>
-                      <label className="co-label">Fecha *</label>
-                      <input type="date" className="co-input" value={transferenciaForm.fecha}
-                        onChange={e => setTransferenciaForm(p => ({ ...p, fecha: e.target.value }))} required />
+                      <label className="co-label">Cuenta Origen (Sale fondos) *</label>
+                      <select className="co-input" value={transferenciaForm.origenMetodoId}
+                        onChange={e => setTransferenciaForm(p => ({ ...p, origenMetodoId: e.target.value }))} required>
+                        <option value="" disabled>Seleccione cuenta de origen...</option>
+                        {metodos.filter(m => m.activo).map(m => (
+                          <option key={m.id} value={m.id}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
+                        ))}
+                      </select>
                     </div>
-                  </div>
-                  <div>
-                    <label className="co-label">Cuenta Origen (Sale fondos) *</label>
-                    <select className="co-input" value={transferenciaForm.origenMetodoId}
-                      onChange={e => setTransferenciaForm(p => ({ ...p, origenMetodoId: e.target.value }))} required>
-                      <option value="" disabled>Seleccione cuenta de origen...</option>
-                      {metodos.filter(m => m.activo).map(m => (
-                        <option key={m.id} value={m.id}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="co-label">Cuenta Destino (Ingresa fondos) *</label>
-                    <select className="co-input" value={transferenciaForm.destinoMetodoId}
-                      onChange={e => setTransferenciaForm(p => ({ ...p, destinoMetodoId: e.target.value }))} required>
-                      <option value="" disabled>Seleccione cuenta de destino...</option>
-                      {metodos.filter(m => m.activo).map(m => (
-                        <option key={m.id} value={m.id} disabled={m.id === transferenciaForm.origenMetodoId}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="co-label">Referencia / Notas</label>
-                    <input className="co-input" value={transferenciaForm.referencia} placeholder="Ej: Retiro para caja chica, Depósito…"
-                      onChange={e => setTransferenciaForm(p => ({ ...p, referencia: e.target.value }))} />
-                  </div>
-                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setTransferenciaFormOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={transferenciaSaving} className="co-btn-primary" style={{ backgroundColor: '#3b82f6' }}>
-                      {transferenciaSaving && <div className="co-spinner-sm" />}
-                      Transferir Fondos
-                    </button>
-                  </div>
-                </form>
+                    <div>
+                      <label className="co-label">Cuenta Destino (Ingresa fondos) *</label>
+                      <select className="co-input" value={transferenciaForm.destinoMetodoId}
+                        onChange={e => setTransferenciaForm(p => ({ ...p, destinoMetodoId: e.target.value }))} required>
+                        <option value="" disabled>Seleccione cuenta de destino...</option>
+                        {metodos.filter(m => m.activo).map(m => (
+                          <option key={m.id} value={m.id} disabled={m.id === transferenciaForm.origenMetodoId}>{m.nombre} ({formatUSD(m.saldoActual)})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="co-label">Referencia / Notas</label>
+                      <input className="co-input" value={transferenciaForm.referencia} placeholder="Ej: Retiro para caja chica, Depósito…"
+                        onChange={e => setTransferenciaForm(p => ({ ...p, referencia: e.target.value }))} />
+                    </div>
+                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                      <button type="button" onClick={() => setTransferenciaFormOpen(false)} className="co-btn-ghost">Cancelar</button>
+                      <button type="submit" disabled={transferenciaSaving} className="co-btn-primary" style={{ backgroundColor: '#3b82f6' }}>
+                        {transferenciaSaving && <div className="co-spinner-sm" />}
+                        Transferir Fondos
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </div>
-          </div>
-        </>
+          </>
         </ModalPortal>
       )}
     </div>

@@ -4,8 +4,33 @@ export const DateRangePicker = ({ value, onChange, placeholder = 'Seleccionar fe
   const [isOpen, setIsOpen] = useState(false);
   const [startDate, setStartDate] = useState(value?.start || '');
   const [endDate, setEndDate] = useState(value?.end || '');
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    if (value?.end) return new Date(value.end + 'T12:00:00');
+    if (value?.start) return new Date(value.start + 'T12:00:00');
+    return new Date();
+  });
   const containerRef = useRef(null);
+
+  // Sincronizar estado interno cuando el picker se abre o cuando el value externo cambia
+  useEffect(() => {
+    if (isOpen) {
+      setStartDate(value?.start || '');
+      setEndDate(value?.end || '');
+      if (value?.end) {
+        setCurrentMonth(new Date(value.end + 'T12:00:00'));
+      } else if (value?.start) {
+        setCurrentMonth(new Date(value.start + 'T12:00:00'));
+      }
+    }
+  }, [isOpen]);
+
+  // Sincronizar cuando el value cambia desde afuera (ej: Limpiar externo)
+  useEffect(() => {
+    if (!isOpen) {
+      setStartDate(value?.start || '');
+      setEndDate(value?.end || '');
+    }
+  }, [value?.start, value?.end]);
 
   // Cerrar al hacer clic fuera
   useEffect(() => {

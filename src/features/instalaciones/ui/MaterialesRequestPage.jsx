@@ -402,8 +402,8 @@ export function MaterialesRequestPage() {
   }
 
   // Quitar item del Borrador (Tab 2)
-  function handleRemoveFromDraft(itemIdentifier) {
-    setMaterialesLocales(prev => prev.filter(item => item.sku !== itemIdentifier && item.nombre !== itemIdentifier));
+  function handleRemoveFromDraft(index) {
+    setMaterialesLocales(prev => prev.filter((_, i) => i !== index));
   }
 
   // Guardar Consumo de Bodega completo (Tab 2)
@@ -685,9 +685,6 @@ export function MaterialesRequestPage() {
 
   const proyectoEncuesta = proyectoParaEncuesta || proyecto;
 
-  const herramientasSinResponsable = getHerramientasSinResponsable(materialesConStock);
-  const bloqueoPorHerramientas = herramientasSinResponsable.length > 0;
-
   function validarResponsablesHerramientas() {
     if (!bloqueoPorHerramientas) return true;
     const nombres = herramientasSinResponsable.map((m) => m.nombre).join(', ');
@@ -748,14 +745,21 @@ export function MaterialesRequestPage() {
   };
 
   const materialesConStock = (materialesLocales || []).map(m => {
-    const invItem = inventarioDb.find(item => item.nombre === m.nombre || (m.sku && item.sku === m.sku));
+    const invItem = inventarioDb.find(item => item.nombre === m.nombre || (m.sku && m.sku !== 'SIN-CODIGO' && item.sku === m.sku));
+    // Determine tipo: prefer live DB data, then trust the stored tipo, finally default
+    const resolvedTipo = invItem
+      ? (invItem.tipo === 'herramienta' || invItem.esPrestable ? 'herramienta' : invItem.tipo)
+      : (m.tipo && m.tipo !== 'consumible' ? m.tipo : (m.tipo || 'consumible'));
     return {
       ...m,
-      stock: invItem ? invItem.stock : 0,
-      tipo: invItem ? invItem.tipo : (m.tipo || 'consumible'),
+      stock: invItem ? invItem.stock : (m.stock ?? 0),
+      tipo: resolvedTipo,
       descargaStock: invItem ? invItem.descargaStock : (m.descargaStock ?? true),
     };
   });
+
+  const herramientasSinResponsable = getHerramientasSinResponsable(materialesConStock);
+  const bloqueoPorHerramientas = herramientasSinResponsable.length > 0;
 
   return (
     <div className="request-page-container">
@@ -1207,7 +1211,7 @@ export function MaterialesRequestPage() {
                               {!esSoloLectura && (
                                 <td style={{ textAlign: 'center' }} data-label="Acción">
                                   <button
-                                    onClick={() => handleRemoveFromDraft(m.sku || m.nombre)}
+                                    onClick={() => handleRemoveFromDraft(i)}
                                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                     title="Eliminar material"
                                   >

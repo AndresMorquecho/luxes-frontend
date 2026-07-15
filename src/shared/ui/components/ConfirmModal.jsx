@@ -141,7 +141,7 @@ export const ConfirmDialogContainer = () => {
                 </button>
               </div>
               <div className="confirm-body">
-                <p className="confirm-message">{state.message}</p>
+                <div className="confirm-message">{state.message}</div>
               </div>
               <div className="confirm-footer">
                 {state.showCancel && (

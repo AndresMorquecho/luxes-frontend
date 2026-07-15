@@ -70,6 +70,7 @@ export const MARCACION_SLOTS = [
   { tipo: 'INICIO_ALMUERZO', short: 'Sal. Alm.', color: 'amber' },
   { tipo: 'FIN_ALMUERZO', short: 'Reg. Alm.', color: 'sky' },
   { tipo: 'SALIDA', short: 'Salida', color: 'indigo' },
+  { tipo: 'SALIDA_PERMISO', short: 'Salida c/perm.', color: 'violet' },
   { tipo: 'FIN_HORAS_EXTRA', short: 'H. Extras', color: 'violet' },
 ];
 
@@ -79,20 +80,26 @@ export const TIPOS_SELECCIONABLES = [
   { tipo: 'FIN_ALMUERZO', label: 'Regreso almuerzo', shortLabel: 'Reg. almuerzo' },
   { tipo: 'SALIDA', label: 'Salida', shortLabel: 'Salida' },
   { tipo: 'FIN_HORAS_EXTRA', label: 'Fin horas extras', shortLabel: 'Horas extras' },
+  { tipo: 'SALIDA_PERMISO', label: 'Salida con permiso', shortLabel: 'Salida c/permiso' },
 ];
 
-export function getOpcionesMarcacion(marks = []) {
+export function getOpcionesMarcacion(marks = [], tipoContrato = 'Tiempo Completo') {
   const tipos = new Set(marks.map((m) => m.tipo));
-  if (tipos.has('PERMISO') || tipos.has('FIN_HORAS_EXTRA')) return [];
+  if (tipos.has('PERMISO') || tipos.has('FIN_HORAS_EXTRA') || tipos.has('SALIDA_PERMISO')) return [];
 
   if (!tipos.has('ENTRADA')) return [TIPOS_SELECCIONABLES[0]];
+
+  if (tipoContrato === 'Medio Día') {
+    if (!tipos.has('SALIDA')) return [TIPOS_SELECCIONABLES[3]];
+    return [];
+  }
 
   const enAlmuerzo = tipos.has('INICIO_ALMUERZO') && !tipos.has('FIN_ALMUERZO');
   if (enAlmuerzo) return [TIPOS_SELECCIONABLES[2]];
 
   if (!tipos.has('SALIDA')) {
-    if (!tipos.has('INICIO_ALMUERZO')) return [TIPOS_SELECCIONABLES[1], TIPOS_SELECCIONABLES[3]];
-    if (tipos.has('FIN_ALMUERZO')) return [TIPOS_SELECCIONABLES[3]];
+    if (!tipos.has('INICIO_ALMUERZO')) return [TIPOS_SELECCIONABLES[1], TIPOS_SELECCIONABLES[5]];
+    if (tipos.has('FIN_ALMUERZO')) return [TIPOS_SELECCIONABLES[3], TIPOS_SELECCIONABLES[5]];
     return [];
   }
 
@@ -100,8 +107,8 @@ export function getOpcionesMarcacion(marks = []) {
   return [];
 }
 
-export function puedeRegistrarMarcacion(marks = []) {
-  return getOpcionesMarcacion(marks).length > 0;
+export function puedeRegistrarMarcacion(marks = [], tipoContrato = 'Tiempo Completo') {
+  return getOpcionesMarcacion(marks, tipoContrato).length > 0;
 }
 
 export function previewHorasExtras(marks = []) {
@@ -116,13 +123,13 @@ export function previewHorasExtras(marks = []) {
   return { horas, detalle: `${fmt(salidaAt)} - ${fmt(ahora)}` };
 }
 
-export function resolveProximaMarcacion(marks = []) {
-  const opciones = getOpcionesMarcacion(marks);
+export function resolveProximaMarcacion(marks = [], tipoContrato = 'Tiempo Completo') {
+  const opciones = getOpcionesMarcacion(marks, tipoContrato);
   if (opciones.length === 0) {
     return { proxima: null, permiteOmitirAlmuerzo: false, completado: true, marcacionesRegistradas: marks.length };
   }
   const marcacionesRegistradas = marks.filter((m) =>
-    SECUENCIA_MARCACIONES.some((s) => s.tipo === m.tipo) || m.tipo === 'FIN_HORAS_EXTRA',
+    SECUENCIA_MARCACIONES.some((s) => s.tipo === m.tipo) || m.tipo === 'SALIDA_PERMISO' || m.tipo === 'FIN_HORAS_EXTRA',
   ).length;
   const proxima = opciones[0];
   const alternativa = opciones.find((o) => o.tipo === 'SALIDA' && proxima.tipo === 'INICIO_ALMUERZO');
@@ -138,7 +145,7 @@ export function resolveProximaMarcacion(marks = []) {
 
 export function isDiaLaboralCompleto(marks = []) {
   const tipos = new Set(marks.map((m) => m.tipo));
-  return tipos.has('PERMISO') || tipos.has('FIN_HORAS_EXTRA');
+  return tipos.has('PERMISO') || tipos.has('SALIDA') || tipos.has('SALIDA_PERMISO') || tipos.has('FIN_HORAS_EXTRA');
 }
 
 export function mapMarcacionesByTipo(marks = []) {

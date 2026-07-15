@@ -6,7 +6,7 @@ const getHeaders = () => {
   };
 };
 
-export const CATEGORIAS = ['oficina', 'mantenimiento', 'servicios', 'logistica', 'vehiculos', 'varios'];
+export const CATEGORIAS = ['oficina', 'mantenimiento', 'servicios', 'logistica', 'vehiculos', 'redes_y_programas', 'varios'];
 
 export async function getMetodosPago(desde, hasta) {
   const params = new URLSearchParams();
@@ -133,6 +133,15 @@ export async function deleteMantenimiento(mantenimientoId) {
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar mantenimiento');
   return data.data;
+}
+
+export async function saveMantenimiento(vehiculoId, mantenimiento) {
+  const isEdit = !!mantenimiento.id;
+  if (isEdit) {
+    return await updateMantenimiento(mantenimiento.id, mantenimiento);
+  } else {
+    return await addMantenimiento(vehiculoId, mantenimiento);
+  }
 }
 
 // ── Cierres de Caja y Reportes ───────────────────────────────────────────────

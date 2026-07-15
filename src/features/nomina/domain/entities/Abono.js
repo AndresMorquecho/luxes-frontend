@@ -13,8 +13,9 @@ export class Abono {
    * @param {string} [data.metodoPagoNombre] - Nombre del método de pago/caja
    * @param {string} [data.usuarioNombre] - Nombre del usuario que registró el pago
    * @param {string} [data.fechaHora] - Fecha y hora formateada local
+   * @param {string} [data.comprobanteUrl] - URL del comprobante de pago (opcional)
    */
-  constructor({ id, monto, fecha, metodoPagoId, metodoPagoNombre, usuarioNombre, fechaHora }) {
+  constructor({ id, monto, fecha, metodoPagoId, metodoPagoNombre, usuarioNombre, fechaHora, comprobanteUrl }) {
     this.id = id;
     this.monto = Number(monto);
     this.fecha = fecha;
@@ -22,6 +23,7 @@ export class Abono {
     this.metodoPagoNombre = metodoPagoNombre;
     this.usuarioNombre = usuarioNombre;
     this.fechaHora = fechaHora;
+    this.comprobanteUrl = comprobanteUrl || null;
   }
 
   /**
@@ -35,3 +37,4 @@ export class Abono {
     return true;
   }
 }
+

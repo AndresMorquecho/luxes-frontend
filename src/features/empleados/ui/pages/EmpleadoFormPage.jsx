@@ -30,7 +30,7 @@ const EMPTY_FORM = {
   roleId: '',
   cuentaBanco: '',
   banco: '',
-  tipoContrato: 'Fijo',
+  tipoContrato: 'Tiempo Completo',
   tieneContrato: true,
   sueldoDiario: '',
   decimoTerceroValor: '',
@@ -41,7 +41,7 @@ const EMPTY_FORM = {
 };
 
 const BANCOS = ['Pichincha', 'Guayaquil', 'Bolivariano', 'Pacifico', 'Internacional', 'Produbanco', 'Austro', 'Machala'];
-const CONTRATOS = ['Fijo', 'Indefinido', 'Temporal', 'Por obra'];
+const CONTRATOS = ['Tiempo Completo', 'Medio Día'];
 
 const BANCO_THEMES = {
   '': {
@@ -1050,14 +1050,19 @@ export const EmpleadoFormPage = () => {
                         </label>
 
 
-                        {form.tieneContrato && (
-                          <div>
-                            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Tipo de contrato</label>
-                            <select name="tipoContrato" value={form.tipoContrato} onChange={handleChange} className="input-field">
-                              {CONTRATOS.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                          </div>
-                        )}
+                        {/* Jornada / Horario — visible para TODOS los empleados */}
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Jornada / Horario</label>
+                          <select name="tipoContrato" value={form.tipoContrato} onChange={handleChange} className="input-field">
+                            {CONTRATOS.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                            {form.tipoContrato === 'Medio Día'
+                              ? 'Salida a la 1:00 PM · Sin descuento por salida a las 13:00'
+                              : 'Jornada completa · Lun–Vie 8h · Sáb hasta 14:00'}
+                          </p>
+                        </div>
+
                         <div>
                           <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Sueldo base mensual ($)</label>
                           <input name="sueldoDiario" type="number" step="0.01" min="0" value={form.sueldoDiario} onChange={handleChange} placeholder="500.00" className="input-field" />
