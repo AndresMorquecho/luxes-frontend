@@ -37,6 +37,8 @@ export const Layout = ({ children, user, onLogout }) => {
     { name: 'Configuración: General', path: '/configuracion' },
   ];
 
+  const isVentasOrDisenador = user?.rol?.toLowerCase().includes('ventas') || user?.rol?.toLowerCase().includes('diseñador') || user?.rol?.toLowerCase().includes('disenador');
+
   const allowedModules = user?.rol?.toLowerCase() === 'taller'
     ? [
         { name: 'Notificaciones', path: '/notificaciones' },
@@ -48,7 +50,9 @@ export const Layout = ({ children, user, onLogout }) => {
       ]
     : (user?.rol?.toLowerCase() === 'admin' || user?.rol?.toLowerCase() === 'administrador')
       ? modules.filter(m => m.path !== '/instalaciones')
-      : modules;
+      : isVentasOrDisenador
+        ? modules.filter(m => m.path !== '/proveedores')
+        : modules;
 
   const filteredModules = searchQuery.trim() === ''
     ? []

@@ -727,46 +727,33 @@ export const ProformasPage = () => {
                                 <Eye size={12} className="text-blue-500" /> Ver detalle
                               </button>
                               
-                              <div className="relative">
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveDropdownId(activeDropdownId === p.id ? null : p.id);
-                                  }}
-                                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                  <MoreVertical size={16} />
-                                </button>
-                                
-                                {activeDropdownId === p.id && (
-                                  <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-100 rounded-lg shadow-xl py-1 z-[100] animate-fade-in text-left">
-                                    <button 
-                                      onClick={() => { setPreview(p); setActiveDropdownId(null); }}
-                                      className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2"
-                                    >
-                                      <Download size={12} className="text-slate-400" /> Ver / Imprimir PDF
-                                    </button>
-                                    <button 
-                                      disabled={!isAdmin}
-                                      onClick={() => { openEdit(p); setActiveDropdownId(null); }}
-                                      className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent"
-                                    >
-                                      <svg className="w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                      </svg>
-                                      Editar proforma
-                                    </button>
-                                    <hr className="my-1 border-slate-100" />
-                                    <button 
-                                      disabled={!isAdmin}
-                                      onClick={() => { handleDelete(p.id); setActiveDropdownId(null); }}
-                                      className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent"
-                                    >
-                                      <Trash2 size={12} className="text-red-400" /> Eliminar proforma
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              <button 
+                                onClick={() => setPreview(p)}
+                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                                title="Ver / Imprimir PDF"
+                              >
+                                <Download size={14} />
+                              </button>
+                              
+                              <button 
+                                disabled={!isAdmin}
+                                onClick={() => openEdit(p)}
+                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                title="Editar proforma"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                </svg>
+                              </button>
+
+                              <button 
+                                disabled={!isAdmin}
+                                onClick={() => handleDelete(p.id)}
+                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                title="Eliminar proforma"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -851,51 +838,38 @@ export const ProformasPage = () => {
                       <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
                         <button 
                           onClick={() => navigate(`/proformas/detalle/${p.id}`)}
-                          className="flex items-center justify-center gap-1 px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors w-full"
+                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                         >
                           <Eye size={12} className="text-blue-500" /> Ver detalle
                         </button>
                         
-                        <div className="relative">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveDropdownId(activeDropdownId === p.id ? null : p.id);
-                            }}
-                            className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-                          
-                          {activeDropdownId === p.id && (
-                            <div className="absolute right-0 bottom-full mb-1 w-48 bg-white border border-slate-100 rounded-lg shadow-xl py-1 z-[100] text-left">
-                              <button 
-                                onClick={() => { setPreview(p); setActiveDropdownId(null); }}
-                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2"
-                              >
-                                <Download size={12} className="text-slate-400" /> Ver / Imprimir PDF
-                              </button>
-                              <button 
-                                disabled={!isAdmin}
-                                onClick={() => { openEdit(p); setActiveDropdownId(null); }}
-                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent"
-                              >
-                                <svg className="w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                </svg>
-                                Editar proforma
-                              </button>
-                              <hr className="my-1 border-slate-100" />
-                              <button 
-                                disabled={!isAdmin}
-                                onClick={() => { handleDelete(p.id); setActiveDropdownId(null); }}
-                                className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:hover:bg-transparent"
-                              >
-                                <Trash2 size={12} className="text-red-400" /> Eliminar proforma
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <button 
+                          onClick={() => setPreview(p)}
+                          className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                          title="Ver / Imprimir PDF"
+                        >
+                          <Download size={14} />
+                        </button>
+                        
+                        <button 
+                          disabled={!isAdmin}
+                          onClick={() => openEdit(p)}
+                          className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                          title="Editar proforma"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+
+                        <button 
+                          disabled={!isAdmin}
+                          onClick={() => handleDelete(p.id)}
+                          className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                          title="Eliminar proforma"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   );

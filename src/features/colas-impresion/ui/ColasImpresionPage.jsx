@@ -1617,7 +1617,13 @@ export const ColasImpresionPage = () => {
 
                   return (
                     <div style={{ padding: '0.75rem', backgroundColor: '#f0fdfa', borderRadius: '8px', border: '1px solid #99f6e4', fontSize: '0.85rem' }}>
-                      <h5 style={{ fontWeight: 700, color: '#0d9488', marginBottom: '0.25rem' }}>Cálculo de Consumo Sugerido:</h5>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <h5 style={{ fontWeight: 700, color: '#0d9488', margin: 0 }}>Cálculo de Consumo Sugerido:</h5>
+                        <div style={{ padding: '0.25rem 0.5rem', backgroundColor: '#0f766e', color: '#fff', borderRadius: '4px', fontWeight: 700, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                          Disponible: {mat.stockActual} {mat.unidadMedida?.abreviacion || mat.unidadMedida?.nombre || 'm'}
+                        </div>
+                      </div>
                       
                       {isInk ? (
                         <p style={{ margin: 0, color: '#0f766e' }}>

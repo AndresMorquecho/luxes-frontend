@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getProformaById, aprobarProforma, rechazarProforma, registrarAbonoProforma, editarAbonoProforma, eliminarAbonoProforma } from '../../application/proformasService';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { getProformaById, aprobarProforma, rechazarProforma, registrarAbonoProforma, editarAbonoProforma, eliminarAbonoProforma, saveProforma } from '../../application/proformasService';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
@@ -37,6 +37,7 @@ const formatFecha = (dateStr) => {
 export const ProformaDetallePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [proforma, setProforma] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,7 @@ export const ProformaDetallePage = () => {
     monto: '',
     metodoPagoId: '',
     referencia: '',
+    aplicarIva: false,
   });
   const [submittingAbono, setSubmittingAbono] = useState(false);
   const isMobileSm = useIsMobileSm();
@@ -73,7 +75,24 @@ export const ProformaDetallePage = () => {
         setMetodosPago(metodos);
         setConfiguracion(config);
         if (metodos.length > 0) {
-          setAbonoForm(prev => ({ ...prev, metodoPagoId: metodos[0].id }));
+          setAbonoForm(prev => ({ ...prev, metodoPagoId: metodos[0].id, aplicarIva: data?.iva > 0 }));
+        } else {
+          setAbonoForm(prev => ({ ...prev, aplicarIva: data?.iva > 0 }));
+        }
+
+        if (searchParams.get('action') === 'abono') {
+          // Calculate the total to prepopulate
+          const totalPend = data.items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precioUnitario) || 0), 0) * (1 + data.iva);
+          setAbonoForm(prev => ({
+            ...prev,
+            monto: data.estado === 'Pendiente' ? totalPend.toFixed(2) : prev.monto
+          }));
+          setShowAbonoModal(true);
+          
+          // Remove the query param cleanly
+          const params = new URLSearchParams(searchParams);
+          params.delete('action');
+          setSearchParams(params, { replace: true });
         }
       } catch (err) {
         console.error(err);
@@ -105,7 +124,8 @@ export const ProformaDetallePage = () => {
   }
 
   const subtotal = (proforma.items || []).reduce((s, item) => s + Number(item.cantidad) * Number(item.precioUnitario), 0);
-  const total = subtotal * (1 + Number(proforma.iva));
+  const currentIvaValue = (showAbonoModal && proforma?.estado === 'Pendiente') ? (abonoForm.aplicarIva ? 0.15 : 0) : Number(proforma.iva);
+  const total = subtotal * (1 + currentIvaValue);
   const totalCobrado = (proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
   const totalPendiente = Math.max(0, total - totalCobrado);
   
@@ -131,9 +151,12 @@ export const ProformaDetallePage = () => {
   };
 
   const handleOpenAprobar = () => {
+    const isIva = proforma.iva > 0;
+    const initialTotal = subtotal * (1 + (isIva ? 0.15 : 0));
     setAbonoForm(prev => ({
       ...prev,
-      monto: total.toFixed(2),
+      monto: initialTotal.toFixed(2),
+      aplicarIva: isIva,
     }));
     setShowAbonoModal(true);
   };
@@ -153,6 +176,7 @@ export const ProformaDetallePage = () => {
       monto: '',
       metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
       referencia: '',
+      aplicarIva: proforma?.iva > 0,
     });
   };
 
@@ -162,6 +186,7 @@ export const ProformaDetallePage = () => {
       monto: abono.monto.toString(),
       metodoPagoId: abono.metodoPago?.id || '',
       referencia: abono.referencia || '',
+      aplicarIva: proforma?.iva > 0,
     });
     setShowAbonoModal(true);
   };
@@ -190,8 +215,8 @@ export const ProformaDetallePage = () => {
     e.preventDefault();
     const numericMonto = parseFloat(abonoForm.monto);
     
-    if (isNaN(numericMonto) || numericMonto <= 0) {
-      toast.error('Por favor, ingresa un monto válido mayor a $0');
+    if (isNaN(numericMonto) || numericMonto < 0) {
+      toast.error('Por favor, ingresa un monto válido (0 o mayor)');
       return;
     }
 
@@ -199,7 +224,7 @@ export const ProformaDetallePage = () => {
       ? total 
       : (editingAbono ? total - sumOtrosAbonos : totalPendiente);
 
-    if (numericMonto > (maxPermitted + 0.01)) {
+    if (maxPermitted > 0 && numericMonto > (maxPermitted + 0.01)) {
       toast.error(`El abono no puede superar el valor restante de ${formatUSD(maxPermitted)}`);
       return;
     }
@@ -219,6 +244,7 @@ export const ProformaDetallePage = () => {
           monto: numericMonto,
           metodoPagoId: abonoForm.metodoPagoId,
           referencia: abonoForm.referencia,
+          aplicarIva: abonoForm.aplicarIva,
         });
         toast.success('Proforma aprobada y abono registrado correctamente');
       } else {
@@ -493,8 +519,34 @@ export const ProformaDetallePage = () => {
               <span>Subtotal:</span>
               <span className="font-mono font-bold text-slate-700">{formatUSD(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-slate-500 font-semibold">
-              <span>IVA ({Number(proforma.iva * 100)}%):</span>
+            <div className="flex justify-between items-center text-slate-500 font-semibold">
+              <div className="flex items-center gap-1">
+                <span>IVA</span>
+                {proforma.estado === 'Pendiente' ? (
+                  <select
+                    className="ml-1 text-xs font-bold bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+                    value={proforma.iva}
+                    onChange={async (e) => {
+                      const newIva = Number(e.target.value);
+                      try {
+                        const updated = await saveProforma({ ...proforma, iva: newIva });
+                        setProforma(updated);
+                        toast.success(`IVA actualizado al ${newIva * 100}%`);
+                      } catch (err) {
+                        toast.error("Error al actualizar el IVA");
+                      }
+                    }}
+                  >
+                    <option value={0}>0%</option>
+                    <option value={0.05}>5%</option>
+                    <option value={0.10}>10%</option>
+                    <option value={0.15}>15%</option>
+                  </select>
+                ) : (
+                  <span>({Number(proforma.iva * 100)}%)</span>
+                )}
+                <span>:</span>
+              </div>
               <span className="font-mono font-bold text-slate-700">{formatUSD(subtotal * Number(proforma.iva))}</span>
             </div>
             <div className="flex justify-between text-slate-800 font-bold text-base border-t border-slate-200 pt-2">
@@ -652,11 +704,43 @@ export const ProformaDetallePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Columna Izquierda: Información Financiera y Monto */}
                 <div className="space-y-4">
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                    {editingAbono 
-                      ? 'Modifica los valores del abono. El total del abono no debe superar el saldo pendiente.'
-                      : 'Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.'}
-                  </p>
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                      {editingAbono 
+                        ? 'Modifica los valores del abono. El total del abono no debe superar el saldo pendiente.'
+                        : 'Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.'}
+                    </p>
+                    
+                    {proforma.estado === 'Pendiente' && !editingAbono && (
+                      <label className="flex items-center cursor-pointer flex-shrink-0 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={abonoForm.aplicarIva}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setAbonoForm(prev => {
+                                const newIvaVal = checked ? 0.15 : 0;
+                                const newTotal = subtotal * (1 + newIvaVal);
+                                const isTotal = prev.monto === total.toFixed(2);
+                                return {
+                                  ...prev,
+                                  aplicarIva: checked,
+                                  monto: isTotal ? newTotal.toFixed(2) : prev.monto
+                                };
+                              });
+                            }}
+                          />
+                          <div className={`block w-10 h-6 rounded-full transition-colors ${abonoForm.aplicarIva ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
+                          <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${abonoForm.aplicarIva ? 'transform translate-x-4' : ''}`}></div>
+                        </div>
+                        <div className="ml-3 text-xs font-bold text-slate-700 select-none">
+                          Aplicar IVA (15%)
+                        </div>
+                      </label>
+                    )}
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
@@ -683,7 +767,7 @@ export const ProformaDetallePage = () => {
                       <input
                         type="number"
                         step="0.01"
-                        min="0.01"
+                        min="0"
                         required
                         value={abonoForm.monto}
                         onChange={e => setAbonoForm(prev => ({ ...prev, monto: e.target.value }))}

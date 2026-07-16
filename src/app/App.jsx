@@ -19,7 +19,6 @@ import ComprasFeature from '../features/compras/ui';
 import VentasFeature from '../features/ventas/ui';
 import GastosFeature from '../features/gastos/ui';
 import InventarioFeature from '../features/inventario/ui';
-import { DevolucionesPage } from '../features/inventario/ui/DevolucionesPage.jsx';
 import TareasFeature from '../features/tareas/ui';
 import { EncuestaPage } from '../features/proyectos/ui/pages/EncuestaPage.jsx';
 import { InstalacionesPage } from '../features/instalaciones/ui/InstalacionesPage.jsx';
@@ -253,7 +252,8 @@ function App() {
               <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
               <Route path="/tareas/*" element={<TareasFeature />} />
               <Route path="/compras/*" element={<ComprasFeature />} />
-              <Route path="/devoluciones" element={<DevolucionesPage />} />
+              <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
+              <Route path="/inventario/*" element={<InventarioFeature />} />
               <Route path="/inventario/recepcion" element={<Navigate to="/compras/recepcion" replace />} />
               <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
               <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
@@ -276,9 +276,11 @@ function App() {
               {!isImpresion && <Route path="/proveedores/*" element={<ProveedoresFeature />} />}
               {!isImpresion && !isVentas && !isDisenador && <Route path="/usuarios/*" element={<UsuariosFeature />} />}
               {!isImpresion && !isVentas && !isDisenador && <Route path="/configuracion/*" element={<ConfiguracionFeature />} />}
+              <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
               <Route path="/compras/*" element={<ComprasFeature />} />
               {!isImpresion && <Route path="/ventas/*" element={<VentasFeature />} />}
               {!isImpresion && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
+              {!isImpresion && <Route path="/flota/*" element={<GastosFeature defaultTab="vehiculos" />} />}
               {!isImpresion && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
               {!isImpresion && <Route path="/movimientos/*" element={<MovimientosPage />} />}
               {!isImpresion && <Route path="/balances" element={<BalancesPage />} />}

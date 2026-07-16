@@ -17,6 +17,7 @@ export const getProformas = async (filters = {}) => {
   if (filters.fechaHasta) params.append('fechaHasta', filters.fechaHasta);
   if (filters.clienteId) params.append('clienteId', filters.clienteId);
   if (filters.usuario) params.append('usuario', filters.usuario);
+  if (filters.conAbonos) params.append('conAbonos', filters.conAbonos);
 
   const queryString = params.toString();
   const url = `/api/proformas${queryString ? `?${queryString}` : ''}`;
@@ -80,11 +81,11 @@ export const getProformaById = async (id) => {
   return data.data;
 };
 
-export const aprobarProforma = async (id, { monto, metodoPagoId, referencia }) => {
+export const aprobarProforma = async (id, { monto, metodoPagoId, referencia, aplicarIva }) => {
   const res = await fetch(`/api/proformas/${id}/aprobar`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ monto, metodoPagoId, referencia }),
+    body: JSON.stringify({ monto, metodoPagoId, referencia, aplicarIva }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {

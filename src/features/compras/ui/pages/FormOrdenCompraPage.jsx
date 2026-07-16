@@ -512,41 +512,16 @@ export const FormOrdenCompraPage = () => {
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
             Información de la Orden
           </div>
-          <div className={`grid grid-cols-1 gap-4 ${isTaller || isAdmin || isEdit ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
-            {!isTaller && !isAdmin && !isEdit && (
-              <div>
-                <label className="co-label">No. de Orden</label>
-                <div className="co-input bg-slate-50 font-mono text-xs font-semibold flex items-center h-[38px] text-slate-400 px-4 border border-slate-200/80" style={{ borderRadius: '10px' }}>
-                  ORC-XXX (Autogenerado)
-                </div>
-              </div>
-            )}
-            <div>
-              <label className="co-label">Fecha de Solicitud</label>
-              <input
-                type="date"
-                className="co-input"
-                value={form.fecha}
-                onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))}
-                required
-                disabled={editBloqueado}
-              />
-            </div>
-            <div>
-              <label className="co-label">Proyecto Asociado</label>
-              <select
-                className="co-input bg-white"
-                style={{ height: '38px', borderRadius: '10px', padding: '0 10px', fontSize: '13px' }}
-                value={form.proyectoId || ''}
-                onChange={e => setForm(p => ({ ...p, proyectoId: e.target.value }))}
-                disabled={editBloqueado}
-              >
-                <option value="">-- Sin Proyecto (Gasto General) --</option>
-                {proyectosAsociables.map(p => (
-                  <option key={p.id} value={p.id}>{p.id} - {p.nombre}</option>
-                ))}
-              </select>
-            </div>
+          <div className="max-w-xs">
+            <label className="co-label">Fecha de Solicitud</label>
+            <input
+              type="date"
+              className="co-input"
+              value={form.fecha}
+              onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))}
+              required
+              disabled={editBloqueado}
+            />
           </div>
           <div className="mt-4">
             <label className="co-label">Concepto / Motivo de la Compra</label>

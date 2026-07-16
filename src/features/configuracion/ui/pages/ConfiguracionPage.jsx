@@ -5,22 +5,9 @@ import { getHorarioConfig, saveHorarioConfig } from '../../../asistencia/applica
 import { HorarioDelDiaBanner, HorarioEditModal } from '../../../asistencia/ui/components/HorarioDelDiaBanner';
 import { normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../../asistencia/helpers/horarioLaboral';
 
-const AVAILABLE_MODULES = [
-  { key: 'finanzas', label: 'Finanzas' },
-  { key: 'nomina', label: 'Nómina' },
-  { key: 'proformas', label: 'Proformas' },
-  { key: 'inventario', label: 'Inventario' },
-  { key: 'tallerImpresion', label: 'Taller de Impresión' },
-  { key: 'gastos', label: 'Gastos' },
-  { key: 'tareas', label: 'Tareas' },
-  { key: 'proyectos', label: 'Gestión de Proyectos' },
-  { key: 'devolucionesTaller', label: 'Devoluciones (Taller)' },
-  { key: 'controlVehiculos', label: 'Control de Vehículos' },
-  { key: 'instalaciones', label: 'Instalaciones' },
-  { key: 'compras', label: 'Compras' },
-  { key: 'ventas', label: 'Ventas' },
-  { key: 'relaciones', label: 'Contactos' },
-];
+import { DEFAULT_HIDDEN_MODULES, normalizeHiddenModules, SIDEBAR_MODULES } from '../../../navigation/application/sidebarModules';
+
+const AVAILABLE_MODULES = SIDEBAR_MODULES;
 
 const getHeaders = () => {
   const token = localStorage.getItem('token');
@@ -51,20 +38,14 @@ export const ConfiguracionPage = () => {
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
 
   const [selectedHidden, setSelectedHidden] = useState(() => {
-    let hidden = ['relaciones', 'instalaciones', 'inventario']; // defaults
+    let hidden = [...DEFAULT_HIDDEN_MODULES];
     if (loggedInUser?.sidebarConfig) {
       try {
         const configObj = typeof loggedInUser.sidebarConfig === 'string'
           ? JSON.parse(loggedInUser.sidebarConfig)
           : loggedInUser.sidebarConfig;
         if (configObj && Array.isArray(configObj.hiddenModules)) {
-          hidden = configObj.hiddenModules.filter((k) => k !== 'reportesFinancieros');
-          if (hidden.includes('cierreCaja')) {
-            hidden = hidden.filter((k) => k !== 'cierreCaja');
-            if (!hidden.includes('finanzas')) {
-              hidden.push('finanzas');
-            }
-          }
+          hidden = normalizeHiddenModules(configObj.hiddenModules);
         }
       } catch (e) {
         console.error('Error parsing sidebarConfig in config page:', e);
@@ -143,7 +124,7 @@ export const ConfiguracionPage = () => {
       const res = await fetch('/api/auth/users/me/sidebar-config', {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify({ sidebarConfig: { hiddenModules: selectedHidden } }),
+        body: JSON.stringify({ sidebarConfig: { hiddenModules: normalizeHiddenModules(selectedHidden) } }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -380,12 +361,11 @@ export const ConfiguracionPage = () => {
           <div className="p-6 space-y-6">
             <div className="space-y-4">
               <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider border-b border-slate-100 pb-2">
-                Personalización de Módulos Principales
+                Categorías del menú lateral
               </h2>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Selecciona cuáles módulos se mostrarán cuando estés en el modo de vista <strong>"Módulos Principales"</strong>. 
-                Los módulos desactivados (gris) se ocultarán temporalmente de la barra lateral, pero seguirán estando disponibles 
-                en el modo de vista <strong>"Ver todo"</strong>.
+                Elige qué secciones aparecen en el modo <strong>Módulos principales</strong>.
+                Las categorías desactivadas siguen disponibles al activar <strong>Ver todo</strong> en el sidebar.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4">

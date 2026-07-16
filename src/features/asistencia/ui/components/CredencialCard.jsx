@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { toPng } from 'html-to-image';
 import headerBg from '../../../../assets/header-bg.png';
 
 const LUXES_NAVY = '#02188E';
@@ -11,8 +12,9 @@ const HEADER_BG_STYLE = {
   backgroundRepeat: 'no-repeat',
 };
 
-export const CredencialCard = ({ emp, isPrinting, onPrint, onFotoUpload }) => {
+export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
   const fileInputRef = useRef(null);
+  const cardRef = useRef(null);
   const hasFoto = Boolean(emp.foto?.trim());
 
   const handleAvatarClick = () => {
@@ -27,12 +29,36 @@ export const CredencialCard = ({ emp, isPrinting, onPrint, onFotoUpload }) => {
     e.target.value = '';
   };
 
+  const handleDownload = async () => {
+    if (!cardRef.current) return;
+    
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 3,
+        backgroundColor: '#ffffff',
+        filter: (node) => {
+          if (node?.hasAttribute && node.hasAttribute('data-exclude')) {
+            return false;
+          }
+          return true;
+        }
+      });
+      
+      const link = document.createElement('a');
+      link.download = `credencial-${emp.nombre.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Error generando credencial:', err);
+    }
+  };
+
   return (
     <div className={`relative group w-full max-w-[300px] ${isPrinting ? 'print-target' : 'perspective'}`}>
       {/* Glow effect */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0433ff]/30 to-[#02188E]/40 rounded-2xl blur opacity-25 group-hover:opacity-45 transition duration-500" />
 
-      <div className="relative flex flex-col bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl h-full">
+      <div ref={cardRef} className="relative flex flex-col bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl h-full">
         
         {/* Card Header Band */}
         <div className="h-20 relative shrink-0 flex items-end px-4 pb-3 overflow-hidden" style={HEADER_BG_STYLE}>
@@ -83,21 +109,21 @@ export const CredencialCard = ({ emp, isPrinting, onPrint, onFotoUpload }) => {
         {/* QR Section */}
         <div className="flex flex-col items-center py-5 shrink-0">
           <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100">
-            <QRCodeSVG value={emp.id} size={90} level="H" fgColor={LUXES_NAVY} />
+            <QRCodeSVG value={emp.id} size={140} level="H" fgColor={LUXES_NAVY} />
           </div>
           <p className="text-[10px] text-gray-400 mt-2 font-mono tracking-widest">{emp.id}</p>
         </div>
 
         {/* Print Button */}
-        <div className="p-4 flex justify-center print-hidden border-t border-gray-100">
+        <div data-exclude="true" className="p-4 flex justify-center print-hidden border-t border-gray-100">
           <button
-            onClick={() => onPrint(emp.id)}
-            className="bg-[#02188E] hover:bg-[#0433ff] active:scale-95 text-white text-xs font-bold py-2 px-5 rounded-full shadow-lg transition-all flex items-center gap-2"
+            onClick={handleDownload}
+            className="bg-[#02188E] hover:bg-[#0433ff] active:scale-95 text-white text-xs font-bold py-2 px-5 rounded-full shadow-lg transition-all flex items-center gap-2 cursor-pointer border-none"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Imprimir Carnet
+            Descargar carnet
           </button>
         </div>
       </div>
