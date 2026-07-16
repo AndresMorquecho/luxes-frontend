@@ -8,17 +8,37 @@ import { ArrowLeft, Calendar, Package, ChevronDown, Plus, Minus, FileText, Check
 
 const fmtDate = (d) => formatDateOnlyES(d, { year: 'numeric', month: 'long', day: 'numeric' });
 
+const isRoll = (material) => {
+  if (!material) return false;
+  const unit = (material.unidadMedida?.nombre || material.unidadMedida?.abreviacion || '').toLowerCase();
+  const name = (material.nombre || '').toLowerCase();
+  const cat = (material.categoria || '').toLowerCase();
+  return (
+    material.ancho != null || 
+    unit === 'm' || 
+    unit === 'metros' || 
+    cat === 'impresión' || 
+    cat === 'impresion' ||
+    name.includes('rollo') || 
+    name.includes('lona') || 
+    name.includes('vinil')
+  );
+};
+
 const mapDetalleFromOrden = (d) => {
   const isDownloadable = d.material 
     ? (d.material.subtipo === 'consumible_descargable' || d.material.categoria === 'Impresión')
     : false;
+  const isMaterialRoll = isRoll(d.material);
   return {
     id: d.id,
     descripcion: d.descripcion,
     materialId: d.materialId,
     material: d.material,
     cantidadSolicitada: d.cantidad,
-    cantidadRecibida: d.cantidadRecibida != null ? String(d.cantidadRecibida) : String(d.cantidad),
+    cantidadRecibida: d.cantidadRecibida != null 
+      ? String(d.cantidadRecibida) 
+      : (isMaterialRoll ? '0' : String(d.cantidad)),
     precioUnitario: d.precioUnitario,
     observacion: '',
     descargableInventario: d.descargableInventario ?? isDownloadable,
@@ -26,6 +46,8 @@ const mapDetalleFromOrden = (d) => {
       ? toDateInputValue(d.fechaRecepcion)
       : todayDateInputValue(),
     yaRecibido: (d.cantidadRecibida ?? 0) > 0,
+    rollosCalc: String(d.cantidad),
+    metrosPorRolloCalc: '',
   };
 };
 
@@ -87,8 +109,30 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
 
   const handleQtyChange = (index, val) => {
     const detail = detalles[index];
-    const newQty = Math.max(0, Math.min(detail.cantidadSolicitada, val));
+    const isMaterialRoll = isRoll(detail.material);
+    const maxVal = isMaterialRoll ? 999999 : detail.cantidadSolicitada;
+    const newQty = Math.max(0, Math.min(maxVal, val));
     updateDetalle(index, { cantidadRecibida: String(newQty) });
+  };
+
+  const handleRollosCalcChange = (index, rollos) => {
+    const detail = detalles[index];
+    const metros = parseFloat(detail.metrosPorRolloCalc) || 0;
+    const totalMetros = (parseFloat(rollos) || 0) * metros;
+    updateDetalle(index, { 
+      rollosCalc: rollos, 
+      cantidadRecibida: String(totalMetros) 
+    });
+  };
+
+  const handleMetrosPorRolloCalcChange = (index, metros) => {
+    const detail = detalles[index];
+    const rollos = parseFloat(detail.rollosCalc) || 0;
+    const totalMetros = rollos * (parseFloat(metros) || 0);
+    updateDetalle(index, { 
+      metrosPorRolloCalc: metros, 
+      cantidadRecibida: String(totalMetros) 
+    });
   };
 
   const handleRecepcionarTodo = async () => {
@@ -302,44 +346,68 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
 
                     {/* Cantidad Ordenada */}
                     <td className="px-6 py-4 text-center font-semibold text-slate-600">
-                      {detalle.cantidadSolicitada} unidad{detalle.cantidadSolicitada !== 1 ? 's' : ''}
+                      {detalle.cantidadSolicitada} {isRoll(detalle.material) ? (detalle.cantidadSolicitada === 1 ? 'rollo' : 'rollos') : (detalle.cantidadSolicitada === 1 ? 'unidad' : 'unidades')}
                     </td>
 
                     {/* Cantidad por Recibir */}
                     <td className="px-6 py-4 text-center font-bold text-slate-800">
-                      {detalle.yaRecibido ? '0' : detalle.cantidadSolicitada} unidad{detalle.cantidadSolicitada !== 1 ? 's' : ''}
+                      {(detalle.yaRecibido ? 0 : detalle.cantidadSolicitada)} {isRoll(detalle.material) ? (detalle.cantidadSolicitada === 1 ? 'rollo' : 'rollos') : (detalle.cantidadSolicitada === 1 ? 'unidad' : 'unidades')}
                     </td>
 
                     {/* Cantidad Recibida (Input Stepper) */}
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center">
                         {detalle.yaRecibido ? (
-                          <span className="font-bold text-slate-500">{detalle.cantidadRecibida} unidad(s)</span>
+                          <span className="font-bold text-slate-500">{detalle.cantidadRecibida} {detalle.material?.unidadMedida?.abreviacion || detalle.material?.unidadMedida?.nombre || 'unidad(s)'}</span>
                         ) : (
-                          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-slate-50 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all max-w-[120px]">
-                            <button 
-                              type="button"
-                              onClick={() => handleQtyChange(index, qtyRecibidaVal - 1)}
-                              className="px-2.5 py-2 hover:bg-slate-100 text-slate-500 border-r border-slate-200 transition-colors"
-                            >
-                              <Minus size={12} />
-                            </button>
-                            <input 
-                              type="number"
-                              min="0"
-                              max={detalle.cantidadSolicitada}
-                              step="1"
-                              value={detalle.cantidadRecibida}
-                              onChange={(e) => handleQtyChange(index, parseFloat(e.target.value) || 0)}
-                              className="w-full text-center bg-white py-1.5 text-xs font-bold text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                            <button 
-                              type="button"
-                              onClick={() => handleQtyChange(index, qtyRecibidaVal + 1)}
-                              className="px-2.5 py-2 hover:bg-slate-100 text-slate-500 border-l border-slate-200 transition-colors"
-                            >
-                              <Plus size={12} />
-                            </button>
+                          <div className="flex flex-col items-center gap-2">
+                              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all max-w-[110px]">
+                                <input 
+                                  type="number"
+                                  min="0"
+                                  max={isRoll(detalle.material) ? undefined : detalle.cantidadSolicitada}
+                                  step="0.01"
+                                  value={detalle.cantidadRecibida}
+                                  onChange={(e) => handleQtyChange(index, parseFloat(e.target.value) || 0)}
+                                  className="w-full text-center py-1.5 text-xs font-bold text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                                <span className="pr-2.5 text-[10px] font-bold text-slate-400 bg-white select-none whitespace-nowrap">
+                                  {detalle.material?.unidadMedida?.abreviacion || detalle.material?.unidadMedida?.nombre || 'm'}
+                                </span>
+                              </div>
+
+                            {isRoll(detalle.material) && (
+                              <div className="flex flex-col gap-1.5 p-2 bg-blue-50/40 border border-blue-100 rounded-lg text-[11px] w-full max-w-[180px]">
+                                <span className="font-bold text-blue-700 block text-center border-b border-blue-100/50 pb-1">Convertir a Metros:</span>
+                                <div className="flex items-center gap-1 justify-center">
+                                  <input 
+                                    type="number" 
+                                    min="0"
+                                    step="1"
+                                    placeholder="Rollos"
+                                    value={detalle.rollosCalc}
+                                    onChange={(e) => handleRollosCalcChange(index, e.target.value)}
+                                    className="w-12 p-1 border border-slate-300 rounded text-center font-bold text-slate-700 bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                    title="Cantidad de Rollos"
+                                  />
+                                  <span className="text-slate-400 font-bold">x</span>
+                                  <input 
+                                    type="number" 
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="Metros"
+                                    value={detalle.metrosPorRolloCalc}
+                                    onChange={(e) => handleMetrosPorRolloCalcChange(index, e.target.value)}
+                                    className="w-16 p-1 border border-slate-300 rounded text-center font-bold text-slate-700 bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                    title="Metros por Rollo"
+                                  />
+                                  <span className="text-slate-400 font-bold">=</span>
+                                  <span className="font-extrabold text-blue-600">
+                                    {qtyRecibidaVal.toFixed(1)}m
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

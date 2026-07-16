@@ -3,7 +3,8 @@ import { getProformas, registrarAbonoProforma } from '../../proformas/applicatio
 export const getVentas = async (filters = {}) => {
   return getProformas({
     ...filters,
-    estado: 'Aprobada,Pagada'
+    estado: 'Aprobada,Pagada',
+    conAbonos: 'true'
   });
 };
 

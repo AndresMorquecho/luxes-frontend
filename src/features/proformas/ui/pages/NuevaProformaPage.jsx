@@ -226,9 +226,15 @@ export const NuevaProformaPage = () => {
         }))
       };
       
+      const action = e.nativeEvent.submitter?.value || 'pdf';
       const saved = await saveProforma(payload);
       toast.success(isEdit ? 'Proforma actualizada con exito' : 'Proforma creada con exito');
-      setPreview(saved);
+      
+      if (action === 'abono') {
+        navigate(`/proformas/detalle/${saved.id}?action=abono`);
+      } else {
+        setPreview(saved);
+      }
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : 'Error al guardar la proforma');
@@ -731,15 +737,27 @@ export const NuevaProformaPage = () => {
             </button>
             <button
               type="submit"
+              name="action"
+              value="pdf"
               disabled={saving}
-              className="co-btn-primary"
+              className="px-5 py-3 rounded-[10px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center relative overflow-hidden group border border-slate-200"
+            >
+              {saving && <div className="co-spinner-sm mr-2" />}
+              Guardar y Ver PDF
+            </button>
+            <button
+              type="submit"
+              name="action"
+              value="abono"
+              disabled={saving}
+              className="co-btn-primary flex items-center justify-center relative overflow-hidden group"
               style={{
                 padding: '12px 30px',
                 borderRadius: '10px'
               }}
             >
-              {saving && <div className="co-spinner-sm" />}
-              Guardar y Ver PDF
+              {saving && <div className="co-spinner-sm mr-2" />}
+              Guardar y Registrar Abono
             </button>
           </div>
         </div>
@@ -750,8 +768,9 @@ export const NuevaProformaPage = () => {
           proforma={preview}
           configuracion={configuracion}
           onClose={() => {
+            const savedId = preview.id;
             setPreview(null);
-            navigate('/proformas');
+            navigate(`/proformas/detalle/${savedId}`);
           }}
         />
       )}
