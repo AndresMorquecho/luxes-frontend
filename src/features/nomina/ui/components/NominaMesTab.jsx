@@ -821,9 +821,14 @@ const DetallePermisosModal = ({
               ? raw.egresos.permisosDetalle
               : [];
 
-            // Add any QR atrasos not already saved (match by id to avoid duplicates)
+            // Add any QR atrasos not already saved.
+            // Match by exact ID OR by fecha+tipo to avoid duplicates when
+            // AsistenciaService uses 'qr-atraso-TIMESTAMP' and the modal generates 'qr-ent-ASISTENCIA_ID'.
             const existingIds = new Set(existingList.map(ex => ex.id));
-            const missingAtrasos = qrAtrasos.filter(qr => !existingIds.has(qr.id));
+            const existingFechaTipo = new Set(existingList.map(ex => `${ex.fecha}|${ex.tipo}`));
+            const missingAtrasos = qrAtrasos.filter(qr =>
+              !existingIds.has(qr.id) && !existingFechaTipo.has(`${qr.fecha}|${qr.tipo}`)
+            );
 
             if (missingAtrasos.length > 0) {
               const newList = [...existingList, ...missingAtrasos];
@@ -842,6 +847,8 @@ const DetallePermisosModal = ({
               if (onUpdate) await onUpdate();
             } else {
               setRecords(existingList);
+              // Refresh table even when no new entries — backend may have stale dctoHorasNoLaboradas
+              if (onUpdate) onUpdate();
             }
           }
         }
@@ -2324,7 +2331,13 @@ export const NominaMesTab = () => {
   const [q2Raw, setQ2Raw] = useState([]);
   const [loading, setLoading] = useState(true);
   const [payTarget, setPayTarget] = useState(null);
-  const [activeTab, setActiveTab] = useState('q1');
+  // Selecciona automáticamente la quincena activa según el día del mes actual:
+  // días 1-15 → primera quincena, días 16-fin → segunda quincena.
+  // Solo aplica para el mes/año actuales; cambiar de mes siempre arranca en q1.
+  const [activeTab, setActiveTab] = useState(() => {
+    const hoy = new Date();
+    return hoy.getDate() >= 16 ? 'q2' : 'q1';
+  });
   
   const [activeEgresoModal, setActiveEgresoModal] = useState(null);
   const [activeIngresoModal, setActiveIngresoModal] = useState(null);
@@ -2377,8 +2390,27 @@ export const NominaMesTab = () => {
         adapter.getPendingOvertime?.() ?? Promise.resolve([]),
       ]);
       setEmployees(emps);
-      setQ1Raw(p1);
-      setQ2Raw(p2);
+
+      // Normaliza permisoHoras desde permisosDetalle para garantizar que
+      // calcularNomina siempre tenga el valor correcto en la primera carga,
+      // independientemente de si el campo en DB estaba desactualizado.
+      const normalizeRaw = (raw) => raw.map(r => {
+        const detalle = r.egresos?.permisosDetalle;
+        if (!Array.isArray(detalle) || detalle.length === 0) return r;
+        const total = detalle
+          .filter(d => !d.eliminado)
+          .reduce((s, d) => {
+            if (d.multaDolares !== undefined) return s + Number(d.multaDolares);
+            const h = Number(d.horas || 0);
+            return s + Math.floor(h) * 2.50 + ((h % 1) >= 0.499 ? 1.50 : 0);
+          }, 0);
+        // Solo reemplaza si hay diferencia para evitar renders innecesarios
+        if (Math.abs(total - Number(r.permisoHoras)) < 0.001) return r;
+        return { ...r, permisoHoras: total };
+      });
+
+      setQ1Raw(normalizeRaw(p1));
+      setQ2Raw(normalizeRaw(p2));
       setPendingOvertime(Array.isArray(pending) ? pending : []);
     } catch (err) {
       console.error(err);

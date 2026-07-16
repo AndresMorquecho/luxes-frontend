@@ -209,6 +209,7 @@ const KioskView = () => {
   const [horarioHoy, setHorarioHoy] = useState(null);
   const [recentRegistros, setRecentRegistros] = useState([]);
 
+
   const loadRecentRegistros = async () => {
     try {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -438,6 +439,7 @@ const KioskView = () => {
           )}
         </div>
       </div>
+
 
       {/* Main Grid: 3 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
