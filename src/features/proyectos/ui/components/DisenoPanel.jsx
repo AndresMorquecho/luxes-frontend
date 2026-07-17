@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { UploadCloud, Image as ImageIcon, CheckCircle, Clock, File, Trash2, Calendar, ShieldCheck, X } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { uploadArchivoDiseno } from '../../application/proyectosService.js';
+import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
 
 export function DisenoPanel({ proyectoId, soloLectura }) {
@@ -70,7 +71,7 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
       });
     } catch (error) {
       console.error('Error al subir archivos:', error);
-      alert('Error al subir archivos: ' + error.message);
+      await alertDialog('Error', 'Error al subir archivos: ' + error.message, { type: 'warning' });
     } finally {
       setUploading(false);
     }
@@ -97,7 +98,7 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
         disenadorNombre: user?.nombre || 'Diseñador',
       });
     } catch (error) {
-      alert('No se pudo registrar la aprobación: ' + error.message);
+      await alertDialog('Error', 'No se pudo registrar la aprobación: ' + error.message, { type: 'warning' });
     }
   };
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { Nomina } from '../../domain/entities/Nomina';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 
@@ -100,7 +101,7 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
       const nominaParaGuardar = new Nomina(formData);
       onSave(nominaParaGuardar);
     } catch (err) {
-      alert(`Error de validación: ${err.message}`);
+      await alertDialog('Error de validación', err.message, { type: 'warning' });
     }
   };
 

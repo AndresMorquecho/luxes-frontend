@@ -1246,7 +1246,12 @@ const DetalleEgresosModal = ({
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Está seguro de eliminar este registro?')) return;
+    const confirmed = await confirmDialog(
+      '¿Eliminar egreso?',
+      '¿Está seguro de eliminar este registro?',
+      { type: 'danger', confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmed) return;
     try {
       await adapter.deleteDetailedEgreso(id);
       toast.success('Registro de egreso eliminado');
@@ -1517,7 +1522,12 @@ const DetalleIngresosModal = ({
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Está seguro de eliminar este registro?')) return;
+    const confirmed = await confirmDialog(
+      '¿Eliminar ingreso?',
+      '¿Está seguro de eliminar este registro?',
+      { type: 'danger', confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmed) return;
     try {
       await adapter.deleteDetailedIngreso(id);
       toast.success('Registro de ingreso eliminado');

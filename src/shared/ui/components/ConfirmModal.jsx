@@ -19,7 +19,15 @@ export const confirmDialog = (title, message, options = {}) => {
       resolve(window.confirm(message));
     }
   });
+};export const alertDialog = (title, message, options = {}) => {
+  return confirmDialog(title, message, {
+    ...options,
+    showCancel: false,
+    confirmLabel: options.confirmLabel || 'Aceptar',
+    type: options.type || 'warning',
+  });
 };
+
 
 export const ConfirmDialogContainer = () => {
   const [state, setState] = useState({

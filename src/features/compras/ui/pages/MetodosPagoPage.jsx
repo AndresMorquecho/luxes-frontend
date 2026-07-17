@@ -104,7 +104,12 @@ export const MetodosPagoPage = () => {
   };
 
   const handleMetodoDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este método de pago?')) return;
+    const confirmed = await confirmDialog(
+      '¿Eliminar método de pago?',
+      '¿Está seguro de que desea eliminar este método de pago?',
+      { type: 'danger', confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmed) return;
     try {
       await deleteMetodoPago(id);
       loadMetodos();

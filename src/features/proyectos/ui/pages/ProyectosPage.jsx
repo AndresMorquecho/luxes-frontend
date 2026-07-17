@@ -8,6 +8,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
+import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { FASES } from '../../domain/value-objects/FaseConfig.js';
 import { ProyectoRow } from '../components/ProyectoRow.jsx';
 import { ProyectoCard } from '../components/ProyectoCard.jsx';
@@ -35,7 +36,7 @@ export default function ProyectosPage() {
       await deleteProyecto(proyectoAEliminar.id);
       setProyectoAEliminar(null);
     } catch (err) {
-      alert('Error al eliminar el proyecto: ' + err.message);
+      await alertDialog('Error', 'Error al eliminar el proyecto: ' + err.message, { type: 'warning' });
     } finally {
       setEliminandoId(null);
     }

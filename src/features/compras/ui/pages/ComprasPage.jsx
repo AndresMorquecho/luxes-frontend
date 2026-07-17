@@ -6,6 +6,7 @@ import {
   registrarAbono, getMetodosPago, getProveedores
 } from '../../application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
 import { ComprasAdminNav } from '../components/ComprasAdminNav';
@@ -193,7 +194,12 @@ export const ComprasPage = () => {
   };
 
   const handleOrdenDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta orden de compra y todos sus datos asociados?')) return;
+    const confirmed = await confirmDialog(
+      '¿Eliminar orden de compra?',
+      '¿Está seguro de que desea eliminar esta orden de compra y todos sus datos asociados?',
+      { type: 'danger', confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmed) return;
     try {
       await deleteOrden(id);
       toast.success('Orden de compra eliminada con éxito');

@@ -9,7 +9,7 @@ import {
   getTareasStats,
   getUsers,
 } from '../../application/tareasService';
-import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { confirmDialog, alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { notifyNotificationsUpdated } from '../../../notificaciones/application/notificationsService';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import { ComprasPageHeader, ComprasHeaderButton } from '../../../compras/ui/components/ComprasPageHeader';
@@ -201,7 +201,7 @@ export default function TareasPage() {
       fetchStats();
       notifyNotificationsUpdated();
     } catch (err) {
-      alert(err.message);
+      await alertDialog('Error', err.message, { type: 'warning' });
     }
   };
 
@@ -213,7 +213,7 @@ export default function TareasPage() {
       fetchTareas();
       fetchStats();
     } catch (err) {
-      alert(err.message);
+      await alertDialog('Error', err.message, { type: 'warning' });
     }
   };
 

@@ -6,7 +6,7 @@ import { ProformaPDF } from '../components/ProformaPDF';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
-import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { confirmDialog, alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { FileText, Clock, CheckCircle2, DollarSign, Search, Trash2, Download, Eye, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ESTADOS = ['Pendiente', 'Aprobada', 'Rechazada'];
@@ -287,7 +287,7 @@ export const ProformasPage = () => {
       load();
     } catch (err) {
       console.error(err);
-      alert('Error al actualizar el estado: ' + err.message);
+      await alertDialog('Error', 'Error al actualizar el estado: ' + err.message, { type: 'warning' });
     }
   };
 
