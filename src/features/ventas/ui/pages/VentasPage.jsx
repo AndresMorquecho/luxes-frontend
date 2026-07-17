@@ -292,20 +292,32 @@ export const VentasPage = () => {
           <div><span className="text-slate-400 block text-[10px]">Total</span><span className="font-semibold text-slate-700">{fmt(total)}</span></div>
           <div><span className="text-slate-400 block text-[10px]">Cobrado</span><span className="font-semibold text-emerald-600">{fmt(cobrado)}</span></div>
         </div>
-        {pendiente > 0.01 && (
-          <div className="px-3 pb-3">
-            <button
-              type="button"
-              onClick={() => handleOpenAbono(v, pendiente, total)}
-              className="w-full h-9 inline-flex items-center justify-center rounded-lg text-xs font-semibold text-white"
-              style={{ backgroundColor: CO_PRIMARY }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
-            >
-              Registrar cobro
-            </button>
-          </div>
-        )}
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            disabled={pendiente <= 0.01}
+            onClick={() => handleOpenAbono(v, pendiente, total)}
+            className={`w-full h-9 inline-flex items-center justify-center rounded-lg text-xs font-semibold transition-colors ${
+              pendiente <= 0.01
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                : 'text-white'
+            }`}
+            style={pendiente <= 0.01 ? {} : { backgroundColor: CO_PRIMARY }}
+            onMouseEnter={(e) => {
+              if (pendiente > 0.01) {
+                e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (pendiente > 0.01) {
+                e.currentTarget.style.backgroundColor = CO_PRIMARY;
+              }
+            }}
+            title={pendiente <= 0.01 ? 'Esta proforma ya fue pagada por completo' : 'Registrar cobro'}
+          >
+            Cobrar
+          </button>
+        </div>
       </div>
     );
   };
@@ -506,19 +518,30 @@ export const VentasPage = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                             </svg>
                           </button>
-                          {pendiente > 0.01 && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAbono(v, pendiente, total)}
-                              className="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap"
-                              style={{ backgroundColor: CO_PRIMARY }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
-                              title="Registrar Cobro"
-                            >
-                              Cobrar
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            disabled={pendiente <= 0.01}
+                            onClick={() => handleOpenAbono(v, pendiente, total)}
+                            className={`h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                              pendiente <= 0.01
+                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                                : 'text-white'
+                            }`}
+                            style={pendiente <= 0.01 ? {} : { backgroundColor: CO_PRIMARY }}
+                            onMouseEnter={(e) => {
+                              if (pendiente > 0.01) {
+                                e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER;
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (pendiente > 0.01) {
+                                e.currentTarget.style.backgroundColor = CO_PRIMARY;
+                              }
+                            }}
+                            title={pendiente <= 0.01 ? 'Esta proforma ya fue pagada por completo' : 'Registrar Cobro'}
+                          >
+                            Cobrar
+                          </button>
                         </div>
                       </td>
                     </tr>
