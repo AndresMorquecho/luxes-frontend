@@ -98,57 +98,32 @@ function TvElapsedTimer({ activeJob }) {
   const [elapsedStr, setElapsedStr] = React.useState('00:00:00');
 
   React.useEffect(() => {
-    if (!activeJob || activeJob.status !== 'Imprimiendo') {
+    if (!activeJob || (activeJob.status !== 'Imprimiendo' && activeJob.status !== 'Pausado')) {
       setElapsedStr('00:00:00');
       return;
     }
 
-    const getStartTime = () => {
-      if (activeJob.startedPrintingAt) {
-        const d = new Date(activeJob.startedPrintingAt);
-        if (!isNaN(d.getTime())) return d;
-      }
-      if (activeJob.startedAt) return new Date(activeJob.startedAt);
-      if (activeJob.fechaInicio) return new Date(activeJob.fechaInicio);
-      
-      if (typeof activeJob.startTime === 'string') {
-        const d = new Date(activeJob.startTime);
-        if (!isNaN(d.getTime())) return d;
-        
-        if (activeJob.startTime.includes(':')) {
-          const match = activeJob.startTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-          if (match) {
-            let [_, hours, minutes, ampm] = match;
-            hours = parseInt(hours, 10);
-            minutes = parseInt(minutes, 10);
-            if (ampm) {
-              if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-              if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
-            }
-            const date = new Date();
-            date.setHours(hours, minutes, 0, 0);
-            if (date.getTime() > Date.now()) {
-              date.setDate(date.getDate() - 1);
-            }
-            return date;
-          }
-        }
-      }
-      
-      if (activeJob.createdAt) return new Date(activeJob.createdAt);
-      return new Date(Date.now() - 12 * 60 * 1000); // 12 mins fallback like mockup
-    };
+    const pad = (num) => String(num).padStart(2, '0');
 
-    const start = getStartTime();
-
-    const updateTimer = () => {
-      const diffMs = Math.max(0, Date.now() - start.getTime());
-      const totalSecs = Math.floor(diffMs / 1000);
+    if (activeJob.status === 'Pausado') {
+      const totalSecs = activeJob.elapsedSeconds || 0;
       const hrs = Math.floor(totalSecs / 3600);
       const mins = Math.floor((totalSecs % 3600) / 60);
       const secs = totalSecs % 60;
-      
-      const pad = (num) => String(num).padStart(2, '0');
+      setElapsedStr(`${pad(hrs)}:${pad(mins)}:${pad(secs)}`);
+      return;
+    }
+
+    // Active printing session timer
+    const baseSeconds = activeJob.elapsedSeconds || 0;
+    const sessionStart = Date.now();
+
+    const updateTimer = () => {
+      const elapsedSessionSecs = Math.floor((Date.now() - sessionStart) / 1000);
+      const totalSecs = baseSeconds + elapsedSessionSecs;
+      const hrs = Math.floor(totalSecs / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
       setElapsedStr(`${pad(hrs)}:${pad(mins)}:${pad(secs)}`);
     };
 
