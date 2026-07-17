@@ -104,25 +104,34 @@ function TvElapsedTimer({ activeJob }) {
     }
 
     const getStartTime = () => {
+      if (activeJob.startedPrintingAt) {
+        const d = new Date(activeJob.startedPrintingAt);
+        if (!isNaN(d.getTime())) return d;
+      }
       if (activeJob.startedAt) return new Date(activeJob.startedAt);
       if (activeJob.fechaInicio) return new Date(activeJob.fechaInicio);
       
-      if (typeof activeJob.startTime === 'string' && activeJob.startTime.includes(':')) {
-        const match = activeJob.startTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-        if (match) {
-          let [_, hours, minutes, ampm] = match;
-          hours = parseInt(hours, 10);
-          minutes = parseInt(minutes, 10);
-          if (ampm) {
-            if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-            if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+      if (typeof activeJob.startTime === 'string') {
+        const d = new Date(activeJob.startTime);
+        if (!isNaN(d.getTime())) return d;
+        
+        if (activeJob.startTime.includes(':')) {
+          const match = activeJob.startTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+          if (match) {
+            let [_, hours, minutes, ampm] = match;
+            hours = parseInt(hours, 10);
+            minutes = parseInt(minutes, 10);
+            if (ampm) {
+              if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+              if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+            }
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+            if (date.getTime() > Date.now()) {
+              date.setDate(date.getDate() - 1);
+            }
+            return date;
           }
-          const date = new Date();
-          date.setHours(hours, minutes, 0, 0);
-          if (date.getTime() > Date.now()) {
-            date.setDate(date.getDate() - 1);
-          }
-          return date;
         }
       }
       
@@ -182,6 +191,36 @@ const isImageFile = (name, url) => {
   const u = (url || '').toLowerCase();
   return n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg') || n.endsWith('.gif') || n.endsWith('.webp') ||
          u.startsWith('data:image') || u.includes('image') || u.startsWith('blob:');
+};
+
+const formatLocalDateTime = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString('es-EC', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+const formatLocalTime = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  } catch {
+    return dateStr;
+  }
 };
 
 export const ColasImpresionPage = () => {
@@ -572,8 +611,23 @@ export const ColasImpresionPage = () => {
     if (filterDate) {
       const [y, m, d] = filterDate.split('-');
       const formattedFilterDate = `${d}/${m}/${y}`;
-      matchesDate = (job.sentAt && job.sentAt.includes(formattedFilterDate)) || 
-                    (job.completedAt && job.completedAt.includes(formattedFilterDate));
+      const isoFilterDate = `${y}-${m}-${d}`;
+      const checkMatch = (dateStr) => {
+        if (!dateStr) return false;
+        if (dateStr.includes(formattedFilterDate)) return true;
+        if (dateStr.includes(isoFilterDate)) return true;
+        try {
+          const dt = new Date(dateStr);
+          if (!isNaN(dt.getTime())) {
+            const lY = dt.getFullYear();
+            const lM = String(dt.getMonth() + 1).padStart(2, '0');
+            const lD = String(dt.getDate()).padStart(2, '0');
+            return `${lY}-${lM}-${lD}` === isoFilterDate;
+          }
+        } catch {}
+        return false;
+      };
+      matchesDate = checkMatch(job.sentAt) || checkMatch(job.completedAt);
     }
 
     const matchesUser = filterUser ? (job.sentBy && job.sentBy.toLowerCase().includes(filterUser.toLowerCase())) : true;
@@ -767,7 +821,7 @@ export const ColasImpresionPage = () => {
                         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em' }}>HORA DE INICIO</span>
-                          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155', marginTop: '0.15rem' }}>{activeJob.startTime || 'Sin iniciar'}</span>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155', marginTop: '0.15rem' }}>{activeJob.startedPrintingAt ? formatLocalTime(activeJob.startedPrintingAt) : (activeJob.startTime || 'Sin iniciar')}</span>
                         </div>
                         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -958,7 +1012,7 @@ export const ColasImpresionPage = () => {
                                     </div>
                                   </td>
                                   <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{job.sentBy || 'Usuario'}</td>
-                                  <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{job.sentAt || 'Sin fecha'}</td>
+                                  <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{formatLocalDateTime(job.sentAt)}</td>
                                   <td style={{ padding: '1rem 0.75rem' }}>
                                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                                       <button onClick={() => handleOpenPrepModal(job)} style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cargar e Imprimir">
@@ -1442,11 +1496,11 @@ export const ColasImpresionPage = () => {
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Fecha de Envío</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.sentAt || 'Sin fecha'}</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{formatLocalDateTime(selectedJobDetails.sentAt)}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Hora de Finalización</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.completedAt || 'Sin registrar'}</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{formatLocalDateTime(selectedJobDetails.completedAt)}</span>
                 </div>
               </div>
 

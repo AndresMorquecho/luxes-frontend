@@ -605,14 +605,14 @@ export default function TareasPage() {
           <div className="co-portal-root">
             <div className="co-overlay" onClick={() => setShowModal(false)} />
             <div className="co-modal-wrap">
-              <div className="co-modal co-modal-lg animate-co-modal-in" onClick={(e) => e.stopPropagation()}>
+              <div className="co-modal co-modal-lg animate-co-modal-in overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="co-modal-header">
                 <h2 className="text-base font-bold text-slate-800">{editingTarea ? 'Editar Tarea' : 'Nueva Tarea'}</h2>
                 <button type="button" onClick={() => setShowModal(false)} className="co-modal-close">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                 </button>
               </div>
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1 overflow-hidden">
                 <div className="co-modal-body">
                   {formError && (
                     <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{formError}</div>

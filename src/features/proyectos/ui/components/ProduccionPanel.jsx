@@ -11,6 +11,24 @@ import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMedia
 import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 
 export function ProduccionPanel({ proyectoId, soloLectura = false }) {
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString('es-EC', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    } catch {
+      return dateStr;
+    }
+  };
   const { proyecto } = useProyecto(proyectoId);
   const { getJobsByProyectoId, addJobToQueue } = usePrintQueue();
   const [activeSubTab, setActiveSubTab] = useState('timeline'); // 'timeline' or 'enviar'
@@ -258,8 +276,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
       jobName = filesToSubmit.length === 1 ? filesToSubmit[0].name : `${filesToSubmit.length} archivos de diseño`;
     }
 
-    const now = new Date();
-    const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const sentAtFormatted = new Date().toISOString();
 
     const newJob = {
       name: jobName,
@@ -449,7 +466,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                                 <span className="text-xs font-bold text-slate-700">Enviado a cola de impresión</span>
                               </div>
                               <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{job.sentToQueueAt}</span>
+                                <span className="text-[11px] text-slate-500">{formatDateTime(job.sentToQueueAt)}</span>
                                 {job.sentBy && (
                                   <span className="text-[11px] text-slate-400 flex items-center gap-1">
                                     <User size={10} /> {job.sentBy}
@@ -470,7 +487,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                                 <span className="text-xs font-bold text-slate-700">Impresión iniciada</span>
                               </div>
                               <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{job.startedPrintingAt}</span>
+                                <span className="text-[11px] text-slate-500">{formatDateTime(job.startedPrintingAt)}</span>
                                 {job.responsible && (
                                   <span className="text-[11px] text-slate-400 flex items-center gap-1">
                                     <User size={10} /> {job.responsible}
@@ -500,7 +517,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                                 </span>
                               </div>
                               <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{job.completedAt}</span>
+                                <span className="text-[11px] text-slate-500">{formatDateTime(job.completedAt)}</span>
                                 {job.elapsedSeconds > 0 && (
                                   <span className="text-[11px] text-slate-400">
                                     Duración: {formatDuration(job.elapsedSeconds)}
