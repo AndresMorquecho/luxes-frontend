@@ -37,12 +37,9 @@ export const Login = ({ onLogin }) => {
         throw new Error(data.error?.message || 'Error al iniciar sesión');
       }
 
-      // Simulate a small delay for the beautiful balloon loading animation
-      setTimeout(() => {
-        const normalized = normalizeUserForSession(data.data.user);
-        onLogin(data.data.token, normalized);
-        navigate(getPostLoginPath(normalized), { replace: true });
-      }, 1000);
+      const normalized = normalizeUserForSession(data.data.user);
+      onLogin(data.data.token, normalized);
+      navigate(getPostLoginPath(normalized), { replace: true });
     } catch (err) {
       setIsLoading(false);
       setError(err instanceof Error ? err.message : 'Error de conexión con el servidor');
