@@ -61,6 +61,7 @@ export const ProformaDetallePage = () => {
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (loggedInUser?.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
+  const isVentasODisenador = ['VENTAS', 'DISEÑADOR', 'DISENADOR'].includes(userRole);
 
   useEffect(() => {
     const loadDetails = async () => {
@@ -124,8 +125,7 @@ export const ProformaDetallePage = () => {
   }
 
   const subtotal = (proforma.items || []).reduce((s, item) => s + Number(item.cantidad) * Number(item.precioUnitario), 0);
-  const currentIvaValue = (showAbonoModal && proforma?.estado === 'Pendiente') ? (abonoForm.aplicarIva ? 0.15 : 0) : Number(proforma.iva);
-  const total = subtotal * (1 + currentIvaValue);
+  const total = subtotal * (1 + Number(proforma.iva));
   const totalCobrado = (proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
   const totalPendiente = Math.max(0, total - totalCobrado);
   
@@ -151,12 +151,9 @@ export const ProformaDetallePage = () => {
   };
 
   const handleOpenAprobar = () => {
-    const isIva = proforma.iva > 0;
-    const initialTotal = subtotal * (1 + (isIva ? 0.15 : 0));
     setAbonoForm(prev => ({
       ...prev,
-      monto: initialTotal.toFixed(2),
-      aplicarIva: isIva,
+      monto: '',
     }));
     setShowAbonoModal(true);
   };
@@ -164,7 +161,7 @@ export const ProformaDetallePage = () => {
   const handleOpenRegistrarAbono = () => {
     setAbonoForm(prev => ({
       ...prev,
-      monto: totalPendiente.toFixed(2),
+      monto: '',
     }));
     setShowAbonoModal(true);
   };
@@ -176,7 +173,6 @@ export const ProformaDetallePage = () => {
       monto: '',
       metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
       referencia: '',
-      aplicarIva: proforma?.iva > 0,
     });
   };
 
@@ -213,7 +209,7 @@ export const ProformaDetallePage = () => {
 
   const handleSaveAbono = async (e) => {
     e.preventDefault();
-    const numericMonto = parseFloat(abonoForm.monto);
+    const numericMonto = parseFloat(abonoForm.monto || '0');
     
     if (isNaN(numericMonto) || numericMonto < 0) {
       toast.error('Por favor, ingresa un monto válido (0 o mayor)');
@@ -343,6 +339,15 @@ export const ProformaDetallePage = () => {
               <Download size={14} className="text-slate-500" /> Ver PDF
             </button>
 
+            {(isAdmin || (isVentasODisenador && proforma.estado === 'Rechazada')) && (proforma.estado === 'Pendiente' || proforma.estado === 'Rechazada') && (
+              <button
+                onClick={() => navigate(`/proformas/editar/${proforma.id}`)}
+                className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
+              >
+                <Edit2 size={14} className="text-slate-500" /> Editar Proforma
+              </button>
+            )}
+
             {isAdmin && proforma.estado === 'Pendiente' && (
               <>
                 <button
@@ -355,7 +360,7 @@ export const ProformaDetallePage = () => {
                   onClick={handleOpenAprobar}
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shadow-blue-100"
                 >
-                  Aprobar y Registrar Abono
+                  Aprobar
                 </button>
               </>
             )}
@@ -710,36 +715,6 @@ export const ProformaDetallePage = () => {
                         ? 'Modifica los valores del abono. El total del abono no debe superar el saldo pendiente.'
                         : 'Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.'}
                     </p>
-                    
-                    {proforma.estado === 'Pendiente' && !editingAbono && (
-                      <label className="flex items-center cursor-pointer flex-shrink-0 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            className="sr-only"
-                            checked={abonoForm.aplicarIva}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setAbonoForm(prev => {
-                                const newIvaVal = checked ? 0.15 : 0;
-                                const newTotal = subtotal * (1 + newIvaVal);
-                                const isTotal = prev.monto === total.toFixed(2);
-                                return {
-                                  ...prev,
-                                  aplicarIva: checked,
-                                  monto: isTotal ? newTotal.toFixed(2) : prev.monto
-                                };
-                              });
-                            }}
-                          />
-                          <div className={`block w-10 h-6 rounded-full transition-colors ${abonoForm.aplicarIva ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
-                          <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${abonoForm.aplicarIva ? 'transform translate-x-4' : ''}`}></div>
-                        </div>
-                        <div className="ml-3 text-xs font-bold text-slate-700 select-none">
-                          Aplicar IVA (15%)
-                        </div>
-                      </label>
-                    )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3">
@@ -768,7 +743,6 @@ export const ProformaDetallePage = () => {
                         type="number"
                         step="0.01"
                         min="0"
-                        required
                         value={abonoForm.monto}
                         onChange={e => setAbonoForm(prev => ({ ...prev, monto: e.target.value }))}
                         className="w-full pl-7 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"

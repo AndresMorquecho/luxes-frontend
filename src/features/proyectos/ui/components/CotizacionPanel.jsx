@@ -109,6 +109,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
     estado: p.estado,
     items: p.items || [],
     iva: p.iva,
+    abonos: p.abonos || [],
   }));
 
   const projectClientNames = useMemo(() => {
@@ -134,13 +135,13 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   const isLinkedToOtherProject = (proformaId) => {
     return allProjects.some(proj => 
       proj.id !== proyectoId &&
-      (proj.estado === 'ACTIVO' || proj.estado === 'PAUSADO') &&
       proj.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas?.some(sc => sc.id === proformaId)
     );
   };
 
   const approvedProformas = normProformas.filter(
-    (c) => c.estado === 'Aprobada' || c.estado === 'Pagada'
+    (c) => (c.estado === 'Aprobada' || c.estado === 'Pagada') &&
+           (c.abonos || []).reduce((sum, ab) => sum + Number(ab.monto), 0) > 0
   );
 
   const matchesSearch = (c) => {

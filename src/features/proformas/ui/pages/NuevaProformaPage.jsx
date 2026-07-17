@@ -225,6 +225,10 @@ export const NuevaProformaPage = () => {
           precioUnitario: parseFloat(it.precioUnitario) || 0,
         }))
       };
+
+      if (form.estado === 'Rechazada') {
+        payload.estado = 'Pendiente';
+      }
       
       const action = e.nativeEvent.submitter?.value || 'pdf';
       const saved = await saveProforma(payload);
@@ -740,16 +744,6 @@ export const NuevaProformaPage = () => {
               name="action"
               value="pdf"
               disabled={saving}
-              className="px-5 py-3 rounded-[10px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center relative overflow-hidden group border border-slate-200"
-            >
-              {saving && <div className="co-spinner-sm mr-2" />}
-              Guardar y Ver PDF
-            </button>
-            <button
-              type="submit"
-              name="action"
-              value="abono"
-              disabled={saving}
               className="co-btn-primary flex items-center justify-center relative overflow-hidden group"
               style={{
                 padding: '12px 30px',
@@ -757,7 +751,7 @@ export const NuevaProformaPage = () => {
               }}
             >
               {saving && <div className="co-spinner-sm mr-2" />}
-              Guardar y Registrar Abono
+              {form.estado === 'Rechazada' ? 'Guardar y Enviar a Aprobación' : 'Guardar y Ver PDF'}
             </button>
           </div>
         </div>

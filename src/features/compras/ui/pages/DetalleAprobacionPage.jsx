@@ -34,7 +34,7 @@ export const DetalleAprobacionPage = () => {
   const [proveedorId, setProveedorId] = useState('');
   const [providerSearch, setProviderSearch] = useState('');
   const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
-  const [impuesto, setImpuesto] = useState('0');
+  const [ivaPct, setIvaPct] = useState(0);
   const [preciosEditados, setPreciosEditados] = useState({});
 
   // Payment integration states
@@ -71,7 +71,8 @@ export const DetalleAprobacionPage = () => {
         setProviderSearch('Sin proveedor específico');
       }
 
-      setImpuesto(String(ordenMerged.impuesto || 0));
+      // Las órdenes pendientes tienen impuesto=0. El % lo elige el aprobador.
+      setIvaPct(0);
 
       const lineas = normalizeOrdenDetalles(ordenMerged);
       const preciosIniciales = {};
@@ -121,7 +122,7 @@ export const DetalleAprobacionPage = () => {
   const subtotal = lineas.reduce((sum, d) => {
     return sum + (d.cantidad * (parseFloat(d.precioUnitario) || 0));
   }, 0);
-  const impuestoVal = parseFloat(impuesto) || 0;
+  const impuestoVal = subtotal * ivaPct;
   const total = subtotal + impuestoVal;
 
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
@@ -387,14 +388,16 @@ export const DetalleAprobacionPage = () => {
           </div>
           <div className="co-form-field">
             <label className="co-label">IVA / Impuesto</label>
-            <input
-              type="number"
-              step="0.01"
-              value={impuesto}
-              onChange={(e) => setImpuesto(e.target.value)}
+            <select
+              value={ivaPct}
+              onChange={(e) => setIvaPct(parseFloat(e.target.value))}
               className="co-input"
-              placeholder="0.00"
-            />
+            >
+              <option value={0}>0% — Sin IVA</option>
+              <option value={0.08}>8%</option>
+              <option value={0.12}>12%</option>
+              <option value={0.15}>15%</option>
+            </select>
           </div>
         </div>
       </div>
@@ -465,7 +468,7 @@ export const DetalleAprobacionPage = () => {
                 <span className="font-bold text-slate-800">{fmt(subtotal)}</span>
               </div>
               <div className="co-total-row">
-                <span>IVA / Impuesto:</span>
+                <span>IVA ({(ivaPct * 100).toFixed(0)}%):</span>
                 <span className="font-bold text-slate-800">{fmt(impuestoVal)}</span>
               </div>
               <div className="co-total-row co-total-final">

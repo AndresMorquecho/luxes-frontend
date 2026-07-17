@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
-  DollarSign, Calendar, Tag, User, Eye, X,
+  DollarSign, Calendar, Tag, User, Eye, X, Edit3, Info,
   Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package
 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
@@ -94,6 +94,88 @@ export default function ProyectoDetallePage() {
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
   const [confirmRetroceder, setConfirmRetroceder] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [empleados, setEmpleados] = useState([]);
+  const [editForm, setEditForm] = useState({
+    nombre: '',
+    fechaEntregaEstimada: '',
+    prioridad: 'MEDIA',
+    responsable: '',
+    medio: 'LUXES',
+    etiquetas: [],
+    etiquetaInput: '',
+    descripcion: '',
+    notas: '',
+  });
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch('/api/empleados', {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setEmpleados(Array.isArray(data.data) ? data.data : []);
+        }
+      })
+      .catch(err => console.error('Error al cargar empleados:', err));
+  }, []);
+
+  useEffect(() => {
+    if (proyecto && isEditModalOpen) {
+      setEditForm({
+        nombre: proyecto.nombre || '',
+        fechaEntregaEstimada: proyecto.fechaEntregaEstimada || '',
+        prioridad: proyecto.prioridad || 'MEDIA',
+        responsable: proyecto.responsable || '',
+        medio: proyecto.medio || 'LUXES',
+        etiquetas: proyecto.etiquetas || [],
+        etiquetaInput: '',
+        descripcion: proyecto.descripcion || '',
+        notas: proyecto.notas || '',
+      });
+    }
+  }, [proyecto, isEditModalOpen]);
+
+  const addEtiqueta = () => {
+    const tag = editForm.etiquetaInput.trim();
+    if (tag && !editForm.etiquetas.includes(tag)) {
+      setEditForm(prev => ({
+        ...prev,
+        etiquetas: [...prev.etiquetas, tag],
+        etiquetaInput: '',
+      }));
+    }
+  };
+
+  const removeEtiqueta = (tag) => {
+    setEditForm(prev => ({
+      ...prev,
+      etiquetas: prev.etiquetas.filter(t => t !== tag),
+    }));
+  };
+
+  const handleSaveProjectInfo = async (e) => {
+    e.preventDefault();
+    try {
+      await updateProyecto({
+        nombre: editForm.nombre,
+        fechaEntregaEstimada: editForm.fechaEntregaEstimada || null,
+        prioridad: editForm.prioridad,
+        responsable: editForm.responsable,
+        medio: editForm.medio,
+        etiquetas: editForm.etiquetas,
+        descripcion: editForm.descripcion,
+        notas: editForm.notas,
+      });
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error('Error al guardar datos del proyecto:', error);
+    }
+  };
 
   const isVentasODisenador = userRole === 'ventas' || userRole === 'diseñador' || userRole === 'disenador' || userRole === 'ventas / diseñador' || userRole === 'ventas / disenador';
   const canViewGastos = !isVentasODisenador;
@@ -174,16 +256,25 @@ export default function ProyectoDetallePage() {
             </button>
 
             <div className="min-w-0 flex-1 flex items-start justify-between gap-2">
-              <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-snug min-w-0">
+              <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-snug min-w-0 truncate">
                 {proyecto.nombre}
               </h1>
-              <button
-                onClick={() => setIsDetailsModalOpen(true)}
-                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
-                title="Ver más detalles"
-              >
-                <Eye size={16} />
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
+                  title="Editar información del proyecto"
+                >
+                  <Edit3 size={16} />
+                </button>
+                <button
+                  onClick={() => setIsDetailsModalOpen(true)}
+                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
+                  title="Ver más detalles"
+                >
+                  <Eye size={16} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -601,6 +692,220 @@ export default function ProyectoDetallePage() {
               </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Modal de Edición de Información Inicial */}
+      {isEditModalOpen && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-[200] flex flex-col sm:items-center sm:justify-center sm:p-4 bg-slate-900/55 backdrop-blur-sm"
+            onClick={() => setIsEditModalOpen(false)}
+            role="presentation"
+          >
+            <div
+              className="bg-white w-full flex flex-col overflow-hidden shadow-xl
+                h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[min(90vh,900px)] sm:max-w-3xl sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="proyecto-editar-titulo"
+            >
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50 shrink-0">
+                <h2
+                  id="proyecto-editar-titulo"
+                  className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2 min-w-0"
+                >
+                  <Edit3 size={18} className="text-blue-600 shrink-0" />
+                  <span className="truncate">Editar Información del Proyecto</span>
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors shrink-0"
+                  aria-label="Cerrar edición"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveProjectInfo} className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                  {/* Grid de 2 columnas para campos */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Nombre */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                        Nombre del proyecto *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                        value={editForm.nombre}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, nombre: e.target.value }))}
+                      />
+                    </div>
+
+                    {/* Responsable */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                        Responsable
+                      </label>
+                      <select
+                        className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                        value={editForm.responsable}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, responsable: e.target.value }))}
+                      >
+                        <option value="">Selecciona responsable...</option>
+                        {empleados.map(emp => (
+                          <option key={emp.id} value={emp.nombre}>
+                            {emp.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Fecha de Entrega */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                        Entrega Estimada
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                        value={editForm.fechaEntregaEstimada}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, fechaEntregaEstimada: e.target.value }))}
+                      />
+                    </div>
+
+                    {/* Prioridad */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                        Prioridad
+                      </label>
+                      <select
+                        className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                        value={editForm.prioridad}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, prioridad: e.target.value }))}
+                      >
+                        <option value="BAJA">BAJA</option>
+                        <option value="MEDIA">MEDIA</option>
+                        <option value="ALTA">ALTA</option>
+                        <option value="URGENTE">URGENTE</option>
+                      </select>
+                    </div>
+
+                    {/* Medio de consecución */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                        Medio de consecución *
+                      </label>
+                      <select
+                        className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                        value={editForm.medio}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, medio: e.target.value }))}
+                      >
+                        <option value="LUXES">LUXES</option>
+                        <option value="REDES">REDES</option>
+                        <option value="VENDEDORES">VENDEDORES</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Etiquetas */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                      Etiquetas
+                    </label>
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        placeholder="Ej: urgente, acrílico..."
+                        className="flex-1 border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+                        value={editForm.etiquetaInput}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, etiquetaInput: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addEtiqueta();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={addEtiqueta}
+                        className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-colors border border-blue-100 font-semibold text-xs"
+                      >
+                        Agregar
+                      </button>
+                    </div>
+                    {editForm.etiquetas.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {editForm.etiquetas.map(tag => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200"
+                          >
+                            {tag}
+                            <button
+                              type="button"
+                              onClick={() => removeEtiqueta(tag)}
+                              className="text-slate-400 hover:text-red-500"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Descripción del Trabajo */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                      Descripción del Trabajo
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none transition-colors"
+                      value={editForm.descripcion}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, descripcion: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Notas Iniciales */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                      Notas Iniciales
+                    </label>
+                    <textarea
+                      rows={2}
+                      className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none transition-colors"
+                      value={editForm.notas}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, notas: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end px-4 sm:px-6 py-3 border-t border-slate-100 bg-slate-50 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm"
+                  >
+                    Guardar Cambios
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </ModalPortal>
@@ -1689,6 +1994,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
           </div>
         </ModalPortal>
       )}
+
     </div>
   );
 }

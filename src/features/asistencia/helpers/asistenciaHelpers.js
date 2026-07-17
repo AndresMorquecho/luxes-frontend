@@ -83,9 +83,42 @@ export const TIPOS_SELECCIONABLES = [
   { tipo: 'SALIDA_PERMISO', label: 'Salida con permiso', shortLabel: 'Salida c/permiso' },
 ];
 
-export function getOpcionesMarcacion(marks = [], tipoContrato = 'Tiempo Completo') {
+/**
+ * Devuelve si la hora actual ya superó (o igualó) la hora de salida configurada.
+ * @param {string|null|undefined} horaSalidaConfig - Hora en formato "HH:MM", ej: "17:30"
+ */
+function yaEsHoraDeSalida(horaSalidaConfig) {
+  if (!horaSalidaConfig) return false;
+  const match = horaSalidaConfig.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return false;
+  const ahora = new Date();
+  const totalAhora = ahora.getHours() * 60 + ahora.getMinutes();
+  const totalSalida = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+  return totalAhora >= totalSalida;
+}
+
+/**
+ * Devuelve si ya pasaron 30 minutos desde la hora de salida configurada.
+ * A partir de este punto, FIN_HORAS_EXTRA está disponible aunque no haya SALIDA marcada.
+ */
+function yaEstaEnHorasExtras(horaSalidaConfig) {
+  if (!horaSalidaConfig) return false;
+  const match = horaSalidaConfig.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return false;
+  const ahora = new Date();
+  const totalAhora = ahora.getHours() * 60 + ahora.getMinutes();
+  const totalSalida = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+  return totalAhora >= totalSalida + 30;
+}
+
+export function getOpcionesMarcacion(marks = [], tipoContrato = 'Tiempo Completo', horaSalidaConfig = null) {
   const tipos = new Set(marks.map((m) => m.tipo));
   if (tipos.has('PERMISO') || tipos.has('FIN_HORAS_EXTRA') || tipos.has('SALIDA_PERMISO')) return [];
+
+  // Si ya pasó la hora de salida configurada, SALIDA_PERMISO ya no tiene sentido
+  const permisoDisponible = !yaEsHoraDeSalida(horaSalidaConfig);
+  // Si ya pasaron 30 min de la salida, FIN_HORAS_EXTRA disponible (con o sin SALIDA previa)
+  const enHorasExtras = yaEstaEnHorasExtras(horaSalidaConfig);
 
   if (!tipos.has('ENTRADA')) return [TIPOS_SELECCIONABLES[0]];
 
@@ -98,8 +131,19 @@ export function getOpcionesMarcacion(marks = [], tipoContrato = 'Tiempo Completo
   if (enAlmuerzo) return [TIPOS_SELECCIONABLES[2]];
 
   if (!tipos.has('SALIDA')) {
-    if (!tipos.has('INICIO_ALMUERZO')) return [TIPOS_SELECCIONABLES[1], TIPOS_SELECCIONABLES[5]];
-    if (tipos.has('FIN_ALMUERZO')) return [TIPOS_SELECCIONABLES[3], TIPOS_SELECCIONABLES[5]];
+    if (!tipos.has('INICIO_ALMUERZO')) {
+      const resultado = [TIPOS_SELECCIONABLES[1]]; // Salida almuerzo siempre
+      if (yaEsHoraDeSalida(horaSalidaConfig)) resultado.push(TIPOS_SELECCIONABLES[3]); // Salida
+      if (enHorasExtras) resultado.push(TIPOS_SELECCIONABLES[4]); // Fin horas extras
+      if (permisoDisponible) resultado.push(TIPOS_SELECCIONABLES[5]); // Salida con permiso
+      return resultado;
+    }
+    if (tipos.has('FIN_ALMUERZO')) {
+      const resultado = [TIPOS_SELECCIONABLES[3]]; // Salida
+      if (enHorasExtras) resultado.push(TIPOS_SELECCIONABLES[4]); // Fin horas extras
+      if (permisoDisponible) resultado.push(TIPOS_SELECCIONABLES[5]); // Salida con permiso
+      return resultado;
+    }
     return [];
   }
 
@@ -107,24 +151,40 @@ export function getOpcionesMarcacion(marks = [], tipoContrato = 'Tiempo Completo
   return [];
 }
 
-export function puedeRegistrarMarcacion(marks = [], tipoContrato = 'Tiempo Completo') {
-  return getOpcionesMarcacion(marks, tipoContrato).length > 0;
+export function puedeRegistrarMarcacion(marks = [], tipoContrato = 'Tiempo Completo', horaSalidaConfig = null) {
+  return getOpcionesMarcacion(marks, tipoContrato, horaSalidaConfig).length > 0;
 }
 
-export function previewHorasExtras(marks = []) {
-  const salida = marks.find((m) => m.tipo === 'SALIDA');
-  if (!salida?.fechaHora) return null;
-  const salidaAt = new Date(salida.fechaHora);
+export function previewHorasExtras(marks = [], horaSalidaConfig = null) {
   const ahora = new Date();
-  const ms = ahora.getTime() - salidaAt.getTime();
+  let inicioRef;
+
+  // Prefer the configured exit time (matches backend's calcularHorasExtrasDesdeConfig)
+  if (horaSalidaConfig) {
+    const match = horaSalidaConfig.match(/^(\d{1,2}):(\d{2})$/);
+    if (match) {
+      const ref = new Date(ahora);
+      ref.setHours(parseInt(match[1], 10), parseInt(match[2], 10), 0, 0);
+      inicioRef = ref;
+    }
+  }
+
+  // Fallback: use the SALIDA mark time
+  if (!inicioRef) {
+    const salida = marks.find((m) => m.tipo === 'SALIDA');
+    if (!salida?.fechaHora) return null;
+    inicioRef = new Date(salida.fechaHora);
+  }
+
+  const ms = ahora.getTime() - inicioRef.getTime();
   if (ms <= 0) return null;
   const horas = Math.round((ms / 3600000) * 100) / 100;
   const fmt = (d) => d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
-  return { horas, detalle: `${fmt(salidaAt)} - ${fmt(ahora)}` };
+  return { horas, detalle: `${fmt(inicioRef)} - ${fmt(ahora)}` };
 }
 
-export function resolveProximaMarcacion(marks = [], tipoContrato = 'Tiempo Completo') {
-  const opciones = getOpcionesMarcacion(marks, tipoContrato);
+export function resolveProximaMarcacion(marks = [], tipoContrato = 'Tiempo Completo', horaSalidaConfig = null) {
+  const opciones = getOpcionesMarcacion(marks, tipoContrato, horaSalidaConfig);
   if (opciones.length === 0) {
     return { proxima: null, permiteOmitirAlmuerzo: false, completado: true, marcacionesRegistradas: marks.length };
   }

@@ -326,13 +326,23 @@ const KioskView = () => {
         lapsos,
       });
 
-      if (!puedeRegistrarMarcacion(marcaciones, proxima.tipoContrato)) {
+      if (!puedeRegistrarMarcacion(marcaciones, proxima.tipoContrato, horarioHoy?.diaConfig?.salida)) {
         throw new Error('El colaborador ya completó las marcaciones del día.');
       }
 
+      const horaSalidaConfig = horarioHoy?.diaConfig?.salida ?? null;
       const opciones = proxima.opciones?.length
-        ? proxima.opciones
-        : getOpcionesMarcacion(marcaciones, proxima.tipoContrato);
+        ? proxima.opciones.filter(op => {
+            if (op.tipo === 'SALIDA_PERMISO') {
+              const now = new Date();
+              if (horaSalidaConfig) {
+                const [sh, sm] = horaSalidaConfig.split(':').map(Number);
+                if (now.getHours() * 60 + now.getMinutes() >= sh * 60 + sm) return false;
+              }
+            }
+            return true;
+          })
+        : getOpcionesMarcacion(marcaciones, proxima.tipoContrato, horaSalidaConfig);
 
       setPendingScan({
         empleadoId,
@@ -753,6 +763,7 @@ const KioskView = () => {
                 marcaciones={pendingScan.marcaciones}
                 opciones={pendingScan.opciones}
                 loading={isProcessingScan}
+                horaSalidaConfig={horarioHoy?.diaConfig?.salida ?? null}
                 onSelect={(tipo) => ejecutarRegistroKiosk(pendingScan.empleadoId, tipo)}
                 onCancel={() => { setPendingScan(null); setIsCameraActive(true); }}
               />

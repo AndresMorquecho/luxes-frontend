@@ -227,6 +227,8 @@ export function InventarioPage() {
         limit: ITEMS_PER_PAGE,
         search: debouncedSearch,
         ...(lockedCategory ? {} : { categoria: categoriaQuery }),
+        // Vista de impresión: mostrar rollos individuales [R001],[R002]
+        ...(isImpresion || categoriaQuery === 'Impresión' ? { incluirDerivados: true } : {}),
       }));
       setItems(res.items || []);
       setTotalItems(res.total || 0);

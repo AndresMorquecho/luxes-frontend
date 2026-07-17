@@ -19,9 +19,10 @@ export function MarcacionPickerModal({
   onSelect,
   onCancel,
   loading = false,
+  horaSalidaConfig = null,
 }) {
   const hePreview = opciones.some((o) => o.tipo === 'FIN_HORAS_EXTRA')
-    ? previewHorasExtras(marcaciones)
+    ? previewHorasExtras(marcaciones, horaSalidaConfig)
     : null;
 
   return (

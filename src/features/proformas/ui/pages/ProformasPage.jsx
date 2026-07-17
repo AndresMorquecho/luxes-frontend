@@ -86,6 +86,7 @@ export const ProformasPage = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (currentUser.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
+  const isVentasODisenador = ['VENTAS', 'DISEÑADOR', 'DISENADOR'].includes(userRole);
   
   // Core lists & stats
   const [proformas, setProformas] = useState([]);
@@ -736,7 +737,7 @@ export const ProformasPage = () => {
                               </button>
                               
                               <button 
-                                disabled={!isAdmin}
+                                disabled={!(isAdmin || (isVentasODisenador && p.estado === 'Rechazada'))}
                                 onClick={() => openEdit(p)}
                                 className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
                                 title="Editar proforma"
@@ -852,7 +853,7 @@ export const ProformasPage = () => {
                         </button>
                         
                         <button 
-                          disabled={!isAdmin}
+                          disabled={!(isAdmin || (isVentasODisenador && p.estado === 'Rechazada'))}
                           onClick={() => openEdit(p)}
                           className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
                           title="Editar proforma"
