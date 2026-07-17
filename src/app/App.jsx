@@ -262,11 +262,15 @@ function App() {
             </Routes>
           ) : (
             <Routes>
-              <Route path="/" element={isImpresion ? <Navigate to="/colas-impresion" replace /> : <DashboardPage />} />
+              <Route path="/" element={
+                isImpresion ? <Navigate to="/colas-impresion" replace /> :
+                (isVentas || isDisenador) ? <Navigate to="/proformas" replace /> :
+                <DashboardPage />
+              } />
               <Route path="/notificaciones" element={<NotificacionesPage />} />
               {!isImpresion && <Route path="/nomina/*" element={<NominaFeature />} />}
               {!isImpresion && <Route path="/impresiones" element={<ImpresionesPage />} />}
-              {!isVentas && !isDisenador && <Route path="/colas-impresion" element={<ColasImpresionPage />} />}
+              <Route path="/colas-impresion" element={<ColasImpresionPage />} />
               <Route path="/instalaciones" element={<InstalacionesPage />} />
               <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
               <Route path="/inventario/*" element={<InventarioFeature />} />

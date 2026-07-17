@@ -68,5 +68,13 @@ export function getPostLoginPath(user) {
   if (isTallerUser(normalized)) return '/notificaciones';
   if (isImpresionUser(normalized)) return '/colas-impresion';
   if (isAdminUser(normalized)) return '/';
+  
+  const rol = (normalized?.rol || '').toUpperCase();
+  const isVentas = rol === 'VENTAS' || rol === 'VENTAS / DISEÑADOR' || rol === 'VENTAS / DISENADOR';
+  const isDisenador = rol === 'DISEÑADOR' || rol === 'DISENADOR' || rol === 'VENTAS / DISEÑADOR' || rol === 'VENTAS / DISENADOR';
+  if (isVentas || isDisenador) {
+    return '/proformas';
+  }
   return '/';
 }
+

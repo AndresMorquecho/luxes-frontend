@@ -89,13 +89,15 @@ export const MetodosPagoPage = () => {
     try {
       if (editingMetodo) {
         await updateMetodoPago(editingMetodo.id, metodoForm);
+        toast.success('Método de pago actualizado con éxito');
       } else {
         await createMetodoPago(metodoForm);
+        toast.success('Método de pago creado con éxito');
       }
       setMetodoFormOpen(false);
       loadMetodos();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setMetodoSaving(false);
     }
@@ -106,8 +108,9 @@ export const MetodosPagoPage = () => {
     try {
       await deleteMetodoPago(id);
       loadMetodos();
+      toast.success('Método de pago eliminado con éxito');
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -115,8 +118,9 @@ export const MetodosPagoPage = () => {
     try {
       await updateMetodoPago(m.id, { activo: !m.activo });
       loadMetodos();
+      toast.success(`Método de pago ${!m.activo ? 'activado' : 'desactivado'} con éxito`);
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 

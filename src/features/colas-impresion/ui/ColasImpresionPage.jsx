@@ -242,17 +242,22 @@ export const ColasImpresionPage = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = isAdminUser(user);
 
-  const [isTvMode, setIsTvMode] = useState(isAdmin);
+  const userRole = (user?.rol || '').toUpperCase();
+  const isVentas = userRole === 'VENTAS' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
+  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
+  const isVentasOrDisenador = isVentas || isDisenador;
+
+  const [isTvMode, setIsTvMode] = useState(isAdmin || isVentasOrDisenador);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !isAdmin) {
+      if (e.key === 'Escape' && !isAdmin && !isVentasOrDisenador) {
         setIsTvMode(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAdmin]);
+  }, [isAdmin, isVentasOrDisenador]);
 
   // Smart calculations for roll width consumption
   const calculateSuggestedQuantity = (material, width, height, copies) => {
@@ -587,7 +592,7 @@ export const ColasImpresionPage = () => {
 
   return (
     <div className="colas-impresion-container">
-      {!isAdmin && (
+      {!isAdmin && !isTvMode && (
         <>
           {/* Header section */}
           <div className="colas-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -2003,22 +2008,22 @@ export const ColasImpresionPage = () => {
       {/* TV / Fullscreen Mode Overlay */}
       {isTvMode && (
         <div 
-          className={`colas-tv-overlay ${isAdmin ? 'tv-admin' : ''}`}
+          className={`colas-tv-overlay ${(isAdmin || isVentasOrDisenador) ? 'tv-admin' : ''}`}
           style={{
-            position: isAdmin ? 'relative' : 'fixed',
+            position: (isAdmin || isVentasOrDisenador) ? 'relative' : 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
             backgroundColor: '#fafafa',
             color: '#0f172a',
-            zIndex: isAdmin ? 1 : 99999,
+            zIndex: (isAdmin || isVentasOrDisenador) ? 1 : 99999,
             display: 'flex',
             flexDirection: 'column',
-            padding: isAdmin ? '1rem' : '2.5rem 3rem',
+            padding: (isAdmin || isVentasOrDisenador) ? '1rem' : '2.5rem 3rem',
             boxSizing: 'border-box',
-            height: isAdmin ? '100%' : '100vh',
-            width: isAdmin ? '100%' : '100vw',
+            height: (isAdmin || isVentasOrDisenador) ? '100%' : '100vh',
+            width: (isAdmin || isVentasOrDisenador) ? '100%' : '100vw',
             overflow: 'hidden',
             fontFamily: '"Outfit", "Inter", system-ui, -apple-system, sans-serif'
           }}
@@ -2137,7 +2142,11 @@ export const ColasImpresionPage = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <h1 style={{ fontSize: '2.25rem', fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.025em' }}>COLAS DE IMPRESIÓN</h1>
                 <span 
-                  onClick={() => setIsTvMode(false)}
+                  onClick={() => {
+                    if (!isVentasOrDisenador) {
+                      setIsTvMode(false);
+                    }
+                  }}
                   style={{ 
                     backgroundColor: '#1d4ed8', 
                     color: '#ffffff', 
@@ -2146,10 +2155,10 @@ export const ColasImpresionPage = () => {
                     padding: '0.2rem 0.6rem', 
                     borderRadius: '6px',
                     letterSpacing: '0.05em',
-                    cursor: 'pointer',
+                    cursor: isVentasOrDisenador ? 'default' : 'pointer',
                     userSelect: 'none'
                   }}
-                  title="Click para salir del Modo TV"
+                  title={isVentasOrDisenador ? "Vista TV permanente" : "Click para salir del Modo TV"}
                 >
                   VISTA TV
                 </span>

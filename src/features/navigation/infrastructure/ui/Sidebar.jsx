@@ -548,16 +548,14 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
                 {!isCollapsed && isPrintOpen && (
                   <ul className="sidebar-submenu">
-                    {!isVentas && !isDisenador && (
-                      <li className={currentPath.startsWith('/colas-impresion') ? 'submenu-active' : ''}>
-                        <Link to="/colas-impresion" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m3.375-3.375V18a2.25 2.25 0 0 0 2.25 2.25H18A2.25 2.25 0 0 0 20.25 18v-5.25A2.25 2.25 0 0 0 18 10.5h-5.25a2.25 2.25 0 0 0-2.25 2.25z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Colas de Impresión</span>
-                        </Link>
-                      </li>
-                    )}
+                    <li className={currentPath.startsWith('/colas-impresion') ? 'submenu-active' : ''}>
+                      <Link to="/colas-impresion" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m3.375-3.375V18a2.25 2.25 0 0 0 2.25 2.25H18A2.25 2.25 0 0 0 20.25 18v-5.25A2.25 2.25 0 0 0 18 10.5h-5.25a2.25 2.25 0 0 0-2.25 2.25z" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Colas de Impresión</span>
+                      </Link>
+                    </li>
                   </ul>
                 )}
               </li>
