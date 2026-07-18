@@ -45,12 +45,31 @@ const CATEGORY_BY_MODULE = {
 
 /** Migra claves obsoletas del sidebar guardadas en BD. */
 export function normalizeHiddenModules(modules) {
-  return [...new Set(modules || [])];
+  if (!modules) return [];
+  let hidden = [...modules];
+
+  // Si tiene las claves de categorías viejas en BD, las expandimos a los módulos individuales correspondientes
+  if (hidden.includes('comercial')) {
+    hidden.push('proformas', 'proyectos', 'ventas', 'relaciones');
+  }
+  if (hidden.includes('operaciones')) {
+    hidden.push('tallerImpresion', 'inventario', 'instalaciones', 'tareas', 'controlVehiculos');
+  }
+  if (hidden.includes('personas')) {
+    hidden.push('nomina');
+  }
+  if (hidden.includes('finanzas')) {
+    hidden.push('gastos');
+  }
+
+  // Removemos las claves obsoletas para que no sigan persistidas
+  const oldCategories = ['comercial', 'operaciones', 'personas'];
+  hidden = hidden.filter(h => !oldCategories.includes(h));
+
+  return [...new Set(hidden)];
 }
 
 export function isModuleHidden(hiddenModules, moduleKey) {
   if (!hiddenModules) return false;
-  if (hiddenModules.includes(moduleKey)) return true;
-  const category = CATEGORY_BY_MODULE[moduleKey];
-  return category ? hiddenModules.includes(category) : false;
+  return hiddenModules.includes(moduleKey);
 }

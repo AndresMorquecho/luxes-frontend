@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUnreadNotifications } from '../../../../shared/hooks/useUnreadNotifications.js';
 import { isAdminUser, getDisplayRole } from '../../../../shared/utils/userRoleHelpers';
-import { isModuleHidden } from '../../application/sidebarModules.js';
+import { isModuleHidden, normalizeHiddenModules } from '../../application/sidebarModules.js';
 import './Sidebar.css';
 
 export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogout }) => {
@@ -30,13 +30,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
         ? JSON.parse(user.sidebarConfig)
         : user.sidebarConfig;
       if (configObj && Array.isArray(configObj.hiddenModules)) {
-        hiddenModules = configObj.hiddenModules.filter((h) => h !== 'reportesFinancieros');
-        if (hiddenModules.includes('cierreCaja')) {
-          hiddenModules = hiddenModules.filter(h => h !== 'cierreCaja');
-          if (!hiddenModules.includes('finanzas')) {
-            hiddenModules.push('finanzas');
-          }
-        }
+        hiddenModules = normalizeHiddenModules(configObj.hiddenModules);
       }
     } catch (e) {
       console.error('Error parsing sidebarConfig:', e);
