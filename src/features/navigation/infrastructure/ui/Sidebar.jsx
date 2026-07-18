@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUnreadNotifications } from '../../../../shared/hooks/useUnreadNotifications.js';
 import { isAdminUser, getDisplayRole } from '../../../../shared/utils/userRoleHelpers';
+import { isModuleHidden } from '../../application/sidebarModules.js';
 import './Sidebar.css';
 
 export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogout }) => {
@@ -62,7 +63,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
     if (!originalCanView) return false;
     if (!isAdmin) return true;
     if (showAll) return true;
-    return !hiddenModules.includes(moduleKey);
+    return !isModuleHidden(hiddenModules, moduleKey);
   };
 
   const [isConfigOpen, setIsConfigOpen] = useState(false);
