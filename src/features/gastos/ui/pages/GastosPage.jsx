@@ -20,6 +20,8 @@ import {
   Eye, Pencil
 } from 'lucide-react';
 import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
+import { getDeudasFijasCount } from '../../application/gastosFijosService';
+import { GastosFijosTab } from '../components/GastosFijosTab';
 
 const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
@@ -67,6 +69,10 @@ const PAGE_META = {
   gastos: {
     title: 'Control de Gastos',
     subtitle: 'Egresos operativos, pagos de órdenes de compra y mantenimiento central',
+  },
+  fijos: {
+    title: 'Gastos Fijos Programados',
+    subtitle: 'Programación de gastos recurrentes, deudas por pagar y registro automático en caja',
   },
   vehiculos: {
     title: 'Gestión de Flota',
@@ -181,7 +187,8 @@ const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, t
 };
 
 export const GastosPage = ({ defaultTab = 'gastos' }) => {
-  const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'vehiculos' | 'cierre'
+  const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'fijos' | 'vehiculos' | 'cierre'
+  const [deudasFijasCount, setDeudasFijasCount] = useState(0);
   
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = loggedInUser?.rol?.toLowerCase() === 'admin' || loggedInUser?.rol?.toLowerCase() === 'administrador';
@@ -189,6 +196,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   useEffect(() => {
     setActiveTab(defaultTab);
   }, [defaultTab]);
+
+  const fetchDeudasFijasCount = async () => {
+    try {
+      const count = await getDeudasFijasCount();
+      setDeudasFijasCount(count);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchDeudasFijasCount();
+  }, [activeTab]);
 
   // --- MÉTODOS DE PAGO ---
   const [metodosPago, setMetodosPago] = useState([]);
@@ -961,8 +981,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         </div>
       </div>
 
-      {/* Tabs (Solo visibles en Gastos Operativos y Control de Vehículos) */}
-      {(activeTab === 'gastos' || activeTab === 'vehiculos') && (
+      {/* Tabs (Solo visibles en Gastos Operativos, Gastos Fijos y Control de Vehículos) */}
+      {(activeTab === 'gastos' || activeTab === 'fijos' || activeTab === 'vehiculos') && (
         <div className="ga-tab-bar">
           <button 
             onClick={() => { setActiveTab('gastos'); setSelectedVehiculo(null); }} 
@@ -970,6 +990,18 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           >
             <DollarSign size={15} />
             Gastos Operativos
+          </button>
+          <button 
+            onClick={() => { setActiveTab('fijos'); setSelectedVehiculo(null); }} 
+            className={`ga-tab-btn ${activeTab === 'fijos' ? 'active' : ''} relative`}
+          >
+            <RefreshCw size={15} />
+            Gastos Fijos
+            {deudasFijasCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white bg-rose-500 rounded-full animate-pulse shadow-sm">
+                {deudasFijasCount}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => { setActiveTab('vehiculos'); setSelectedVehiculo(null); }} 
@@ -1329,6 +1361,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           </div>
         </>
       )}
+
+      {/* PESTAÑA: GASTOS FIJOS */}
+      {activeTab === 'fijos' && (
+        <GastosFijosTab
+          isAdmin={isAdmin}
+          onPaymentSuccess={() => {
+            loadGastosData();
+            fetchDeudasFijasCount();
+          }}
+        />
+      )}
+
+
 
       {/* PESTAÑA 2: CONTROL DE VEHÍCULOS */}
       {activeTab === 'vehiculos' && (

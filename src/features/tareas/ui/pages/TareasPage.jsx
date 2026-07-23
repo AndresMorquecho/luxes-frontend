@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Play, CheckCircle2, DollarSign, Pencil, Ban, Trash2, X, Loader2,
+  History, Plus, Clock, AlertTriangle
+} from 'lucide-react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import {
   getTareas,
@@ -65,7 +69,227 @@ export default function TareasPage() {
 
   const [activeTab, setActiveTab] = useState(isAdmin ? 'todas' : 'mis-tareas');
 
+  // Estado para el modal de multas por incumplimiento de tarea
+  const [showMultaModal, setShowMultaModal] = useState(false);
+  const [multaModalTab, setMultaModalTab] = useState('historial'); // 'historial' | 'nueva'
+  const [multaTarea, setMultaTarea] = useState(null);
+  const [multaUsuarioId, setMultaUsuarioId] = useState('');
+  const [multaMonto, setMultaMonto] = useState('');
+  const [multaFecha, setMultaFecha] = useState('');
+  const [multaMotivo, setMultaMotivo] = useState('');
+  const [multaError, setMultaError] = useState('');
+  const [multaSubmitting, setMultaSubmitting] = useState(false);
+  const [empleadosList, setEmpleadosList] = useState([]);
+
+  // Historial de multas de la tarea seleccionada
+  const [multasRegistradas, setMultasRegistradas] = useState([]);
+  const [loadingMultasHistory, setLoadingMultasHistory] = useState(false);
+  const [eliminandoMultaId, setEliminandoMultaId] = useState(null);
+
   const LIMIT = 25;
+
+  const cargarMultasTarea = async (tarea, empListOverride = null) => {
+    if (!tarea) return [];
+    setLoadingMultasHistory(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/nomina/egresos?tipo=MULTA', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const allMultas = data.data || [];
+        const taskTag = `[TAREA:${tarea.id}]`;
+        const taskTitle = tarea.titulo.toLowerCase();
+
+        const filtered = allMultas.filter(
+          (m) =>
+            (m.motivo && m.motivo.includes(taskTag)) ||
+            (m.motivo && m.motivo.toLowerCase().includes(taskTitle))
+        );
+
+        setMultasRegistradas(filtered);
+        return filtered;
+      }
+    } catch (err) {
+      console.error('[cargarMultasTarea] Error:', err);
+    } finally {
+      setLoadingMultasHistory(false);
+    }
+    return [];
+  };
+
+  const openMultaModal = async (tarea) => {
+    setMultaTarea(tarea);
+    const asignados = tarea.asignaciones || [];
+    const primerUsuarioId = asignados.length > 0 ? (asignados[0].userId || asignados[0].user?.id || '') : '';
+    setMultaUsuarioId(primerUsuarioId);
+    setMultaMonto(''); // Inicia vacío para ingreso manual
+    setMultaFecha(new Date().toISOString().split('T')[0]);
+    setMultaMotivo(`Multa por incumplimiento de tarea: ${tarea.titulo}`);
+    setMultaError('');
+    setShowMultaModal(true);
+
+    let currentEmpList = empleadosList;
+    if (currentEmpList.length === 0) {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/empleados', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          currentEmpList = data.data || [];
+          setEmpleadosList(currentEmpList);
+        }
+      } catch (err) {
+        console.error('[openMultaModal] Error al cargar empleados:', err);
+      }
+    }
+
+    const multasExistentes = await cargarMultasTarea(tarea);
+    if (multasExistentes && multasExistentes.length > 0) {
+      setMultaModalTab('historial');
+    } else {
+      setMultaModalTab('nueva');
+    }
+  };
+
+  const handleSaveMulta = async (e) => {
+    e.preventDefault();
+    if (!multaUsuarioId) {
+      setMultaError('Por favor selecciona un colaborador asignado');
+      return;
+    }
+    const montoNum = Number(multaMonto);
+    if (!multaMonto || isNaN(montoNum) || montoNum <= 0) {
+      setMultaError('Ingresa un monto válido mayor a 0');
+      return;
+    }
+    if (!multaFecha) {
+      setMultaError('Selecciona una fecha válida');
+      return;
+    }
+
+    setMultaSubmitting(true);
+    setMultaError('');
+
+    try {
+      const userSelected = users.find((u) => u.id === multaUsuarioId);
+      let empId = userSelected?.empleadoId;
+
+      if (!empId && empleadosList.length > 0) {
+        const empFound = empleadosList.find(
+          (e) =>
+            e.userId === multaUsuarioId ||
+            e.user?.id === multaUsuarioId ||
+            e.id === multaUsuarioId ||
+            e.nombre?.toLowerCase() === userSelected?.nombre?.toLowerCase()
+        );
+        if (empFound) empId = empFound.id;
+      }
+
+      if (!empId) {
+        empId = multaUsuarioId;
+      }
+
+      const tagMotivo = `[TAREA:${multaTarea.id}] ${multaMotivo.trim() || `Multa por incumplimiento en tarea "${multaTarea?.titulo}"`}`;
+
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/nomina/egresos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          empleadoId: String(empId),
+          tipo: 'MULTA',
+          monto: montoNum,
+          fecha: multaFecha,
+          motivo: tagMotivo,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Error al registrar la multa en Nómina');
+      }
+
+      await alertDialog(
+        'Multa Registrada',
+        `Se ha aplicado exitosamente la multa de $${montoNum.toFixed(2)} al colaborador en Nómina.`,
+        { type: 'success' }
+      );
+
+      // Recargar historial y cambiar a la pestaña de historial
+      await cargarMultasTarea(multaTarea);
+      setMultaMonto('');
+      setMultaMotivo(`Multa por incumplimiento de tarea: ${multaTarea.titulo}`);
+      setMultaModalTab('historial');
+    } catch (err) {
+      setMultaError(err.message || 'No se pudo guardar la multa');
+    } finally {
+      setMultaSubmitting(false);
+    }
+  };
+
+  const handleDeleteMulta = async (multa) => {
+    const ok = await confirmDialog(
+      '¿Eliminar esta multa?',
+      `Esta acción eliminará la multa de $${Number(multa.monto).toFixed(2)} de la Nómina del colaborador y recalculará su sueldo automáticamente. ¿Deseas continuar?`,
+      { type: 'danger', confirmText: 'Eliminar Multa' }
+    );
+    if (!ok) return;
+
+    setEliminandoMultaId(multa.id);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/nomina/egresos/${multa.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Error al eliminar la multa');
+      }
+
+      await alertDialog('Multa Eliminada', 'La multa ha sido eliminada de Nómina correctamente.', { type: 'success' });
+      await cargarMultasTarea(multaTarea);
+    } catch (err) {
+      await alertDialog('Error', 'No se pudo eliminar la multa: ' + err.message, { type: 'warning' });
+    } finally {
+      setEliminandoMultaId(null);
+    }
+  };
+
+  const getNombreEmpleado = (empId) => {
+    const emp = empleadosList.find((e) => e.id === empId || e.user?.id === empId);
+    if (emp) return emp.nombre;
+    const usr = users.find((u) => u.id === empId || u.empleadoId === empId);
+    if (usr) return usr.nombre;
+    return empId || 'Colaborador';
+  };
+
+  const getQuincenaBadge = (fechaStr) => {
+    if (!fechaStr) return null;
+    const parts = fechaStr.split('-');
+    const day = parseInt(parts[2] || '1', 10);
+    if (day <= 15) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+          1ra Quincena (01-15)
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+        2da Quincena (16-Fin)
+      </span>
+    );
+  };
+
+
 
   const fetchTareas = useCallback(async () => {
     setLoading(true);
@@ -357,34 +581,75 @@ export default function TareasPage() {
 
   const renderTareaActions = (tarea, compact = false) => {
     const isAssigned = tarea.asignaciones?.some((a) => a.userId === storedUser.id);
-    const btnClass = compact
-      ? 'h-8 px-2.5 inline-flex items-center gap-1 rounded-lg text-[11px] font-semibold whitespace-nowrap'
-      : 'h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold whitespace-nowrap';
+    const hasAssignments = (tarea.asignaciones || []).length > 0;
 
     return (
-      <div className={`flex flex-wrap items-center ${compact ? 'gap-1' : 'gap-1.5 justify-end'}`}>
+      <div className={`flex flex-wrap items-center gap-1.5 ${compact ? '' : 'justify-end'}`}>
         {isAssigned && tarea.estado === 'pendiente' && (
-          <button type="button" onClick={() => handleStatusChange(tarea, 'en_progreso')} className={`${btnClass} text-white`} style={{ backgroundColor: TA_PRIMARY }}>
-            Iniciar
+          <button
+            type="button"
+            title="Iniciar tarea"
+            onClick={() => handleStatusChange(tarea, 'en_progreso')}
+            className="h-8 px-2.5 inline-flex items-center gap-1 bg-[#2b41b8] hover:bg-[#1a1c3d] text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+          >
+            <Play size={13} />
+            {!compact && <span>Iniciar</span>}
           </button>
         )}
+
         {isAssigned && tarea.estado === 'en_progreso' && (
-          <button type="button" onClick={() => handleStatusChange(tarea, 'completada')} className={`${btnClass} bg-emerald-600 text-white`}>
-            Completar
+          <button
+            type="button"
+            title="Completar tarea"
+            onClick={() => handleStatusChange(tarea, 'completada')}
+            className="h-8 px-2.5 inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+          >
+            <CheckCircle2 size={13} />
+            {!compact && <span>Completar</span>}
           </button>
         )}
+
         {isAdmin && (
           <>
-            <button type="button" onClick={() => openEditModal(tarea)} className={`${btnClass} border border-slate-200 text-slate-600 bg-white hover:bg-slate-50`}>
-              Editar
-            </button>
-            {tarea.estado !== 'cancelada' && (
-              <button type="button" onClick={() => handleStatusChange(tarea, 'cancelada')} className={`${btnClass} border border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100`}>
-                Cancelar
+            {hasAssignments && (
+              <button
+                type="button"
+                title="Multar colaborador por incumplimiento"
+                onClick={() => openMultaModal(tarea)}
+                className="h-8 px-2.5 inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300/80 rounded-lg text-xs font-bold transition-all shadow-sm"
+              >
+                <DollarSign size={14} className="text-amber-700" strokeWidth={2.5} />
+                {!compact && <span>Multar</span>}
               </button>
             )}
-            <button type="button" onClick={() => handleDelete(tarea)} className={`${btnClass} border border-red-200 text-red-600 bg-red-50 hover:bg-red-100`}>
-              Eliminar
+
+            <button
+              type="button"
+              title="Editar tarea"
+              onClick={() => openEditModal(tarea)}
+              className="h-8 w-8 inline-flex items-center justify-center border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 rounded-lg transition-all shadow-sm"
+            >
+              <Pencil size={14} />
+            </button>
+
+            {tarea.estado !== 'cancelada' && (
+              <button
+                type="button"
+                title="Cancelar tarea"
+                onClick={() => handleStatusChange(tarea, 'cancelada')}
+                className="h-8 w-8 inline-flex items-center justify-center border border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all shadow-sm"
+              >
+                <Ban size={14} />
+              </button>
+            )}
+
+            <button
+              type="button"
+              title="Eliminar tarea"
+              onClick={() => handleDelete(tarea)}
+              className="h-8 w-8 inline-flex items-center justify-center border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-all shadow-sm"
+            >
+              <Trash2 size={14} />
             </button>
           </>
         )}
@@ -680,6 +945,294 @@ export default function TareasPage() {
         </div>
         </ModalPortal>
       )}
+
+      {/* Modal Widescreen para Gestión de Multas e Historial (Altura Fija) */}
+      {showMultaModal && multaTarea && (
+        <ModalPortal>
+          <div className="co-portal-root">
+            <div className="co-overlay" onClick={() => setShowMultaModal(false)} />
+            <div className="co-modal-wrap">
+              <div
+                className="co-modal animate-co-modal-in overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-2xl w-full flex flex-col h-[570px] max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header Modal Fijo */}
+                <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                      <DollarSign size={19} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <h2 className="text-sm sm:text-base font-bold text-slate-800">Gestión de Multas por Incumplimiento</h2>
+                      <p className="text-xs text-slate-500">Tarea: <span className="font-semibold text-slate-700">{multaTarea.titulo}</span></p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMultaModal(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Barra de Pestañas (Tabs) Fija */}
+                <div className="bg-slate-100/70 px-6 pt-2.5 border-b border-slate-200 flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setMultaModalTab('historial')}
+                    className={`px-4 py-2 rounded-t-xl text-xs font-bold transition-all flex items-center gap-2 border-t border-x ${
+                      multaModalTab === 'historial'
+                        ? 'bg-white text-slate-800 border-slate-200 border-b-transparent shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <History size={14} />
+                    <span>Multas Registradas</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        multasRegistradas.length > 0
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {multasRegistradas.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMultaModalTab('nueva')}
+                    className={`px-4 py-2 rounded-t-xl text-xs font-bold transition-all flex items-center gap-2 border-t border-x ${
+                      multaModalTab === 'nueva'
+                        ? 'bg-white text-slate-800 border-slate-200 border-b-transparent shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <Plus size={14} />
+                    <span>+ Registrar Nueva Multa</span>
+                  </button>
+                </div>
+
+                {/* Cuerpo del Modal con Altura Fija según Pestaña */}
+                <div className="p-5 flex-1 bg-white overflow-hidden flex flex-col min-h-0">
+                  
+                  {/* TAB 1: HISTORIAL DE MULTAS */}
+                  {multaModalTab === 'historial' && (
+                    <div className="h-full overflow-y-auto pr-1 space-y-3">
+                      {loadingMultasHistory ? (
+                        <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-2">
+                          <Loader2 size={24} className="animate-spin text-amber-500" />
+                          <p className="text-xs font-medium">Cargando multas de esta tarea...</p>
+                        </div>
+                      ) : multasRegistradas.length === 0 ? (
+                        <div className="py-12 text-center bg-slate-50 rounded-2xl border border-slate-200/80 p-6 my-auto">
+                          <AlertTriangle size={32} className="mx-auto text-slate-300 mb-2" />
+                          <p className="text-slate-700 font-bold text-sm">No hay multas registradas para esta tarea</p>
+                          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                            Aún no se han aplicado sanciones económicas a los colaboradores asignados a esta tarea.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setMultaModalTab('nueva')}
+                            className="mt-4 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm inline-flex items-center gap-1.5"
+                          >
+                            <Plus size={14} />
+                            Registrar Primera Multa
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Resumen Total */}
+                          <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 flex items-center justify-between gap-4 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <DollarSign size={17} className="text-amber-700" />
+                              <span className="text-xs font-bold text-amber-900">Total Sancionado en esta Tarea:</span>
+                            </div>
+                            <span className="text-base font-extrabold text-amber-900">
+                              ${multasRegistradas.reduce((acc, m) => acc + Number(m.monto || 0), 0).toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* Lista de Multas */}
+                          <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                            {multasRegistradas.map((m) => (
+                              <div key={m.id} className="p-3.5 hover:bg-slate-50/80 transition-colors flex items-start justify-between gap-3">
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-bold text-slate-800">
+                                      {getNombreEmpleado(m.empleadoId)}
+                                    </span>
+                                    {getQuincenaBadge(m.fecha)}
+                                    <span className="text-[11px] text-slate-400 font-mono">
+                                      {m.fecha}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-600 leading-snug bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                    {m.motivo ? m.motivo.replace(/\[TAREA:[^\]]+\]\s*/g, '') : 'Incumplimiento'}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-2.5 shrink-0">
+                                  <span className="text-sm font-extrabold text-red-600 font-mono">
+                                    -${Number(m.monto).toFixed(2)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteMulta(m)}
+                                    disabled={eliminandoMultaId === m.id}
+                                    className="p-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-50"
+                                    title="Eliminar esta multa (Se descontará de Nómina)"
+                                  >
+                                    {eliminandoMultaId === m.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 2: REGISTRAR NUEVA MULTA (Sin Scrollbar) */}
+                  {multaModalTab === 'nueva' && (
+                    <form onSubmit={handleSaveMulta} className="h-full flex flex-col justify-between space-y-3 overflow-hidden">
+                      <div className="space-y-3 overflow-hidden">
+                        {multaError && (
+                          <div className="px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+                            {multaError}
+                          </div>
+                        )}
+
+                        {/* Selección del Colaborador Asignado */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">
+                            Colaborador Asignado a Multar *
+                          </label>
+                          {(multaTarea.asignaciones || []).length > 1 ? (
+                            <div>
+                              <select
+                                value={multaUsuarioId}
+                                onChange={(e) => setMultaUsuarioId(e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                              >
+                                {(multaTarea.asignaciones || []).map((a) => {
+                                  const uId = a.userId || a.user?.id;
+                                  const name = a.user?.nombre || a.user?.username || 'Usuario';
+                                  const role = a.user?.rol ? ` (${a.user.rol})` : '';
+                                  return (
+                                    <option key={uId} value={uId}>
+                                      {name}{role}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                * Tarea con múltiples colaboradores. Selecciona a quién deseas multar individualmente.
+                              </p>
+                            </div>
+                          ) : (multaTarea.asignaciones || []).length === 1 ? (
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">
+                                {((multaTarea.asignaciones[0].user?.nombre || 'U').charAt(0)).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-800 truncate">
+                                  {multaTarea.asignaciones[0].user?.nombre || multaTarea.asignaciones[0].user?.username}
+                                </p>
+                                <p className="text-[10px] text-slate-500 truncate">
+                                  {multaTarea.asignaciones[0].user?.rol || 'Asignado único'}
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-red-500">Esta tarea no posee colaboradores asignados.</p>
+                          )}
+                        </div>
+
+                        {/* Monto de la Multa */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">
+                            Monto Económico de la Multa ($) *
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={multaMonto}
+                              onChange={(e) => setMultaMonto(e.target.value)}
+                              className="w-full pl-7 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                              autoFocus
+                            />
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            * Ingresa el monto en dólares sin ceros predeterminados.
+                          </p>
+                        </div>
+
+                        {/* Fecha de Aplicación (Quincena) */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">
+                            Fecha de Aplicación (Descuento en Nómina) *
+                          </label>
+                          <input
+                            type="date"
+                            value={multaFecha}
+                            onChange={(e) => setMultaFecha(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            * Se reflejará en los Egresos / Multas de la 1ra o 2da quincena en Nómina según esta fecha.
+                          </p>
+                        </div>
+
+                        {/* Concepto / Motivo */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">
+                            Motivo / Concepto de la Multa *
+                          </label>
+                          <textarea
+                            rows="2"
+                            value={multaMotivo}
+                            onChange={(e) => setMultaMotivo(e.target.value)}
+                            placeholder="Ej: No realizó la tarea asignada / La marcó como realizada pero no fue ejecutada..."
+                            className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Footer Modal Fijo al Fondo sin Scroll */}
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setMultaModalTab('historial')}
+                          className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors"
+                        >
+                          Ver Historial
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={multaSubmitting}
+                          className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {multaSubmitting ? <Loader2 size={13} className="animate-spin" /> : <DollarSign size={13} />}
+                          Registrar Multa en Nómina
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 }
+

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, LayoutList, LayoutGrid,
   Printer, Wrench, CheckCircle, Layers,
-  AlertTriangle
+  AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
@@ -61,14 +61,25 @@ export default function ProyectosPage() {
           <h1 className="text-xl font-bold text-slate-800">Gestión de Proyectos</h1>
           <p className="text-sm text-slate-500">Seguimiento del ciclo de vida de los proyectos de la agencia</p>
         </div>
-        <button
-          onClick={() => navigate('/proyectos/nuevo')}
-          className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm shrink-0"
-          style={{ backgroundColor: '#1d4ed8' }}
-        >
-          <Plus size={15} />
-          Nuevo Proyecto
-        </button>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => navigate('/proyectos/reclamos')}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-all shadow-sm"
+          >
+            <ShieldAlert size={16} />
+            Reclamos Post-Venta
+          </button>
+
+          <button
+            onClick={() => navigate('/proyectos/nuevo')}
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm"
+            style={{ backgroundColor: '#1d4ed8' }}
+          >
+            <Plus size={15} />
+            Nuevo Proyecto
+          </button>
+        </div>
       </div>
 
       <div className="space-y-5">
