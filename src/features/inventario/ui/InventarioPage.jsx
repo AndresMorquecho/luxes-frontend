@@ -355,8 +355,8 @@ export function InventarioPage() {
         }
       />
 
-      {/* KPI Cards */}
-      <div className={`grid gap-2 sm:gap-3 ${showLoanKpis ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2'}`}>
+      {/* KPI Cards — una fila en web; 2×2 solo en móvil */}
+      <div className={`grid gap-2 sm:gap-3 ${showLoanKpis ? 'grid-cols-4 max-sm:grid-cols-2' : 'grid-cols-2'}`}>
         <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-blue-600 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
           <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Materiales</p>
           <p className="text-base sm:text-lg font-bold text-blue-600 mt-1 tabular-nums">
@@ -399,47 +399,42 @@ export function InventarioPage() {
         )}
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-3 sm:p-4">
-        <div className={`grid gap-3 ${lockedCategory ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
-          <div className="min-w-0">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Clasificación</label>
-            <select
-              value={subTipoFilter}
-              onChange={(e) => setSubTipoFilter(e.target.value)}
-              className={inputClass}
-            >
-              <option value="all">Todos</option>
-              <option value="consumible">Consumibles</option>
-              <option value="herramienta">Herramientas</option>
-            </select>
-          </div>
-          {!lockedCategory && (
-            <div className="min-w-0 sm:col-span-2 lg:col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Sección</label>
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                {visibleTabs.map((tab) => {
-                  const Icon = tab.Icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => { setActiveTab(tab.id); setSearch(''); }}
-                      className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer shrink-0 ${
-                        activeTab === tab.id
-                          ? 'bg-blue-900 text-white shadow-md'
-                          : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Icon size={15} className="shrink-0" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+      {/* Clasificación + tabs de sección (misma fila, sin card) */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div className="max-w-xs w-full sm:w-auto">
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Clasificación</label>
+          <select
+            value={subTipoFilter}
+            onChange={(e) => setSubTipoFilter(e.target.value)}
+            className={inputClass}
+          >
+            <option value="all">Todos</option>
+            <option value="consumible">Consumibles</option>
+            <option value="herramienta">Herramientas</option>
+          </select>
         </div>
+        {!lockedCategory && (
+          <div className="flex items-center justify-start sm:justify-end gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto min-w-0">
+            {visibleTabs.map((tab) => {
+              const Icon = tab.Icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => { setActiveTab(tab.id); setSearch(''); }}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer shrink-0 ${
+                    activeTab === tab.id
+                      ? 'bg-blue-900 text-white shadow-md'
+                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 shadow-card'
+                  }`}
+                >
+                  <Icon size={15} className="shrink-0" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Table Card */}

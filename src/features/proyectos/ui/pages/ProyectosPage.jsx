@@ -144,7 +144,7 @@ export default function ProyectosPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 max-sm:grid-cols-2 gap-2 sm:gap-3">
         {kpiCards.map(({ label, value, border, color }) => (
           <div key={label} className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 ${border} px-4 py-4`}>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>

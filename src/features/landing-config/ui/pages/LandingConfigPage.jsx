@@ -38,33 +38,24 @@ import {
 } from '../../application/landingImageDefaults';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const S = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-  .lcp-root { font-family: 'Inter', sans-serif; color: #0f172a; }
-  .lcp-header { margin-bottom: 28px; }
-  .lcp-title { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em; }
-  .lcp-subtitle { color: #64748b; font-size: 14px; margin: 0; line-height: 1.6; max-width: 600px; }
-
-  /* Tabs */
-  .lcp-tabs { display: flex; gap: 4px; background: #f1f5f9; border-radius: 14px; padding: 5px; margin-bottom: 28px; width: fit-content; }
-  .lcp-tab {
-    display: flex; align-items: center; gap: 7px;
-    padding: 9px 18px; border-radius: 10px; border: none; cursor: pointer;
-    font-size: 13px; font-weight: 600; color: #64748b; background: transparent; transition: all .2s;
-  }
-  .lcp-tab.active { background: white; color: #7c3aed; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
-  .lcp-tab:hover:not(.active) { color: #334155; background: rgba(255,255,255,.5); }
+  .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+  .lcp-root { color: #0f172a; }
 
   /* Cards */
-  .lcp-section { background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(15,23,42,.04); }
+  .lcp-section { background: white; border: 1px solid #f3f4f6; border-radius: 0.75rem; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
   .lcp-section-title { font-size: 16px; font-weight: 800; color: #1e293b; margin: 0 0 4px; }
   .lcp-section-desc { color: #64748b; font-size: 13px; margin: 0 0 18px; }
 
   /* Hero Image Grid */
-  .lcp-img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+  .lcp-img-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 640px) { .lcp-img-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1024px) { .lcp-img-grid { grid-template-columns: repeat(4, 1fr); } }
   .lcp-img-card { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #f8fafc; }
   .lcp-img-preview { position: relative; aspect-ratio: 16/10; background: #e2e8f0; overflow: hidden; }
   .lcp-img-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -82,8 +73,8 @@ const S = `
     flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
     border-radius: 9px; padding: 7px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s; border: none;
   }
-  .lcp-btn-primary { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; box-shadow: 0 3px 12px rgba(124,58,237,.25); }
-  .lcp-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,.3); }
+  .lcp-btn-primary { background: #2563eb; color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .lcp-btn-primary:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,.25); }
   .lcp-btn-outline { background: white; color: #64748b; border: 1px solid #cbd5e1; }
   .lcp-btn-outline:hover:not(:disabled) { color: #ef4444; border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.05); }
   .lcp-btn-danger { background: rgba(239,68,68,.1); color: #dc2626; border: 1px solid rgba(239,68,68,.2); }
@@ -100,7 +91,7 @@ const S = `
     font-size: 14px; color: #0f172a; font-family: 'Inter', sans-serif;
     transition: border-color .2s, box-shadow .2s; outline: none; background: #f8fafc;
   }
-  .lcp-input:focus, .lcp-textarea:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.1); background: white; }
+  .lcp-input:focus, .lcp-textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); background: white; }
   .lcp-textarea { resize: vertical; min-height: 90px; line-height: 1.55; }
   .lcp-wa-preview { 
     display: flex; align-items: center; gap: 10px;
@@ -118,7 +109,7 @@ const S = `
   }
   .lcp-cat-name { font-size: 15px; font-weight: 700; color: #1e293b; flex: 1; }
   .lcp-cat-slug { font-size: 11px; color: #94a3b8; font-family: monospace; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
-  .lcp-cat-count { font-size: 11px; font-weight: 700; color: #7c3aed; background: rgba(124,58,237,.1); padding: 3px 9px; border-radius: 999px; }
+  .lcp-cat-count { font-size: 11px; font-weight: 700; color: #2563eb; background: rgba(37,99,235,.1); padding: 3px 9px; border-radius: 999px; }
   .lcp-cat-images { padding: 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
   .lcp-cat-img-card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #f8fafc; position: relative; }
   .lcp-cat-img-thumb { aspect-ratio: 4/3; overflow: hidden; background: #e2e8f0; }
@@ -139,13 +130,13 @@ const S = `
     cursor: pointer; color: #94a3b8; gap: 6px; font-size: 12px; font-weight: 600;
     transition: all .2s; background: #f8fafc;
   }
-  .lcp-cat-img-add:hover { border-color: #7c3aed; color: #7c3aed; background: rgba(124,58,237,.03); }
+  .lcp-cat-img-add:hover { border-color: #2563eb; color: #2563eb; background: rgba(37,99,235,.03); }
   .lcp-cat-img-add.disabled { cursor: not-allowed; opacity: .5; }
   .lcp-cat-actions { display: flex; gap: 6px; padding: 0 18px 14px; }
 
   /* Inline edit */
   .lcp-inline-input {
-    border: 1.5px solid #7c3aed; border-radius: 8px; padding: 4px 10px;
+    border: 1.5px solid #2563eb; border-radius: 8px; padding: 4px 10px;
     font-size: 14px; font-weight: 700; color: #1e293b; font-family: 'Inter', sans-serif;
     outline: none; background: white; flex: 1; min-width: 0;
   }
@@ -695,7 +686,7 @@ function CategoriesTab({ categories, setCategories }) {
                             {(img.tags?.length > 0) && (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
                                 {img.tags.map((t, i) => (
-                                  <span key={i} style={{ fontSize: 9, background: 'rgba(124,58,237,.1)', color: '#7c3aed', padding: '1px 6px', borderRadius: 999, fontWeight: 700 }}>{t}</span>
+                                  <span key={i} style={{ fontSize: 9, background: 'rgba(37,99,235,.1)', color: '#2563eb', padding: '1px 6px', borderRadius: 999, fontWeight: 700 }}>{t}</span>
                                 ))}
                               </div>
                             )}
@@ -714,7 +705,7 @@ function CategoriesTab({ categories, setCategories }) {
                       {/* Add image slot */}
                       <label className={`lcp-cat-img-add ${!canAddMore || isUploadingThis ? 'disabled' : ''}`}>
                         {isUploadingThis ? (
-                          <span style={{ fontSize: 12, color: '#7c3aed' }}>Subiendo...</span>
+                          <span style={{ fontSize: 12, color: '#2563eb' }}>Subiendo...</span>
                         ) : canAddMore ? (
                           <>
                             <Upload size={20} strokeWidth={1.5} />
@@ -814,20 +805,30 @@ export const LandingConfigPage = () => {
   ];
 
   return (
-    <div className="lcp-root p-6 xl:p-8 w-full animate-slide-up">
+    <div className="lcp-root space-y-3 sm:space-y-5 animate-slide-up pb-10 w-full" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{S}</style>
 
-      <div className="lcp-header">
-        <h1 className="lcp-title">Landing Page</h1>
-        <p className="lcp-subtitle">
-          Gestiona el contenido público del sitio: carrusel principal, redes sociales, WhatsApp y catálogo de productos.
-        </p>
-      </div>
+      <ComprasPageHeader
+        icon={Globe}
+        badge="CONFIG"
+        title="Landing Page"
+        subtitle="Gestiona el contenido público del sitio: carrusel principal, redes sociales, WhatsApp y catálogo de productos."
+      />
 
-      <div className="lcp-tabs">
+      <div className="flex items-center justify-start gap-1.5 overflow-x-auto no-scrollbar w-full min-w-0">
         {tabs.map(({ key, label, Icon }) => (
-          <button key={key} type="button" className={`lcp-tab ${activeTab === key ? 'active' : ''}`} onClick={() => setActiveTab(key)}>
-            <Icon size={14} /> {label}
+          <button
+            key={key}
+            type="button"
+            onClick={() => setActiveTab(key)}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer shrink-0 ${
+              activeTab === key
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 shadow-card'
+            }`}
+          >
+            <Icon size={15} className="shrink-0" />
+            {label}
           </button>
         ))}
       </div>

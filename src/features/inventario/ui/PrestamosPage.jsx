@@ -328,93 +328,93 @@ export function PrestamosPage() {
         </div>
       </div>
 
-      {/* ── KPI Strip ── */}
-      <div className="prest-kpi-strip">
-        <div className="prest-kpi prest-kpi--amber">
-          <Clock size={18}/>
-          <div>
-            <span className="prest-kpi-num">{activos}</span>
-            <span className="prest-kpi-lbl">Activos</span>
-          </div>
+      {/* ── KPI Strip — una fila en web; 2×2 en móvil ── */}
+      <div className="grid grid-cols-4 max-sm:grid-cols-2 gap-2 sm:gap-3">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-amber-500 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Activos</p>
+          <p className="text-base sm:text-lg font-bold text-amber-600 mt-1 tabular-nums">{activos}</p>
         </div>
-        <div className="prest-kpi prest-kpi--green">
-          <CheckCircle2 size={18}/>
-          <div>
-            <span className="prest-kpi-num">{devueltos}</span>
-            <span className="prest-kpi-lbl">Devueltos</span>
-          </div>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-emerald-500 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Devueltos</p>
+          <p className="text-base sm:text-lg font-bold text-emerald-600 mt-1 tabular-nums">{devueltos}</p>
         </div>
-        <div className="prest-kpi prest-kpi--blue">
-          <ArrowRightLeft size={18}/>
-          <div>
-            <span className="prest-kpi-num">{prestamos.length}</span>
-            <span className="prest-kpi-lbl">Total Registros</span>
-          </div>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-blue-600 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total registros</p>
+          <p className="text-base sm:text-lg font-bold text-blue-600 mt-1 tabular-nums">{prestamos.length}</p>
         </div>
-        <div className="prest-kpi prest-kpi--slate">
-          <Wrench size={18}/>
-          <div>
-            <span className="prest-kpi-num">{herramientas.length}</span>
-            <span className="prest-kpi-lbl">Herramientas</span>
-          </div>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-slate-400 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Herramientas</p>
+          <p className="text-base sm:text-lg font-bold text-slate-600 mt-1 tabular-nums">{herramientas.length}</p>
         </div>
       </div>
 
-      {/* ── Filter Bar ── */}
-      <div className="prest-filter-bar">
-        {/* Buscador de herramienta */}
-        <div className="prest-search-wrap">
-          <Search size={14} className="prest-search-ico"/>
-          <input
-            className="prest-search-inp"
-            placeholder="Buscar herramienta..."
-            value={searchTool}
-            onChange={e => setSearchTool(e.target.value)}
-          />
-          {searchTool && (
-            <button className="prest-clear-x" onClick={() => setSearchTool('')}><X size={12}/></button>
-          )}
+      {/* Filtros + tabs (misma fila, sin card) */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 min-w-0 flex-1">
+          <div className="relative w-full sm:max-w-xs">
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Buscar</label>
+            <Search size={14} className="absolute left-3 top-[2.1rem] text-slate-400 pointer-events-none" />
+            <input
+              className="w-full h-10 pl-9 pr-8 border border-slate-200 rounded-xl text-sm bg-white text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+              placeholder="Buscar herramienta..."
+              value={searchTool}
+              onChange={(e) => setSearchTool(e.target.value)}
+            />
+            {searchTool && (
+              <button
+                type="button"
+                className="absolute right-2.5 top-[2.15rem] text-slate-400 hover:text-slate-600"
+                onClick={() => setSearchTool('')}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          <div className="relative w-full sm:w-52">
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Persona</label>
+            <User size={14} className="absolute left-3 top-[2.1rem] text-slate-400 pointer-events-none" />
+            <select
+              className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-xl text-sm bg-white text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+              value={filterPersona}
+              onChange={(e) => setFilterPersona(e.target.value)}
+            >
+              <option value="">Todas las personas</option>
+              {personas.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Filtro por persona */}
-        <div className="prest-select-wrap">
-          <User size={14} className="prest-select-ico"/>
-          <select
-            className="prest-select"
-            value={filterPersona}
-            onChange={e => setFilterPersona(e.target.value)}
-          >
-            <option value="">Todas las personas</option>
-            {personas.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Filtro por estado */}
-        <div className="prest-estado-group">
+        <div className="flex items-center justify-start sm:justify-end gap-1.5 overflow-x-auto no-scrollbar shrink-0">
           {[
-            { val: '',          label: 'Todos'    },
-            { val: 'prestado',  label: 'Activos'  },
-            { val: 'devuelto',  label: 'Devueltos'},
-          ].map(opt => (
+            { val: '', label: 'Todos' },
+            { val: 'prestado', label: 'Activos' },
+            { val: 'devuelto', label: 'Devueltos' },
+          ].map((opt) => (
             <button
-              key={opt.val}
-              className={`prest-estado-btn ${filterEstado === opt.val ? 'active' : ''}`}
+              key={opt.val || 'all'}
+              type="button"
               onClick={() => setFilterEstado(opt.val)}
+              className={`inline-flex items-center px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
+                filterEstado === opt.val
+                  ? 'bg-blue-900 text-white shadow-md'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 shadow-card'
+              }`}
             >
               {opt.label}
             </button>
           ))}
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 border border-slate-200 bg-white hover:bg-slate-50 shrink-0"
+            >
+              <X size={13} /> Limpiar
+            </button>
+          )}
         </div>
-
-        {hasFilters && (
-          <button className="prest-clear-all" onClick={clearFilters}>
-            <X size={13}/> Limpiar
-          </button>
-        )}
-
-        <span className="prest-count">{filtered.length} registro{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* ── Table ── */}
@@ -425,6 +425,12 @@ export function PrestamosPage() {
         </div>
       ) : (
         <div className="prest-table-card">
+          <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-slate-100">
+            <h2 className="text-sm font-semibold text-gray-800">Lista de préstamos</h2>
+            <span className="text-xs font-medium text-gray-400">
+              {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+            </span>
+          </div>
           <table className="prest-table">
             <thead>
               <tr>

@@ -5,7 +5,7 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
   DollarSign, Calendar, Tag, User, Eye, X, Edit3, Info,
-  Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package
+  Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package, Layers, GitBranch
 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { useAutoAvanceInstalacionAdmin } from '../../application/hooks/useAutoAvanceInstalacionAdmin.js';
@@ -197,8 +197,8 @@ export default function ProyectoDetallePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center h-64 gap-3" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         <p className="text-slate-500 text-sm">Cargando proyecto...</p>
       </div>
     );
@@ -206,7 +206,7 @@ export default function ProyectoDetallePage() {
 
   if (!proyecto) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
+      <div className="flex flex-col items-center justify-center h-64 gap-4" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
         <p className="text-slate-500">Proyecto no encontrado</p>
         <button onClick={() => navigate('/proyectos')} className="text-blue-600 underline text-sm">
           Volver a proyectos
@@ -241,286 +241,297 @@ export default function ProyectoDetallePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-6 sm:pb-12">
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up pb-10 w-full"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20 shadow-sm">
-        <div className="w-full mx-auto space-y-3">
-          {/* Fila 1: navegación + título */}
-          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-6 lg:px-7 py-4 sm:py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <button
+              type="button"
               onClick={() => navigate('/proyectos')}
-              className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors shrink-0 -ml-1 sm:ml-0"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex items-center justify-center shrink-0 transition-colors"
+              title="Volver"
               aria-label="Volver a proyectos"
             >
               <ArrowLeft size={18} />
             </button>
-
-            <div className="min-w-0 flex-1 flex items-start justify-between gap-2">
-              <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-snug min-w-0 truncate">
-                {proyecto.nombre}
-              </h1>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
-                  title="Editar información del proyecto"
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+              <Layers className="w-5 h-5 text-blue-600" strokeWidth={2} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-base sm:text-xl font-bold text-slate-800 leading-tight truncate">
+                  {proyecto.nombre}
+                </h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Proyectos
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[11px] sm:text-xs text-slate-500 min-w-0">
+                <span className="flex items-center gap-1.5 min-w-0 max-w-full" title="Cliente">
+                  <User size={12} className="shrink-0 text-slate-400" />
+                  <span className="truncate">
+                    <span className="font-medium text-slate-600">{proyecto.cliente.empresa}</span>
+                    {proyecto.cliente.nombre && (
+                      <>
+                        <span className="mx-1 text-slate-300">•</span>
+                        <span className="text-slate-500">{proyecto.cliente.nombre}</span>
+                      </>
+                    )}
+                  </span>
+                </span>
+                <span
+                  className={`flex items-center gap-1.5 shrink-0 ${estaVencido ? 'text-red-500' : 'text-slate-600'}`}
+                  title="Entrega estimada"
                 >
-                  <Edit3 size={16} />
-                </button>
-                <button
-                  onClick={() => setIsDetailsModalOpen(true)}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
-                  title="Ver más detalles"
-                >
-                  <Eye size={16} />
-                </button>
+                  <Calendar size={12} className={`shrink-0 ${estaVencido ? 'text-red-500' : 'text-slate-400'}`} />
+                  <span className={`whitespace-nowrap ${estaVencido ? 'font-semibold' : 'font-medium'}`}>
+                    {proyecto.fechaEntregaEstimada ? `Entrega: ${proyecto.fechaEntregaEstimada}` : 'Sin fecha de entrega'}
+                  </span>
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Fila 2: metadatos + badges */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <div className="flex flex-col gap-1.5 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1 min-w-0">
-              <span className="flex items-center gap-1.5 min-w-0" title="Cliente">
-                <User size={12} className="shrink-0 text-slate-400" />
-                <span className="min-w-0 truncate">
-                  <span className="font-medium text-slate-600">{proyecto.cliente.empresa}</span>
-                  <span className="mx-1.5 text-slate-300 hidden sm:inline">•</span>
-                  <span className="text-slate-500 sm:inline block sm:mt-0 mt-0.5">{proyecto.cliente.nombre}</span>
-                </span>
-              </span>
-
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap shrink-0 lg:justify-end">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-colors"
+              title="Editar información del proyecto"
+            >
+              <Edit3 size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsDetailsModalOpen(true)}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-colors"
+              title="Ver más detalles"
+            >
+              <Eye size={16} />
+            </button>
+            <span
+              className="text-[11px] sm:text-xs font-bold px-2.5 py-1.5 rounded-full"
+              style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
+            >
+              {prioridadConfig.label}
+            </span>
+            {mostrarEstadoProyecto && (
               <span
-                className={`flex items-center gap-1.5 shrink-0 ${
-                  estaVencido ? 'text-red-500' : 'text-slate-600'
-                }`}
-                title="Entrega estimada"
+                className="text-[11px] sm:text-xs font-bold px-2.5 py-1.5 rounded-full"
+                style={{ backgroundColor: estadoConfig.bgColor, color: estadoConfig.textColor }}
               >
-                <Calendar size={12} className={`shrink-0 ${estaVencido ? 'text-red-500' : 'text-slate-400'}`} />
-                <span className={`whitespace-nowrap ${estaVencido ? 'font-semibold' : 'font-medium'}`}>
-                  {proyecto.fechaEntregaEstimada ? `Entrega: ${proyecto.fechaEntregaEstimada}` : 'Sin fecha de entrega'}
-                </span>
+                {estadoConfig.label}
               </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 flex-wrap sm:justify-end sm:shrink-0">
-              <span
-                className="text-[11px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full"
-                style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
-              >
-                {prioridadConfig.label}
-              </span>
-              {mostrarEstadoProyecto && (
-                <span
-                  className="text-[11px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full"
-                  style={{ backgroundColor: estadoConfig.bgColor, color: estadoConfig.textColor }}
-                >
-                  {estadoConfig.label}
-                </span>
-              )}
-              <FaseBadge faseId={proyecto.faseActual} size="sm" />
-            </div>
+            )}
+            <FaseBadge faseId={proyecto.faseActual} size="sm" />
           </div>
         </div>
-      </div>
 
-      <div className="w-full mx-auto px-4 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
-
-        {/* Selector de sub-pestañas principales */}
-        <div className="flex gap-1 sm:gap-2 border-b border-slate-200 pb-px overflow-x-auto">
+        <div className="px-4 sm:px-6 lg:px-7 pb-3 flex gap-1 border-t border-slate-100 pt-3 bg-slate-50/50 overflow-x-auto">
           <button
+            type="button"
             onClick={() => setSubTab('fases')}
-            className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
-              ${subTab === 'fases'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+              subTab === 'fases'
+                ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+            }`}
           >
+            <GitBranch size={15} />
             Flujo de Trabajo
           </button>
           {canViewGastos && (
             <button
+              type="button"
               onClick={() => setSubTab('gastos')}
-              className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
-                ${subTab === 'gastos'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                subTab === 'gastos'
+                  ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+              }`}
             >
+              <DollarSign size={15} />
               Gastos y Compras
             </button>
           )}
         </div>
+      </div>
 
-        {subTab === 'fases' ? (
-          <>
-            {/* Timeline + Progreso */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 relative">
-              <FaseTimeline 
-                faseActual={proyecto.faseActual} 
-                fases={proyecto.fases} 
-                faseVista={faseActiva}
-                onFaseClick={(fId) => setFaseVista(fId)}
-                requiereInstalacion={proyecto.requiereInstalacion}
-              />
-          <div className="mt-3 sm:mt-5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
-              <span className="text-sm font-bold" style={{ color: faseConfig?.color }}>
-                {proyecto.progreso}% — {faseConfig?.label}
-              </span>
-            </div>
-            <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} height="h-4" />
-          </div>
-        </div>
-
-        {/* Panel de fase actual / vista */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
-          <div
-            className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50 rounded-t-2xl gap-2 sm:gap-3"
-            style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <h2 className="font-bold text-slate-800 text-sm sm:text-base truncate">
-                  {esVistaSoloLectura ? `Historial: ${faseConfig?.label}` : `Fase actual: ${faseConfig?.label}`}
-                </h2>
-                {esVistaSoloLectura && (
-                  <button 
-                    onClick={() => setFaseVista(null)}
-                    className="text-[10px] font-bold bg-white text-slate-500 px-2 py-1 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors uppercase tracking-wider shrink-0"
-                  >
-                    Ver actual
-                  </button>
-                )}
+      {subTab === 'fases' ? (
+        <>
+          {/* Timeline + Progreso */}
+          <div className="bg-white shadow-card rounded-xl border border-gray-100 p-3 sm:p-5 relative">
+            <FaseTimeline
+              faseActual={proyecto.faseActual}
+              fases={proyecto.fases}
+              faseVista={faseActiva}
+              onFaseClick={(fId) => setFaseVista(fId)}
+              requiereInstalacion={proyecto.requiereInstalacion}
+            />
+            <div className="mt-4 sm:mt-5 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-slate-800">Progreso del proyecto</span>
+                <span className="text-sm font-bold" style={{ color: faseConfig?.color }}>
+                  {proyecto.progreso}% — {faseConfig?.label}
+                </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{faseConfig?.descripcion}</p>
+              <ProgressBar progreso={proyecto.progreso} height="h-2.5" />
             </div>
-            <FaseBadge faseId={faseActiva} />
           </div>
 
-          <div className="p-3 sm:p-6">
-            {faseActiva === 'INSTALACION' ? (
-              <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'COTIZACION' ? (
-              <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'DISEÑO' ? (
-              <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'PRODUCCION' ? (
-              <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'ENTREGA' ? (
-              <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'COMPLETADO' ? (
-              <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : (
-              <div
-                className="rounded-xl p-4 text-sm"
-                style={{ backgroundColor: faseConfig?.bgColor, color: faseConfig?.color }}
-              >
-                {faseConfig?.descripcion}
-                {faseConfig?.camposRequeridos?.length > 0 && (
-                  <ul className="mt-3 space-y-1 text-slate-600">
-                    {faseConfig.camposRequeridos.map((campo) => (
-                      <li key={campo} className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full border-2 border-current inline-block" />
-                        {campo}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+          {/* Panel de fase actual / vista */}
+          <div className="bg-white shadow-card rounded-xl border border-gray-100 relative overflow-hidden">
+            <div
+              className="px-4 py-3 sm:px-5 sm:py-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50 gap-2 sm:gap-3"
+              style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <h2 className="font-bold text-slate-800 text-sm sm:text-base truncate">
+                    {esVistaSoloLectura ? `Historial: ${faseConfig?.label}` : `Fase actual: ${faseConfig?.label}`}
+                  </h2>
+                  {esVistaSoloLectura && (
+                    <button
+                      type="button"
+                      onClick={() => setFaseVista(null)}
+                      className="text-[10px] font-bold bg-white text-slate-500 px-2 py-1 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors uppercase tracking-wider shrink-0"
+                    >
+                      Ver actual
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{faseConfig?.descripcion}</p>
               </div>
-            )}
-          </div>
+              <FaseBadge faseId={faseActiva} />
+            </div>
 
-          {/* Acciones de fase (Footer como en EditarFasePage) */}
-          {!esVistaSoloLectura && (
-            <div className="px-4 py-3 sm:px-6 sm:py-5 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-3 sm:gap-4 rounded-b-2xl">
-              
-              {/* Botón Retroceder (Izquierda) */}
-              <div className="flex items-center">
-              {!esPrimeraFase && (
-                confirmRetroceder ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-600">¿Retroceder fase?</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfirmRetroceder(false)} className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors font-semibold">No</button>
-                      <button onClick={() => { retroceder(); setFaseVista(null); setConfirmRetroceder(false); }} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm hover:bg-slate-800 transition-colors shadow-sm font-bold">Sí, retroceder</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmRetroceder(true)}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors px-4 py-2 hover:bg-slate-200/50 rounded-xl"
-                  >
-                    <ChevronLeft size={16} />
-                    Retroceder a la fase anterior
-                  </button>
-                )
+            <div className="p-3 sm:p-5">
+              {faseActiva === 'INSTALACION' ? (
+                <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
+              ) : faseActiva === 'COTIZACION' ? (
+                <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
+              ) : faseActiva === 'DISEÑO' ? (
+                <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
+              ) : faseActiva === 'PRODUCCION' ? (
+                <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
+              ) : faseActiva === 'ENTREGA' ? (
+                <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
+              ) : faseActiva === 'COMPLETADO' ? (
+                <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
+              ) : (
+                <div
+                  className="rounded-xl p-4 text-sm"
+                  style={{ backgroundColor: faseConfig?.bgColor, color: faseConfig?.color }}
+                >
+                  {faseConfig?.descripcion}
+                  {faseConfig?.camposRequeridos?.length > 0 && (
+                    <ul className="mt-3 space-y-1 text-slate-600">
+                      {faseConfig.camposRequeridos.map((campo) => (
+                        <li key={campo} className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full border-2 border-current inline-block" />
+                          {campo}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
 
-            {/* Botón Avanzar (Derecha) */}
-            {!esUltimaFase && (
-              <div className="flex flex-col items-end gap-2 relative group">
-                {confirmAvanzar ? (
-                  <div className="flex items-center gap-4">
-                    <p className="text-sm text-slate-600 font-medium hidden sm:block">¿Confirmas avanzar?</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfirmAvanzar(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors font-semibold">No</button>
-                      <button
-                        onClick={handleAvanzar}
-                        className="px-6 py-2.5 rounded-xl text-sm text-white font-bold transition-colors shadow-sm"
-                        style={{ backgroundColor: faseConfig?.color }}
-                      >
-                        Sí, confirmar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setConfirmAvanzar(true)}
-                      disabled={!validacionFaseActual.valido}
-                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ backgroundColor: faseConfig?.color }}
-                    >
-                      Avanzar a siguiente fase
-                      <ChevronRight size={16} />
-                    </button>
-                    
-                    {/* Tooltip con campos faltantes */}
-                    {!validacionFaseActual.valido && validacionFaseActual.faltantes.length > 0 && (
-                      <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block z-20">
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-lg min-w-[200px]">
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <AlertTriangle size={14} className="text-amber-500" />
-                            <p className="text-xs font-bold text-amber-700">Faltan campos para avanzar:</p>
-                          </div>
-                          <ul className="text-[10px] text-amber-600 space-y-0.5 ml-1">
-                            {validacionFaseActual.faltantes.map((f) => (
-                              <li key={f} className="flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-amber-500"></span> {f}
-                              </li>
-                            ))}
-                          </ul>
+            {!esVistaSoloLectura && (
+              <div className="px-4 py-3 sm:px-5 sm:py-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+                <div className="flex items-center">
+                  {!esPrimeraFase && (
+                    confirmRetroceder ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-600">¿Retroceder fase?</span>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setConfirmRetroceder(false)} className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors font-semibold">No</button>
+                          <button type="button" onClick={() => { retroceder(); setFaseVista(null); setConfirmRetroceder(false); }} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm hover:bg-slate-800 transition-colors shadow-sm font-bold">Sí, retroceder</button>
                         </div>
                       </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRetroceder(true)}
+                        className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors px-4 py-2 hover:bg-slate-200/50 rounded-xl"
+                      >
+                        <ChevronLeft size={16} />
+                        Retroceder a la fase anterior
+                      </button>
+                    )
+                  )}
+                </div>
+
+                {!esUltimaFase && (
+                  <div className="flex flex-col items-end gap-2 relative group">
+                    {confirmAvanzar ? (
+                      <div className="flex items-center gap-4">
+                        <p className="text-sm text-slate-600 font-medium hidden sm:block">¿Confirmas avanzar?</p>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setConfirmAvanzar(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors font-semibold">No</button>
+                          <button
+                            type="button"
+                            onClick={handleAvanzar}
+                            className="px-6 py-2.5 rounded-xl text-sm text-white font-bold transition-colors shadow-sm bg-blue-600 hover:bg-blue-700"
+                          >
+                            Sí, confirmar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAvanzar(true)}
+                          disabled={!validacionFaseActual.valido}
+                          className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700"
+                        >
+                          Avanzar a siguiente fase
+                          <ChevronRight size={16} />
+                        </button>
+
+                        {!validacionFaseActual.valido && validacionFaseActual.faltantes.length > 0 && (
+                          <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block z-20">
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-lg min-w-[200px]">
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <AlertTriangle size={14} className="text-amber-500" />
+                                <p className="text-xs font-bold text-amber-700">Faltan campos para avanzar:</p>
+                              </div>
+                              <ul className="text-[10px] text-amber-600 space-y-0.5 ml-1">
+                                {validacionFaseActual.faltantes.map((f) => (
+                                  <li key={f} className="flex items-center gap-1">
+                                    <span className="w-1 h-1 rounded-full bg-amber-500" /> {f}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             )}
           </div>
-          )}
-        </div>
-      </>
+        </>
       ) : (
-        <GastosComprasTab 
-          proyecto={proyecto} 
-          isAdmin={isAdmin} 
-          updateProyecto={updateProyecto} 
-          reloadProyectos={reloadProyectos} 
+        <GastosComprasTab
+          proyecto={proyecto}
+          isAdmin={isAdmin}
+          updateProyecto={updateProyecto}
+          reloadProyectos={reloadProyectos}
         />
       )}
-      </div>
 
       {/* Modal de Detalles del Proyecto */}
       {isDetailsModalOpen && (
@@ -1203,7 +1214,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
         {isAdmin && (
           <button
             onClick={() => setIsAddGastoModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors cursor-pointer"
           >
             <Plus size={14} />
             Registrar Gasto
@@ -1212,7 +1223,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
       </div>
 
       {/* 1. Tarjetas KPI de Rentabilidad y Utilidad Real */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 max-sm:grid-cols-2 gap-2 sm:gap-3">
         <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-blue-600 px-4 py-4">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos por venta</p>
           <p className="text-lg font-bold text-blue-700 mt-1 tabular-nums">${ingresoVenta.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</p>
@@ -1225,9 +1236,9 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Utilidad real</p>
           <p className={`text-lg font-bold mt-1 tabular-nums ${utilidadReal >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>${utilidadReal.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</p>
         </div>
-        <div className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 px-4 py-4 ${utilidadReal >= 0 ? 'border-t-indigo-500' : 'border-t-red-500'}`}>
+        <div className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 px-4 py-4 ${utilidadReal >= 0 ? 'border-t-blue-500' : 'border-t-red-500'}`}>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rentabilidad neta</p>
-          <p className={`text-lg font-bold mt-1 tabular-nums ${utilidadReal >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>{margenRentabilidad.toFixed(1)}%</p>
+          <p className={`text-lg font-bold mt-1 tabular-nums ${utilidadReal >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{margenRentabilidad.toFixed(1)}%</p>
         </div>
       </div>
 
@@ -1239,7 +1250,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-12 animate-in fade-in duration-200">
             <div className="lg:col-span-4 bg-slate-50/50 p-6 flex flex-col justify-between border-r border-slate-200">
               <div>
-                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm w-max mb-4 text-indigo-600">
+                <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm w-max mb-4 text-blue-600">
                   <DollarSign size={20} />
                 </div>
                 <h2 className="font-extrabold text-slate-800 text-sm tracking-tight">Gastos Directos y Compras (Caja / Facturas)</h2>
@@ -1249,7 +1260,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
               </div>
               <div className="mt-6 pt-4 border-t border-slate-100/70">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total ejecutado</span>
-                <span className="text-xl font-black text-indigo-600 mt-1 block">${totalGastosManuales.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
+                <span className="text-xl font-black text-blue-600 mt-1 block">${totalGastosManuales.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
 
@@ -1460,7 +1471,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
             <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-xl w-full overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in duration-150">
               <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
                 <h3 className="font-extrabold text-slate-800 text-base flex items-center gap-2">
-                  <Plus size={18} className="text-indigo-600" />
+                  <Plus size={18} className="text-blue-600" />
                   Nuevo Gasto Manual
                 </h3>
                 <button
@@ -1486,7 +1497,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       type="text"
                       required
                       placeholder="Ej. Combustible montaje, Almuerzos equipo..."
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={concepto}
                       onChange={e => setConcepto(e.target.value)}
                     />
@@ -1499,7 +1510,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       min="0.01"
                       step="0.01"
                       placeholder="0.00"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={monto}
                       onChange={e => setMonto(e.target.value)}
                     />
@@ -1511,7 +1522,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                     <input
                       type="date"
                       required
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={fecha}
                       onChange={e => setFecha(e.target.value)}
                     />
@@ -1521,7 +1532,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                     <input
                       type="text"
                       placeholder="Ej. Gasolinera Primax, Imprenta..."
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={proveedor}
                       onChange={e => setProveedor(e.target.value)}
                     />
@@ -1530,7 +1541,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Caja / Cuenta de Pago *</label>
                     <select
                       required
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={metodoPagoId}
                       onChange={e => setMetodoPagoId(e.target.value)}
                     >
@@ -1548,7 +1559,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                   <input
                     type="text"
                     placeholder="Comentarios adicionales del egreso..."
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={notas}
                     onChange={e => setNotas(e.target.value)}
                   />
@@ -1564,7 +1575,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors"
                   >
                     + Guardar Gasto
                   </button>
@@ -1733,7 +1744,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                   <tfoot>
                     <tr className="bg-slate-100/50 font-bold text-slate-800 border-t border-slate-200">
                       <td colSpan="4" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Estimado Consumo:</td>
-                      <td className="p-3 text-right text-sm font-extrabold text-indigo-700">${costoMaterialesBodega.toFixed(2)}</td>
+                      <td className="p-3 text-right text-sm font-extrabold text-blue-700">${costoMaterialesBodega.toFixed(2)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1818,7 +1829,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                                       const val = Math.max(0, parseInt(e.target.value) || 0);
                                       setAprobaciones(prev => ({ ...prev, [item.sku]: val }));
                                     }}
-                                    className="w-16 border border-slate-250 rounded-lg px-2 py-1 text-xs text-center font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                                    className="w-16 border border-slate-250 rounded-lg px-2 py-1 text-xs text-center font-bold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                                   />
                                 ) : (
                                   <span>
@@ -1835,7 +1846,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       <tfoot>
                         <tr className="font-bold text-slate-800 bg-slate-50/50 border-t border-slate-200">
                           <td colSpan="5" className="p-2.5 text-right uppercase tracking-wider text-[10px]">Costo Total:</td>
-                          <td className="p-2.5 text-right text-sm font-extrabold text-indigo-900">${totalOC.toFixed(2)}</td>
+                          <td className="p-2.5 text-right text-sm font-extrabold text-blue-900">${totalOC.toFixed(2)}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -1848,7 +1859,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                   )}
                   
                   {isPendiente && isAdmin && (
-                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 space-y-3">
+                    <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-3">
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                           Comentarios / Observaciones de la Aprobación
@@ -1857,7 +1868,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                           value={comentarioOC}
                           onChange={(e) => setComentarioOC(e.target.value)}
                           placeholder="Escribe el motivo de la aprobación, modificaciones en cantidades o comentarios..."
-                          className="w-full border border-slate-200 rounded-lg p-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                          className="w-full border border-slate-200 rounded-lg p-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                           rows={2}
                         />
                       </div>
@@ -1879,7 +1890,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                             await handleAprobarOC(oc);
                             setSelectedOCForDetail(null);
                           }}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
                         >
                           Aprobar y Registrar Gasto
                         </button>
@@ -1954,7 +1965,7 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
                       modalConfig.onConfirm();
                     }
                   }}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"
                 >
                   Aceptar
                 </button>

@@ -9,8 +9,8 @@ export const FASES = [
   {
     id: 'COTIZACION',
     label: 'Cotización',
-    color: '#6366f1',
-    bgColor: '#eef2ff',
+    color: '#2563eb',
+    bgColor: '#eff6ff',
     icon: 'FileText',
     descripcion: 'Propuesta y aprobación del cliente',
     camposRequeridos: ['montoEstimado', 'descripcionTrabajo'],

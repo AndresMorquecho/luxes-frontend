@@ -34,50 +34,54 @@ function getFaseState(fase, idx, faseActual, fases, faseVista, filteredFases) {
 
 function DesktopTimeline({ filteredFases, faseActual, fases, faseVista, onFaseClick }) {
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex items-start min-w-max px-2 py-2">
+    <div className="w-full px-1 sm:px-2 pt-1 pb-2">
+      <div className="flex items-start w-full">
         {filteredFases.map((fase, idx) => {
           const { esActual, esCompletada, esVista } = getFaseState(
             fase, idx, faseActual, fases, faseVista, filteredFases,
           );
           const Icon = ICON_MAP[fase.icon] || FileText;
           const esUltima = idx === filteredFases.length - 1;
+          const accent = esVista || esActual;
 
           return (
-            <div key={fase.id} className="flex items-start">
+            <React.Fragment key={fase.id}>
               <button
                 type="button"
                 onClick={() => onFaseClick?.(fase.id)}
-                className="flex flex-col items-center gap-1.5 transition-transform cursor-pointer hover:scale-105"
+                className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0 w-[72px] sm:w-[88px] focus:outline-none group"
               >
                 <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all
-                    ${esCompletada
-                      ? 'bg-emerald-500 border-emerald-500 text-white'
-                      : esActual
-                        ? 'border-current text-current'
-                        : 'bg-slate-100 border-slate-300 text-slate-400'
-                    } ${esVista ? 'ring-4 ring-offset-2 scale-110 shadow-lg z-10' : 'hover:scale-105 z-0'}
-                    ${esVista && esCompletada && !esActual ? 'ring-blue-400 border-blue-500 bg-blue-50 text-blue-600' : ''}`}
-                  style={(esActual || (esVista && !esCompletada))
-                    ? { borderColor: fase.color, color: fase.color, backgroundColor: fase.bgColor }
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border-[2.5px] bg-white transition-all
+                    ${esCompletada && !esVista
+                      ? 'border-emerald-400 text-emerald-500'
+                      : accent
+                        ? ''
+                        : 'border-slate-200 text-slate-400 group-hover:border-slate-300 group-hover:text-slate-500'
+                    }`}
+                  style={accent
+                    ? {
+                        borderColor: fase.color,
+                        color: fase.color,
+                        boxShadow: esVista ? `0 0 0 3px ${fase.bgColor}` : undefined,
+                      }
                     : undefined}
                 >
-                  {esCompletada
-                    ? <CheckCircle size={16} strokeWidth={2.5} />
-                    : <Icon size={15} strokeWidth={2} />}
+                  {esCompletada && !esVista
+                    ? <CheckCircle size={18} strokeWidth={2.25} />
+                    : <Icon size={17} strokeWidth={2} />}
                 </div>
 
-                <div className="flex flex-col items-center mt-1">
+                <div className="flex flex-col items-center min-h-[36px]">
                   <span
-                    className={`text-xs font-semibold text-center leading-tight max-w-[68px]
-                      ${esVista && esCompletada && !esActual ? 'text-blue-600 font-bold' : esCompletada ? 'text-emerald-600' : esActual ? 'font-bold' : 'text-slate-400'}`}
-                    style={(esActual || (esVista && !esCompletada)) ? { color: fase.color } : undefined}
+                    className={`text-[11px] sm:text-xs font-semibold text-center leading-tight
+                      ${esCompletada && !esVista ? 'text-emerald-600' : accent ? '' : 'text-slate-400'}`}
+                    style={accent ? { color: fase.color } : undefined}
                   >
                     {fase.label}
                   </span>
                   {esVista && !esActual && (
-                    <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest mt-0.5 animate-pulse bg-blue-50 px-1.5 py-0.5 rounded">
+                    <span className="mt-1 text-[9px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-full">
                       Viendo
                     </span>
                   )}
@@ -85,11 +89,15 @@ function DesktopTimeline({ filteredFases, faseActual, fases, faseVista, onFaseCl
               </button>
 
               {!esUltima && (
-                <div className="flex items-start mt-4 mx-1">
-                  <div className={`w-10 h-0.5 ${esCompletada ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                <div className="flex-1 self-start mt-[20px] sm:mt-[22px] mx-1 min-w-[12px]">
+                  <div
+                    className={`w-full border-t border-dashed ${
+                      esCompletada ? 'border-emerald-300' : 'border-slate-300'
+                    }`}
+                  />
                 </div>
               )}
-            </div>
+            </React.Fragment>
           );
         })}
       </div>
