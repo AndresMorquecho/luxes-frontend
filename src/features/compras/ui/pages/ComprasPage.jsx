@@ -7,6 +7,7 @@ import {
 } from '../../application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
+import { ShoppingCart, Plus, ClipboardCheck } from 'lucide-react';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
 import { ComprasAdminNav } from '../components/ComprasAdminNav';
 import { ComprasPageHeader, ComprasHeaderButton } from '../components/ComprasPageHeader';
@@ -17,22 +18,20 @@ import './ComprasPage.css';
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
-const CO_PRIMARY = '#2b41b8';
-const CO_PRIMARY_HOVER = '#2436a0';
-const CO_NAVY = '#1a1c3d';
-const CO_PAGE_BG = '#f8f9fc';
+const inputFocus =
+  'outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white';
 
 const ESTADO_BADGES = {
-  pendiente_aprobacion: { bg: 'bg-amber-50', color: 'text-amber-700', dot: 'bg-amber-500', label: 'PENDIENTE' },
-  aprobada:             { bg: 'bg-blue-50', color: 'text-[#2b41b8]', dot: 'bg-[#2b41b8]', label: 'APROBADO' },
-  parcialmente_recibida: { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
-  recibida:             { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'RECIBIDA' },
-  cancelada:            { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'CANCELADA' },
+  pendiente_aprobacion: { bg: 'bg-amber-50', color: 'text-amber-700', border: 'border-amber-200', label: 'Pendiente' },
+  aprobada:             { bg: 'bg-blue-50', color: 'text-blue-700', border: 'border-blue-100', label: 'Aprobado' },
+  parcialmente_recibida: { bg: 'bg-orange-50', color: 'text-orange-700', border: 'border-orange-200', label: 'Parcial' },
+  recibida:             { bg: 'bg-slate-100', color: 'text-slate-700', border: 'border-slate-200', label: 'Recibida' },
+  cancelada:            { bg: 'bg-rose-50', color: 'text-rose-700', border: 'border-rose-200', label: 'Cancelada' },
 };
 const PAGO_BADGES = {
-  sin_pagar: { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'POR PAGAR' },
-  parcial:   { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
-  pagado:    { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'PAGADO' },
+  sin_pagar: { bg: 'bg-rose-50', color: 'text-rose-700', border: 'border-rose-200', label: 'Por pagar' },
+  parcial:   { bg: 'bg-amber-50', color: 'text-amber-700', border: 'border-amber-200', label: 'Parcial' },
+  pagado:    { bg: 'bg-slate-100', color: 'text-slate-700', border: 'border-slate-200', label: 'Pagado' },
 };
 const ESTADO_FILTER_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -49,16 +48,6 @@ const PAGO_FILTER_OPTIONS = [
   { value: 'parcial', label: 'Parcial' },
   { value: 'pagado', label: 'Pagado' },
 ];
-
-const ORDEN_ESTADO_ICON = {
-  pendiente_aprobacion: { bg: 'bg-amber-50', color: 'text-amber-600' },
-  aprobada: { bg: 'bg-blue-50', color: 'text-[#2b41b8]' },
-  parcialmente_recibida: { bg: 'bg-orange-50', color: 'text-orange-600' },
-  recibida: { bg: 'bg-emerald-50', color: 'text-emerald-600' },
-  cancelada: { bg: 'bg-red-50', color: 'text-red-600' },
-};
-
-const BAG_ICON_PATH = 'M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12a1.125 1.125 0 0 1 1.263-1.123h12.974c.576 0 1.059.435 1.119 1.007z';
 
 export const ComprasPage = () => {
   const navigate = useNavigate();
@@ -87,7 +76,6 @@ export const ComprasPage = () => {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [ordenLoading, setOrdenLoading] = useState(true);
   const [fechas, setFechas] = useState({ start: '', end: '' });
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(true);
   const perPage = 25;
 
   // ── PDF state ──
@@ -244,87 +232,61 @@ export const ComprasPage = () => {
   const ordenTotalPages = Math.max(1, Math.ceil(ordenTotal / perPage));
   const showingFrom = ordenTotal === 0 ? 0 : (ordenPage - 1) * perPage + 1;
   const showingTo = Math.min(ordenPage * perPage, ordenTotal);
-  const activeFiltersCount = isVistaAprobaciones
-    ? [filterPago, filterProveedorId, fechas.start, fechas.end].filter(Boolean).length
-    : [filterEstado, filterPago, filterProveedorId, fechas.start, fechas.end].filter(Boolean).length;
   const emptyMessage = isVistaAprobaciones
     ? 'No hay órdenes pendientes de aprobación'
     : 'No se encontraron órdenes de compra';
 
-  const renderKpiCardDesktop = (kpi) => (
-    <div key={kpi.label} className="bg-white border border-slate-200/80 rounded-xl shadow-sm flex items-start gap-3 p-5 min-w-0 overflow-hidden">
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-5 h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
-        </svg>
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-500 leading-tight">{kpi.label}</p>
-        <p className="text-2xl font-bold mt-0.5 tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
-        <p className="text-[11px] text-slate-400 mt-0.5">{kpi.hint}</p>
-      </div>
-    </div>
-  );
-
-  const renderKpiCardMobile = (kpi) => (
-    <div
-      key={kpi.label}
-      className="co-kpi-mobile bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 p-3 min-w-0"
-      style={{ borderBottomWidth: '3px', borderBottomColor: kpi.accent }}
-    >
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-3.5 h-3.5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
-        </svg>
-      </div>
-      <div className="flex flex-col gap-1.5 min-w-0">
-        <p className="text-[9px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
-        <p className="text-sm font-semibold tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
-        <p className="text-[8px] text-slate-400 leading-tight line-clamp-2">{kpi.hint}</p>
-      </div>
-    </div>
-  );
-
   const renderBadge = (badges, key, compact = false) => {
     const b = badges[key];
-    if (!b) return <span className="text-xs text-slate-500">{key}</span>;
+    if (!b) return <span className="text-sm text-slate-400">—</span>;
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-wide ${b.bg} ${b.color} ${
-        compact ? 'px-1.5 py-0.5 text-[8px] gap-0.5' : 'px-2.5 py-1 text-[10px] gap-1.5'
+      <span className={`inline-flex items-center rounded-full font-medium ${b.bg} ${b.color} ${
+        compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
       }`}>
-        <span className={`rounded-full shrink-0 ${b.dot} ${compact ? 'w-1 h-1' : 'w-1.5 h-1.5'}`} />
         {b.label}
       </span>
     );
   };
 
   const kpiItems = [
-    { label: 'Total Órdenes', mobileLabel: 'Total Órdenes', value: stats.totalOrdenes, hint: 'Todas las órdenes', accent: '#2b41b8', iconBg: 'bg-[#eef1fc]', iconColor: 'text-[#2b41b8]', icon: BAG_ICON_PATH },
-    { label: 'Pendientes Aprobación', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Esperando aprobación', accent: '#f97316', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    { label: 'Total órdenes', value: stats.totalOrdenes, border: 'border-t-blue-600', color: 'text-blue-600' },
+    { label: 'Pendientes aprobación', value: stats.pendientes, border: 'border-t-amber-500', color: 'text-amber-600' },
     ...(isAdmin ? [
-      { label: 'Total Gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-      { label: 'Deuda Pendiente', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50', iconColor: 'text-red-500', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
+      { label: 'Total gastado', value: fmt(stats.totalGastado), border: 'border-t-indigo-500', color: 'text-indigo-600' },
+      { label: 'Deuda pendiente', value: fmt(stats.totalDeuda), border: 'border-t-red-500', color: 'text-red-500' },
     ] : []),
   ];
 
+  const pageTitle = isImpresion || isTaller
+    ? 'Órdenes activas'
+    : isVistaAprobaciones
+      ? 'Pendientes de aprobación'
+      : 'Órdenes de compra';
+  const pageSubtitle = isVistaAprobaciones
+    ? 'Revisa, aprueba o rechaza solicitudes de compra entrantes'
+    : isImpresion || isTaller
+      ? 'Solicitudes pendientes, aprobadas o en recepción'
+      : 'Control y emisión de compras de materiales y activos';
+  const pageBadge = isVistaAprobaciones ? 'Aprobaciones' : 'Compras';
+
   const renderOrdenActions = (o, mobile = false) => (
-    <div className={`flex items-center justify-center ${mobile ? '' : 'gap-1'}`}>
+    <div className={`flex items-center ${mobile ? '' : 'justify-end gap-1.5'}`}>
       {!mobile && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
         <button
           type="button"
           onClick={() => goToAprobacion(o)}
-          className="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap"
-          style={{ backgroundColor: CO_PRIMARY }}
+          className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 hover:bg-blue-100 hover:text-blue-600 transition-colors"
           title="Revisar y aprobar"
+          aria-label="Revisar y aprobar"
         >
-          Revisar
+          <ClipboardCheck className="w-4 h-4" strokeWidth={1.5} />
         </button>
       )}
       {!mobile && (
         <button
           type="button"
           onClick={() => openPDFPreview(o)}
-          className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-[#eef1fc] hover:text-[#2b41b8] hover:border-[#c7d0f5] transition-colors"
+          className="p-1.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-colors"
           title="Ver PDF"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -338,8 +300,8 @@ export const ComprasPage = () => {
           type="button"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === o.id ? null : o.id); }}
-          className={`inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors ${
-            mobile ? 'w-7 h-7 bg-white/90' : 'w-8 h-8 text-slate-600'
+          className={`rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors ${
+            mobile ? 'w-7 h-7 inline-flex items-center justify-center bg-white/90' : 'p-1.5 bg-slate-50'
           }`}
           title="Más acciones"
         >
@@ -347,7 +309,7 @@ export const ComprasPage = () => {
         </button>
         {openMenuId === o.id && (
           <div
-            className="absolute right-0 top-full mt-1 z-30 min-w-[180px] py-1 bg-white border border-slate-200 rounded-lg shadow-lg"
+            className="absolute right-0 top-full mt-1 z-30 min-w-[180px] py-1 bg-white border border-slate-200 rounded-xl shadow-lg"
             onMouseDown={(e) => e.stopPropagation()}
           >
             {mobile && (
@@ -357,10 +319,10 @@ export const ComprasPage = () => {
               <button type="button" onClick={() => { setOpenMenuId(null); openViewReasonModal(o.notas, o.numero); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Ver motivo rechazo</button>
             )}
             {isAdmin && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
-              <button type="button" onClick={() => { setOpenMenuId(null); goToAprobacion(o); }} className="w-full text-left px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50">Aprobar / revisar</button>
+              <button type="button" onClick={() => { setOpenMenuId(null); goToAprobacion(o); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Aprobar / revisar</button>
             )}
             {isAdmin && (o.estado === 'aprobada' || o.estado === 'parcialmente_recibida') && (
-              <button type="button" onClick={() => { setOpenMenuId(null); goToRecepcion(o); }} className="w-full text-left px-3 py-2 text-xs text-violet-700 hover:bg-violet-50">Recibir productos</button>
+              <button type="button" onClick={() => { setOpenMenuId(null); goToRecepcion(o); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Recibir productos</button>
             )}
             {isAdmin && o.estadoPago !== 'pagado' && o.estado !== 'cancelada' && o.estado !== 'pendiente_aprobacion' && (
               <button type="button" onClick={() => { setOpenMenuId(null); openAbonoModal(o); }} className="w-full text-left px-3 py-2 text-xs text-blue-700 hover:bg-blue-50">Registrar abono</button>
@@ -369,7 +331,7 @@ export const ComprasPage = () => {
               <button type="button" onClick={() => { setOpenMenuId(null); navigate(`/compras/editar/${o.id}`); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Editar orden</button>
             )}
             {isAdmin && (
-              <button type="button" onClick={() => { setOpenMenuId(null); handleOrdenDelete(o.id); }} className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50">Eliminar</button>
+              <button type="button" onClick={() => { setOpenMenuId(null); handleOrdenDelete(o.id); }} className="w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50">Eliminar</button>
             )}
           </div>
         )}
@@ -377,67 +339,58 @@ export const ComprasPage = () => {
     </div>
   );
 
-  const renderMobileOrdenRow = (o) => {
-    const iconStyle = ORDEN_ESTADO_ICON[o.estado] || ORDEN_ESTADO_ICON.aprobada;
-    return (
-      <div key={o.id} className="co-orden-row border-b border-slate-100 last:border-b-0">
-        <div className="flex items-center gap-1.5 px-2 py-2.5">
+  const renderMobileOrdenRow = (o) => (
+    <div key={o.id} className="border-b border-slate-100 last:border-b-0">
+      <div className="flex items-center gap-1.5 px-3 py-2.5">
+        <button
+          type="button"
+          onClick={() => openPDFPreview(o)}
+          className="flex items-center gap-2 min-w-0 flex-1 text-left active:opacity-80"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold text-slate-800 leading-tight truncate">{o.numero}</p>
+            <p className="text-[10px] text-slate-500 truncate uppercase tracking-wide">{o.proveedor?.nombre || '—'}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{fmtDate(o.fecha)}</p>
+          </div>
+        </button>
+        {isAdmin && (
+          <p className="text-xs font-bold tabular-nums shrink-0 px-0.5 text-slate-800">{fmt(o.total)}</p>
+        )}
+        <div className="flex flex-col items-end gap-0.5 shrink-0 max-w-[4.5rem]">
+          {renderBadge(ESTADO_BADGES, o.estado, true)}
+          {isAdmin && renderBadge(PAGO_BADGES, o.estadoPago, true)}
+        </div>
+        <button type="button" onClick={() => openPDFPreview(o)} className="shrink-0 p-0.5 text-slate-300" aria-label="Ver orden">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+      </div>
+      {isVistaAprobaciones && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
+        <div className="px-3 pb-2.5">
           <button
             type="button"
-            onClick={() => openPDFPreview(o)}
-            className="flex items-center gap-2 min-w-0 flex-1 text-left active:opacity-80"
+            onClick={() => goToAprobacion(o)}
+            className="w-full h-9 inline-flex items-center justify-center rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700"
           >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconStyle.bg}`}>
-              <svg className={`w-5 h-5 ${iconStyle.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={BAG_ICON_PATH} />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold leading-tight truncate" style={{ color: CO_NAVY }}>{o.numero}</p>
-              <p className="text-[10px] text-slate-500 truncate uppercase tracking-wide">{o.proveedor?.nombre || '—'}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{fmtDate(o.fecha)}</p>
-            </div>
-          </button>
-          {isAdmin && (
-            <p className="text-xs font-bold tabular-nums shrink-0 px-0.5" style={{ color: CO_NAVY }}>{fmt(o.total)}</p>
-          )}
-          <div className="flex flex-col items-end gap-0.5 shrink-0 max-w-[4.25rem]">
-            {renderBadge(ESTADO_BADGES, o.estado, true)}
-            {isAdmin && renderBadge(PAGO_BADGES, o.estadoPago, true)}
-          </div>
-          <button type="button" onClick={() => openPDFPreview(o)} className="shrink-0 p-0.5 text-slate-300" aria-label="Ver orden">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-            </svg>
+            Revisar y aprobar
           </button>
         </div>
-        {isVistaAprobaciones && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
-          <div className="px-2 pb-2.5">
-            <button
-              type="button"
-              onClick={() => goToAprobacion(o)}
-              className="w-full h-9 inline-flex items-center justify-center rounded-lg text-xs font-semibold text-white"
-              style={{ backgroundColor: CO_PRIMARY }}
-            >
-              Revisar y aprobar
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
+      )}
+    </div>
+  );
 
   const renderAdminFilters = (extraClass = '') => (
     <div className={`grid grid-cols-3 lg:grid-cols-4 gap-1.5 sm:gap-2 ${extraClass}`}>
       {!isVistaAprobaciones && (
-        <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} className="h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
+        <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} className={`h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-xl bg-gray-50 text-[10px] sm:text-sm text-slate-700 ${inputFocus} min-w-0`}>
           {ESTADO_FILTER_OPTIONS.map((opt) => <option key={opt.value || 'all'} value={opt.value}>Estado: {opt.label}</option>)}
         </select>
       )}
-      <select value={filterPago} onChange={(e) => setFilterPago(e.target.value)} className="h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
+      <select value={filterPago} onChange={(e) => setFilterPago(e.target.value)} className={`h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-xl bg-gray-50 text-[10px] sm:text-sm text-slate-700 ${inputFocus} min-w-0`}>
         {PAGO_FILTER_OPTIONS.map((opt) => <option key={opt.value || 'all'} value={opt.value}>{opt.label}</option>)}
       </select>
-      <select value={filterProveedorId} onChange={(e) => setFilterProveedorId(e.target.value)} className="h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0">
+      <select value={filterProveedorId} onChange={(e) => setFilterProveedorId(e.target.value)} className={`h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-xl bg-gray-50 text-[10px] sm:text-sm text-slate-700 ${inputFocus} min-w-0`}>
         <option value="">Proveedor: Todos</option>
         {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
       </select>
@@ -449,79 +402,76 @@ export const ComprasPage = () => {
 
   return (
     <div
-      className="co-compras-page w-full min-h-full animate-slide-up pb-10"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: CO_PAGE_BG }}
+      className="space-y-3 sm:space-y-5 w-full min-h-full animate-slide-up pb-10"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
     >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+
+      <ComprasPageHeader
+        icon={ShoppingCart}
+        badge={pageBadge}
+        title={pageTitle}
+        subtitle={pageSubtitle}
+        action={(
+          <ComprasHeaderButton onClick={() => navigate('/compras/nueva')} id="btn-nueva-orden">
+            <Plus size={15} />
+            Nueva orden
+          </ComprasHeaderButton>
+        )}
+      />
+
+      <div className={`grid gap-2 sm:gap-3 ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
+        {kpiItems.map((kpi) => (
+          <div key={kpi.label} className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 ${kpi.border} px-2.5 sm:px-4 py-3 sm:py-4 min-w-0`}>
+            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{kpi.label}</p>
+            <p className={`text-base sm:text-lg font-bold mt-1 tabular-nums ${kpi.color}`}>{kpi.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Fechas + tabs (misma fila, sin card — igual que instalaciones) */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mt-1 sm:mt-2">
+        {isAdmin ? (
+          <div className="flex-1 min-w-0">
+            {renderAdminFilters('lg:grid-cols-4')}
+          </div>
+        ) : (
+          <div className="max-w-xs w-full sm:w-auto">
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Fechas</label>
+            <DateRangePicker value={fechas} onChange={(val) => setFechas({ start: val.start, end: val.end })} placeholder="Rango de fechas" />
+          </div>
+        )}
+        {(isImpresion || isTaller || showAdminNav) && (
+          <div className="flex items-center justify-end gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+            {(isImpresion || isTaller) ? <ComprasOperativoNav /> : <ComprasAdminNav />}
+          </div>
+        )}
+      </div>
 
       {/* ── Móvil ── */}
-      <div className="md:hidden">
-        <ComprasPageHeader
-          title={isImpresion || isTaller ? 'Órdenes activas' : isVistaAprobaciones ? 'Pendientes de aprobación' : 'Órdenes de Compra'}
-          subtitle={isVistaAprobaciones
-            ? 'Revisa, aprueba o rechaza solicitudes de compra entrantes'
-            : isImpresion || isTaller
-            ? 'Solicitudes pendientes, aprobadas o en recepción'
-            : 'Control y emisión de compras de materiales y activos.'}
-          action={(
-            <ComprasHeaderButton onClick={() => navigate('/compras/nueva')}>
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Nueva Orden
-            </ComprasHeaderButton>
-          )}
-        />
-
-        {(isImpresion || isTaller) && <ComprasOperativoNav />}
-        {showAdminNav && <ComprasAdminNav />}
-
-        <div className={`grid gap-2 mb-4 ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
-          {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
-        </div>
-
-        <div className="space-y-2 mb-3">
-          <div className="flex gap-2">
-            <div className="relative flex-1 min-w-0">
-              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input
-                id="search-ordenes-mobile"
-                value={ordenSearchInput}
-                onChange={handleOrdenSearchChange}
-                placeholder="Buscar por número, proveedor o concepto…"
-                className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
-              />
-            </div>
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setMobileFiltersOpen((v) => !v)}
-                className="w-10 h-10 shrink-0 inline-flex items-center justify-center border border-slate-200 rounded-xl bg-white text-slate-500 relative"
-                aria-label="Filtros"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-                </svg>
-                {activeFiltersCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[1rem] h-4 px-1 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ backgroundColor: CO_PRIMARY }}>
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
-            )}
+      <div className="md:hidden space-y-3">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 p-3">
+          <div className="relative">
+            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              id="search-ordenes-mobile"
+              value={ordenSearchInput}
+              onChange={handleOrdenSearchChange}
+              placeholder="Buscar por número, proveedor o concepto…"
+              className={`w-full h-10 pl-10 pr-3 border border-slate-200 rounded-xl bg-gray-50 text-sm text-slate-800 ${inputFocus}`}
+            />
           </div>
-          {isAdmin && mobileFiltersOpen && renderAdminFilters()}
-          {!isAdmin && (
-            <DateRangePicker value={fechas} onChange={(val) => setFechas({ start: val.start, end: val.end })} placeholder="Rango de fechas" />
-          )}
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
-          <div className="px-3 py-2.5 flex items-center justify-between border-b border-slate-100">
-            <h2 className="text-sm font-bold" style={{ color: CO_NAVY }}>Órdenes recientes</h2>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 flex items-center justify-between border-b border-slate-100">
+            <h2 className="text-sm font-semibold text-slate-800">Órdenes recientes</h2>
             {ordenTotalPages > 1 && (
-              <button type="button" onClick={() => setOrdenPage((p) => Math.min(p + 1, ordenTotalPages))} className="text-[11px] font-semibold" style={{ color: CO_PRIMARY }}>
+              <button type="button" onClick={() => setOrdenPage((p) => Math.min(p + 1, ordenTotalPages))} className="text-[11px] font-semibold text-blue-600">
                 Ver todas ›
               </button>
             )}
@@ -542,7 +492,7 @@ export const ComprasPage = () => {
           {ordenTotalPages > 1 && (
             <div className="flex items-center justify-center gap-1">
               <button type="button" disabled={ordenPage <= 1} onClick={() => setOrdenPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&lt;</button>
-              <span className="text-xs font-semibold px-2 tabular-nums" style={{ color: CO_NAVY }}>{ordenPage} / {ordenTotalPages}</span>
+              <span className="text-xs font-semibold px-2 tabular-nums text-slate-800">{ordenPage} / {ordenTotalPages}</span>
               <button type="button" disabled={ordenPage >= ordenTotalPages} onClick={() => setOrdenPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&gt;</button>
             </div>
           )}
@@ -551,129 +501,133 @@ export const ComprasPage = () => {
 
       {/* ── Escritorio ── */}
       <div className="hidden md:block">
-      <ComprasPageHeader
-        title={isImpresion || isTaller ? 'Órdenes activas' : isVistaAprobaciones ? 'Pendientes de aprobación' : 'Órdenes de Compra'}
-        subtitle={isVistaAprobaciones
-          ? 'Revisa, aprueba o rechaza solicitudes de órdenes de compra entrantes'
-          : isImpresion || isTaller
-          ? 'Solicitudes pendientes, aprobadas o en recepción de tu área'
-          : 'Solicitud, control y emisión de compras de materiales y activos.'}
-        action={(
-          <ComprasHeaderButton onClick={() => navigate('/compras/nueva')} id="btn-nueva-orden">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Nueva Orden
-          </ComprasHeaderButton>
-        )}
-      />
-
-      {(isImpresion || isTaller) && <ComprasOperativoNav />}
-      {showAdminNav && <ComprasAdminNav />}
-
-      <div className={`grid gap-4 mb-6 ${isAdmin ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-2'}`}>
-        {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
-      </div>
-
-      <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-5 py-4 border-b border-slate-100 space-y-3">
-          <div className="relative">
-            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
-              id="search-ordenes"
-              value={ordenSearchInput}
-              onChange={handleOrdenSearchChange}
-              placeholder="Buscar por número, proveedor o concepto…"
-              className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
-            />
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold text-gray-800">
+                {isVistaAprobaciones ? 'Pendientes de aprobación' : 'Lista de órdenes'}
+              </h2>
+              <span className="text-xs font-medium text-gray-400">{ordenTotal} registros</span>
+            </div>
+            <div className="relative w-full sm:w-auto">
+              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+              <input
+                id="search-ordenes"
+                value={ordenSearchInput}
+                onChange={handleOrdenSearchChange}
+                placeholder="Buscar por número, proveedor o concepto…"
+                className={`pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-full sm:w-80 sm:min-w-[280px] transition-colors ${inputFocus}`}
+              />
+            </div>
           </div>
-          {isAdmin && renderAdminFilters('lg:grid-cols-4')}
-          {!isAdmin && (
-            <div className="max-w-xs">
-              <DateRangePicker value={fechas} onChange={(val) => setFechas({ start: val.start, end: val.end })} placeholder="Rango de fechas" />
-            </div>
-          )}
-        </div>
 
-        <div className="overflow-x-auto relative">
-          {ordenLoading && (
-            <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
-              <div className="co-spinner" />
-            </div>
-          )}
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-[#f8f9fc] text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
-              <tr>
-                <th className="px-4 py-3">Orden</th>
-                <th className="px-4 py-3">Proveedor</th>
-                <th className="px-4 py-3">Emisor</th>
-                {isVistaAprobaciones && <th className="px-4 py-3">Proyecto</th>}
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3">Concepto</th>
-                {isAdmin && <th className="px-4 py-3 text-right">Total</th>}
-                <th className="px-4 py-3 text-center">Estado</th>
-                {isAdmin && <th className="px-4 py-3 text-center">Pago</th>}
-                <th className="px-4 py-3 text-center w-28">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {!ordenLoading && ordenes.map((o) => (
-                <tr key={o.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: CO_PRIMARY }}>{o.numero}</td>
-                  <td className="px-4 py-3 font-medium" style={{ color: CO_NAVY }}>{o.proveedor?.nombre || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600 text-xs">{o.usuario?.nombre || '—'}</td>
+          <div className="overflow-x-auto relative">
+            {ordenLoading && (
+              <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px]">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+              </div>
+            )}
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Orden</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Proveedor</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Emisor</th>
                   {isVistaAprobaciones && (
-                    <td className="px-4 py-3 text-slate-700 text-xs max-w-[180px] truncate" title={getOrdenProyectoLabel(o) || ''}>
-                      {getOrdenProyectoLabel(o) || '—'}
-                    </td>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Proyecto</th>
                   )}
-                  <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{fmtDate(o.fecha)}</td>
-                  <td className="px-4 py-3 text-slate-700 text-xs max-w-[220px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
-                  {isAdmin && <td className="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{fmt(o.total)}</td>}
-                  <td className="px-4 py-3 text-center">{renderBadge(ESTADO_BADGES, o.estado)}</td>
-                  {isAdmin && <td className="px-4 py-3 text-center">{renderBadge(PAGO_BADGES, o.estadoPago)}</td>}
-                  <td className="px-4 py-3">{renderOrdenActions(o)}</td>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Concepto</th>
+                  {isAdmin && (
+                    <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
+                  )}
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                  {isAdmin && (
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pago</th>
+                  )}
+                  <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
-              ))}
-              {!ordenLoading && ordenes.length === 0 && (
-                <tr><td colSpan={isAdmin ? (isVistaAprobaciones ? 10 : 9) : 7} className="px-4 py-16 text-center text-slate-400 text-sm">{emptyMessage}</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="px-5 py-3 border-t border-slate-100 flex flex-row items-center justify-between gap-3 bg-white">
-          <p className="text-xs text-slate-500">
-            Mostrando {showingFrom} a {showingTo} de {ordenTotal} órdenes
-          </p>
-          <div className="flex items-center gap-1">
-            <button type="button" disabled={ordenPage <= 1} onClick={() => setOrdenPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50">&lt;</button>
-            {Array.from({ length: Math.min(5, ordenTotalPages) }, (_, i) => {
-              const maxVisible = Math.min(5, ordenTotalPages);
-              let start = Math.max(1, ordenPage - Math.floor(maxVisible / 2));
-              const end = Math.min(ordenTotalPages, start + maxVisible - 1);
-              if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
-              const pageNum = start + i;
-              if (pageNum > end) return null;
-              const isActive = ordenPage === pageNum;
-              return (
-                <button
-                  key={pageNum}
-                  type="button"
-                  onClick={() => setOrdenPage(pageNum)}
-                  className={`w-8 h-8 rounded-lg border text-sm font-medium transition-colors ${isActive ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                  style={isActive ? { backgroundColor: CO_PRIMARY, borderColor: CO_PRIMARY } : undefined}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            <button type="button" disabled={ordenPage >= ordenTotalPages} onClick={() => setOrdenPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50">&gt;</button>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {!ordenLoading && ordenes.map((o) => (
+                  <tr key={o.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-5 py-4 font-mono text-sm font-semibold text-blue-700">{o.numero}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-slate-800">{o.proveedor?.nombre || '—'}</td>
+                    <td className="px-5 py-4 text-sm text-slate-700">{o.usuario?.nombre || '—'}</td>
+                    {isVistaAprobaciones && (
+                      <td className="px-5 py-4 text-sm text-slate-700 max-w-[180px] truncate" title={getOrdenProyectoLabel(o) || ''}>
+                        {getOrdenProyectoLabel(o) || '—'}
+                      </td>
+                    )}
+                    <td className="px-5 py-4 text-sm text-slate-700 whitespace-nowrap">{fmtDate(o.fecha)}</td>
+                    <td className="px-5 py-4 text-sm text-slate-700 max-w-[220px] truncate" title={o.concepto}>{o.concepto || '—'}</td>
+                    {isAdmin && <td className="px-5 py-4 text-right text-sm font-semibold text-slate-900 tabular-nums">{fmt(o.total)}</td>}
+                    <td className="px-5 py-4">{renderBadge(ESTADO_BADGES, o.estado)}</td>
+                    {isAdmin && <td className="px-5 py-4">{renderBadge(PAGO_BADGES, o.estadoPago)}</td>}
+                    <td className="px-5 py-4 text-right">{renderOrdenActions(o)}</td>
+                  </tr>
+                ))}
+                {!ordenLoading && ordenes.length === 0 && (
+                  <tr>
+                    <td colSpan={isAdmin ? (isVistaAprobaciones ? 10 : 9) : 7} className="text-center py-12 text-sm text-slate-400">
+                      {emptyMessage}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
+
+          {ordenTotal > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-gray-100">
+              <span className="text-[11px] font-medium text-gray-400">
+                Mostrando {showingFrom} a {showingTo} de {ordenTotal} órdenes
+              </span>
+              {ordenTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={ordenPage <= 1}
+                    onClick={() => setOrdenPage((p) => Math.max(1, p - 1))}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    Anterior
+                  </button>
+                  {Array.from({ length: Math.min(5, ordenTotalPages) }, (_, i) => {
+                    const maxVisible = Math.min(5, ordenTotalPages);
+                    let start = Math.max(1, ordenPage - Math.floor(maxVisible / 2));
+                    const end = Math.min(ordenTotalPages, start + maxVisible - 1);
+                    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+                    const pageNum = start + i;
+                    if (pageNum > end) return null;
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setOrdenPage(pageNum)}
+                        className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${
+                          ordenPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    disabled={ordenPage >= ordenTotalPages}
+                    onClick={() => setOrdenPage((p) => Math.min(ordenTotalPages, p + 1))}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </div>
       </div>
 
       {/* Registrar Abono Modal */}
@@ -707,7 +661,7 @@ export const ComprasPage = () => {
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Saldo pendiente:</span>
-                      <span className="font-bold text-red-500">{fmt(saldoAbono)}</span>
+                      <span className="font-bold text-rose-600">{fmt(saldoAbono)}</span>
                     </div>
                   </div>
                 )}
@@ -741,9 +695,9 @@ export const ComprasPage = () => {
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
                     <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={abonoSaving} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
+                    <button type="submit" disabled={abonoSaving} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
                       {abonoSaving && <div className="co-spinner-sm" />}
-                      Registrar Gasto
+                      Registrar gasto
                     </button>
                   </div>
                 </form>
@@ -771,7 +725,7 @@ export const ComprasPage = () => {
           <div className="co-modal-wrap">
             <div className="co-modal animate-co-modal-in" style={{ maxWidth: '480px' }}>
               <div className="co-modal-header">
-                <h2 className="text-lg font-bold text-slate-800">Motivo del Rechazo</h2>
+                <h2 className="text-lg font-bold text-slate-800">Motivo del rechazo</h2>
                 <button type="button" onClick={() => setViewReasonOpen(false)} className="co-modal-close">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -781,11 +735,11 @@ export const ComprasPage = () => {
                   <div className="text-xs text-slate-500">
                     Motivo ingresado para el rechazo de la orden de compra <strong className="font-mono">{viewReasonNumero}</strong>:
                   </div>
-                  <div className="p-4 bg-rose-50/50 border border-rose-100 rounded-xl text-slate-700 text-sm font-semibold whitespace-pre-wrap leading-relaxed">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium whitespace-pre-wrap leading-relaxed">
                     {viewReasonText || 'No se ingresó un motivo específico.'}
                   </div>
                   <div className="flex items-center justify-end pt-3 border-t border-slate-100">
-                    <button type="button" onClick={() => setViewReasonOpen(false)} className="co-btn-primary" style={{ background: '#475569' }}>
+                    <button type="button" onClick={() => setViewReasonOpen(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-slate-600 hover:bg-slate-700">
                       Cerrar
                     </button>
                   </div>

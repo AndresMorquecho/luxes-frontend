@@ -391,11 +391,18 @@ export function ProductoFormModal({ item, unidades = [], lockedCategory, onClose
           
           {/* Header */}
           <div className="inv-modal-header">
-            <h3>
-              {isEdit ? 'Editar Producto' : mode === 'import' ? 'Importar Productos desde Excel' : 'Registro de Producto Rápido'}
-            </h3>
-            <button type="button" className="inv-close" onClick={handleClose}>
-              <X size={18} />
+            <div className="inv-modal-header-left">
+              <div className="inv-modal-header-icon">
+                {mode === 'import' && !isEdit
+                  ? <FileSpreadsheet size={18} strokeWidth={2.5} />
+                  : <Package size={18} strokeWidth={2.5} />}
+              </div>
+              <h3>
+                {isEdit ? 'Editar Producto' : mode === 'import' ? 'Importar Productos desde Excel' : 'Registro de Producto Rápido'}
+              </h3>
+            </div>
+            <button type="button" className="inv-close" onClick={handleClose} title="Cerrar">
+              <X size={14} />
             </button>
           </div>
 

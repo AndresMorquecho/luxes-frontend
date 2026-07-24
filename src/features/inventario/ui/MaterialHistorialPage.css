@@ -141,51 +141,40 @@
 .hist-kpi-card {
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
-  transition: transform 0.25s, box-shadow 0.25s;
-}
-
-.hist-kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
-}
-
-.hist-kpi-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hist-kpi-icon.purchases { background: #eff6ff; color: #3b82f6; }
-.hist-kpi-icon.usage { background: #faf5ff; color: #a855f7; }
-.hist-kpi-icon.stock { background: #f0fdf4; color: #22c55e; }
-.hist-kpi-icon.cpp { background: #fef2f2; color: #ef4444; }
-
-.hist-kpi-info {
+  border-radius: 0.75rem;
+  padding: 1rem 1.1rem;
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0, 0, 0, 0.02);
+  border-top-width: 2px;
 }
 
+.hist-kpi-card:nth-child(1) { border-top-color: #3b82f6; }
+.hist-kpi-card:nth-child(1) .hist-kpi-val { color: #2563eb; }
+.hist-kpi-card:nth-child(2) { border-top-color: #8b5cf6; }
+.hist-kpi-card:nth-child(2) .hist-kpi-val { color: #7c3aed; }
+.hist-kpi-card:nth-child(3) { border-top-color: #10b981; }
+.hist-kpi-card:nth-child(3) .hist-kpi-val { color: #059669; }
+.hist-kpi-card:nth-child(4) { border-top-color: #ef4444; }
+.hist-kpi-card:nth-child(4) .hist-kpi-val { color: #dc2626; }
+
 .hist-kpi-val {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #1e293b;
+  font-size: 1.125rem;
+  font-weight: 700;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  order: 2;
 }
 
 .hist-kpi-lbl {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #64748b;
-  margin-top: 0.2rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0;
+  order: 1;
 }
 
 /* Tabs */

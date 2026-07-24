@@ -278,7 +278,7 @@ const ColaboradorSearchSelect = ({ employees, value, onChange, disabled = false 
             if (!e.target.value.trim()) onChange('');
           }}
           onFocus={() => setOpen(true)}
-          className="w-full h-9 sm:h-10 pl-9 pr-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 disabled:bg-slate-50 disabled:text-slate-400"
+          className="w-full h-10 pl-9 pr-3 border border-slate-100 rounded-lg bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-colors disabled:bg-slate-50 disabled:text-slate-400"
           autoComplete="off"
         />
       </div>
@@ -309,6 +309,7 @@ export const HorasExtrasTable = ({
   const pendingRef = useRef(pendingDrafts);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [modalData, setModalData] = useState({
     fecha: '',
     colaboradorId: '',
@@ -371,6 +372,7 @@ export const HorasExtrasTable = ({
         defaultFecha = fechasActuales.fechaInicio;
       }
     }
+    setEditingId(null);
     setModalData({
       fecha: defaultFecha,
       colaboradorId: '',
@@ -379,6 +381,20 @@ export const HorasExtrasTable = ({
       descripcion: 'Horas extras de soporte',
       valorPorHora: 2.50,
       estado: 'DEUDOR',
+    });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (row) => {
+    setEditingId(row.id);
+    setModalData({
+      fecha: row.fecha || '',
+      colaboradorId: String(row.colaboradorId || ''),
+      horas: Number(row.horas) || 1,
+      detalleHorario: row.detalleHorario || '',
+      descripcion: row.descripcion || '',
+      valorPorHora: Number(row.valorPorHora) || 2.5,
+      estado: row.estado || 'DEUDOR',
     });
     setIsModalOpen(true);
   };
@@ -413,23 +429,6 @@ export const HorasExtrasTable = ({
     [onPatchOvertime],
   );
 
-  const updateApprovedField = (id, field, rawValue) => {
-    setRecords((prev) =>
-      prev.map((row) => {
-        if (row.id !== id) return row;
-        if (field === 'horas') return { ...row, horas: parseNum(rawValue, row.horas) };
-        if (field === 'valorPorHora') return { ...row, valorPorHora: parseNum(rawValue, row.valorPorHora) };
-        return { ...row, [field]: rawValue };
-      }),
-    );
-  };
-
-  const handleApprovedBlur = async (id) => {
-    const row = recordsRef.current.find((r) => r.id === id);
-    if (!row || !onPatchOvertime) return;
-    await persistPatch(id, row, true);
-  };
-
   const updatePendingField = (id, field, rawValue) => {
     setPendingDrafts((prev) => {
       const cur = prev[id] || {};
@@ -453,48 +452,62 @@ export const HorasExtrasTable = ({
     await persistPatch(row.id, merged, true);
   };
 
-  const handleToggleEstado = async (id) => {
+  const handleDelete = async (id) => {
+    const confirmed = await confirmDialog(
+      'Eliminar registro',
+      '¿Está seguro de eliminar este registro de horas extras?',
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' },
+    );
+    if (!confirmed) return;
+
     const previous = recordsRef.current;
-    const updated = previous.map((row) => {
-      if (row.id === id) {
-        const nextEstado = row.estado === 'PAGADO' ? 'DEUDOR' : 'PAGADO';
-        return { ...row, estado: nextEstado };
-      }
-      return row;
-    });
+    const updated = previous.filter((row) => row.id !== id);
     setRecords(updated);
     try {
-      await syncWithBackend(updated, 'Estado de pago actualizado.');
+      if (onDelete) {
+        await onDelete(id);
+        toast.success('Registro eliminado.');
+      } else {
+        await syncWithBackend(updated, 'Registro eliminado.');
+      }
     } catch (err) {
       setRecords(previous);
-      toast.error(`Error al guardar en el servidor: ${err.message}`);
+      toast.error(err.message || 'Error al eliminar');
     }
-  };
-
-  const handleDelete = async (id) => {
-    confirmDialog(
-      '¿Está seguro de eliminar este registro de horas extras?',
-      async () => {
-        const updated = records.filter((row) => row.id !== id);
-        setRecords(updated);
-        try {
-          if (onDelete) {
-            await onDelete(id);
-            toast.success('Registro eliminado.');
-          } else {
-            await syncWithBackend(updated, 'Registro eliminado.');
-          }
-        } catch (err) {
-          toast.error(err.message || 'Error al eliminar');
-        }
-      }
-    );
   };
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     if (!modalData.fecha || !modalData.colaboradorId || !modalData.horas || !modalData.descripcion) {
       toast.error('Por favor, completa todos los campos obligatorios (incluido colaborador).');
+      return;
+    }
+
+    const previous = recordsRef.current;
+
+    if (editingId) {
+      const updated = previous.map((row) => {
+        if (row.id !== editingId) return row;
+        return {
+          ...row,
+          fecha: modalData.fecha,
+          colaboradorId: String(modalData.colaboradorId),
+          horas: Number(modalData.horas),
+          detalleHorario: modalData.detalleHorario,
+          descripcion: modalData.descripcion,
+          valorPorHora: Number(modalData.valorPorHora),
+          estado: modalData.estado,
+        };
+      });
+      setRecords(updated);
+      try {
+        await syncWithBackend(updated, 'Registro actualizado correctamente.');
+        setEditingId(null);
+        deferClose(() => setIsModalOpen(false));
+      } catch (err) {
+        setRecords(previous);
+        toast.error(`Error al guardar en el servidor: ${err.message}`);
+      }
       return;
     }
 
@@ -511,7 +524,6 @@ export const HorasExtrasTable = ({
       origen: 'MANUAL',
     };
 
-    const previous = recordsRef.current;
     const updated = [...previous, newRecord];
     setRecords(updated);
     try {
@@ -779,58 +791,63 @@ export const HorasExtrasTable = ({
       <section className="bg-white rounded-xl shadow-xs border border-gray-100 overflow-hidden flex flex-col premium-card">
         <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-gray-200 flex flex-col gap-2.5 sm:flex-row sm:justify-between sm:items-center sm:gap-3">
           <div className="min-w-0">
-            <h2 className="text-sm sm:text-base font-extrabold text-blue-900 uppercase tracking-wide">Planilla de Horas Extras</h2>
-            <p className="hidden sm:block text-gray-500 text-xs mt-0.5">
-              Aprobadas en {periodoLabel || 'el período'}. Los campos en azul claro son editables.
+            <h2 className="text-base sm:text-lg font-extrabold text-blue-900 uppercase tracking-wide">Planilla de Horas Extras</h2>
+            <p className="hidden sm:block text-gray-500 text-sm mt-1">
+              Aprobadas en {periodoLabel || 'el período'}. Usa Editar en Acciones para modificar un registro.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={openModal}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg sm:rounded-xl text-xs font-bold transition-all duration-200 inline-flex items-center justify-center gap-2 cursor-pointer border-none shadow-sm shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            <span className="sm:hidden">Registrar</span>
-            <span className="hidden sm:inline">Registrar Horas Extras</span>
-          </button>
+          {records.length > 0 && (
+            <button
+              type="button"
+              onClick={openModal}
+              className="w-full sm:w-auto px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all duration-200 inline-flex items-center justify-center gap-2 cursor-pointer border-none shadow-sm shrink-0"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span className="sm:hidden">Registrar</span>
+              <span className="hidden sm:inline">Registrar Horas Extras</span>
+            </button>
+          )}
         </div>
 
         {records.length === 0 ? (
-          <div className="px-5 py-16 text-center">
-            <div className="mx-auto w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <div className="px-6 py-20 min-h-[380px] flex flex-col items-center justify-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
+              <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
             </div>
-            <p className="text-sm font-semibold text-slate-600">Sin registros en esta planilla</p>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              Usa &quot;Registrar horas&quot; para agregar una jornada o aprueba solicitudes del quiosco.
+            <p className="text-lg sm:text-xl font-bold text-slate-700">Sin registros en esta planilla</p>
+            <p className="text-sm sm:text-base text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
+              Agrega una jornada o aprueba solicitudes del quiosco para comenzar.
             </p>
             <button
               type="button"
               onClick={openModal}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 text-xs font-bold hover:bg-blue-100 cursor-pointer"
+              className="mt-7 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all duration-200 inline-flex items-center justify-center gap-2 cursor-pointer border-none shadow-sm"
             >
-              Registrar horas extras
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Registrar Horas Extras
             </button>
           </div>
         ) : (
           <>
             <div className="hidden md:block overflow-x-auto max-h-[520px] sticky-scrollbar">
               <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
-                <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10 sticky-table-header">
+                <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10 sticky-table-header">
                   <tr>
                     <th className="px-4 py-3.5 w-[100px]">Fecha</th>
-                    <th className="px-4 py-3.5 w-[160px]">Colaborador</th>
+                    <th className="px-4 py-3.5 w-[200px]">Colaborador</th>
                     <th className="px-4 py-3.5 w-[72px] text-center">Horas</th>
                     <th className="px-4 py-3.5 w-[120px]">Horario</th>
                     <th className="px-4 py-3.5">Descripción</th>
                     <th className="px-4 py-3.5 w-[88px] text-center">V/Hora</th>
                     <th className="px-4 py-3.5 w-[80px]">Total</th>
                     <th className="px-4 py-3.5 w-[95px] text-center">Estado</th>
-                    <th className="px-4 py-3.5 w-[45px] text-center">Acción</th>
+                    <th className="px-4 py-3.5 w-[90px] text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -841,73 +858,62 @@ export const HorasExtrasTable = ({
 
                     return (
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors group">
-                        <td className="px-4 py-2 font-medium text-slate-600 text-xs whitespace-nowrap">
+                        <td className="px-4 py-3.5 font-medium text-slate-600 text-sm whitespace-nowrap">
                           {formatFecha(row.fecha)}
                         </td>
-                        <td className="px-4 py-2 font-bold text-slate-800 text-xs uppercase truncate max-w-[160px]">
+                        <td className="px-4 py-3.5 font-bold text-slate-800 text-sm uppercase truncate max-w-[200px]" title={empName}>
                           {empName}
                           <SavingDot id={row.id} />
                         </td>
-                        <td className="px-2 py-2">
-                          <CellNumber
-                            value={row.horas}
-                            step="0.5"
-                            min="0.5"
-                            onChange={(v) => updateApprovedField(row.id, 'horas', v)}
-                            onBlur={() => handleApprovedBlur(row.id)}
-                          />
+                        <td className="px-4 py-3.5 text-center text-sm font-semibold text-slate-800 tabular-nums">
+                          {formatHoras(row.horas)}
                         </td>
-                        <td className="px-2 py-2">
-                          <CellText
-                            value={row.detalleHorario}
-                            placeholder="17:30 - 18:30"
-                            onChange={(v) => updateApprovedField(row.id, 'detalleHorario', v)}
-                            onBlur={() => handleApprovedBlur(row.id)}
-                            className="whitespace-nowrap"
-                          />
+                        <td className="px-4 py-3.5 text-sm text-slate-700 whitespace-nowrap">
+                          {row.detalleHorario || '—'}
                         </td>
-                        <td className="px-2 py-2">
-                          <CellText
-                            value={row.descripcion}
-                            placeholder="Descripción"
-                            onChange={(v) => updateApprovedField(row.id, 'descripcion', v)}
-                            onBlur={() => handleApprovedBlur(row.id)}
-                          />
+                        <td className="px-4 py-3.5 text-sm text-slate-700">
+                          {row.descripcion || '—'}
                         </td>
-                        <td className="px-2 py-2">
-                          <CellMoney
-                            value={row.valorPorHora}
-                            onChange={(v) => updateApprovedField(row.id, 'valorPorHora', v)}
-                            onBlur={() => handleApprovedBlur(row.id)}
-                          />
+                        <td className="px-4 py-3.5 text-center text-sm font-semibold text-slate-800 tabular-nums whitespace-nowrap">
+                          {formatUSD(row.valorPorHora)}
                         </td>
-                        <td className="px-4 py-2 font-extrabold text-blue-900 text-xs whitespace-nowrap">
+                        <td className="px-4 py-3.5 font-extrabold text-blue-900 text-sm whitespace-nowrap">
                           {formatUSD(calculatedTotal)}
                         </td>
-                        <td className="px-4 py-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleEstado(row.id)}
-                            className={`px-2.5 py-1 rounded-xl text-[9px] font-extrabold uppercase tracking-wider cursor-pointer transition-all border border-solid ${
+                        <td className="px-4 py-3.5 text-center">
+                          <span
+                            className={`inline-block px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-wider border border-solid ${
                               row.estado === 'PAGADO'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 hover:bg-emerald-100'
-                                : 'bg-red-50 text-red-700 border-red-200/60 hover:bg-red-100'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
+                                : 'bg-red-50 text-red-700 border-red-200/60'
                             }`}
                           >
                             {row.estado === 'PAGADO' ? 'Pagado' : 'Por Pagar'}
-                          </button>
+                          </span>
                         </td>
-                        <td className="px-4 py-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(row.id)}
-                            className="text-red-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50 cursor-pointer border-none bg-transparent opacity-60 group-hover:opacity-100"
-                            title="Eliminar registro"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                            </svg>
-                          </button>
+                        <td className="px-4 py-3 text-center">
+                          <div className="inline-flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(row)}
+                              className="text-blue-500 hover:text-blue-700 transition-colors p-1.5 rounded-lg hover:bg-blue-50 cursor-pointer border-none bg-transparent"
+                              title="Editar registro"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(row.id)}
+                              className="text-red-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50 cursor-pointer border-none bg-transparent"
+                              title="Eliminar registro"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -934,55 +940,43 @@ export const HorasExtrasTable = ({
                         {formatUSD(calculatedTotal)}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-slate-500 font-semibold block mb-1">Horas</span>
-                        <CellNumber
-                          value={row.horas}
-                          step="0.5"
-                          min="0.5"
-                          onChange={(v) => updateApprovedField(row.id, 'horas', v)}
-                          onBlur={() => handleApprovedBlur(row.id)}
-                        />
+                        <span className="text-slate-500 font-semibold block mb-0.5">Horas</span>
+                        <p className="font-semibold text-slate-800 tabular-nums">{formatHoras(row.horas)}</p>
                       </div>
                       <div>
-                        <span className="text-slate-500 font-semibold block mb-1">V/Hora</span>
-                        <CellMoney
-                          value={row.valorPorHora}
-                          onChange={(v) => updateApprovedField(row.id, 'valorPorHora', v)}
-                          onBlur={() => handleApprovedBlur(row.id)}
-                        />
+                        <span className="text-slate-500 font-semibold block mb-0.5">V/Hora</span>
+                        <p className="font-semibold text-slate-800 tabular-nums">{formatUSD(row.valorPorHora)}</p>
                       </div>
                       <div className="col-span-2">
-                        <span className="text-slate-500 font-semibold block mb-1">Horario</span>
-                        <CellText
-                          value={row.detalleHorario}
-                          placeholder="17:30 - 18:30"
-                          onChange={(v) => updateApprovedField(row.id, 'detalleHorario', v)}
-                          onBlur={() => handleApprovedBlur(row.id)}
-                        />
+                        <span className="text-slate-500 font-semibold block mb-0.5">Horario</span>
+                        <p className="text-slate-700">{row.detalleHorario || '—'}</p>
                       </div>
                       <div className="col-span-2">
-                        <span className="text-slate-500 font-semibold block mb-1">Descripción</span>
-                        <CellText
-                          value={row.descripcion}
-                          placeholder="Descripción"
-                          onChange={(v) => updateApprovedField(row.id, 'descripcion', v)}
-                          onBlur={() => handleApprovedBlur(row.id)}
-                        />
+                        <span className="text-slate-500 font-semibold block mb-0.5">Descripción</span>
+                        <p className="text-slate-700">{row.descripcion || '—'}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500 font-semibold block mb-0.5">Estado</span>
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${
+                            row.estado === 'PAGADO'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-red-50 text-red-700 border-red-200'
+                          }`}
+                        >
+                          {row.estado === 'PAGADO' ? 'Pagado' : 'Por Pagar'}
+                        </span>
                       </div>
                     </div>
                     <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
                       <button
                         type="button"
-                        onClick={() => handleToggleEstado(row.id)}
-                        className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase border ${
-                          row.estado === 'PAGADO'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-red-50 text-red-700 border-red-200'
-                        }`}
+                        onClick={() => openEditModal(row)}
+                        className="flex-1 py-2 rounded-lg text-[10px] font-bold uppercase border border-blue-200 text-blue-700 bg-blue-50"
                       >
-                        {row.estado === 'PAGADO' ? 'Pagado' : 'Por Pagar'}
+                        Editar
                       </button>
                       <button
                         type="button"
@@ -1006,20 +1000,40 @@ export const HorasExtrasTable = ({
       <section className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-slate-200 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-slate-900">Resumen por colaborador</h2>
-            <p className="hidden sm:block text-xs text-slate-500 mt-0.5">
+            <h2 className="text-base sm:text-lg font-extrabold text-blue-900 uppercase tracking-wide">Por colaborador</h2>
+            <p className="hidden sm:block text-sm text-slate-500 mt-1">
               Horas acumuladas en {periodoLabel || 'el período'}
             </p>
           </div>
-          <div className="text-[11px] sm:text-xs text-slate-600 font-medium tabular-nums shrink-0">
-            {formatHoras(totalHoras)} h · {formatUSD(totalMonto)}
-          </div>
+          {summaryRows.length > 0 && (
+            <div className="text-sm text-slate-600 font-medium tabular-nums shrink-0">
+              {formatHoras(totalHoras)} h · {formatUSD(totalMonto)}
+            </div>
+          )}
         </div>
 
         {summaryRows.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
-            Aún no hay horas aprobadas para mostrar en el resumen.
-          </p>
+          <div className="px-6 py-20 min-h-[380px] flex flex-col items-center justify-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
+              <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+            </div>
+            <p className="text-lg sm:text-xl font-bold text-slate-700">Sin horas para mostrar</p>
+            <p className="text-sm sm:text-base text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
+              Registra jornadas o aprueba solicitudes del quiosco para ver el resumen por colaborador.
+            </p>
+            <button
+              type="button"
+              onClick={openModal}
+              className="mt-7 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all duration-200 inline-flex items-center justify-center gap-2 cursor-pointer border-none shadow-sm"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Registrar Horas Extras
+            </button>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -1079,26 +1093,42 @@ export const HorasExtrasTable = ({
       <ModalPortal>
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
           <div
-            className="fixed inset-0 bg-black/40"
-            onMouseDown={() => deferClose(() => setIsModalOpen(false))}
+            className="fixed inset-0 bg-slate-200/60 backdrop-blur-sm"
+            onMouseDown={() => {
+              setEditingId(null);
+              deferClose(() => setIsModalOpen(false));
+            }}
           />
           <div
-            className="relative w-full max-w-xl bg-white rounded-xl shadow-xl border border-slate-200 max-h-[88dvh] sm:max-h-[92vh] flex flex-col animate-modal-in"
+            className="relative w-full max-w-xl bg-white rounded-2xl shadow-xl border border-slate-200 max-h-[88dvh] sm:max-h-[92vh] flex flex-col overflow-hidden animate-modal-in"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-4 sm:px-7 pt-4 pb-3 sm:pt-6 sm:pb-4 border-b border-slate-200 flex items-start justify-between gap-3 shrink-0">
-              <div className="min-w-0">
-                <h3 className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight">
-                  Registrar horas extras
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 hidden sm:block">
-                  Complete los datos de la jornada laboral.
-                </p>
+            {/* Header */}
+            <div className="px-5 sm:px-7 py-5 border-b border-slate-100 flex items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-slate-800">
+                    {editingId ? 'Editar horas extras' : 'Registrar horas extras'}
+                  </h3>
+                  <p className="text-sm text-slate-500 mt-0.5 hidden sm:block">
+                    {editingId
+                      ? 'Modifica los datos de la jornada laboral'
+                      : 'Complete los datos de la jornada laboral'}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => deferClose(() => setIsModalOpen(false))}
-                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer bg-transparent border-0 outline-none"
+                onClick={() => {
+                  setEditingId(null);
+                  deferClose(() => setIsModalOpen(false));
+                }}
+                className="shrink-0 p-2 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer bg-transparent border-0 outline-none"
                 aria-label="Cerrar"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1108,20 +1138,20 @@ export const HorasExtrasTable = ({
             </div>
 
             <form onSubmit={handleAddSubmit} className="flex flex-col flex-1 min-h-0">
-              <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-7 py-3 sm:py-5 space-y-3 sm:space-y-5">
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2.5 sm:gap-4">
-                  <div className="space-y-1 col-span-2 sm:col-span-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Fecha</label>
+              <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-7 py-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Fecha</label>
                     <input
                       type="date"
                       required
                       value={modalData.fecha}
                       onChange={(e) => setModalData((prev) => ({ ...prev, fecha: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                      className="w-full h-10 px-3 border border-slate-100 rounded-lg bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-colors"
                     />
                   </div>
-                  <div className="space-y-1 col-span-2 sm:col-span-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Colaborador</label>
+                  <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Colaborador</label>
                     <ColaboradorSearchSelect
                       employees={employees}
                       value={modalData.colaboradorId}
@@ -1129,41 +1159,41 @@ export const HorasExtrasTable = ({
                       disabled={employees.length === 0}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Horario</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Horario</label>
                     <input
                       type="text"
                       required
                       placeholder="17:30 - 18:30"
                       value={modalData.detalleHorario}
                       onChange={(e) => setModalData((prev) => ({ ...prev, detalleHorario: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                      className="w-full h-10 px-3 border border-slate-100 rounded-lg bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-colors"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Estado</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</label>
                     <select
                       value={modalData.estado}
                       onChange={(e) => setModalData((prev) => ({ ...prev, estado: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 cursor-pointer"
+                      className="w-full h-10 px-3 border border-slate-100 rounded-lg bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-colors cursor-pointer"
                     >
                       <option value="DEUDOR">Por pagar</option>
                       <option value="PAGADO">Pagado</option>
                     </select>
                   </div>
-                  <div className="col-span-2 space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Descripción</label>
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Descripción</label>
                     <input
                       type="text"
                       required
                       placeholder="Ej. Soporte técnico"
                       value={modalData.descripcion}
                       onChange={(e) => setModalData((prev) => ({ ...prev, descripcion: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                      className="w-full h-10 px-3 border border-slate-100 rounded-lg bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-colors"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Horas</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Horas</label>
                     <input
                       type="number"
                       min="0.5"
@@ -1171,13 +1201,13 @@ export const HorasExtrasTable = ({
                       required
                       value={modalData.horas}
                       onChange={(e) => setModalData((prev) => ({ ...prev, horas: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 text-center outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                      className="w-full h-10 px-3 border border-slate-100 rounded-lg bg-white text-sm text-slate-700 text-center outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-colors"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Valor/h</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Valor/h</label>
                     <div className="relative">
-                      <span className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs sm:text-sm select-none">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold select-none">$</span>
                       <input
                         type="number"
                         step="0.01"
@@ -1185,15 +1215,15 @@ export const HorasExtrasTable = ({
                         required
                         value={modalData.valorPorHora}
                         onChange={(e) => setModalData((prev) => ({ ...prev, valorPorHora: e.target.value }))}
-                        className="w-full h-9 sm:h-10 pl-6 sm:pl-7 pr-2.5 sm:pr-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                        className="w-full h-10 pl-7 pr-3 border border-slate-100 rounded-lg bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-colors"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="h-9 sm:h-10 px-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-slate-500">Total estimado</span>
-                  <span className="text-xs sm:text-sm font-semibold text-slate-900 tabular-nums">
+                <div className="h-11 px-4 rounded-lg bg-slate-50/70 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total estimado</span>
+                  <span className="text-base font-bold text-slate-800 tabular-nums">
                     {formatUSD(
                       (Number(modalData.horas) || 0) * (Number(modalData.valorPorHora) || 0),
                     )}
@@ -1201,19 +1231,22 @@ export const HorasExtrasTable = ({
                 </div>
               </div>
 
-              <div className="shrink-0 flex gap-2 px-4 sm:px-7 py-3 sm:py-4 border-t border-slate-200 bg-white">
+              <div className="shrink-0 flex justify-end gap-2.5 px-5 sm:px-7 py-4 border-t border-slate-100 bg-white">
                 <button
                   type="button"
-                  onClick={() => deferClose(() => setIsModalOpen(false))}
-                  className="flex-1 sm:flex-none h-9 sm:h-10 px-4 rounded-md border border-slate-300 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-50 cursor-pointer transition-colors bg-white"
+                  onClick={() => {
+                    setEditingId(null);
+                    deferClose(() => setIsModalOpen(false));
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 cursor-pointer transition-colors bg-white"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 sm:flex-none h-9 sm:h-10 px-5 rounded-md bg-slate-900 text-white font-medium text-xs sm:text-sm hover:bg-slate-800 cursor-pointer transition-colors border-none"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 cursor-pointer transition-colors border-none"
                 >
-                  Registrar
+                  {editingId ? 'Guardar cambios' : 'Registrar'}
                 </button>
               </div>
             </form>

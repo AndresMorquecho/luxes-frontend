@@ -2,10 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Package, Wrench, ArrowRightLeft, Search, Plus, Edit2, Trash2,
-  ArrowUp, ArrowDown, RefreshCw, AlertTriangle, CheckCircle2,
-  Clock, X, Layers, User, ExternalLink, Filter, ChevronLeft, ChevronRight,
-  Monitor, Printer
+  Package, Wrench, Search, Plus,
+  ArrowUp, ArrowDown,
+  X, Layers, ExternalLink, Monitor, Printer,
 } from 'lucide-react';
 import {
   getMateriales, createMaterial, updateMaterial, deleteMaterial,
@@ -15,20 +14,16 @@ import {
 import { toast } from '../../../shared/ui/components/Toast.jsx';
 import { confirmDialog } from '../../../shared/ui/components/ConfirmModal.jsx';
 import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
+import {
+  ComprasPageHeader,
+  ComprasHeaderButton,
+} from '../../compras/ui/components/ComprasPageHeader';
 import './InventarioPage.css';
 import { ProductoFormModal } from './ProductoFormModal.jsx';
 import { InventoryTable } from './components/InventoryTable.jsx';
 
 // ── Helper ─────────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 25;
-const fmt = (n) => `$${Number(n).toFixed(2)}`;
-const fmtCompra = (d) => d ? new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-const elapsed = (fechaSalida) => {
-  const diff = Date.now() - new Date(fechaSalida).getTime();
-  const h = Math.floor(diff / 3_600_000);
-  const m = Math.floor((diff % 3_600_000) / 60_000);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-};
 
 const TABS = [
   { id: 'all',        label: 'Todos',          Icon: Layers },
@@ -37,7 +32,8 @@ const TABS = [
   { id: 'Impresión',  label: 'Inv. Impresión', Icon: Printer },
 ];
 
-// MaterialModal removed — replaced by ProductoFormModal
+const inputClass =
+  'w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-gray-50 text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-colors';
 
 // ── Movimiento rápido (desde fila de tabla) ────────────────────────────────
 function MovimientoModal({ material, onClose, onSave }) {
@@ -65,87 +61,106 @@ function MovimientoModal({ material, onClose, onSave }) {
 
   return (
     <ModalPortal>
-      <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}>
-        <div className="inv-modal inv-modal-sm" onMouseDown={e => e.stopPropagation()}>
-        <div className="inv-modal-header">
-          <h3>Ajustar stock</h3>
-          <button type="button" className="inv-close" onClick={() => deferClose(onClose)}><X size={18}/></button>
-        </div>
-        <form onSubmit={handleSubmit} className="inv-modal-body">
-          <div className="inv-material-info">
-            <span className="inv-chip consumible">consumible</span>
-            <strong>{material.nombre}</strong>
-            <span className="inv-stock-badge">Stock: {material.stockActual} {unidad}</span>
+      <>
+        <div
+          className="fixed inset-0 z-[200] bg-slate-200/60 backdrop-blur-md"
+          onClick={() => deferClose(onClose)}
+        />
+        <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl max-h-[90vh] flex flex-col border border-slate-200 overflow-hidden pointer-events-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0 gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 border border-blue-100 text-blue-600">
+                  <Package size={18} strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-bold text-slate-800">Ajustar stock</h2>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">{material.nombre}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => deferClose(onClose)}
+                className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shrink-0"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="overflow-y-auto px-5 py-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-2.5 py-1 font-medium">consumible</span>
+                <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-600 px-2.5 py-1 font-medium">
+                  Stock: {material.stockActual} {unidad}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
+                    tipo === 'entrada'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                  onClick={() => setTipo('entrada')}
+                >
+                  <ArrowDown size={16} /> Entrada
+                </button>
+                <button
+                  type="button"
+                  className={`inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
+                    tipo === 'salida'
+                      ? 'bg-rose-50 text-rose-700 border-rose-200'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                  onClick={() => setTipo('salida')}
+                >
+                  <ArrowUp size={16} /> Salida
+                </button>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Cantidad ({unidad}) *</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  required
+                  placeholder="0"
+                  value={cantidad}
+                  onChange={(e) => setCantidad(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Motivo (opcional)</label>
+                <textarea
+                  rows={2}
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="Ej: Ajuste por conteo físico"
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => deferClose(onClose)}
+                  disabled={saving}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm disabled:opacity-50"
+                >
+                  {saving ? 'Registrando…' : 'Registrar'}
+                </button>
+              </div>
+            </form>
           </div>
-          <div className="inv-tipo-toggle">
-            <button type="button" className={`inv-tipo-btn ${tipo==='entrada'?'entrada':''}`} onClick={()=>setTipo('entrada')}>
-              <ArrowDown size={16}/> Entrada
-            </button>
-            <button type="button" className={`inv-tipo-btn ${tipo==='salida'?'salida':''}`} onClick={()=>setTipo('salida')}>
-              <ArrowUp size={16}/> Salida
-            </button>
-          </div>
-          <label>Cantidad ({unidad}) *
-            <input type="number" min="0.01" step="0.01" required placeholder="0" value={cantidad} onChange={e=>setCantidad(e.target.value)} />
-          </label>
-          <label>Motivo (opcional)
-            <textarea rows={2} value={motivo} onChange={e=>setMotivo(e.target.value)} placeholder="Ej: Ajuste por conteo físico" />
-          </label>
-          <div className="inv-modal-footer">
-            <button type="button" className="inv-btn-ghost" onClick={() => deferClose(onClose)} disabled={saving}>Cancelar</button>
-            <button type="submit" className="inv-btn-primary" disabled={saving}>
-              {saving ? 'Registrando…' : 'Registrar'}
-            </button>
-          </div>
-        </form>
         </div>
-      </div>
-    </ModalPortal>
-  );
-}
-
-// ── Main Page ──────────────────────────────────────────────────────────────
-function PrestamoModal({ herramientas, onClose, onSave }) {
-  const userId = JSON.parse(localStorage.getItem('user') || '{}').id;
-  const [materialId, setMaterialId] = useState(herramientas[0]?.id || '');
-  const [responsableId, setResponsableId] = useState(userId || '');
-  const [cantidad, setCantidad] = useState(1);
-  const [comentarios, setComentarios] = useState('');
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    await onSave({ materialId, responsableId, cantidad, comentarios });
-  }
-
-  return (
-    <ModalPortal>
-      <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}>
-        <div className="inv-modal inv-modal-sm" onMouseDown={e => e.stopPropagation()}>
-        <div className="inv-modal-header">
-          <h3>Registrar Salida de Herramienta</h3>
-          <button type="button" className="inv-close" onClick={() => deferClose(onClose)}><X size={18}/></button>
-        </div>
-        <form onSubmit={handleSubmit} className="inv-modal-body">
-          <label>Herramienta *
-            <select required value={materialId} onChange={e=>setMaterialId(e.target.value)}>
-              {herramientas.map(h => (
-                <option key={h.id} value={h.id}>{h.nombre} (disp. {h.stockActual})</option>
-              ))}
-            </select>
-          </label>
-          <label>Cantidad *
-            <input type="number" min="1" required value={cantidad} onChange={e=>setCantidad(+e.target.value)} />
-          </label>
-          <label>Motivo / Instalación *
-            <textarea required rows={3} value={comentarios} onChange={e=>setComentarios(e.target.value)} placeholder="Ej: Instalación letras en Mall del Sol" />
-          </label>
-          <div className="inv-modal-footer">
-            <button type="button" className="inv-btn-ghost" onClick={() => deferClose(onClose)}>Cancelar</button>
-            <button type="submit" className="inv-btn-primary">Registrar Salida</button>
-          </div>
-        </form>
-        </div>
-      </div>
+      </>
     </ModalPortal>
   );
 }
@@ -156,9 +171,9 @@ export function InventarioPage() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (user?.rol || 'visor').toUpperCase();
   const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
-  const isTaller = userRole === 'TALLER';
   const lockedCategory = getInventarioCategoriaPorRol(user);
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
+  const showLoanKpis = !isImpresion;
 
   const [activeTab, setActiveTab] = useState(lockedCategory || 'all');
   const [subTipoFilter, setSubTipoFilter] = useState('all'); // 'all' | 'consumible' | 'herramienta'
@@ -318,131 +333,143 @@ export function InventarioPage() {
   };
 
   return (
-    <div className="inv-page">
-      {/* Page Header */}
-      <div className="inv-page-header" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem', background: '#fff', padding: '1.25rem 1.5rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <div className="inv-page-header-text" style={{ flex: 1, minWidth: '200px' }}>
-          <div className="inv-page-title-row" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-            <h1 className="inv-page-title" style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#1e293b', letterSpacing: '-0.025em' }}>Control de Inventario</h1>
-            <button type="button" className="inv-btn-refresh" onClick={loadAll} title="Actualizar" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.4rem', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <RefreshCw size={14}/>
-            </button>
-          </div>
-          <p className="inv-page-sub" style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b', fontWeight: 500 }}>Consumibles, herramientas y préstamos de equipos</p>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%', maxWidth: 'max-content' }}>
-          {isAdmin && (
-            <button type="button" className="inv-btn-primary" onClick={() => setMatModal('new')} style={{ padding: '0.6rem 1.25rem', whiteSpace: 'nowrap' }}>
-              <Plus size={16}/> Nuevo producto
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-3 sm:space-y-5 animate-slide-up inventario-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+
+      <ComprasPageHeader
+        icon={Package}
+        badge={isImpresion ? 'Impresión' : 'Materiales'}
+        title="Inventario"
+        subtitle={isImpresion ? 'Stock de materiales de impresión' : 'Consumibles, herramientas y control de stock'}
+        action={
+          isAdmin ? (
+            <ComprasHeaderButton onClick={() => setMatModal('new')}>
+              <Plus size={15} />
+              Nuevo producto
+            </ComprasHeaderButton>
+          ) : undefined
+        }
+      />
 
       {/* KPI Cards */}
-      {!isImpresion && (
-        <div className="inv-kpi-grid">
-          <div className="inv-kpi-card">
-            <div className="inv-kpi-icon blue"><Package size={20}/></div>
-            <div>
-              <span className="inv-kpi-value">{stats.totalMateriales}</span>
-              <span className="inv-kpi-label">Materiales</span>
-            </div>
-          </div>
-          <div className="inv-kpi-card">
-            <div className="inv-kpi-icon amber"><AlertTriangle size={20}/></div>
-            <div>
-              <span className="inv-kpi-value">{stats.totalLowStock}</span>
-              <span className="inv-kpi-label">Stock Bajo</span>
-            </div>
-          </div>
-          <div className="inv-kpi-card inv-kpi-card--link" onClick={() => navigate('/inventario/prestamos')}>
-            <div className="inv-kpi-icon teal"><ArrowRightLeft size={20}/></div>
-            <div>
-              <span className="inv-kpi-value">{stats.activeLoans}</span>
-              <span className="inv-kpi-label">
-                <span className="inv-kpi-label-long">Préstamos Activos</span>
-                <span className="inv-kpi-label-short">Préstamos</span>
-              </span>
-            </div>
-            <ExternalLink size={14} className="inv-kpi-link-icon"/>
-          </div>
-          <div className="inv-kpi-card inv-kpi-card--link" onClick={() => navigate('/inventario/prestamos')}>
-            <div className="inv-kpi-icon green"><CheckCircle2 size={20}/></div>
-            <div>
-              <span className="inv-kpi-value">{stats.returnedLoans}</span>
-              <span className="inv-kpi-label">Devueltos</span>
-            </div>
-            <ExternalLink size={14} className="inv-kpi-link-icon"/>
-          </div>
+      <div className={`grid gap-2 sm:gap-3 ${showLoanKpis ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2'}`}>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-blue-600 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Materiales</p>
+          <p className="text-base sm:text-lg font-bold text-blue-600 mt-1 tabular-nums">
+            {lockedCategory ? totalItems : stats.totalMateriales}
+          </p>
         </div>
-      )}
-
-      {/* Filtros Avanzados */}
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '1rem', marginBottom: '1.5rem', position: 'relative', zIndex: 30, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid rgba(241, 245, 249, 0.8)', background: 'rgba(248, 250, 252, 0.6)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderTopLeftRadius: '1rem', borderTopRightRadius: '1rem' }}>
-          <Filter size={16} color="#94a3b8" />
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filtros Avanzados</span>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-amber-500 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Stock bajo</p>
+          <p className="text-base sm:text-lg font-bold text-amber-600 mt-1 tabular-nums">{stats.totalLowStock}</p>
         </div>
-        <div style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          {/* Sección Dropdown */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginLeft: '0.25rem' }}>Sección</label>
-            <select 
-              value={activeTab} 
-              onChange={e => { setActiveTab(e.target.value); setSearch(''); }}
-              style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem', outline: 'none', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}
-              onMouseOver={e => e.target.style.backgroundColor = '#fff'}
-              onMouseOut={e => e.target.style.backgroundColor = '#f8fafc'}
+        {showLoanKpis && (
+          <>
+            <button
+              type="button"
+              onClick={() => navigate('/inventario/prestamos')}
+              className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-teal-500 px-2.5 sm:px-4 py-3 sm:py-4 text-left hover:bg-slate-50/80 transition-colors cursor-pointer min-w-0"
             >
-              {visibleTabs.map(t => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
-            </select>
-          </div>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Préstamos activos</p>
+                  <p className="text-base sm:text-lg font-bold text-teal-600 mt-1 tabular-nums">{stats.activeLoans}</p>
+                </div>
+                <ExternalLink size={14} className="text-slate-300 shrink-0 mt-0.5" />
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/inventario/prestamos')}
+              className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-emerald-500 px-2.5 sm:px-4 py-3 sm:py-4 text-left hover:bg-slate-50/80 transition-colors cursor-pointer min-w-0"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Devueltos</p>
+                  <p className="text-base sm:text-lg font-bold text-emerald-600 mt-1 tabular-nums">{stats.returnedLoans}</p>
+                </div>
+                <ExternalLink size={14} className="text-slate-300 shrink-0 mt-0.5" />
+              </div>
+            </button>
+          </>
+        )}
+      </div>
 
-          {/* Clasificación Dropdown */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginLeft: '0.25rem' }}>Clasificación</label>
-            <select 
-              value={subTipoFilter} 
-              onChange={e => setSubTipoFilter(e.target.value)}
-              style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem', outline: 'none', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}
-              onMouseOver={e => e.target.style.backgroundColor = '#fff'}
-              onMouseOut={e => e.target.style.backgroundColor = '#f8fafc'}
+      {/* Filtros */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-3 sm:p-4">
+        <div className={`grid gap-3 ${lockedCategory ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
+          <div className="min-w-0">
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Clasificación</label>
+            <select
+              value={subTipoFilter}
+              onChange={(e) => setSubTipoFilter(e.target.value)}
+              className={inputClass}
             >
               <option value="all">Todos</option>
               <option value="consumible">Consumibles</option>
               <option value="herramienta">Herramientas</option>
             </select>
           </div>
+          {!lockedCategory && (
+            <div className="min-w-0 sm:col-span-2 lg:col-span-2">
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Sección</label>
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                {visibleTabs.map((tab) => {
+                  const Icon = tab.Icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => { setActiveTab(tab.id); setSearch(''); }}
+                      className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer shrink-0 ${
+                        activeTab === tab.id
+                          ? 'bg-blue-900 text-white shadow-md'
+                          : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon size={15} className="shrink-0" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Content */}
-      {loading ? (
-        <div className="inv-loading">
-          <div className="inv-spinner"/>
-          <span>Cargando inventario…</span>
+      {/* Table Card */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-gray-800">
+              {isImpresion ? 'Materiales de impresión' : 'Lista de materiales'}
+            </h2>
+            <span className="text-xs font-medium text-gray-400">{totalItems} registros</span>
+          </div>
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o código..."
+              aria-label="Buscar en inventario"
+              className="pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-full sm:w-80 sm:min-w-[280px] transition-colors"
+            />
+          </div>
         </div>
-      ) : (
-        <>
-          <div className="inv-table-card" style={{ position: 'relative', zIndex: 10 }}>
-            {/* Buscador dentro del contenedor de la tabla */}
-            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(241, 245, 249, 0.8)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <svg style={{ width: '1rem', height: '1rem', color: '#94a3b8', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input 
-                placeholder="Buscar por nombre o código…" 
-                value={search}
-                onChange={e=>setSearch(e.target.value)} 
-                aria-label="Buscar en inventario"
-                style={{ border: 'none', background: 'transparent', padding: 0, outline: 'none', fontSize: '0.875rem', fontWeight: 500, color: '#334155', width: '100%', maxWidth: '320px' }}
-              />
-            </div>
 
-            <InventoryTable 
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400 text-sm">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+            <span>Cargando inventario…</span>
+          </div>
+        ) : (
+          <>
+            <InventoryTable
               items={items}
               activeTab={activeTab}
               isAdmin={isAdmin}
@@ -451,51 +478,54 @@ export function InventarioPage() {
               onDelete={handleDeleteMaterial}
             />
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="inv-pagination">
-                <div className="inv-pagination-info">
-                  Mostrando <strong>{Math.min(totalItems, (page - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
-                  <strong>{Math.min(totalItems, page * ITEMS_PER_PAGE)}</strong> de{' '}
-                  <strong>{totalItems}</strong> materiales
-                </div>
-                <div className="inv-pagination-pages">
-                  <button
-                    className="inv-page-btn"
-                    disabled={page === 1}
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                  >
-                    <ChevronLeft size={14}/>
-                  </button>
-                  {getPageNumbers().map((pNum, index) => {
-                    if (pNum === '...') {
-                      return <span key={`dots-${index}`} className="inv-pagination-dots">...</span>;
-                    }
-                    return (
-                      <button
-                        key={pNum}
-                        className={`inv-page-btn ${page === pNum ? 'active' : ''}`}
-                        onClick={() => setPage(pNum)}
-                      >
-                        {pNum}
-                      </button>
-                    );
-                  })}
-                  <button
-                    className="inv-page-btn"
-                    disabled={page === totalPages}
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  >
-                    <ChevronRight size={14}/>
-                  </button>
-                </div>
+            {totalItems > 0 && (
+              <div className="px-4 sm:px-5 py-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <p className="text-xs text-slate-400 text-center sm:text-left">
+                  Página {page} de {Math.max(1, totalPages)} · {totalItems} materiales
+                </p>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1">
+                    <button
+                      type="button"
+                      disabled={page === 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    >
+                      Anterior
+                    </button>
+                    {getPageNumbers().map((pNum, index) => {
+                      if (pNum === '...') {
+                        return <span key={`dots-${index}`} className="text-xs text-slate-400 px-1">...</span>;
+                      }
+                      return (
+                        <button
+                          key={pNum}
+                          type="button"
+                          onClick={() => setPage(pNum)}
+                          className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${
+                            page === pNum ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          {pNum}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      disabled={page === totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
 
-      {/* Modals */}
       {matModal && (
         <ProductoFormModal
           item={matModal === 'new' ? null : matModal}

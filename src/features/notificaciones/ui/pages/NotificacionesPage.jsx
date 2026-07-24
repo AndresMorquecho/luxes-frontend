@@ -1,8 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getNotifications, markAsRead, notifyNotificationsUpdated, AUTH_EXPIRED_ERROR, NETWORK_ERROR } from '../../application/notificationsService';
+import { Bell, Check, CheckCheck, ArrowRight, User } from 'lucide-react';
+import {
+  getNotifications,
+  markAsRead,
+  notifyNotificationsUpdated,
+  AUTH_EXPIRED_ERROR,
+  NETWORK_ERROR,
+} from '../../application/notificationsService';
 import { toast } from '../../../../shared/ui/components/Toast';
-import './NotificacionesPage.css';
 
 const fmtDate = (d) => {
   if (!d) return '—';
@@ -27,40 +33,35 @@ const fmtDateShort = (d) => {
   });
 };
 
-// Helper para determinar la ruta basada en el tipo de notificación
 const getNotificationRoute = (notification) => {
   const title = (notification.title || '').toLowerCase();
   const message = (notification.message || '').toLowerCase();
-  
-  // Proformas (aprobación, rechazo, nueva pendiente)
+
   if (title.includes('proforma') || message.includes('proforma')) {
-    const match = (notification.message || '').match(/PRO-\d+/i)
-      || (notification.title || '').match(/PRO-\d+/i)
-      || (notification.message || '').match(/PROF-\d+/i)
-      || (notification.title || '').match(/PROF-\d+/i);
+    const match =
+      (notification.message || '').match(/PRO-\d+/i) ||
+      (notification.title || '').match(/PRO-\d+/i) ||
+      (notification.message || '').match(/PROF-\d+/i) ||
+      (notification.title || '').match(/PROF-\d+/i);
     if (match) return `/proformas/detalle/${match[0].toUpperCase()}`;
     return '/proformas';
   }
-  
-  // Orden aprobada → lista de compras del solicitante
+
   if (title.includes('aprobada') || message.includes('ha sido aprobada')) {
     return '/compras/recepcion';
   }
 
-  // Nueva orden pendiente → aprobaciones (admin) o compras (solicitante)
   if (title.includes('orden de compra') || message.includes('orden de compra')) {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     const userRole = (user?.rol || '').toLowerCase();
     const isAdmin = userRole === 'admin' || userRole === 'administrador';
     return isAdmin ? '/compras?vista=aprobaciones' : '/compras';
   }
-  
-  // Tareas -> Panel de tareas
+
   if (title.includes('tarea') || message.includes('tarea')) {
     return '/tareas';
   }
-  
-  // Impresión / Colas de Impresión
+
   if (title.includes('impresi') || message.includes('impresi')) {
     const matchProjId = (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/);
     if (matchProjId) {
@@ -69,44 +70,47 @@ const getNotificationRoute = (notification) => {
     return '/colas-impresion';
   }
 
-  // Horas extras pendientes de aprobación
   if (title.includes('horas extras') || message.includes('horas extras')) {
     return '/nomina/horas-extras';
   }
 
-  // Herramientas pendientes de devolución tras instalación
-  if (title.includes('herramienta en devolución')
-    || title.includes('herramienta por devolver')
-    || title.includes('herramientas por devolver')
-    || message.includes('por devolver')
-    || message.includes('debes devolver')) {
+  if (
+    title.includes('herramienta en devolución') ||
+    title.includes('herramienta por devolver') ||
+    title.includes('herramientas por devolver') ||
+    message.includes('por devolver') ||
+    message.includes('debes devolver')
+  ) {
     return '/devoluciones';
   }
 
-  // Instalación iniciada o completada / Montaje
-  if (title.includes('instalación') || title.includes('instalacion')
-    || message.includes('instalación') || message.includes('instalacion')
-    || title.includes('montaje') || message.includes('montaje')) {
-    
+  if (
+    title.includes('instalación') ||
+    title.includes('instalacion') ||
+    message.includes('instalación') ||
+    message.includes('instalacion') ||
+    title.includes('montaje') ||
+    message.includes('montaje')
+  ) {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     const userRole = (user?.rol || '').toLowerCase();
     const isAdmin = userRole === 'admin' || userRole === 'administrador';
 
-    const proyectoId = notification.proyectoId
-      || notification.data?.proyectoId
-      || (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/)?.[1]
-      || (notification.message || '').match(/PROY-\d+/i)?.[0]
-      || (notification.message || '').match(/[0-9a-fA-F]{24}/)?.[0];
-      
+    const proyectoId =
+      notification.proyectoId ||
+      notification.data?.proyectoId ||
+      (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/)?.[1] ||
+      (notification.message || '').match(/PROY-\d+/i)?.[0] ||
+      (notification.message || '').match(/[0-9a-fA-F]{24}/)?.[0];
+
     if (isAdmin) {
       if (proyectoId) return `/proyectos/${proyectoId}`;
       return '/proyectos';
-    } else {
-      if (proyectoId) return `/proyectos/${proyectoId}`;
-      return '/instalaciones';
     }
+    if (proyectoId) return `/proyectos/${proyectoId}`;
+    return '/instalaciones';
   }
-  
+
   return null;
 };
 
@@ -155,7 +159,11 @@ export const NotificacionesPage = () => {
         const data = await getNotifications();
         if (!cancelled) setNotifications(data || []);
       } catch (err) {
-        if (!cancelled && err.message !== AUTH_EXPIRED_ERROR && err.message !== NETWORK_ERROR) {
+        if (
+          !cancelled &&
+          err.message !== AUTH_EXPIRED_ERROR &&
+          err.message !== NETWORK_ERROR
+        ) {
           toast.error('Error al cargar notificaciones: ' + getLoadErrorMessage(err));
         }
       } finally {
@@ -217,15 +225,20 @@ export const NotificacionesPage = () => {
     let route = getNotificationRoute(notification);
     if (route) {
       const title = (notification.title || '').toLowerCase();
-      if (title.includes('instalación completada') || title.includes('instalacion completada')) {
-        const proyectoId = (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/)?.[1]
-          || notification.proyectoId
-          || notification.data?.proyectoId;
-        window.dispatchEvent(new CustomEvent('instalacion-completada-admin', {
-          detail: { proyectoId: proyectoId || null, notificationId: notification.id },
-        }));
+      if (
+        title.includes('instalación completada') ||
+        title.includes('instalacion completada')
+      ) {
+        const proyectoId =
+          (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/)?.[1] ||
+          notification.proyectoId ||
+          notification.data?.proyectoId;
+        window.dispatchEvent(
+          new CustomEvent('instalacion-completada-admin', {
+            detail: { proyectoId: proyectoId || null, notificationId: notification.id },
+          })
+        );
       }
-      // Marcar como leída antes de navegar
       if (!notification.isRead) {
         handleMarkRead(notification.id);
       }
@@ -233,105 +246,209 @@ export const NotificacionesPage = () => {
         window.dispatchEvent(new Event('print-queue-updated'));
         localStorage.setItem('luxes_print_sync_trigger', Date.now().toString());
       }
-      
-      // Forzar refresco si el usuario ya se encuentra en la ruta
+
       const sep = route.includes('?') ? '&' : '?';
       route = `${route}${sep}refresh=${Date.now()}`;
-      
+
       navigate(route);
     }
   };
 
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const hasUnread = unreadCount > 0;
+
+  const kpiCards = [
+    {
+      label: 'Total',
+      value: notifications.length,
+      hint: 'Todas las alertas',
+      border: 'border-t-blue-600',
+      color: 'text-blue-600',
+    },
+    {
+      label: 'Sin leer',
+      value: unreadCount,
+      hint: 'Pendientes de revisión',
+      border: 'border-t-amber-500',
+      color: 'text-amber-600',
+    },
+    {
+      label: 'Leídas',
+      value: notifications.length - unreadCount,
+      hint: 'Ya revisadas',
+      border: 'border-t-emerald-500',
+      color: 'text-emerald-600',
+    },
+  ];
+
   return (
-    <div className="nt-page animate-slide-up">
-      <div className="nt-toolbar">
-        <div className="nt-toolbar-text">
-          <h1 className="nt-title">Buzón de Notificaciones</h1>
-          <p className="nt-subtitle">Alertas de compra, aprobaciones y estado del sistema</p>
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+        .nt-date-full { display: inline; }
+        .nt-date-short { display: none; }
+        @media (max-width: 767px) {
+          .nt-date-full { display: none; }
+          .nt-date-short { display: inline; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+              <Bell className="w-5 h-5 text-blue-600" strokeWidth={2} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Notificaciones</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Buzón
+                </span>
+                {hasUnread && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                    {unreadCount} sin leer
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Alertas de compra, aprobaciones y estado del sistema
+              </p>
+            </div>
+          </div>
+          {hasUnread && (
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm shrink-0"
+            >
+              <CheckCheck size={15} />
+              Marcar todas como leídas
+            </button>
+          )}
         </div>
-        {notifications.some((n) => !n.isRead) && (
-          <button type="button" onClick={handleMarkAllRead} className="nt-btn-primary">
-            <svg className="nt-btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            <span className="nt-btn-label">Marcar todas como leídas</span>
-          </button>
-        )}
       </div>
 
-      <div className="nt-list-shell">
-        {loading ? (
-          <div className="nt-loader-box"><div className="nt-spinner" /></div>
-        ) : notifications.length === 0 ? (
-          <div className="nt-empty-state">
-            <div className="nt-empty-icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-              </svg>
+      {/* KPIs */}
+      {!loading && (
+        <div className="grid grid-cols-3 gap-3">
+          {kpiCards.map(({ label, value, hint, border, color }) => (
+            <div
+              key={label}
+              className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 ${border} px-4 py-4 min-w-0`}
+            >
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider truncate">{label}</p>
+              <p className={`text-2xl font-bold mt-1 tabular-nums truncate ${color}`}>{value}</p>
+              <p className="text-xs text-slate-400 mt-1.5 truncate">{hint}</p>
             </div>
-            <h3>Sin notificaciones</h3>
-            <p>Todo está al día. No tienes nuevas alertas o solicitudes de aprobación pendientes.</p>
+          ))}
+        </div>
+      )}
+
+      {/* Lista */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-slate-100">
+          <p className="text-sm font-semibold text-slate-700">
+            {loading
+              ? 'Cargando…'
+              : `${notifications.length} notificación${notifications.length !== 1 ? 'es' : ''}`}
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16 gap-2 text-slate-400 text-sm">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-blue-600" />
+            <span>Cargando notificaciones...</span>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="py-16 text-center px-4">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400">
+              <Bell size={22} strokeWidth={1.5} />
+            </div>
+            <p className="text-slate-500 font-medium text-sm">Sin notificaciones</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              Todo está al día. No tienes nuevas alertas o solicitudes pendientes.
+            </p>
           </div>
         ) : (
-          <div className="nt-list">
+          <div className="divide-y divide-slate-100">
             {notifications.map((n) => {
               const hasRoute = !!getNotificationRoute(n);
               const actionLabel =
-                n.title?.toLowerCase().includes('impresi') || n.message?.toLowerCase().includes('impresi')
+                n.title?.toLowerCase().includes('impresi') ||
+                n.message?.toLowerCase().includes('impresi')
                   ? 'Ver'
                   : 'Ir';
 
               return (
-                <article key={n.id} className={`nt-item ${n.isRead ? 'nt-read' : 'nt-unread'}`}>
-                  {!n.isRead && <span className="nt-dot" aria-hidden="true" />}
+                <article
+                  key={n.id}
+                  className={`relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 px-4 sm:px-5 py-4 pl-5 sm:pl-6 ${
+                    n.isRead ? 'bg-white opacity-75 hover:opacity-100' : 'bg-slate-50/40'
+                  } hover:bg-slate-50/60 transition-colors`}
+                >
+                  {!n.isRead && (
+                    <span
+                      className="absolute left-2 sm:left-2.5 top-5 w-2 h-2 rounded-full bg-blue-600"
+                      aria-hidden="true"
+                    />
+                  )}
 
-                  <div className="nt-item-body">
-                    <div className="nt-item-header">
-                      <h4 className="nt-item-title">{n.title}</h4>
-                      <time className="nt-item-date nt-item-date-full" dateTime={n.createdAt}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-3">
+                      <h4 className="text-sm font-semibold text-slate-800 leading-snug">
+                        {n.title}
+                      </h4>
+                      <time
+                        className="nt-date-full text-xs text-slate-400 font-medium whitespace-nowrap shrink-0"
+                        dateTime={n.createdAt}
+                      >
                         {fmtDate(n.createdAt)}
                       </time>
-                      <time className="nt-item-date nt-item-date-short" dateTime={n.createdAt}>
+                      <time
+                        className="nt-date-short text-xs text-slate-400 font-medium whitespace-nowrap"
+                        dateTime={n.createdAt}
+                      >
                         {fmtDateShort(n.createdAt)}
                       </time>
                     </div>
 
-                    <p className="nt-item-message">{displayMessage(n.message)}</p>
+                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                      {displayMessage(n.message)}
+                    </p>
 
-                    <p className="nt-item-user">
-                      <svg className="nt-user-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                      </svg>
-                      <span>Enviado por: {getSenderName(n)}</span>
+                    <p className="flex items-center gap-1.5 text-xs text-slate-400 mt-1.5">
+                      <User size={12} className="shrink-0" />
+                      <span className="truncate">Enviado por: {getSenderName(n)}</span>
                     </p>
                   </div>
 
                   {(hasRoute || !n.isRead) && (
-                    <div className="nt-item-actions">
+                    <div className="flex items-center gap-2 shrink-0 sm:pt-0.5">
                       {hasRoute && (
                         <button
                           type="button"
                           onClick={() => handleGoToNotification(n)}
-                          className="nt-action-btn-primary"
+                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
                           title="Ir a la página relacionada"
                         >
-                          <svg className="nt-action-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                          </svg>
-                          <span>{actionLabel}</span>
+                          <ArrowRight size={13} />
+                          {actionLabel}
                         </button>
                       )}
                       {!n.isRead && (
                         <button
                           type="button"
                           onClick={() => handleMarkRead(n.id)}
-                          className="nt-action-btn nt-action-btn-mark"
+                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 text-xs font-semibold transition-colors"
                           title="Marcar como leída"
                         >
-                          <svg className="nt-action-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                          </svg>
-                          <span className="nt-action-btn-text">Leída</span>
+                          <Check size={13} />
+                          <span className="sm:hidden">Leída</span>
                         </button>
                       )}
                     </div>

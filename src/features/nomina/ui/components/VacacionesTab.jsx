@@ -64,35 +64,35 @@ const TablaVacMesDesktop = ({ year, month, empleados, vacaciones, onToggleDia })
 
   return (
     <div className="mb-8 hidden md:block">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-1.5 h-6 bg-blue-900 rounded-full" />
-        <h3 className="text-sm font-extrabold text-blue-900 tracking-widest uppercase">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-1.5 h-7 bg-blue-900 rounded-full" />
+        <h3 className="text-base font-extrabold text-blue-900 tracking-widest uppercase">
           {year} — {MESES_NOMBRES[month]}
         </h3>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-[10px] border-collapse">
+          <table className="w-full text-xs border-collapse table-fixed">
             <thead>
               <tr>
-                <th className="sticky left-0 z-20 bg-blue-900 text-white font-bold px-3 py-2.5 min-w-[200px] w-[200px] text-left uppercase tracking-wider border-r border-blue-700">
+                <th className="sticky left-0 z-20 bg-blue-900 text-white font-bold px-4 py-4 w-[240px] text-left uppercase tracking-wider border-r border-blue-700 text-sm">
                   Nombre
                 </th>
                 {dias.map(({ dia }) => (
                   <th key={dia}
-                    className="bg-blue-900 text-white font-bold text-center px-1.5 py-2.5 min-w-[26px] border-l border-blue-700">
+                    className="bg-blue-900 text-white font-bold text-center px-1 py-4 border-l border-blue-700 text-sm">
                     {dia}
                   </th>
                 ))}
               </tr>
               <tr>
-                <th className="sticky left-0 z-20 bg-blue-800 text-blue-100 font-semibold px-3 py-1.5 min-w-[200px] w-[200px] text-left text-[9px] border-r border-blue-700" />
+                <th className="sticky left-0 z-20 bg-blue-800 text-blue-100 font-semibold px-4 py-2.5 w-[240px] text-left text-xs border-r border-blue-700" />
                 {dias.map(({ dia, label }) => {
                   const esFinde = label === 'SA' || label === 'DO';
                   return (
                     <th key={dia}
-                      className={`text-center px-1 py-1.5 min-w-[26px] text-[9px] font-semibold border-l border-blue-700 ${
+                      className={`text-center px-1 py-2.5 text-[11px] font-semibold border-l border-blue-700 ${
                         esFinde ? 'bg-blue-700 text-blue-200' : 'bg-blue-800 text-blue-100'
                       }`}>
                       {label}
@@ -110,9 +110,9 @@ const TablaVacMesDesktop = ({ year, month, empleados, vacaciones, onToggleDia })
                 const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60';
                 return (
                   <tr key={emp.id} className={rowBg}>
-                    <td className={`sticky left-0 z-10 ${rowBg} px-3 py-2 min-w-[200px] w-[200px] border-r border-gray-200`}>
+                    <td className={`sticky left-0 z-10 ${rowBg} px-4 py-4 w-[240px] border-r border-gray-200`}>
                       <span
-                        className="block font-semibold text-gray-800 text-[10px] leading-snug truncate normal-case"
+                        className="block font-semibold text-gray-800 text-xs leading-snug truncate normal-case"
                         title={emp.nombre}
                       >
                         {emp.nombre}
@@ -124,12 +124,12 @@ const TablaVacMesDesktop = ({ year, month, empleados, vacaciones, onToggleDia })
                       return (
                         <td key={dia}
                           onClick={() => !esFinde && onToggleDia?.(emp.id, year, month, dia)}
-                          className={`text-center py-1.5 min-w-[26px] border-l border-gray-100 ${
+                          className={`text-center py-4 border-l border-gray-100 ${
                             esFinde ? 'bg-gray-100/60' :
                             tieneVac ? 'bg-blue-100 cursor-pointer hover:bg-blue-200' : 'cursor-pointer hover:bg-gray-50'
                           }`}>
                           {tieneVac && (
-                            <span className="font-black text-blue-800 text-[11px]">X</span>
+                            <span className="font-black text-blue-800 text-sm">X</span>
                           )}
                         </td>
                       );

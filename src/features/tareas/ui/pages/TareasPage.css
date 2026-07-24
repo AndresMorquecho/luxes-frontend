@@ -27,19 +27,19 @@
 }
 
 .ta-user-option.selected {
-  background: #eef1fc;
-  border-color: #c7d0f5;
+  background: #eff6ff;
+  border-color: #bfdbfe;
 }
 
 .ta-user-option input[type="checkbox"] {
-  accent-color: #2b41b8;
+  accent-color: #2563eb;
 }
 
 .ta-user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #2b41b8;
+  background: #2563eb;
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;

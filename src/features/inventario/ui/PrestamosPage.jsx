@@ -1,15 +1,15 @@
 // src/features/inventario/ui/PrestamosPage.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   ArrowRightLeft, Search, Plus, Clock, CheckCircle2, User,
-  ChevronLeft, Wrench, Filter, X, RefreshCw
+  Wrench, X,
 } from 'lucide-react';
 import {
   getMateriales, getPrestamos, registrarPrestamo, devolverPrestamo,
   buildMaterialesQuery,
 } from '../application/inventarioService.js';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
+import { ModalPortal, deferClose } from '../../../shared/ui/components/ModalPortal.jsx';
 import './PrestamosPage.css';
 import { unidadLabel } from './prestamosUtils.js';
 
@@ -80,110 +80,127 @@ function NuevoPrestamoModal({ herramientas, onClose, onSave }) {
   }
 
   return (
-    <div className="prest-overlay" onClick={onClose}>
-      <div className="prest-modal" onClick={e => e.stopPropagation()}>
-        <div className="prest-modal-header">
-          <div>
-            <h3>Registrar Salida de Herramienta / Equipo</h3>
-            <p>El stock disponible se reducirá automáticamente y cambiará a estado "En Uso".</p>
-          </div>
-          <button className="prest-modal-close" onClick={onClose}><X size={18}/></button>
-        </div>
-
-        <div className="prest-modal-body">
-          {/* Toggles de categoría para filtrar */}
-          <div className="prest-label" style={{ marginBottom: '0.25rem' }}>Origen / Categoría</div>
-          <div className="prest-modal-toggle-group">
-            <button 
-              type="button" 
-              className={`prest-modal-toggle-btn ${filterCategory === 'Taller' ? 'active' : ''}`}
-              onClick={() => setFilterCategory('Taller')}
-            >
-              Taller (Herramientas)
-            </button>
-            <button 
-              type="button" 
-              className={`prest-modal-toggle-btn ${filterCategory === 'Oficina' ? 'active' : ''}`}
-              onClick={() => setFilterCategory('Oficina')}
-            >
-              Oficina (Equipos)
-            </button>
-            <button 
-              type="button" 
-              className={`prest-modal-toggle-btn ${filterCategory === 'Todos' ? 'active' : ''}`}
-              onClick={() => setFilterCategory('Todos')}
-            >
-              Todos
-            </button>
-          </div>
-
-          {disponibles.length === 0 ? (
-            <div style={{ padding: '1.5rem 0', textAlign: 'center', color: '#64748b' }}>
-              <Wrench size={24} style={{ margin: '0 auto 0.75rem', opacity: 0.5 }} />
-              <p style={{ fontSize: '0.85rem', margin: 0 }}>
-                No hay herramientas o equipos en <strong>{filterCategory === 'Todos' ? 'ninguna categoría' : filterCategory}</strong> disponibles en bodega.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <label className="prest-label">Seleccionar Ítem *
-                <select required value={materialId} onChange={e => setMaterialId(e.target.value)}>
-                  {disponibles.map(h => (
-                    <option key={h.id} value={h.id}>
-                      {h.nombre} {h.codigo ? `(${h.codigo})` : ''} {filterCategory === 'Todos' ? `[${h.categoria}]` : ''} (disp. {h.stockActual})
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {selected && (
-                <div className="prest-stock-pill">
-                  <Wrench size={13}/>
-                  <span>
-                    Disponibles: <strong>{selected.stockActual}</strong> {selected.unidadMedida?.abreviacion || selected.unidadMedida?.nombre || 'unid'} | 
-                    Categoría: <strong>{selected.categoria || 'Taller'}</strong>
-                  </span>
-                </div>
-              )}
-
-              <label className="prest-label">Cantidad *
-                <input type="number" min="1" max={selected?.stockActual || 99} required
-                  value={cantidad} onChange={e => setCantidad(+e.target.value)} />
-              </label>
-
-              <label className="prest-label">Fecha de devolución esperada *
-                <input
-                  type="date"
-                  required
-                  value={fechaDevolucionEsperada}
-                  onChange={e => setFechaDevolucionEsperada(e.target.value)}
-                />
-              </label>
-
-              <label className="prest-label">Motivo / Descripción *
-                <textarea required rows={3} value={comentarios}
-                  onChange={e => setComentarios(e.target.value)}
-                  placeholder="Ej: Instalación letras corporativas Mall del Sol" />
-              </label>
-
-              <div className="prest-modal-footer">
-                <button type="button" className="prest-btn-ghost" onClick={onClose}>Cancelar</button>
-                <button type="submit" className="prest-btn-primary">
-                  <ArrowRightLeft size={15}/> Registrar Salida
-                </button>
+    <ModalPortal>
+      <div
+        className="prest-overlay"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) deferClose(onClose);
+        }}
+      >
+        <div className="prest-modal" onMouseDown={e => e.stopPropagation()}>
+          <div className="prest-modal-header">
+            <div className="prest-modal-header-left">
+              <div className="prest-modal-header-icon">
+                <ArrowRightLeft size={18} strokeWidth={2.5} />
               </div>
-            </form>
-          )}
+              <div className="min-w-0">
+                <h3>Registrar Salida</h3>
+                <p>El stock se reducirá y el ítem pasará a estado &quot;En Uso&quot;.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="prest-modal-close"
+              onClick={() => deferClose(onClose)}
+              title="Cerrar"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="prest-modal-body">
+            {/* Toggles de categoría para filtrar */}
+            <div className="prest-label" style={{ marginBottom: '0.25rem' }}>Origen / Categoría</div>
+            <div className="prest-modal-toggle-group">
+              <button
+                type="button"
+                className={`prest-modal-toggle-btn ${filterCategory === 'Taller' ? 'active' : ''}`}
+                onClick={() => setFilterCategory('Taller')}
+              >
+                Taller (Herramientas)
+              </button>
+              <button
+                type="button"
+                className={`prest-modal-toggle-btn ${filterCategory === 'Oficina' ? 'active' : ''}`}
+                onClick={() => setFilterCategory('Oficina')}
+              >
+                Oficina (Equipos)
+              </button>
+              <button
+                type="button"
+                className={`prest-modal-toggle-btn ${filterCategory === 'Todos' ? 'active' : ''}`}
+                onClick={() => setFilterCategory('Todos')}
+              >
+                Todos
+              </button>
+            </div>
+
+            {disponibles.length === 0 ? (
+              <div style={{ padding: '1.5rem 0', textAlign: 'center', color: '#64748b' }}>
+                <Wrench size={24} style={{ margin: '0 auto 0.75rem', opacity: 0.5 }} />
+                <p style={{ fontSize: '0.85rem', margin: 0 }}>
+                  No hay herramientas o equipos en <strong>{filterCategory === 'Todos' ? 'ninguna categoría' : filterCategory}</strong> disponibles en bodega.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <label className="prest-label">Seleccionar Ítem *
+                  <select required value={materialId} onChange={e => setMaterialId(e.target.value)}>
+                    {disponibles.map(h => (
+                      <option key={h.id} value={h.id}>
+                        {h.nombre} {h.codigo ? `(${h.codigo})` : ''} {filterCategory === 'Todos' ? `[${h.categoria}]` : ''} (disp. {h.stockActual})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {selected && (
+                  <div className="prest-stock-pill">
+                    <Wrench size={13}/>
+                    <span>
+                      Disponibles: <strong>{selected.stockActual}</strong> {selected.unidadMedida?.abreviacion || selected.unidadMedida?.nombre || 'unid'} |
+                      Categoría: <strong>{selected.categoria || 'Taller'}</strong>
+                    </span>
+                  </div>
+                )}
+
+                <label className="prest-label">Cantidad *
+                  <input type="number" min="1" max={selected?.stockActual || 99} required
+                    value={cantidad} onChange={e => setCantidad(+e.target.value)} />
+                </label>
+
+                <label className="prest-label">Fecha de devolución esperada *
+                  <input
+                    type="date"
+                    required
+                    value={fechaDevolucionEsperada}
+                    onChange={e => setFechaDevolucionEsperada(e.target.value)}
+                  />
+                </label>
+
+                <label className="prest-label">Motivo / Descripción *
+                  <textarea required rows={3} value={comentarios}
+                    onChange={e => setComentarios(e.target.value)}
+                    placeholder="Ej: Instalación letras corporativas Mall del Sol" />
+                </label>
+
+                <div className="prest-modal-footer">
+                  <button type="button" className="prest-btn-ghost" onClick={() => deferClose(onClose)}>Cancelar</button>
+                  <button type="submit" className="prest-btn-primary">
+                    <ArrowRightLeft size={15}/> Registrar Salida
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 
 // ── Main Page ───────────────────────────────────────────────────────────────
 export function PrestamosPage() {
-  const navigate = useNavigate();
-
   const [prestamos, setPrestamos]       = useState([]);
   const [herramientas, setHerramientas] = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -258,23 +275,54 @@ export function PrestamosPage() {
   const hasFilters = searchTool || filterPersona || filterEstado;
 
   return (
-    <div className="prest-page">
-      {/* ── Header ── */}
-      <div className="prest-header">
-        <button className="prest-back" onClick={() => navigate('/inventario')}>
-          <ChevronLeft size={16}/> Inventario
-        </button>
-        <div className="prest-header-main">
-          <div>
-            <h1 className="prest-title">Préstamos de Herramientas</h1>
-            <p className="prest-sub">Registro de salidas, responsables y devoluciones</p>
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up prest-page"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .prest-page {
+          font-family: 'Inter', system-ui, sans-serif !important;
+          padding: 0 !important;
+          width: 100%;
+        }
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up {
+          animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100 text-blue-600">
+              <ArrowRightLeft size={20} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Préstamos</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Herramientas
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Registro de salidas, responsables y devoluciones
+              </p>
+            </div>
           </div>
-          <div className="prest-header-actions">
-            <button className="prest-btn-ghost" onClick={load} title="Actualizar">
-              <RefreshCw size={15}/>
-            </button>
-            <button className="prest-btn-primary" onClick={() => setShowModal(true)}>
-              <Plus size={15}/> Nueva Salida
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm whitespace-nowrap transition-opacity hover:opacity-90 shadow-sm w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus size={16} />
+              Nueva Salida
             </button>
           </div>
         </div>

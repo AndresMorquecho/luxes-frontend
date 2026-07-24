@@ -129,8 +129,7 @@ export const DateRangePicker = ({ value, onChange, placeholder = 'Seleccionar fe
       {/* Dropdown Calendar */}
       {isOpen && (
         <div 
-          className="absolute top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-lg z-[9999] p-3"
-          style={{ left: '50%', transform: 'translateX(-50%)', width: '285px' }}
+          className="absolute top-full left-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg z-[9999] p-3 w-[285px]"
         >
           {/* Header con navegación */}
           <div className="flex items-center justify-between mb-4">

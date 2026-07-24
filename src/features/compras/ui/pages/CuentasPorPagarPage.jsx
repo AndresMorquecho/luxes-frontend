@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Wallet, Banknote, X } from 'lucide-react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import {
@@ -8,15 +9,11 @@ import { buildOrdenParaAbono, getAbonoSaldoPendiente } from '../../helpers/orden
 import { ComprasPageHeader } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
 
-const CO_PRIMARY = '#2b41b8';
-const CO_PRIMARY_HOVER = '#2436a0';
-const CO_NAVY = '#1a1c3d';
-
 const CXP_BADGES = {
-  pendiente: { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'PENDIENTE' },
-  parcial:   { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
-  pagado:    { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'PAGADO' },
-  vencido:   { bg: 'bg-red-50', color: 'text-red-800', dot: 'bg-red-600', label: 'VENCIDO' },
+  pendiente: { bg: 'bg-rose-50', color: 'text-rose-700', label: 'Pendiente' },
+  parcial:   { bg: 'bg-amber-50', color: 'text-amber-700', label: 'Parcial' },
+  pagado:    { bg: 'bg-slate-100', color: 'text-slate-700', label: 'Pagado' },
+  vencido:   { bg: 'bg-rose-50', color: 'text-rose-800', label: 'Vencido' },
 };
 
 const ESTADO_FILTER_OPTIONS = [
@@ -29,6 +26,13 @@ const ESTADO_FILTER_OPTIONS = [
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+const inputFocus =
+  'outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white';
+
+const inputClass =
+  `w-full h-10 px-3 border border-slate-200 rounded-xl bg-gray-50 text-sm text-slate-800 ${inputFocus}`;
+const labelClass = 'block text-xs font-semibold text-slate-500 mb-1.5';
 
 export const CuentasPorPagarPage = () => {
   const [stats, setStats] = useState({ totalOrdenes: 0, pendientes: 0, totalGastado: 0, totalDeuda: 0 });
@@ -106,95 +110,90 @@ export const CuentasPorPagarPage = () => {
   const showingTo = Math.min(cxpPage * perPage, cxpTotal);
 
   const kpiItems = [
-    { label: 'Deuda total', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50', iconColor: 'text-red-500', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
-    { label: 'Órdenes pendientes', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Por aprobar o pagar', accent: '#f97316', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-    { label: 'Total gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-    { label: 'Cuentas listadas', mobileLabel: 'Cuentas', value: cxpTotal, hint: 'Según filtro actual', accent: '#2b41b8', iconBg: 'bg-[#eef1fc]', iconColor: 'text-[#2b41b8]', icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z' },
+    { label: 'Deuda total', value: fmt(stats.totalDeuda), border: 'border-t-red-500', color: 'text-red-500' },
+    { label: 'Órdenes pendientes', value: stats.pendientes, border: 'border-t-amber-500', color: 'text-amber-600' },
+    { label: 'Total gastado', value: fmt(stats.totalGastado), border: 'border-t-indigo-500', color: 'text-indigo-600' },
+    { label: 'Cuentas listadas', value: cxpTotal, border: 'border-t-blue-600', color: 'text-blue-600' },
   ];
-
-  const renderKpiCardDesktop = (kpi) => (
-    <div key={kpi.label} className="bg-white border border-slate-200/80 rounded-xl shadow-sm flex items-start gap-3 p-5 min-w-0 overflow-hidden">
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-5 h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
-        </svg>
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-500 leading-tight">{kpi.label}</p>
-        <p className="text-2xl font-bold mt-0.5 tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
-        <p className="text-[11px] text-slate-400 mt-0.5">{kpi.hint}</p>
-      </div>
-    </div>
-  );
-
-  const renderKpiCardMobile = (kpi) => (
-    <div
-      key={kpi.label}
-      className="co-kpi-mobile bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 p-3 min-w-0"
-      style={{ borderBottomWidth: '3px', borderBottomColor: kpi.accent }}
-    >
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-3.5 h-3.5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
-        </svg>
-      </div>
-      <div className="flex flex-col gap-1.5 min-w-0">
-        <p className="text-[9px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
-        <p className="text-sm font-semibold tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
-        <p className="text-[8px] text-slate-400 leading-tight line-clamp-2">{kpi.hint}</p>
-      </div>
-    </div>
-  );
 
   const renderBadge = (estado, compact = false) => {
     const b = CXP_BADGES[estado] || CXP_BADGES.pendiente;
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-wide ${b.bg} ${b.color} ${
-        compact ? 'px-1.5 py-0.5 text-[8px] gap-0.5' : 'px-2.5 py-1 text-[10px] gap-1.5'
+      <span className={`inline-flex items-center rounded-full font-medium ${b.bg} ${b.color} ${
+        compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
       }`}>
-        <span className={`rounded-full shrink-0 ${b.dot} ${compact ? 'w-1 h-1' : 'w-1.5 h-1.5'}`} />
         {b.label}
       </span>
     );
   };
 
-  const renderEstadoFilter = (className = '') => (
+  const renderEstadoFilter = () => (
     <select
       value={cxpFilter}
       onChange={(e) => setCxpFilter(e.target.value)}
-      className={`h-9 sm:h-10 px-2 sm:px-3 border border-slate-200 rounded-lg bg-white text-[10px] sm:text-sm text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 min-w-0 ${className}`}
+      className={`h-10 px-3 border border-slate-200 rounded-xl bg-gray-50 text-sm text-slate-700 ${inputFocus} w-full max-w-xs`}
     >
       {ESTADO_FILTER_OPTIONS.map((opt) => (
-        <option key={opt.value || 'all'} value={opt.value}>{opt.label}</option>
+        <option key={opt.value || 'all'} value={opt.value}>
+          Estado: {opt.label}
+        </option>
       ))}
     </select>
   );
 
+  const renderAbonoAction = (c) => (
+    c.estado !== 'pagado' ? (
+      <button
+        type="button"
+        onClick={() => openAbonoModal(c)}
+        className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+        title="Registrar abono"
+        aria-label="Registrar abono"
+      >
+        <Banknote className="w-4 h-4" strokeWidth={1.5} />
+      </button>
+    ) : (
+      <span className="text-sm text-slate-400">—</span>
+    )
+  );
+
   const renderMobileRow = (c) => (
-    <div key={c.id} className="co-orden-row border-b border-slate-100 last:border-b-0">
+    <div key={c.id} className="border-b border-slate-100 last:border-b-0">
       <div className="flex items-start justify-between gap-2 px-3 py-2.5">
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[11px] font-bold leading-tight" style={{ color: CO_PRIMARY }}>{c.ordenCompra?.numero || '—'}</p>
-          <p className="text-[10px] text-slate-500 truncate mt-0.5">{c.ordenCompra?.proveedor?.nombre || '—'}</p>
+          <p className="font-mono text-[11px] font-bold leading-tight text-blue-700">
+            {c.ordenCompra?.numero || '—'}
+          </p>
+          <p className="text-[10px] text-slate-500 truncate mt-0.5">
+            {c.ordenCompra?.proveedor?.nombre || '—'}
+          </p>
           <div className="mt-1">{renderBadge(c.estado, true)}</div>
         </div>
         <div className="text-right shrink-0">
           <p className="text-[10px] text-slate-400">Saldo</p>
-          <p className="text-sm font-bold text-red-600 tabular-nums">{fmt(c.saldo)}</p>
+          <p className="text-sm font-bold text-rose-600 tabular-nums">{fmt(c.saldo)}</p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs px-3 pb-2">
-        <div><span className="text-slate-400 block text-[10px]">Total</span><span className="font-semibold text-slate-700">{fmt(c.montoTotal)}</span></div>
-        <div><span className="text-slate-400 block text-[10px]">Pagado</span><span className="font-semibold text-emerald-600">{fmt(c.montoPagado)}</span></div>
-        <div className="col-span-2"><span className="text-slate-400 block text-[10px]">Vencimiento</span><span className="text-slate-700">{fmtDate(c.fechaVencimiento)}</span></div>
+        <div>
+          <span className="text-slate-400 block text-[10px]">Total</span>
+          <span className="font-semibold text-slate-700">{fmt(c.montoTotal)}</span>
+        </div>
+        <div>
+          <span className="text-slate-400 block text-[10px]">Pagado</span>
+          <span className="font-semibold text-slate-700">{fmt(c.montoPagado)}</span>
+        </div>
+        <div className="col-span-2">
+          <span className="text-slate-400 block text-[10px]">Vencimiento</span>
+          <span className="text-slate-700">{fmtDate(c.fechaVencimiento)}</span>
+        </div>
       </div>
       {c.estado !== 'pagado' && (
         <div className="px-3 pb-3">
           <button
             type="button"
             onClick={() => openAbonoModal(c)}
-            className="w-full h-9 inline-flex items-center justify-center rounded-lg text-xs font-semibold text-white"
-            style={{ backgroundColor: CO_PRIMARY }}
+            className="w-full h-9 inline-flex items-center justify-center rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700"
           >
             Registrar abono
           </button>
@@ -203,72 +202,50 @@ export const CuentasPorPagarPage = () => {
     </div>
   );
 
-  const renderPagination = () => (
-    <div className="px-4 md:px-5 py-3 border-t border-slate-100 bg-white flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
-      <p className="text-xs text-slate-500 text-center md:text-left shrink-0">
-        Mostrando {showingFrom} a {showingTo} de {cxpTotal} cuentas
-      </p>
-      {cxpTotalPages > 1 && (
-        <div className="flex items-center justify-center md:justify-end gap-1">
-          <button type="button" disabled={cxpPage <= 1} onClick={() => setCxpPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 bg-white">&lt;</button>
-          <span className="md:hidden text-xs font-semibold px-2 tabular-nums" style={{ color: CO_NAVY }}>{cxpPage} / {cxpTotalPages}</span>
-          <div className="hidden md:flex items-center gap-1">
-            {Array.from({ length: Math.min(5, cxpTotalPages) }, (_, i) => {
-              const maxVisible = Math.min(5, cxpTotalPages);
-              let start = Math.max(1, cxpPage - Math.floor(maxVisible / 2));
-              const end = Math.min(cxpTotalPages, start + maxVisible - 1);
-              if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
-              const pageNum = start + i;
-              if (pageNum > end) return null;
-              const isActive = cxpPage === pageNum;
-              return (
-                <button
-                  key={pageNum}
-                  type="button"
-                  onClick={() => setCxpPage(pageNum)}
-                  className={`w-8 h-8 rounded-lg border text-sm font-medium transition-colors ${isActive ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                  style={isActive ? { backgroundColor: CO_PRIMARY, borderColor: CO_PRIMARY } : undefined}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-          </div>
-          <button type="button" disabled={cxpPage >= cxpTotalPages} onClick={() => setCxpPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 bg-white">&gt;</button>
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div
-      className="co-compras-page animate-slide-up overflow-x-hidden pb-6"
+      className="space-y-3 sm:space-y-5 animate-slide-up overflow-x-hidden pb-6"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
     >
-      {/* ── Móvil ── */}
-      <div className="md:hidden">
-        <ComprasPageHeader
-          title="Cuentas por Pagar"
-          subtitle="Deudas y saldos pendientes a proveedores."
-          aside={(
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
-              <p className="text-sm font-bold text-red-600 whitespace-nowrap tabular-nums">{fmt(stats.totalDeuda)}</p>
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+
+      <ComprasPageHeader
+        icon={Wallet}
+        badge="Compras"
+        title="Cuentas por pagar"
+        subtitle="Deudas y saldos pendientes a proveedores"
+      />
+
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        {kpiItems.map((kpi) => (
+          <div
+            key={kpi.label}
+            className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 ${kpi.border} px-2.5 sm:px-4 py-3 sm:py-4 min-w-0`}
+          >
+            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{kpi.label}</p>
+            <p className={`text-base sm:text-lg font-bold mt-1 tabular-nums ${kpi.color}`}>{kpi.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-3 sm:p-4">
+        {renderEstadoFilter()}
+      </div>
+
+      {/* Móvil */}
+      <div className="md:hidden space-y-3">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-slate-800">Cuentas por pagar</h2>
+            <span className="text-xs font-medium text-gray-400">{cxpTotal} registros</span>
+          </div>
+          {cxpLoading && (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
             </div>
           )}
-        />
-
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
-        </div>
-
-        <div className="mb-3">
-          {renderEstadoFilter('w-full')}
-        </div>
-
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
-          <div className="px-3 py-2.5 border-b border-slate-100">
-            <h2 className="text-sm font-bold" style={{ color: CO_NAVY }}>Cuentas por pagar</h2>
-          </div>
-          {cxpLoading && <div className="flex justify-center py-10"><div className="co-spinner" /></div>}
           {!cxpLoading && cxpItems.map((c) => renderMobileRow(c))}
           {!cxpLoading && cxpItems.length === 0 && (
             <p className="text-center text-slate-400 text-sm py-10 px-4">No hay cuentas por pagar</p>
@@ -276,132 +253,207 @@ export const CuentasPorPagarPage = () => {
         </div>
 
         <div className="px-1 py-2 flex flex-col gap-2">
-          <p className="text-[11px] text-slate-500 text-center">Mostrando {showingFrom} a {showingTo} de {cxpTotal} cuentas</p>
+          <p className="text-[11px] text-slate-500 text-center">
+            Mostrando {showingFrom} a {showingTo} de {cxpTotal} cuentas
+          </p>
           {cxpTotalPages > 1 && (
             <div className="flex items-center justify-center gap-1">
-              <button type="button" disabled={cxpPage <= 1} onClick={() => setCxpPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&lt;</button>
-              <span className="text-xs font-semibold px-2 tabular-nums" style={{ color: CO_NAVY }}>{cxpPage} / {cxpTotalPages}</span>
-              <button type="button" disabled={cxpPage >= cxpTotalPages} onClick={() => setCxpPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&gt;</button>
+              <button
+                type="button"
+                disabled={cxpPage <= 1}
+                onClick={() => setCxpPage((p) => p - 1)}
+                className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white"
+              >
+                &lt;
+              </button>
+              <span className="text-xs font-semibold px-2 tabular-nums text-slate-800">
+                {cxpPage} / {cxpTotalPages}
+              </span>
+              <button
+                type="button"
+                disabled={cxpPage >= cxpTotalPages}
+                onClick={() => setCxpPage((p) => p + 1)}
+                className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white"
+              >
+                &gt;
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Escritorio ── */}
+      {/* Escritorio */}
       <div className="hidden md:block">
-        <ComprasPageHeader
-          title="Cuentas por Pagar"
-          subtitle="Gestión de deudas y saldos pendientes a proveedores."
-        />
-
-        <div className="grid gap-4 mb-6 md:grid-cols-2 xl:grid-cols-4">
-          {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
-        </div>
-
-        <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <div className="max-w-xs">{renderEstadoFilter('w-full')}</div>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-800">Lista de cuentas</h2>
+            <span className="text-xs font-medium text-gray-400">{cxpTotal} registros</span>
           </div>
 
           <div className="overflow-x-auto relative">
             {cxpLoading && (
-              <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
-                <div className="co-spinner" />
+              <div className="absolute inset-0 z-10 flex justify-center items-center bg-white/70 backdrop-blur-[2px]">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
               </div>
             )}
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-[#f8f9fc] text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
-                <tr>
-                  <th className="px-4 py-3">Orden</th>
-                  <th className="px-4 py-3">Proveedor</th>
-                  <th className="px-4 py-3 text-right">Monto total</th>
-                  <th className="px-4 py-3 text-right">Pagado</th>
-                  <th className="px-4 py-3 text-right">Saldo</th>
-                  <th className="px-4 py-3 text-center">Vencimiento</th>
-                  <th className="px-4 py-3 text-center">Estado</th>
-                  <th className="px-4 py-3 text-center w-36">Acciones</th>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Orden</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Proveedor</th>
+                  <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Monto total</th>
+                  <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pagado</th>
+                  <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Saldo</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Vencimiento</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                  <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {!cxpLoading && cxpItems.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: CO_PRIMARY }}>{c.ordenCompra?.numero || '—'}</td>
-                    <td className="px-4 py-3 font-medium" style={{ color: CO_NAVY }}>{c.ordenCompra?.proveedor?.nombre || '—'}</td>
-                    <td className="px-4 py-3 text-right text-slate-700 tabular-nums">{fmt(c.montoTotal)}</td>
-                    <td className="px-4 py-3 text-right text-emerald-600 font-semibold tabular-nums">{fmt(c.montoPagado)}</td>
-                    <td className="px-4 py-3 text-right text-red-600 font-bold tabular-nums">{fmt(c.saldo)}</td>
-                    <td className="px-4 py-3 text-center text-slate-500 text-xs whitespace-nowrap">{fmtDate(c.fechaVencimiento)}</td>
-                    <td className="px-4 py-3 text-center">{renderBadge(c.estado)}</td>
-                    <td className="px-4 py-3 text-center">
-                      {c.estado !== 'pagado' ? (
-                        <button
-                          type="button"
-                          onClick={() => openAbonoModal(c)}
-                          className="h-9 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap"
-                          style={{ backgroundColor: CO_PRIMARY }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
-                        >
-                          Registrar abono
-                        </button>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
+                    <td className="px-5 py-4 font-mono text-sm font-semibold text-blue-700">
+                      {c.ordenCompra?.numero || '—'}
                     </td>
+                    <td className="px-5 py-4 text-sm font-medium text-slate-800">
+                      {c.ordenCompra?.proveedor?.nombre || '—'}
+                    </td>
+                    <td className="px-5 py-4 text-right text-sm text-slate-700 tabular-nums">
+                      {fmt(c.montoTotal)}
+                    </td>
+                    <td className="px-5 py-4 text-right text-sm font-semibold text-slate-700 tabular-nums">
+                      {fmt(c.montoPagado)}
+                    </td>
+                    <td className="px-5 py-4 text-right text-sm font-semibold text-rose-600 tabular-nums">
+                      {fmt(c.saldo)}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-slate-700 whitespace-nowrap">
+                      {fmtDate(c.fechaVencimiento)}
+                    </td>
+                    <td className="px-5 py-4">{renderBadge(c.estado)}</td>
+                    <td className="px-5 py-4 text-right">{renderAbonoAction(c)}</td>
                   </tr>
                 ))}
                 {!cxpLoading && cxpItems.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-16 text-center text-slate-400 text-sm">No hay cuentas por pagar</td></tr>
+                  <tr>
+                    <td colSpan={8} className="text-center py-12 text-sm text-slate-400">
+                      No hay cuentas por pagar
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
           </div>
 
-          {renderPagination()}
+          {cxpTotal > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-gray-100">
+              <span className="text-[11px] font-medium text-gray-400">
+                Mostrando {showingFrom} a {showingTo} de {cxpTotal} cuentas
+              </span>
+              {cxpTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={cxpPage <= 1}
+                    onClick={() => setCxpPage((p) => Math.max(1, p - 1))}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    Anterior
+                  </button>
+                  {Array.from({ length: Math.min(5, cxpTotalPages) }, (_, i) => {
+                    const maxVisible = Math.min(5, cxpTotalPages);
+                    let start = Math.max(1, cxpPage - Math.floor(maxVisible / 2));
+                    const end = Math.min(cxpTotalPages, start + maxVisible - 1);
+                    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+                    const pageNum = start + i;
+                    if (pageNum > end) return null;
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCxpPage(pageNum)}
+                        className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${
+                          cxpPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    disabled={cxpPage >= cxpTotalPages}
+                    onClick={() => setCxpPage((p) => Math.min(cxpTotalPages, p + 1))}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       <ModalPortal open={abonoModalOpen}>
-        <div className="co-portal-root">
-          <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal animate-co-modal-in">
-              <div className="co-modal-header">
-                <h2 className="text-lg font-bold text-slate-800">Registrar Abono</h2>
-                <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        <>
+          <div
+            className="fixed inset-0 z-[200] bg-slate-200/60 backdrop-blur-md"
+            onClick={() => setAbonoModalOpen(false)}
+          />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-md bg-white rounded-xl shadow-xl flex flex-col border border-slate-200 overflow-hidden pointer-events-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0 gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-800">Registrar abono</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Aplica un pago parcial o total a la cuenta</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAbonoModalOpen(false)}
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
+                >
+                  <X size={16} />
                 </button>
               </div>
-              <div className="co-modal-body">
+              <div className="px-5 py-4 space-y-4">
                 {abonoOrden && (
-                  <div className="co-abono-info">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Orden:</span>
-                      <span className="font-bold text-slate-800">{abonoOrden.numero}</span>
+                  <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-2">
+                    <div className="flex justify-between text-sm gap-3">
+                      <span className="text-slate-500">Orden</span>
+                      <span className="font-bold text-slate-800 font-mono">{abonoOrden.numero}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Total:</span>
-                      <span className="font-semibold">{fmt(abonoOrden.cuentaPorPagar?.montoTotal ?? abonoOrden.total)}</span>
+                    <div className="flex justify-between text-sm gap-3">
+                      <span className="text-slate-500">Total</span>
+                      <span className="font-semibold text-slate-700 tabular-nums">
+                        {fmt(abonoOrden.cuentaPorPagar?.montoTotal ?? abonoOrden.total)}
+                      </span>
                     </div>
                     {(abonoOrden.cuentaPorPagar?.montoPagado ?? 0) > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Pagado:</span>
-                        <span className="font-semibold text-emerald-600">{fmt(abonoOrden.cuentaPorPagar.montoPagado)}</span>
+                      <div className="flex justify-between text-sm gap-3">
+                        <span className="text-slate-500">Pagado</span>
+                        <span className="font-semibold text-slate-700 tabular-nums">
+                          {fmt(abonoOrden.cuentaPorPagar.montoPagado)}
+                        </span>
                       </div>
                     )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Saldo pendiente:</span>
-                      <span className="font-bold text-red-500">{fmt(saldoAbono)}</span>
+                    <div className="flex justify-between text-sm gap-3 pt-2 border-t border-slate-200">
+                      <span className="text-slate-500 font-semibold">Saldo pendiente</span>
+                      <span className="font-bold text-rose-600 tabular-nums">{fmt(saldoAbono)}</span>
                     </div>
                   </div>
                 )}
-                <form onSubmit={handleAbonoSave} className="space-y-4 mt-4">
+                <form onSubmit={handleAbonoSave} className="space-y-3">
                   <div>
-                    <label className="co-label">Método de Pago</label>
-                    <select className="co-input" value={abonoForm.metodoPagoId}
-                      onChange={e => setAbonoForm(p => ({ ...p, metodoPagoId: e.target.value }))} required>
+                    <label className={labelClass}>Método de pago</label>
+                    <select
+                      className={inputClass}
+                      value={abonoForm.metodoPagoId}
+                      onChange={(e) => setAbonoForm((p) => ({ ...p, metodoPagoId: e.target.value }))}
+                      required
+                    >
                       <option value="">Seleccionar método…</option>
-                      {metodos.filter(m => m.activo).map(m => (
+                      {metodos.filter((m) => m.activo).map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.nombre} ({fmt(m.saldoActual || 0)})
                         </option>
@@ -409,36 +461,60 @@ export const CuentasPorPagarPage = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="co-label">Monto ($)</label>
-                    <input type="number" className="co-input" step="0.01" min="0.01"
+                    <label className={labelClass}>Monto ($)</label>
+                    <input
+                      type="number"
+                      className={inputClass}
+                      step="0.01"
+                      min="0.01"
                       max={saldoAbono || 999999}
                       value={abonoForm.monto}
-                      onChange={e => {
+                      onChange={(e) => {
                         const val = e.target.value;
                         if (parseFloat(val) > saldoAbono) {
-                          setAbonoForm(p => ({ ...p, monto: saldoAbono.toString() }));
+                          setAbonoForm((p) => ({ ...p, monto: saldoAbono.toString() }));
                         } else {
-                          setAbonoForm(p => ({ ...p, monto: val }));
+                          setAbonoForm((p) => ({ ...p, monto: val }));
                         }
-                      }} required />
+                      }}
+                      required
+                    />
                   </div>
                   <div>
-                    <label className="co-label">Referencia (Nro. cheque, transferencia, etc.)</label>
-                    <input className="co-input" value={abonoForm.referencia} placeholder="Opcional"
-                      onChange={e => setAbonoForm(p => ({ ...p, referencia: e.target.value }))} />
+                    <label className={labelClass}>Referencia (cheque, transferencia, etc.)</label>
+                    <input
+                      className={inputClass}
+                      value={abonoForm.referencia}
+                      placeholder="Opcional"
+                      onChange={(e) => setAbonoForm((p) => ({ ...p, referencia: e.target.value }))}
+                    />
                   </div>
-                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={abonoSaving || !abonoForm.monto || parseFloat(abonoForm.monto) <= 0 || parseFloat(abonoForm.monto) > saldoAbono} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
-                      {abonoSaving && <div className="co-spinner-sm" />}
-                      Registrar Abono
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setAbonoModalOpen(false)}
+                      className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={
+                        abonoSaving ||
+                        !abonoForm.monto ||
+                        parseFloat(abonoForm.monto) <= 0 ||
+                        parseFloat(abonoForm.monto) > saldoAbono
+                      }
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm disabled:opacity-50"
+                    >
+                      {abonoSaving ? 'Registrando...' : 'Registrar abono'}
                     </button>
                   </div>
                 </form>
               </div>
             </div>
           </div>
-        </div>
+        </>
       </ModalPortal>
     </div>
   );

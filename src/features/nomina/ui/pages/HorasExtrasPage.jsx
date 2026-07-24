@@ -197,13 +197,13 @@ export const HorasExtrasPage = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-bold text-slate-800">Horas Extras</h1>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
-                  {vista === 'resumen' ? 'Resumen' : 'Planilla'}
+                  {vista === 'resumen' ? 'Por colaborador' : 'Registros'}
                 </span>
               </div>
               <p className="text-sm text-slate-500 mt-0.5">
                 {vista === 'resumen'
-                  ? `Horas acumuladas por colaborador en ${periodoLabel}`
-                  : 'Valida solicitudes del quiosco y gestiona la planilla del mes'}
+                  ? `Totales de horas extras por persona en ${periodoLabel}`
+                  : 'Registra jornadas y valida solicitudes del quiosco'}
               </p>
             </div>
           </div>
@@ -250,7 +250,7 @@ export const HorasExtrasPage = () => {
             <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v3.75" />
             </svg>
-            Planilla
+            Registros
             {approvedOvertime.length > 0 && (
               <span className="text-[11px] font-bold text-slate-400 tabular-nums">{approvedOvertime.length}</span>
             )}
@@ -268,7 +268,7 @@ export const HorasExtrasPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" />
             </svg>
-            Resumen
+            Por colaborador
             {resumenColaboradoresCount > 0 && (
               <span className="text-[11px] font-bold text-slate-400 tabular-nums">{resumenColaboradoresCount}</span>
             )}

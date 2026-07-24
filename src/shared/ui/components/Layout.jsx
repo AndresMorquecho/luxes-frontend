@@ -205,6 +205,17 @@ export const Layout = ({ children, user, onLogout }) => {
         ) : isBottomNavMobile ? (
           <header className="mobile-taller-header">
             <div className="mobile-taller-logo-box">
+              <button
+                type="button"
+                className="mobile-taller-menu-btn"
+                onClick={() => setIsMobileOpen((prev) => !prev)}
+                aria-label="Abrir menú"
+                aria-expanded={isMobileOpen}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-taller-menu-icon">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+              </button>
               <img src="/LogoGlobo.png" alt="Luxes Logo" className="mobile-taller-logo" />
               <div className="mobile-taller-user-info">
                 <span className="mobile-taller-brand">Luxes {mobileBrandLabel}</span>

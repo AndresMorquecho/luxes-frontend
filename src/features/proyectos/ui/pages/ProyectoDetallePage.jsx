@@ -899,53 +899,22 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
       </div>
 
       {/* 1. Tarjetas KPI de Rentabilidad y Utilidad Real */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Ingresos por Venta</p>
-            <h3 className="text-xl font-black text-slate-800 mt-1">${ingresoVenta.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
-            <p className="text-[9px] text-slate-400 mt-1 font-medium">Total presupuestado</p>
-          </div>
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-            <DollarSign size={20} />
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-blue-600 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos por venta</p>
+          <p className="text-lg font-bold text-blue-700 mt-1 tabular-nums">${ingresoVenta.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</p>
         </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Gastos Totales</p>
-            <h3 className="text-xl font-black text-red-650 mt-1">${totalGastos.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</h3>
-            <p className="text-[9px] text-slate-400 mt-1 font-medium">Total ejecutado</p>
-          </div>
-          <div className="p-3 bg-red-50 text-red-600 rounded-xl">
-            <DollarSign size={20} />
-          </div>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-red-500 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gastos totales</p>
+          <p className="text-lg font-bold text-red-500 mt-1 tabular-nums">${totalGastos.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</p>
         </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Utilidad Real (Ganancia)</p>
-            <h3 className={`text-xl font-black mt-1 ${utilidadReal >= 0 ? 'text-emerald-600' : 'text-red-700'}`}>
-              ${utilidadReal.toLocaleString('es-EC', { minimumFractionDigits: 2 })}
-            </h3>
-            <p className="text-[9px] text-slate-400 mt-1 font-medium">Resultado actual</p>
-          </div>
-          <div className={`p-3 rounded-xl ${utilidadReal >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-700'}`}>
-            <DollarSign size={20} />
-          </div>
+        <div className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 px-4 py-4 ${utilidadReal >= 0 ? 'border-t-emerald-500' : 'border-t-red-500'}`}>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Utilidad real</p>
+          <p className={`text-lg font-bold mt-1 tabular-nums ${utilidadReal >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>${utilidadReal.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</p>
         </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] text-slate-450 uppercase font-black tracking-wider">Rentabilidad Neta</p>
-            <h3 className={`text-xl font-black mt-1 ${utilidadReal >= 0 ? 'text-indigo-650' : 'text-red-600'}`}>
-              {margenRentabilidad.toFixed(1)}%
-            </h3>
-            <p className="text-[9px] text-slate-400 mt-1 font-medium">% sobre ingresos</p>
-          </div>
-          <div className={`p-3 rounded-xl ${utilidadReal >= 0 ? 'bg-indigo-50 text-indigo-650' : 'bg-red-50 text-red-600'}`}>
-            {utilidadReal >= 0 ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-          </div>
+        <div className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 px-4 py-4 ${utilidadReal >= 0 ? 'border-t-indigo-500' : 'border-t-red-500'}`}>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rentabilidad neta</p>
+          <p className={`text-lg font-bold mt-1 tabular-nums ${utilidadReal >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>{margenRentabilidad.toFixed(1)}%</p>
         </div>
       </div>
 

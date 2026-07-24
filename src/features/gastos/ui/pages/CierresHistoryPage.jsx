@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getCierres, deleteCierre } from '../../application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
-import { Clock, User, ClipboardCheck, BarChart3, ArrowLeft, Trash2, X, Eye } from 'lucide-react';
+import { ClipboardCheck, ArrowLeft, Trash2, X, Eye, User, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
@@ -24,11 +24,10 @@ export const CierresHistoryPage = () => {
   const [pdfCierre, setPdfCierre] = useState(null);
   const [dateRange, setDateRange] = useState({ desde: '', hasta: '' });
 
-  // Determine if admin
   const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
   const userRole = (storedUser?.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
-  
+
   useEffect(() => {
     loadCierreHistory();
   }, []);
@@ -61,7 +60,6 @@ export const CierresHistoryPage = () => {
     }
   };
 
-  // Filter closures locally if date filter applied
   const filteredCierres = cierreHistory.filter(c => {
     if (!dateRange.desde && !dateRange.hasta) return true;
     const cDate = new Date(c.fecha);
@@ -76,50 +74,63 @@ export const CierresHistoryPage = () => {
   });
 
   return (
-    <div className="p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link to="/cierre-caja" className="p-2 bg-white rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
-            <ArrowLeft size={18} />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Historial de Cierres de Caja</h1>
-            <p className="text-sm font-medium text-slate-500 mt-1">
-              Registro histórico de todos los arqueos y cuadres de caja del sistema.
-            </p>
+    <div className="space-y-3 sm:space-y-5 animate-slide-up" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              to="/cierre-caja"
+              className="w-11 h-11 rounded-xl border border-slate-200 bg-white flex items-center justify-center shrink-0 text-slate-500 hover:bg-slate-50 transition-colors"
+            >
+              <ArrowLeft size={18} />
+            </Link>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Historial de cierres</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Arqueo
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Registro histórico de arqueos y cuadres de caja
+              </p>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex items-center">
-          <DateRangePicker 
-            value={{ start: dateRange.desde, end: dateRange.hasta }} 
+
+          <DateRangePicker
+            value={{ start: dateRange.desde, end: dateRange.hasta }}
             onChange={val => setDateRange({ desde: val.start, hasta: val.end })}
             placeholder="Seleccionar rango"
           />
         </div>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-xl border border-white/50 rounded-2xl shadow-xl overflow-hidden">
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
         {loadingCierreHistory ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
+          <div className="flex flex-col items-center justify-center gap-2 py-16">
+            <div className="animate-spin rounded-full h-7 w-7 border-2 border-blue-200 border-t-blue-500" />
+            <span className="text-xs text-slate-400">Cargando historial...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-100 text-slate-400 bg-slate-50/50 text-left font-bold uppercase tracking-wider">
-                  <th className="px-6 py-4">Rango de Operación</th>
-                  <th className="px-6 py-4">Fecha de Cierre</th>
-                  <th className="px-6 py-4">Responsable</th>
-                  <th className="px-6 py-4 text-right">Ingresos</th>
-                  <th className="px-6 py-4 text-right">Egresos</th>
-                  <th className="px-6 py-4 text-right">Balance Sistema</th>
-                  <th className="px-6 py-4 text-center">Cuadre Físico</th>
-                  <th className="px-6 py-4 text-center">Acciones</th>
+                <tr className="border-b border-slate-100 bg-slate-50/60 text-slate-400 font-bold uppercase tracking-wider">
+                  <th className="px-4 py-3">Rango de operación</th>
+                  <th className="px-4 py-3">Fecha de cierre</th>
+                  <th className="px-4 py-3">Responsable</th>
+                  <th className="px-4 py-3 text-right">Ingresos</th>
+                  <th className="px-4 py-3 text-right">Egresos</th>
+                  <th className="px-4 py-3 text-right">Balance</th>
+                  <th className="px-4 py-3 text-center">Cuadre físico</th>
+                  <th className="px-4 py-3 text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100/60">
+              <tbody className="divide-y divide-slate-50">
                 {filteredCierres.map((c) => {
                   let cuadra = true;
                   let diferenciaText = 'Cuadró';
@@ -136,43 +147,46 @@ export const CierresHistoryPage = () => {
                   } catch (e) {}
 
                   return (
-                    <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-slate-700">
+                    <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-slate-700">
                         {c.fechaInicio.split('T')[0]} <span className="text-slate-400 font-normal">al</span> {c.fechaFin.split('T')[0]}
                       </td>
-                      <td className="px-6 py-4 font-medium text-slate-500">
+                      <td className="px-4 py-3 text-slate-500">
                         {new Date(c.fecha).toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 font-semibold text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[9px]">
-                            {(c.usuario?.nombre || 'AD').substring(0, 2).toUpperCase()}
-                          </div>
-                          {c.usuario?.nombre || 'Administrador'}
-                        </div>
+                      <td className="px-4 py-3 font-medium text-slate-600">
+                        {c.usuario?.nombre || 'Administrador'}
                       </td>
-                      <td className="px-6 py-4 text-right font-bold text-emerald-600 font-mono">{fmt(c.totalIngresos)}</td>
-                      <td className="px-6 py-4 text-right font-bold text-red-500 font-mono">{fmt(c.totalEgresos)}</td>
-                      <td className={`px-6 py-4 text-right font-black font-mono ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                      <td className="px-4 py-3 text-right font-semibold text-emerald-700 tabular-nums">{fmt(c.totalIngresos)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-rose-600 tabular-nums">{fmt(c.totalEgresos)}</td>
+                      <td className={`px-4 py-3 text-right font-bold tabular-nums ${c.balance >= 0 ? 'text-slate-800' : 'text-amber-700'}`}>
                         {fmt(c.balance)}
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider ${cuadra ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : (diff < 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-600 border border-amber-100')}`}>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                          cuadra
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                            : (diff < 0
+                              ? 'bg-rose-50 text-rose-700 border-rose-100'
+                              : 'bg-amber-50 text-amber-700 border-amber-100')
+                        }`}>
                           {diferenciaText}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
                           <button
+                            type="button"
                             onClick={() => setPdfCierre(c)}
-                            className="text-blue-600 hover:text-white font-bold bg-blue-50 hover:bg-blue-600 border border-blue-100 px-3 py-1.5 rounded-lg transition-all text-[10px] uppercase tracking-wider shadow-sm flex items-center gap-1"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
                           >
                             <Eye size={12} /> Ver
                           </button>
                           {isAdmin && (
                             <button
+                              type="button"
                               onClick={() => handleDeleteCierre(c)}
-                              className="text-red-500 hover:text-white font-bold bg-red-50 hover:bg-red-500 border border-red-100 p-1.5 rounded-lg transition-all shadow-sm"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                               title="Eliminar cierre"
                             >
                               <Trash2 size={13} />
@@ -196,48 +210,45 @@ export const CierresHistoryPage = () => {
         )}
       </div>
 
-      {/* MODAL DE DETALLES — Rediseñado */}
       {selectedCierreDetail && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ fontFamily: "'Inter', sans-serif" }}>
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setSelectedCierreDetail(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up border border-slate-200/60">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                  <ClipboardCheck size={20} className="text-blue-600" />
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setSelectedCierreDetail(null)} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl border border-blue-100 bg-blue-50 flex items-center justify-center shrink-0">
+                  <ClipboardCheck size={18} className="text-blue-600" />
                 </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-800 tracking-tight">
-                    Cierre de Caja
-                  </h3>
-                  <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-slate-800">Cierre de caja</h3>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">
                     {selectedCierreDetail.fechaInicio.split('T')[0]} al {selectedCierreDetail.fechaFin.split('T')[0]}
-                    <span className="mx-2 text-slate-300">•</span>
+                    <span className="mx-1.5 text-slate-300">·</span>
                     {selectedCierreDetail.usuario?.nombre || 'Administrador'}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {isAdmin && (
                   <button
+                    type="button"
                     onClick={() => handleDeleteCierre(selectedCierreDetail)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 hover:bg-red-500 text-red-600 hover:text-white border border-red-100 hover:border-red-500 text-[10px] font-bold uppercase tracking-wider transition-all"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 border border-rose-100 hover:bg-rose-50 transition-colors"
                   >
                     <Trash2 size={13} /> Eliminar
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={() => setSelectedCierreDetail(null)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
                 >
                   <X size={16} />
                 </button>
               </div>
             </div>
 
-            {/* Content */}
-            <div className="overflow-y-auto flex-1 p-6 bg-slate-50/30">
+            <div className="overflow-y-auto flex-1 p-5 bg-slate-50/40">
               {(() => {
                 let parsed = { metodos: [], efectivoFisicoContado: 0, diferenciaEfectivo: 0, seccionIngresos: {}, seccionEgresos: {}, usuariosDetalle: [] };
                 try {
@@ -253,81 +264,92 @@ export const CierresHistoryPage = () => {
                 const diffEfectivo = Number(parsed.diferenciaEfectivo || 0);
 
                 return (
-                  <div className="space-y-5">
-                    {/* KPI Row */}
+                  <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
-                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Registrado</div>
-                        <div className="text-xs font-bold text-slate-700 mt-1">{new Date(selectedCierreDetail.fecha).toLocaleString()}</div>
+                      <div className="bg-white rounded-xl p-4 border border-slate-200">
+                        <p className="text-xs text-slate-500 font-medium">Registrado</p>
+                        <p className="text-sm font-semibold text-slate-800 mt-1">{new Date(selectedCierreDetail.fecha).toLocaleString()}</p>
                       </div>
-                      <div className="bg-white rounded-xl p-4 border border-emerald-100 shadow-sm border-l-4 border-l-emerald-500">
-                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Ingresos</div>
-                        <div className="text-base font-extrabold text-emerald-600 mt-1 font-mono">{fmt(Number(selectedCierreDetail.totalIngresos))}</div>
+                      <div className="bg-white rounded-xl p-4 border border-slate-200">
+                        <p className="text-xs text-slate-500 font-medium">Ingresos</p>
+                        <p className="text-base font-bold text-slate-800 mt-1 tabular-nums">{fmt(Number(selectedCierreDetail.totalIngresos))}</p>
                       </div>
-                      <div className="bg-white rounded-xl p-4 border border-red-100 shadow-sm border-l-4 border-l-red-500">
-                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Egresos</div>
-                        <div className="text-base font-extrabold text-red-500 mt-1 font-mono">{fmt(Number(selectedCierreDetail.totalEgresos))}</div>
+                      <div className="bg-white rounded-xl p-4 border border-slate-200">
+                        <p className="text-xs text-slate-500 font-medium">Egresos</p>
+                        <p className="text-base font-bold text-slate-800 mt-1 tabular-nums">{fmt(Number(selectedCierreDetail.totalEgresos))}</p>
                       </div>
-                      <div className={`bg-white rounded-xl p-4 border shadow-sm border-l-4 ${Number(selectedCierreDetail.balance) >= 0 ? 'border-blue-100 border-l-blue-500' : 'border-amber-100 border-l-amber-500'}`}>
-                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Balance</div>
-                        <div className={`text-base font-extrabold mt-1 font-mono ${Number(selectedCierreDetail.balance) >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(Number(selectedCierreDetail.balance))}</div>
+                      <div className="bg-white rounded-xl p-4 border border-slate-200">
+                        <p className="text-xs text-slate-500 font-medium">Balance</p>
+                        <p className={`text-base font-bold mt-1 tabular-nums ${Number(selectedCierreDetail.balance) >= 0 ? 'text-slate-800' : 'text-amber-700'}`}>
+                          {fmt(Number(selectedCierreDetail.balance))}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Arqueo de Efectivo */}
                     {hasGlobalCash && (
-                      <div className={`rounded-xl p-4 border flex flex-wrap justify-between items-center gap-3 ${diffEfectivo === 0 ? 'bg-emerald-50/50 border-emerald-200/60' : 'bg-rose-50/50 border-rose-200/60'}`}>
+                      <div className="bg-white rounded-xl p-4 border border-slate-200 flex flex-wrap justify-between items-center gap-3">
                         <div className="flex items-center gap-6">
                           <div>
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Esperado en Sistema</span>
-                            <span className="text-sm font-extrabold font-mono text-slate-800">{fmt(totalEfectivoEsperado)}</span>
+                            <span className="text-xs text-slate-500 font-medium block">Esperado en sistema</span>
+                            <span className="text-sm font-bold tabular-nums text-slate-800">{fmt(totalEfectivoEsperado)}</span>
                           </div>
                           <div className="w-px h-8 bg-slate-200" />
                           <div>
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Físico Contado</span>
-                            <span className="text-sm font-extrabold font-mono text-slate-800">{fmt(Number(parsed.efectivoFisicoContado))}</span>
+                            <span className="text-xs text-slate-500 font-medium block">Físico contado</span>
+                            <span className="text-sm font-bold tabular-nums text-slate-800">{fmt(Number(parsed.efectivoFisicoContado))}</span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider border ${diffEfectivo === 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-700' : (diffEfectivo < 0 ? 'bg-red-100 border-red-200 text-red-700' : 'bg-amber-100 border-amber-200 text-amber-700')}`}>
-                            {diffEfectivo === 0 ? '✓ Caja Cuadrada' : (diffEfectivo < 0 ? `Faltante: ${fmt(Math.abs(diffEfectivo))}` : `Sobrante: ${fmt(diffEfectivo)}`)}
-                          </span>
-                        </div>
+                        <span className={`inline-flex px-2.5 py-1 rounded-md text-[11px] font-semibold border ${
+                          diffEfectivo === 0
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                            : (diffEfectivo < 0
+                              ? 'bg-rose-50 border-rose-100 text-rose-700'
+                              : 'bg-amber-50 border-amber-100 text-amber-700')
+                        }`}>
+                          {diffEfectivo === 0
+                            ? 'Caja cuadrada'
+                            : (diffEfectivo < 0
+                              ? `Faltante: ${fmt(Math.abs(diffEfectivo))}`
+                              : `Sobrante: ${fmt(diffEfectivo)}`)}
+                        </span>
                       </div>
                     )}
 
-                    {/* Métodos de Pago */}
-                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-                      <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
-                        <h4 className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Resumen por Métodos de Pago</h4>
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-100">
+                        <h4 className="text-sm font-semibold text-slate-800">Resumen por métodos de pago</h4>
                       </div>
-                      <div className="overflow-x-auto">
+                      <div className="overflow-x-auto px-4">
                         <table className="w-full text-xs text-left">
                           <thead>
-                            <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                              <th className="px-5 py-2.5">Método</th>
-                              <th className="px-5 py-2.5">Tipo</th>
-                              <th className="px-5 py-2.5 text-right">Ingresos</th>
-                              <th className="px-5 py-2.5 text-right">Egresos</th>
-                              <th className="px-5 py-2.5 text-right">Balance</th>
+                            <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                              <th className="py-2.5 pr-3">Método</th>
+                              <th className="py-2.5 pr-3">Tipo</th>
+                              <th className="py-2.5 pr-3 text-right">Ingresos</th>
+                              <th className="py-2.5 pr-3 text-right">Egresos</th>
+                              <th className="py-2.5 text-right">Balance</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-50">
                             {metodosArr.map((m) => {
                               const esEfectivo = esMetodoEfectivo(m.nombre);
                               return (
-                                <tr key={m.metodoPagoId} className="hover:bg-slate-50/50">
-                                  <td className="px-5 py-3 font-semibold text-slate-700">{m.nombre}</td>
-                                  <td className="px-5 py-3">
-                                    {esEfectivo ? (
-                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">Efectivo / Caja</span>
-                                    ) : (
-                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase">Banco / Digital</span>
-                                    )}
+                                <tr key={m.metodoPagoId}>
+                                  <td className="py-3 pr-3 font-semibold text-slate-700">{m.nombre}</td>
+                                  <td className="py-3 pr-3">
+                                    <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                                      esEfectivo
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                        : 'bg-blue-50 text-blue-700 border-blue-100'
+                                    }`}>
+                                      {esEfectivo ? 'Efectivo / Caja' : 'Banco / Digital'}
+                                    </span>
                                   </td>
-                                  <td className="px-5 py-3 text-right text-emerald-600 font-mono font-semibold">{fmt(Number(m.ingresos))}</td>
-                                  <td className="px-5 py-3 text-right text-red-500 font-mono font-semibold">{fmt(Number(m.egresos))}</td>
-                                  <td className={`px-5 py-3 text-right font-mono font-bold ${Number(m.balance) >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>{fmt(Number(m.balance))}</td>
+                                  <td className="py-3 pr-3 text-right text-emerald-700 font-semibold tabular-nums">{fmt(Number(m.ingresos))}</td>
+                                  <td className="py-3 pr-3 text-right text-rose-600 font-semibold tabular-nums">{fmt(Number(m.egresos))}</td>
+                                  <td className={`py-3 text-right font-bold tabular-nums ${Number(m.balance) >= 0 ? 'text-slate-800' : 'text-amber-700'}`}>
+                                    {fmt(Number(m.balance))}
+                                  </td>
                                 </tr>
                               );
                             })}
@@ -336,62 +358,58 @@ export const CierresHistoryPage = () => {
                       </div>
                     </div>
 
-                    {/* Secciones + Usuarios Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Ingresos por Sección */}
-                      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
-                        <h4 className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <BarChart3 size={13} className="text-emerald-500" /> Ingresos
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="bg-white rounded-xl border border-slate-200 p-4">
+                        <h4 className="text-xs font-semibold text-slate-800 mb-3 flex items-center gap-1.5">
+                          <BarChart3 size={13} className="text-slate-400" /> Ingresos
                         </h4>
-                        <div className="space-y-2.5 text-xs">
+                        <div className="space-y-2 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-medium">Abonos Iniciales</span>
-                            <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionIngresos?.abonosIniciales || 0)}</span>
+                            <span className="text-slate-500">Abonos iniciales</span>
+                            <span className="font-semibold text-slate-800 tabular-nums">{fmt(parsed.seccionIngresos?.abonosIniciales || 0)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-medium">Abonos Posteriores</span>
-                            <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionIngresos?.abonosPosteriores || 0)}</span>
+                            <span className="text-slate-500">Abonos posteriores</span>
+                            <span className="font-semibold text-slate-800 tabular-nums">{fmt(parsed.seccionIngresos?.abonosPosteriores || 0)}</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Egresos por Sección */}
-                      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
-                        <h4 className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <BarChart3 size={13} className="text-red-500" /> Egresos
+                      <div className="bg-white rounded-xl border border-slate-200 p-4">
+                        <h4 className="text-xs font-semibold text-slate-800 mb-3 flex items-center gap-1.5">
+                          <BarChart3 size={13} className="text-slate-400" /> Egresos
                         </h4>
-                        <div className="space-y-2.5 text-xs">
+                        <div className="space-y-2 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-medium">Gastos Generales</span>
-                            <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos?.gastosGenerales || 0)}</span>
+                            <span className="text-slate-500">Gastos generales</span>
+                            <span className="font-semibold text-slate-800 tabular-nums">{fmt(parsed.seccionEgresos?.gastosGenerales || 0)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-medium">Gastos por Auto</span>
-                            <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos?.gastosAuto || 0)}</span>
+                            <span className="text-slate-500">Gastos por auto</span>
+                            <span className="font-semibold text-slate-800 tabular-nums">{fmt(parsed.seccionEgresos?.gastosAuto || 0)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-medium">Órdenes de Compra</span>
-                            <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos?.gastosCompras || 0)}</span>
+                            <span className="text-slate-500">Órdenes de compra</span>
+                            <span className="font-semibold text-slate-800 tabular-nums">{fmt(parsed.seccionEgresos?.gastosCompras || 0)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-medium">Pagos Personal</span>
-                            <span className="font-bold text-slate-700 font-mono">{fmt(parsed.seccionEgresos?.gastosPagos || 0)}</span>
+                            <span className="text-slate-500">Pagos personal</span>
+                            <span className="font-semibold text-slate-800 tabular-nums">{fmt(parsed.seccionEgresos?.gastosPagos || 0)}</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Usuarios */}
-                      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
-                        <h4 className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <User size={13} className="text-blue-500" /> Por Usuario
+                      <div className="bg-white rounded-xl border border-slate-200 p-4">
+                        <h4 className="text-xs font-semibold text-slate-800 mb-3 flex items-center gap-1.5">
+                          <User size={13} className="text-slate-400" /> Por usuario
                         </h4>
                         <div className="space-y-2 text-xs">
                           {(parsed.usuariosDetalle || []).map((u) => (
                             <div key={u.id} className="flex justify-between items-center py-1 border-b border-slate-50 last:border-0">
-                              <span className="font-semibold text-slate-700 truncate max-w-[100px]">{u.nombre}</span>
-                              <div className="flex items-center gap-3 font-mono text-[10px]">
-                                <span className="text-emerald-600 font-bold">{fmt(Number(u.ingresos))}</span>
-                                <span className="text-red-500 font-bold">{fmt(Number(u.egresos))}</span>
+                              <span className="font-medium text-slate-700 truncate max-w-[100px]">{u.nombre}</span>
+                              <div className="flex items-center gap-3 tabular-nums text-[11px]">
+                                <span className="text-emerald-700 font-semibold">{fmt(Number(u.ingresos))}</span>
+                                <span className="text-rose-600 font-semibold">{fmt(Number(u.egresos))}</span>
                               </div>
                             </div>
                           ))}
@@ -402,11 +420,10 @@ export const CierresHistoryPage = () => {
                       </div>
                     </div>
 
-                    {/* Observaciones */}
                     {selectedCierreDetail.observaciones && (
-                      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
-                        <h4 className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-2">Observaciones</h4>
-                        <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">"{selectedCierreDetail.observaciones}"</p>
+                      <div className="bg-white rounded-xl border border-slate-200 p-4">
+                        <h4 className="text-xs font-semibold text-slate-800 mb-2">Observaciones</h4>
+                        <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">{selectedCierreDetail.observaciones}</p>
                       </div>
                     )}
                   </div>
@@ -417,7 +434,6 @@ export const CierresHistoryPage = () => {
         </div>
       )}
 
-      {/* MODAL PREVIEW PDF CIERRE */}
       <CierrePDFPreviewModal isOpen={!!pdfCierre} onClose={() => setPdfCierre(null)} cierre={pdfCierre} />
     </div>
   );

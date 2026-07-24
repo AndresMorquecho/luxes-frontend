@@ -98,48 +98,32 @@ function TvElapsedTimer({ activeJob }) {
   const [elapsedStr, setElapsedStr] = React.useState('00:00:00');
 
   React.useEffect(() => {
-    if (!activeJob || activeJob.status !== 'Imprimiendo') {
+    if (!activeJob || (activeJob.status !== 'Imprimiendo' && activeJob.status !== 'Pausado')) {
       setElapsedStr('00:00:00');
       return;
     }
 
-    const getStartTime = () => {
-      if (activeJob.startedAt) return new Date(activeJob.startedAt);
-      if (activeJob.fechaInicio) return new Date(activeJob.fechaInicio);
-      
-      if (typeof activeJob.startTime === 'string' && activeJob.startTime.includes(':')) {
-        const match = activeJob.startTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-        if (match) {
-          let [_, hours, minutes, ampm] = match;
-          hours = parseInt(hours, 10);
-          minutes = parseInt(minutes, 10);
-          if (ampm) {
-            if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-            if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
-          }
-          const date = new Date();
-          date.setHours(hours, minutes, 0, 0);
-          if (date.getTime() > Date.now()) {
-            date.setDate(date.getDate() - 1);
-          }
-          return date;
-        }
-      }
-      
-      if (activeJob.createdAt) return new Date(activeJob.createdAt);
-      return new Date(Date.now() - 12 * 60 * 1000); // 12 mins fallback like mockup
-    };
+    const pad = (num) => String(num).padStart(2, '0');
 
-    const start = getStartTime();
-
-    const updateTimer = () => {
-      const diffMs = Math.max(0, Date.now() - start.getTime());
-      const totalSecs = Math.floor(diffMs / 1000);
+    if (activeJob.status === 'Pausado') {
+      const totalSecs = activeJob.elapsedSeconds || 0;
       const hrs = Math.floor(totalSecs / 3600);
       const mins = Math.floor((totalSecs % 3600) / 60);
       const secs = totalSecs % 60;
-      
-      const pad = (num) => String(num).padStart(2, '0');
+      setElapsedStr(`${pad(hrs)}:${pad(mins)}:${pad(secs)}`);
+      return;
+    }
+
+    // Active printing session timer
+    const baseSeconds = activeJob.elapsedSeconds || 0;
+    const sessionStart = Date.now();
+
+    const updateTimer = () => {
+      const elapsedSessionSecs = Math.floor((Date.now() - sessionStart) / 1000);
+      const totalSecs = baseSeconds + elapsedSessionSecs;
+      const hrs = Math.floor(totalSecs / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
       setElapsedStr(`${pad(hrs)}:${pad(mins)}:${pad(secs)}`);
     };
 
@@ -149,7 +133,7 @@ function TvElapsedTimer({ activeJob }) {
   }, [activeJob]);
 
   return (
-    <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#1d4ed8', fontFamily: 'monospace', lineHeight: 1 }}>
+    <span style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: 1 }}>
       {elapsedStr}
     </span>
   );
@@ -182,6 +166,36 @@ const isImageFile = (name, url) => {
   const u = (url || '').toLowerCase();
   return n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg') || n.endsWith('.gif') || n.endsWith('.webp') ||
          u.startsWith('data:image') || u.includes('image') || u.startsWith('blob:');
+};
+
+const formatLocalDateTime = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString('es-EC', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+const formatLocalTime = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  } catch {
+    return dateStr;
+  }
 };
 
 export const ColasImpresionPage = () => {
@@ -233,6 +247,8 @@ export const ColasImpresionPage = () => {
   const [requiredQty, setRequiredQty] = useState(1.0);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [submittingAction, setSubmittingAction] = useState(false);
+  const [materialSearch, setMaterialSearch] = useState('');
+  const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   
   // Shopping Cart state
   const [cartItems, setCartItems] = useState([]);
@@ -240,17 +256,22 @@ export const ColasImpresionPage = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = isAdminUser(user);
 
-  const [isTvMode, setIsTvMode] = useState(isAdmin);
+  const userRole = (user?.rol || '').toUpperCase();
+  const isVentas = userRole === 'VENTAS' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
+  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
+  const isVentasOrDisenador = isVentas || isDisenador;
+
+  const [isTvMode, setIsTvMode] = useState(isAdmin || isVentasOrDisenador);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !isAdmin) {
+      if (e.key === 'Escape' && !isAdmin && !isVentasOrDisenador) {
         setIsTvMode(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAdmin]);
+  }, [isAdmin, isVentasOrDisenador]);
 
   // Smart calculations for roll width consumption
   const calculateSuggestedQuantity = (material, width, height, copies) => {
@@ -417,34 +438,10 @@ export const ColasImpresionPage = () => {
     setShowPrepModal(true);
     setLoadingMaterials(true);
     try {
-      const data = await getMateriales(buildMaterialesQuery({ categoria: 'Impresión' }));
+      const data = await getMateriales(buildMaterialesQuery({ categoria: 'Impresión', incluirDerivados: true }));
       const items = data.items || data || [];
       setMaterialesImpresion(items);
-
-      // Auto-populate cart with suggested material if it matches job format
-      if (job.format) {
-        const match = items.find(m => 
-          m.nombre.toLowerCase().includes(job.format.toLowerCase()) ||
-          (m.codigo && m.codigo.toLowerCase().includes(job.format.toLowerCase()))
-        );
-        if (match) {
-          const isInk = match.unidadMedida?.nombre === 'litros' || match.nombre?.toLowerCase().includes('tinta');
-          const suggested = calculateSuggestedQuantity(match, job.width, job.height, job.copies);
-          
-          const defaultItem = {
-            materialId: match.id,
-            nombre: match.nombre,
-            codigo: match.codigo || 'S/C',
-            ancho: match.ancho,
-            quantity: Number(suggested.toFixed(2)),
-            unidad: match.unidadMedida?.abreviacion || match.unidadMedida?.nombre || 'm',
-            stockActual: match.stockActual,
-            precioCosto: match.precioCosto || 0,
-            isInformative: isInk
-          };
-          setCartItems([defaultItem]);
-        }
-      }
+      // Cart starts empty — operator adds insumos manually
     } catch (err) {
       toast.error('Error al obtener stock de materiales: ' + err.message);
     } finally {
@@ -589,8 +586,23 @@ export const ColasImpresionPage = () => {
     if (filterDate) {
       const [y, m, d] = filterDate.split('-');
       const formattedFilterDate = `${d}/${m}/${y}`;
-      matchesDate = (job.sentAt && job.sentAt.includes(formattedFilterDate)) || 
-                    (job.completedAt && job.completedAt.includes(formattedFilterDate));
+      const isoFilterDate = `${y}-${m}-${d}`;
+      const checkMatch = (dateStr) => {
+        if (!dateStr) return false;
+        if (dateStr.includes(formattedFilterDate)) return true;
+        if (dateStr.includes(isoFilterDate)) return true;
+        try {
+          const dt = new Date(dateStr);
+          if (!isNaN(dt.getTime())) {
+            const lY = dt.getFullYear();
+            const lM = String(dt.getMonth() + 1).padStart(2, '0');
+            const lD = String(dt.getDate()).padStart(2, '0');
+            return `${lY}-${lM}-${lD}` === isoFilterDate;
+          }
+        } catch {}
+        return false;
+      };
+      matchesDate = checkMatch(job.sentAt) || checkMatch(job.completedAt);
     }
 
     const matchesUser = filterUser ? (job.sentBy && job.sentBy.toLowerCase().includes(filterUser.toLowerCase())) : true;
@@ -608,38 +620,48 @@ export const ColasImpresionPage = () => {
   const paginatedQueue = queue.slice((queuePage - 1) * queueItemsPerPage, queuePage * queueItemsPerPage);
 
   return (
-    <div className="colas-impresion-container">
-      {!isAdmin && (
+    <div className="colas-impresion-container space-y-3 sm:space-y-5 animate-slide-up" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+      {!isAdmin && !isTvMode && (
         <>
-          {/* Header section */}
-          <div className="colas-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1d4ed8', flexShrink: 0 }}>
-                <Printer size={24} />
+          {/* Header */}
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+                  <Printer className="w-5 h-5 text-blue-600" strokeWidth={2} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-xl font-bold text-slate-800">Colas de impresión</h1>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                      Taller
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Supervisión y administración de trabajos en cola
+                  </p>
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Colas de Impresión</h1>
-                <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>Supervisión informativa y administración del estado de los trabajos en cola.</p>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <button 
-                onClick={() => setIsTvMode(true)} 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
-                onMouseOver={e => e.currentTarget.style.backgroundColor = '#1e40af'}
-                onMouseOut={e => e.currentTarget.style.backgroundColor = '#1d4ed8'}
-              >
-                <Monitor size={16} /> VISTA TV
-              </button>
-              <button 
-                onClick={() => setActiveTab(activeTab === 'cola' ? 'historial' : 'cola')} 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
-                onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                onMouseOut={e => e.currentTarget.style.backgroundColor = '#fff'}
-              >
-                <Clock size={16} /> {activeTab === 'cola' ? 'HISTORIAL DE IMPRESIÓN' : 'VER COLA DE IMPRESIÓN'}
-              </button>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsTvMode(true)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm"
+                >
+                  <Monitor size={15} /> Vista TV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(activeTab === 'cola' ? 'historial' : 'cola')}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                >
+                  <Clock size={15} /> {activeTab === 'cola' ? 'Historial' : 'Ver cola'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -648,14 +670,14 @@ export const ColasImpresionPage = () => {
               {/* Active Job (Full Width) */}
               <div className="active-job-section-full" style={{ marginBottom: '1.25rem' }}>
                 {activeJob ? (
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)' }}>
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
                     {/* Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                          TRABAJO EN PROCESO
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
+                          Trabajo en proceso
                         </span>
-                        <h3 style={{ fontSize: '2rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>{activeJob.name}</h3>
+                        <h3 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{activeJob.name}</h3>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -784,7 +806,7 @@ export const ColasImpresionPage = () => {
                         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em' }}>HORA DE INICIO</span>
-                          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155', marginTop: '0.15rem' }}>{activeJob.startTime || 'Sin iniciar'}</span>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155', marginTop: '0.15rem' }}>{activeJob.startedPrintingAt ? formatLocalTime(activeJob.startedPrintingAt) : (activeJob.startTime || 'Sin iniciar')}</span>
                         </div>
                         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -897,23 +919,23 @@ export const ColasImpresionPage = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="active-job-empty-placeholder" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" style={{ width: '48px', height: '48px', color: '#94a3b8' }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                    </svg>
-                    <span className="active-job-empty-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#334155' }}>Elige un nuevo documento</span>
-                    <p className="active-job-empty-desc" style={{ fontSize: '0.9rem', color: '#64748b', maxWidth: '480px', margin: 0 }}>
-                      No hay ningún trabajo de impresión activo en este momento. Por favor, selecciona un documento de la cola de impresión que se encuentra a continuación para iniciar el proceso.
+                  <div className="active-job-empty-placeholder" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '2.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                      <FileText size={20} />
+                    </div>
+                    <span className="active-job-empty-title" style={{ fontSize: '0.95rem', fontWeight: 600, color: '#334155' }}>Sin trabajo activo</span>
+                    <p className="active-job-empty-desc" style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '420px', margin: 0 }}>
+                      Selecciona un documento de la cola para iniciar el proceso de impresión.
                     </p>
                   </div>
                 )}
               </div>
 
               {/* Queue Table Card */}
-              <div className="queue-section-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)' }}>
-                <div className="queue-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Documentos en Cola</h3>
-                  <span className="queue-count-badge" style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>{queue.length} en espera</span>
+              <div className="queue-section-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem 1.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+                <div className="queue-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>Documentos en cola</h3>
+                  <span className="queue-count-badge" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.2rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>{queue.length} en espera</span>
                 </div>
 
                 <div className="queue-table-wrapper">
@@ -975,7 +997,7 @@ export const ColasImpresionPage = () => {
                                     </div>
                                   </td>
                                   <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{job.sentBy || 'Usuario'}</td>
-                                  <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{job.sentAt || 'Sin fecha'}</td>
+                                  <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{formatLocalDateTime(job.sentAt)}</td>
                                   <td style={{ padding: '1rem 0.75rem' }}>
                                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                                       <button onClick={() => handleOpenPrepModal(job)} style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cargar e Imprimir">
@@ -983,9 +1005,6 @@ export const ColasImpresionPage = () => {
                                       </button>
                                       <button onClick={() => handleMoveUp(posIndex - 1)} disabled={posIndex - 1 === 0} style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#475569', cursor: posIndex - 1 === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: posIndex - 1 === 0 ? 0.4 : 1 }} title="Subir prioridad">
                                         <ArrowUp size={14} />
-                                      </button>
-                                      <button onClick={() => handleCancelQueueJob(job.id)} style={{ padding: '0.4rem', border: '1px solid #fca5a5', borderRadius: '6px', backgroundColor: '#fee2e2', color: '#b91c1c', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cancelar trabajo">
-                                        <Trash2 size={14} />
                                       </button>
                                     </div>
                                   </td>
@@ -1019,9 +1038,6 @@ export const ColasImpresionPage = () => {
                                 <div style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
                                   <button onClick={() => handleOpenPrepModal(job)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.5rem', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
                                     <Play size={12} /> Cargar
-                                  </button>
-                                  <button onClick={() => handleCancelQueueJob(job.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
-                                    <Trash2 size={12} /> Cancelar
                                   </button>
                                 </div>
                               </div>
@@ -1465,11 +1481,11 @@ export const ColasImpresionPage = () => {
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Fecha de Envío</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.sentAt || 'Sin fecha'}</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{formatLocalDateTime(selectedJobDetails.sentAt)}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Hora de Finalización</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.completedAt || 'Sin registrar'}</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{formatLocalDateTime(selectedJobDetails.completedAt)}</span>
                 </div>
               </div>
 
@@ -1503,172 +1519,307 @@ export const ColasImpresionPage = () => {
 
       {/* Preparar Impresión Modal */}
       {showPrepModal && prepJob && (
-        <div className="colas-modal-overlay" onClick={() => { if (!submittingAction) { setShowPrepModal(false); setPrepJob(null); } }}>
+        <div className="colas-modal-overlay" onClick={() => { if (!submittingAction) { setShowPrepModal(false); setPrepJob(null); setMaterialSearch(''); setMaterialDropdownOpen(false); } }}>
           <div className="prep-modal-card" onClick={e => e.stopPropagation()}>
-            <div className="details-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '0.5rem' }}>
-              <span className="colas-modal-title" style={{ fontSize: '1.2rem', color: 'var(--color-primary-blue)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <svg style={{ width: '20px', height: '20px', color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+
+            {/* ── Header ── */}
+            <div className="prep-modal-header">
+              <div className="prep-modal-header-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
                 </svg>
-                Preparar Impresión e Insumos
-              </span>
-              <button 
-                type="button" 
-                onClick={() => { setShowPrepModal(false); setPrepJob(null); }} 
-                style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#94a3b8', border: 'none', background: 'none', cursor: 'pointer' }}
-                title="Cerrar modal"
+              </div>
+              <div>
+                <h2 className="prep-modal-title">Preparar Impresión e Insumos</h2>
+                <p className="prep-modal-subtitle">Revisa la información de impresión y asigna los materiales necesarios.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowPrepModal(false); setPrepJob(null); setMaterialSearch(''); setMaterialDropdownOpen(false); }}
+                className="prep-modal-close-btn"
                 disabled={submittingAction}
               >
-                &times;
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
+            {/* ── Content Grid ── */}
             <div className="prep-modal-content-grid">
-              
-              {/* Left Column: Job Info & Add Insumo */}
+
+              {/* ── Left Column ── */}
               <div className="prep-left-section">
-                
+
                 {/* Job Info Card */}
-                <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  <span className="section-mini-label" style={{ color: 'var(--color-primary-blue)', fontWeight: 700 }}>Información de Impresión</span>
-                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1e293b', marginTop: '0.25rem', marginBottom: '0.5rem' }}>{prepJob.name}</h4>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.85rem' }}>
-                    <div><strong>Cliente:</strong> {prepJob.client || 'Sin cliente'}</div>
-                    {prepJob.proyectoNombre && <div><strong>Proyecto:</strong> {prepJob.proyectoNombre}</div>}
-                    <div><strong>Medidas:</strong> {prepJob.width || 1.0}m x {prepJob.height || 1.0}m</div>
-                    <div><strong>Copias:</strong> {prepJob.copies} cop.</div>
-                    <div style={{ gridColumn: 'span 2' }}><strong>Sustrato requerido:</strong> <span style={{ color: '#6366f1', fontWeight: 'bold' }}>{prepJob.format}</span></div>
+                <div className="prep-info-card">
+                  <div className="prep-info-card-header">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'16px',height:'16px'}}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                    Información de impresión
                   </div>
 
-                  {prepJob.notes && (
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.35rem 0.5rem', borderRadius: '4px' }}>
-                      <strong>Observación:</strong> {prepJob.notes}
-                    </div>
-                  )}
-
-                  {/* Download artwork */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
-                    <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Archivos a Descargar ({parseJobFiles(prepJob).length})</span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '110px', overflowY: 'auto' }}>
-                      {parseJobFiles(prepJob).map((f, idx) => (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
-                            <div style={{ width: '28px', height: '28px', borderRadius: '4px', backgroundColor: '#ede9fe', overflow: 'hidden', flexShrink: 0, border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                              {isImageFile(f.name, f.url) ? (
-                                <ProjectMediaImage archivo={f} alt="mini preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '14px', height: '14px', color: '#7c3aed' }}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                </svg>
-                              )}
+                  <div className="prep-info-card-body">
+                    {/* thumbnail + title */}
+                    {(() => {
+                      const files = parseJobFiles(prepJob);
+                      const firstImg = files.find(f => isImageFile(f.name, f.url));
+                      return (
+                        <div className="prep-job-title-row">
+                          {firstImg ? (
+                            <div className="prep-thumb">
+                              <ProjectMediaImage archivo={firstImg} alt="thumb" style={{width:'100%',height:'100%',objectFit:'cover'}} />
                             </div>
-                            <span style={{ fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
-                          </div>
-                          <a 
-                            href={f.url || '#'} 
-                            download={f.name}
-                            className="file-download-link"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.4rem', fontSize: '0.75rem', margin: 0, textDecoration: 'none', flexShrink: 0 }}
-                          >
-                            Descargar
-                          </a>
+                          ) : (
+                            <div className="prep-thumb prep-thumb-placeholder">
+                              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} style={{width:'28px',height:'28px',color:'#94a3b8'}}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                              </svg>
+                            </div>
+                          )}
+                          <h4 className="prep-job-name">{prepJob.name}</h4>
                         </div>
-                      ))}
+                      );
+                    })()}
+
+                    <div className="prep-meta-grid">
+                      <div className="prep-meta-item">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px',color:'#94a3b8',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                        <span className="prep-meta-label">Cliente:</span>
+                        <span className="prep-meta-value">{prepJob.client || 'Sin cliente'}</span>
+                      </div>
+                      {prepJob.proyectoNombre && (
+                        <div className="prep-meta-item">
+                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px',color:'#94a3b8',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>
+                          <span className="prep-meta-label">Proyecto:</span>
+                          <span className="prep-meta-value">{prepJob.proyectoNombre}</span>
+                        </div>
+                      )}
+                      <div className="prep-meta-item">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px',color:'#94a3b8',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>
+                        <span className="prep-meta-label">Medidas:</span>
+                        <span className="prep-meta-value">{prepJob.width || 1.0}m × {prepJob.height || 1.0}m</span>
+                      </div>
+                      <div className="prep-meta-item">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px',color:'#94a3b8',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>
+                        <span className="prep-meta-label">Copias:</span>
+                        <span className="prep-meta-value">{prepJob.copies} cop.</span>
+                      </div>
+                      <div className="prep-meta-item" style={{gridColumn:'span 2'}}>
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px',color:'#6366f1',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3" /></svg>
+                        <span className="prep-meta-label">Sustrato requerido:</span>
+                        <span className="prep-meta-value" style={{color:'#6366f1',fontWeight:700}}>{prepJob.format}</span>
+                      </div>
                     </div>
+
+                    {prepJob.notes && (
+                      <div className="prep-notes-box">
+                        <strong>Obs:</strong> {prepJob.notes}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Material Selector */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                    Elegir Rollo o Material del Inventario (Categoría Impresión):
-                  </label>
+                {/* Files to download */}
+                <div className="prep-files-card">
+                  <div className="prep-info-card-header">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'16px',height:'16px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    Archivo a descargar ({parseJobFiles(prepJob).length})
+                  </div>
+                  <div className="prep-files-list">
+                    {parseJobFiles(prepJob).map((f, idx) => (
+                      <div key={idx} className="prep-file-row">
+                        <div className="prep-file-icon">
+                          {isImageFile(f.name, f.url) ? (
+                            <ProjectMediaImage archivo={f} alt="mini" style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                          ) : (
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px',color:'#6366f1'}}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                          )}
+                        </div>
+                        <div className="prep-file-info">
+                          <span className="prep-file-name" title={f.name}>{f.name}</span>
+                          {f.size && <span className="prep-file-size">{f.type?.toUpperCase?.() || 'FILE'} • {(f.size / 1024 / 1024).toFixed(1)} MB</span>}
+                        </div>
+                        <a href={f.url || '#'} download={f.name} className="prep-download-btn">
+                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                          Descargar
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Searchable Material Selector ── */}
+                <div className="prep-selector-section">
+                  <div className="prep-info-card-header">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'16px',height:'16px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" /></svg>
+                    Elegir Rollo o Material del Inventario (Categoría Impresión)
+                  </div>
+
                   {loadingMaterials ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
-                      <div className="nt-spinner" style={{ width: '16px', height: '16px', border: '2px solid #cbd5e1', borderTopColor: '#3b82f6' }} />
+                    <div className="prep-loading">
+                      <div className="nt-spinner" style={{width:'18px',height:'18px',border:'2px solid #e2e8f0',borderTopColor:'#6366f1'}} />
                       Cargando materiales disponibles...
                     </div>
                   ) : (
-                    <select
-                      value={selectedMaterialId}
-                      onChange={(e) => handleMaterialSelectChange(e.target.value)}
-                      className="filter-select"
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#1e293b' }}
-                    >
-                      <option value="">-- Seleccionar material para asignar --</option>
-                      {materialesImpresion.map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.nombre} {m.codigo ? `[${m.codigo}]` : ''} {m.ancho ? `(${m.ancho}m ancho)` : ''} [Disp: {m.stockActual} {m.unidadMedida?.abreviacion || m.unidadMedida?.nombre || 'm'}]
-                        </option>
-                      ))}
-                    </select>
+                    <div className="prep-search-dropdown" style={{position:'relative'}}>
+                      {/* Trigger / Search Input */}
+                      <div
+                        className={`prep-search-trigger ${materialDropdownOpen ? 'open' : ''}`}
+                        onClick={() => setMaterialDropdownOpen(o => !o)}
+                      >
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'15px',height:'15px',color:'#94a3b8',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                        <input
+                          type="text"
+                          className="prep-search-input"
+                          placeholder={selectedMaterialId
+                            ? materialesImpresion.find(m => m.id === selectedMaterialId)?.nombre || 'Selecciona un material...'
+                            : 'Selecciona un material para asignar...'}
+                          value={materialSearch}
+                          onChange={e => { setMaterialSearch(e.target.value); setMaterialDropdownOpen(true); }}
+                          onClick={e => { e.stopPropagation(); setMaterialDropdownOpen(true); }}
+                        />
+                        {selectedMaterialId && (
+                          <button
+                            type="button"
+                            className="prep-search-clear"
+                            onClick={e => { e.stopPropagation(); setSelectedMaterialId(''); setMaterialSearch(''); setRequiredQty(1.0); }}
+                            title="Limpiar selección"
+                          >
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{width:'12px',height:'12px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        )}
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px',color:'#94a3b8',flexShrink:0,transition:'transform 0.2s',transform:materialDropdownOpen?'rotate(180deg)':'rotate(0deg)'}}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                      </div>
+
+                      {/* Dropdown List */}
+                      {materialDropdownOpen && (
+                        <div className="prep-dropdown-list">
+                          {/* First option: placeholder */}
+                          <div
+                            className={`prep-dropdown-item prep-dropdown-item--placeholder ${!selectedMaterialId ? 'selected' : ''}`}
+                            onClick={() => { setSelectedMaterialId(''); setMaterialSearch(''); setRequiredQty(1.0); setMaterialDropdownOpen(false); }}
+                          >
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            Selecciona un material para asignar...
+                          </div>
+                          {(() => {
+                            const query = materialSearch.toLowerCase();
+                            const filtered = materialesImpresion.filter(m =>
+                              !query ||
+                              m.nombre.toLowerCase().includes(query) ||
+                              (m.codigo && m.codigo.toLowerCase().includes(query))
+                            );
+                            if (filtered.length === 0) {
+                              return (
+                                <div className="prep-dropdown-empty">
+                                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} style={{width:'20px',height:'20px',color:'#cbd5e1'}}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                                  Sin resultados para "{materialSearch}"
+                                </div>
+                              );
+                            }
+                            return filtered.map(m => {
+                              const unidad = m.unidadMedida?.abreviacion || m.unidadMedida?.nombre || 'm';
+                              const stock = m.stockActual ?? 0;
+                              const stockOk = stock > 0;
+                              const isTinta = m.nombre.toLowerCase().includes('tinta') || m.unidadMedida?.nombre === 'litros';
+                              const isRollo = /^\[R\d+\]/.test(m.nombre);
+                              const rolloNum = isRollo ? m.nombre.match(/^\[R(\d+)\]/)?.[1] : null;
+                              const nombreLimpio = isRollo ? m.nombre.replace(/^\[R\d+\]\s*/, '') : m.nombre;
+                              return (
+                                <div
+                                  key={m.id}
+                                  className={`prep-dropdown-item ${selectedMaterialId === m.id ? 'selected' : ''}`}
+                                  onClick={() => { handleMaterialSelectChange(m.id); setMaterialSearch(''); setMaterialDropdownOpen(false); }}
+                                >
+                                  <div className="prep-dropdown-item-icon">
+                                    {isTinta ? (
+                                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" /></svg>
+                                    ) : (
+                                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" /></svg>
+                                    )}
+                                  </div>
+                                  <span className="prep-dropdown-item-name" style={{display:'flex',alignItems:'center',gap:'6px',minWidth:0}}>
+                                    {isRollo && (
+                                      <span style={{display:'inline-flex',alignItems:'center',padding:'1px 6px',borderRadius:'4px',fontSize:'9px',fontWeight:800,background:'#ede9fe',color:'#7c3aed',flexShrink:0,letterSpacing:'0.02em'}}>
+                                        R{rolloNum}
+                                      </span>
+                                    )}
+                                    <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nombreLimpio}</span>
+                                  </span>
+                                  <span className={`prep-dropdown-item-stock ${stockOk ? 'ok' : 'empty'}`}>
+                                    Disp: {stock} {unidad}
+                                  </span>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                {/* Selected Material Details and Calculations */}
+                {/* Selected Material Calculation Panel */}
                 {selectedMaterialId && (() => {
                   const mat = materialesImpresion.find(m => m.id === selectedMaterialId);
                   if (!mat) return null;
-
                   const isInk = mat.unidadMedida?.nombre === 'litros' || mat.nombre?.toLowerCase().includes('tinta');
                   const isPVC = mat.unidadMedida?.nombre === 'planchas' || mat.unidadMedida?.nombre === 'unidades' || mat.nombre?.toLowerCase().includes('pvc');
                   const orientationDetails = getOrientationDetails(mat, prepJob);
+                  const unidad = mat.unidadMedida?.abreviacion || mat.unidadMedida?.nombre || 'm';
 
                   return (
-                    <div style={{ padding: '0.75rem', backgroundColor: '#f0fdfa', borderRadius: '8px', border: '1px solid #99f6e4', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <h5 style={{ fontWeight: 700, color: '#0d9488', margin: 0 }}>Cálculo de Consumo Sugerido:</h5>
-                        <div style={{ padding: '0.25rem 0.5rem', backgroundColor: '#0f766e', color: '#fff', borderRadius: '4px', fontWeight: 700, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                          Disponible: {mat.stockActual} {mat.unidadMedida?.abreviacion || mat.unidadMedida?.nombre || 'm'}
-                        </div>
+                    <div className="prep-calc-panel">
+                      <div className="prep-calc-panel-header">
+                        <h5 className="prep-calc-panel-title">Cálculo de Consumo Sugerido</h5>
+                        <span className="prep-calc-stock-badge">
+                          Disponible: {mat.stockActual} {unidad}
+                        </span>
                       </div>
-                      
-                      {isInk ? (
-                        <p style={{ margin: 0, color: '#0f766e' }}>
-                          Las tintas se registran de forma informativa y no descuentan stock automáticamente.
-                        </p>
-                      ) : isPVC ? (
-                        <p style={{ margin: 0, color: '#0f766e' }}>
-                          El PVC se descuenta por unidades físicas. Consumo sugerido: <strong>{prepJob.copies} planchas/unidades</strong> (1 por copia).
-                        </p>
-                      ) : mat.ancho ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', color: '#0f766e' }}>
-                          {orientationDetails?.warning && (
-                            <p style={{ margin: 0, color: '#b91c1c', fontWeight: 600 }}>{orientationDetails.warning}</p>
-                          )}
-                          {orientationDetails?.info && (
-                            <p style={{ margin: 0 }}>{orientationDetails.info}</p>
-                          )}
-                          {orientationDetails?.consumption && (
-                            <p style={{ margin: 0 }}>Consumo calculado: <strong>{orientationDetails.consumption}</strong></p>
-                          )}
-                        </div>
-                      ) : (
-                        <p style={{ margin: 0 }}>Consumo sugerido: <strong>{prepJob.copies} {mat.unidadMedida?.abreviacion || 'uds'}</strong>.</p>
-                      )}
 
-                      {/* Quantity Input and Add Button */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #cbd5e1' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 600, color: '#334155' }}>Cantidad:</span>
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            min="0.01"
+                      <div className="prep-calc-info">
+                        {isInk ? (
+                          <p>Las tintas se registran de forma informativa y no descuentan stock automáticamente.</p>
+                        ) : isPVC ? (
+                          <p>El PVC se descuenta por unidades físicas. Consumo sugerido: <strong>{prepJob.copies} planchas/unidades</strong> (1 por copia).</p>
+                        ) : mat.ancho ? (
+                          <div style={{display:'flex',flexDirection:'column',gap:'0.2rem'}}>
+                            {orientationDetails?.warning && <p style={{color:'#b91c1c',fontWeight:600,margin:0}}>{orientationDetails.warning}</p>}
+                            {orientationDetails?.info && <p style={{margin:0}}>{orientationDetails.info}</p>}
+                            {orientationDetails?.consumption && <p style={{margin:0}}>Consumo calculado: <strong>{orientationDetails.consumption}</strong></p>}
+                          </div>
+                        ) : (
+                          <p>Consumo sugerido: <strong>{prepJob.copies} {unidad}</strong>.</p>
+                        )}
+                      </div>
+
+                      <div className="prep-calc-actions">
+                        <div className="prep-qty-row">
+                          <span className="prep-qty-label">Cantidad:</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
                             value={requiredQty}
-                            onChange={(e) => setRequiredQty(Math.max(0.01, Number(e.target.value)))}
-                            style={{ width: '90px', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1', textAlign: 'right' }}
+                            onKeyDown={e => {
+                              const allowed = ['0','1','2','3','4','5','6','7','8','9','.', ',','Backspace','Delete','ArrowLeft','ArrowRight','Tab','Enter'];
+                              if (!allowed.includes(e.key)) e.preventDefault();
+                            }}
+                            onChange={e => {
+                              const raw = e.target.value.replace(',', '.');
+                              setRequiredQty(raw);
+                            }}
+                            onBlur={e => {
+                              const parsed = parseFloat(e.target.value.replace(',', '.'));
+                              setRequiredQty(isNaN(parsed) || parsed <= 0 ? 0.01 : parsed);
+                            }}
+                            className="prep-qty-input"
                           />
-                          <span style={{ fontWeight: 600, color: '#475569' }}>{mat.unidadMedida?.abreviacion || mat.unidadMedida?.nombre || 'm'}</span>
+                          <span className="prep-qty-unit">{unidad}</span>
                         </div>
-
-                        <button
-                          type="button"
-                          onClick={handleAddToCart}
-                          style={{ marginLeft: 'auto', padding: '0.35rem 1rem', backgroundColor: '#0d9488', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
-                        >
+                        <button type="button" onClick={handleAddToCart} className="prep-assign-btn">
+                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                           Asignar Insumo
                         </button>
                       </div>
@@ -1676,62 +1827,54 @@ export const ColasImpresionPage = () => {
                   );
                 })()}
 
-              </div>
+              </div>{/* end prep-left-section */}
 
-              {/* Right Column: Insumos List */}
+              {/* ── Right Column: Insumos List ── */}
               <div className="prep-right-section">
-                <span className="section-mini-label" style={{ color: 'var(--color-primary-blue)', fontWeight: 700 }}>Lista de Insumos a Descontar</span>
-                
-                <div style={{ flexGrow: 1, overflow: 'auto', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                <div className="prep-info-card-header">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'16px',height:'16px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                  Lista de insumos a descontar
+                  {cartItems.length > 0 && (
+                    <span className="prep-cart-badge">{cartItems.length}</span>
+                  )}
+                </div>
+
+                <div style={{flexGrow:1,overflow:'auto',borderRadius:'10px',border:'1px solid #e2e8f0'}}>
                   {cartItems.length > 0 ? (
                     <table className="cart-table">
                       <thead>
                         <tr>
                           <th>Insumo</th>
-                          <th style={{ width: '80px', textAlign: 'right' }}>Cant.</th>
-                          <th style={{ width: '80px', textAlign: 'right' }}>Disp.</th>
-                          <th style={{ width: '80px', textAlign: 'center' }}>Estado</th>
-                          <th style={{ width: '40px', textAlign: 'center' }}></th>
+                          <th style={{width:'80px',textAlign:'right'}}>Cant.</th>
+                          <th style={{width:'80px',textAlign:'right'}}>Disp.</th>
+                          <th style={{width:'70px',textAlign:'center'}}>Estado</th>
+                          <th style={{width:'36px'}}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {cartItems.map((item, index) => {
                           const hasSufficient = item.stockActual >= item.quantity;
                           const deficit = Number((item.quantity - item.stockActual).toFixed(2));
-                          
                           return (
                             <tr key={index}>
                               <td>
-                                <div style={{ fontWeight: 600, color: '#1e293b' }}>{item.nombre}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                  Código: {item.codigo} {item.ancho ? `| Ancho: ${item.ancho}m` : ''}
-                                </div>
+                                <div style={{fontWeight:600,color:'#1e293b',fontSize:'0.82rem'}}>{item.nombre}</div>
+                                <div style={{fontSize:'0.72rem',color:'#94a3b8'}}>Código: {item.codigo}{item.ancho ? ` | Ancho: ${item.ancho}m` : ''}</div>
                               </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#334155' }}>
-                                {item.quantity} {item.unidad}
-                              </td>
-                              <td style={{ textAlign: 'right', color: '#475569' }}>
-                                {item.isInformative ? '—' : `${item.stockActual} ${item.unidad}`}
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
+                              <td style={{textAlign:'right',fontWeight:700,color:'#334155',fontSize:'0.82rem'}}>{item.quantity} {item.unidad}</td>
+                              <td style={{textAlign:'right',color:'#64748b',fontSize:'0.82rem'}}>{item.isInformative ? '—' : `${item.stockActual} ${item.unidad}`}</td>
+                              <td style={{textAlign:'center'}}>
                                 {item.isInformative ? (
                                   <span className="cart-item-info">Info</span>
                                 ) : hasSufficient ? (
                                   <span className="cart-item-ok">OK</span>
                                 ) : (
-                                  <span className="cart-item-warning" title={`Faltan ${deficit} ${item.unidad}`}>Faltan {deficit}</span>
+                                  <span className="cart-item-warning" title={`Faltan ${deficit} ${item.unidad}`}>−{deficit}</span>
                                 )}
                               </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveFromCart(index)}
-                                  className="btn-remove-item"
-                                  title="Quitar de la lista"
-                                >
-                                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
+                              <td style={{textAlign:'center'}}>
+                                <button type="button" onClick={() => handleRemoveFromCart(index)} className="btn-remove-item" title="Quitar">
+                                  <svg style={{width:'14px',height:'14px'}} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                               </td>
                             </tr>
@@ -1741,66 +1884,51 @@ export const ColasImpresionPage = () => {
                     </table>
                   ) : (
                     <div className="cart-empty-state">
-                      <svg style={{ width: '32px', height: '32px', color: '#94a3b8', marginBottom: '0.5rem' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0z" />
-                      </svg>
-                      <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>No hay insumos asignados</p>
-                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem' }}>Selecciona y asigna materiales a la izquierda.</p>
+                      <svg style={{width:'44px',height:'44px',color:'#cbd5e1',marginBottom:'0.75rem'}} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-.375c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v.375c0 .621.504 1.125 1.125 1.125z" /></svg>
+                      <p style={{margin:0,fontSize:'0.85rem',fontWeight:700,color:'#475569'}}>No hay insumos asignados</p>
+                      <p style={{margin:'0.3rem 0 0',fontSize:'0.75rem',color:'#94a3b8'}}>Selecciona y asigna materiales desde el selector de la izquierda.</p>
                     </div>
                   )}
                 </div>
 
-                {/* Stock warning/info footer inside right column */}
+                {/* Footer status */}
                 {cartItems.length > 0 && (() => {
                   const deductables = cartItems.filter(item => !item.isInformative);
                   const deficitItems = deductables.filter(item => item.quantity > item.stockActual);
                   const hasDeficit = deficitItems.length > 0;
                   const hasDeductables = deductables.length > 0;
-
-                  if (hasDeficit) {
-                    return (
-                      <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.8rem', color: '#b91c1c' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 'bold' }}>
-                          <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                          </svg>
-                          Insumos en Déficit
-                        </div>
-                        <p style={{ margin: '0.25rem 0 0 0' }}>
-                          Hay {deficitItems.length} materiales sin stock suficiente. Genera la orden de compra urgente para poder continuar.
-                        </p>
+                  if (hasDeficit) return (
+                    <div className="prep-status-banner prep-status-banner--error">
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'16px',height:'16px',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                      <div>
+                        <strong>Insumos en Déficit</strong>
+                        <p style={{margin:'0.15rem 0 0',fontSize:'0.75rem'}}>Hay {deficitItems.length} materiales sin stock suficiente. Genera la orden de compra urgente para continuar.</p>
                       </div>
-                    );
-                  } else if (hasDeductables) {
-                    return (
-                      <div style={{ padding: '0.75rem', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '0.8rem', color: '#15803d' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 'bold' }}>
-                          <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Insumos Asignados Listos
-                        </div>
-                        <p style={{ margin: '0.25rem 0 0 0' }}>
-                          Todos los insumos asignados están listos y disponibles. Puedes iniciar la impresión.
-                        </p>
+                    </div>
+                  );
+                  if (hasDeductables) return (
+                    <div className="prep-status-banner prep-status-banner--ok">
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'16px',height:'16px',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <div>
+                        <strong>Insumos Asignados Listos</strong>
+                        <p style={{margin:'0.15rem 0 0',fontSize:'0.75rem'}}>Todos los insumos asignados están listos y disponibles. Puedes iniciar la impresión.</p>
                       </div>
-                    );
-                  }
+                    </div>
+                  );
                   return null;
                 })()}
-
               </div>
-
             </div>
 
-            {/* Modal Actions */}
-            <div className="colas-modal-actions" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginTop: '0.5rem' }}>
-              <button 
-                type="button" 
-                onClick={() => { setShowPrepModal(false); setPrepJob(null); setCartItems([]); }} 
-                className="btn-modal-back"
+            {/* ── Modal Actions ── */}
+            <div className="prep-modal-footer">
+              <button
+                type="button"
+                onClick={() => { setShowPrepModal(false); setPrepJob(null); setCartItems([]); setMaterialSearch(''); setMaterialDropdownOpen(false); }}
+                className="prep-footer-btn prep-footer-btn--secondary"
                 disabled={submittingAction}
               >
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
                 Volver
               </button>
 
@@ -1808,34 +1936,25 @@ export const ColasImpresionPage = () => {
                 const deductables = cartItems.filter(item => !item.isInformative);
                 const hasDeficit = deductables.some(item => item.quantity > item.stockActual);
                 const hasDeductables = deductables.length > 0;
-
                 return (
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{display:'flex',gap:'0.5rem'}}>
                     {hasDeficit && (
                       <button
                         type="button"
                         onClick={handleCreateQuickPO}
-                        className="btn-modal-cancel"
-                        style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }}
+                        className="prep-footer-btn prep-footer-btn--orange"
                         disabled={submittingAction}
                       >
                         {submittingAction ? 'Procesando...' : 'Solicitar Orden de Compra'}
                       </button>
                     )}
-
                     <button
                       type="button"
                       onClick={handleConfirmStartPrint}
-                      className="btn-modal-cancel"
-                      style={{ 
-                        backgroundColor: 'var(--color-primary-blue)', 
-                        color: '#fff', 
-                        border: 'none', 
-                        opacity: (hasDeficit || !hasDeductables || submittingAction) ? 0.6 : 1, 
-                        cursor: (hasDeficit || !hasDeductables || submittingAction) ? 'not-allowed' : 'pointer' 
-                      }}
+                      className="prep-footer-btn prep-footer-btn--primary"
                       disabled={hasDeficit || !hasDeductables || submittingAction}
                     >
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" /></svg>
                       {submittingAction ? 'Procesando...' : 'Iniciar Impresión'}
                     </button>
                   </div>
@@ -1928,22 +2047,22 @@ export const ColasImpresionPage = () => {
       {/* TV / Fullscreen Mode Overlay */}
       {isTvMode && (
         <div 
-          className={`colas-tv-overlay ${isAdmin ? 'tv-admin' : ''}`}
+          className={`colas-tv-overlay ${(isAdmin || isVentasOrDisenador) ? 'tv-admin' : ''}`}
           style={{
-            position: isAdmin ? 'relative' : 'fixed',
+            position: (isAdmin || isVentasOrDisenador) ? 'relative' : 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
             backgroundColor: '#fafafa',
             color: '#0f172a',
-            zIndex: isAdmin ? 1 : 99999,
+            zIndex: (isAdmin || isVentasOrDisenador) ? 1 : 99999,
             display: 'flex',
             flexDirection: 'column',
-            padding: isAdmin ? '1rem' : '2.5rem 3rem',
+            padding: (isAdmin || isVentasOrDisenador) ? '1rem' : '2.5rem 3rem',
             boxSizing: 'border-box',
-            height: isAdmin ? '100%' : '100vh',
-            width: isAdmin ? '100%' : '100vw',
+            height: (isAdmin || isVentasOrDisenador) ? '100%' : '100vh',
+            width: (isAdmin || isVentasOrDisenador) ? '100%' : '100vw',
             overflow: 'hidden',
             fontFamily: '"Outfit", "Inter", system-ui, -apple-system, sans-serif'
           }}
@@ -2057,31 +2176,41 @@ export const ColasImpresionPage = () => {
           `}</style>
 
           {/* Top Header Bar */}
-          <div className="tv-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0, marginBottom: '2rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <h1 style={{ fontSize: '2.25rem', fontWeight: 900, color: '#0f172a', margin: 0, letterSpacing: '-0.025em' }}>COLAS DE IMPRESIÓN</h1>
-                <span 
-                  onClick={() => setIsTvMode(false)}
-                  style={{ 
-                    backgroundColor: '#1d4ed8', 
-                    color: '#ffffff', 
-                    fontSize: '0.75rem', 
-                    fontWeight: 800, 
-                    padding: '0.2rem 0.6rem', 
-                    borderRadius: '6px',
-                    letterSpacing: '0.05em',
-                    cursor: 'pointer',
-                    userSelect: 'none'
-                  }}
-                  title="Click para salir del Modo TV"
-                >
-                  VISTA TV
-                </span>
+          <div className="tv-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, marginBottom: '1.25rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', flexShrink: 0 }}>
+                <Printer size={20} />
               </div>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', marginTop: '0.25rem' }}>
-                TALLER DE PRODUCCIÓN
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Colas de impresión</h1>
+                  <span
+                    onClick={() => {
+                      if (!isVentasOrDisenador) {
+                        setIsTvMode(false);
+                      }
+                    }}
+                    style={{
+                      backgroundColor: '#dbeafe',
+                      color: '#1d4ed8',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '9999px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      cursor: (!isVentasOrDisenador) ? 'pointer' : 'default',
+                      userSelect: 'none'
+                    }}
+                    title={isVentasOrDisenador ? 'Vista TV permanente' : 'Click para salir del Modo TV'}
+                  >
+                    Vista TV
+                  </span>
+                </div>
+                <p style={{ margin: '0.15rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                  Monitoreo de trabajos activos y en cola
+                </p>
+              </div>
             </div>
             <TvClock />
           </div>
@@ -2090,13 +2219,13 @@ export const ColasImpresionPage = () => {
           <div className="tv-grid-workspace">
             
             {/* Column 1: Active Job */}
-            <div className="tv-col-1" style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)' }}>
+            <div className="tv-col-1" style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
               {activeJob ? (
                 <>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                    TRABAJO ACTUAL
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
+                    Trabajo actual
                   </span>
-                  <h2 style={{ fontSize: '2.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 1.5rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={activeJob.name}>
+                  <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a', margin: '0 0 1.25rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={activeJob.name}>
                     {activeJob.name}
                   </h2>
 
@@ -2184,9 +2313,9 @@ export const ColasImpresionPage = () => {
             </div>
 
             {/* Column 2: Siguientes en Cola */}
-            <div className="tv-col-2" style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1d4ed8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '1.5rem', display: 'block' }}>
-                SIGUIENTES EN COLA
+            <div className="tv-col-2" style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '1rem', display: 'block' }}>
+                Siguientes en cola
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', flex: 1, overflowY: 'auto', paddingRight: '0.25rem' }}>
                 {queue.slice(0, 6).map((qJob, idx) => (

@@ -94,38 +94,42 @@
 }
 .prest-kpi {
   display: flex;
-  align-items: center;
-  gap: 0.875rem;
+  flex-direction: column;
+  gap: 0.25rem;
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 0.875rem;
-  padding: 0.875rem 1.25rem;
+  border-radius: 0.75rem;
+  padding: 1rem 1.1rem;
   flex: 1;
   min-width: 140px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02);
+  border-top-width: 2px;
 }
-.prest-kpi--amber { border-left: 3px solid #f59e0b; }
-.prest-kpi--amber svg { color: #d97706; }
-.prest-kpi--green { border-left: 3px solid #16a34a; }
-.prest-kpi--green svg { color: #16a34a; }
-.prest-kpi--blue  { border-left: 3px solid #2563eb; }
-.prest-kpi--blue  svg { color: #2563eb; }
-.prest-kpi--slate { border-left: 3px solid #64748b; }
-.prest-kpi--slate svg { color: #64748b; }
+.prest-kpi svg { display: none; }
+.prest-kpi--amber { border-top-color: #f59e0b; }
+.prest-kpi--amber .prest-kpi-num { color: #d97706; }
+.prest-kpi--green { border-top-color: #10b981; }
+.prest-kpi--green .prest-kpi-num { color: #059669; }
+.prest-kpi--blue  { border-top-color: #3b82f6; }
+.prest-kpi--blue  .prest-kpi-num { color: #2563eb; }
+.prest-kpi--slate { border-top-color: #94a3b8; }
+.prest-kpi--slate .prest-kpi-num { color: #475569; }
 .prest-kpi-num {
   display: block;
-  font-family: 'DM Mono', monospace;
-  font-size: 1.6rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
-  line-height: 1;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  order: 2;
 }
 .prest-kpi-lbl {
   display: block;
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 500;
-  margin-top: 0.15rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  order: 1;
 }
 
 /* ── Filter Bar ──────────────────────────────────────────────────────────── */
@@ -498,25 +502,33 @@
 .prest-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15,23,42,0.5);
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(226, 232, 240, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
+  padding: 1.5rem;
+  z-index: 10050;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   animation: prest-fadein 0.18s ease;
+  box-sizing: border-box;
 }
 @keyframes prest-fadein { from { opacity: 0; } to { opacity: 1; } }
 
 .prest-modal {
   background: #fff;
-  border-radius: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
   width: 100%;
-  max-width: 440px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  max-width: 480px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: prest-slideup 0.22s ease;
-  max-height: 90vh;
+  max-height: min(90vh, 90dvh);
   overflow-y: auto;
+  margin: auto;
 }
 @keyframes prest-slideup {
   from { transform: translateY(14px); opacity: 0; }
@@ -526,13 +538,36 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem 0;
+  padding: 1rem 1.25rem;
   gap: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.prest-modal-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.prest-modal-header-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #2563eb;
 }
 .prest-modal-header h3 {
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #1e293b;
   margin: 0 0 0.2rem;
 }
 .prest-modal-header p {
@@ -541,15 +576,20 @@
   margin: 0;
 }
 .prest-modal-close {
-  background: none;
-  border: none;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #e2e8f0;
   cursor: pointer;
   color: #94a3b8;
-  padding: 0.25rem;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
 }
-.prest-modal-close:hover { color: #1e293b; }
+.prest-modal-close:hover { color: #475569; background: #f8fafc; }
 
 .prest-modal-body {
   display: flex;

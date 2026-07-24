@@ -1,35 +1,25 @@
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-const CO_PRIMARY = '#2b41b8';
-
 export function ComprasAdminNav() {
   const [searchParams] = useSearchParams();
   const isAprobaciones = searchParams.get('vista') === 'aprobaciones';
 
   const tabClass = (active) =>
-    `px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+    `inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0 ${
       active
-        ? 'border-[#2b41b8] text-[#2b41b8]'
-        : 'border-transparent text-slate-500 hover:text-slate-700'
+        ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
+        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
     }`;
 
   return (
-    <div className="flex gap-1 border-b border-slate-200 mb-4 md:mb-5 overflow-x-auto">
-      <Link
-        to="/compras"
-        className={tabClass(!isAprobaciones)}
-        style={!isAprobaciones ? { color: CO_PRIMARY, borderColor: CO_PRIMARY } : undefined}
-      >
+    <>
+      <Link to="/compras" className={tabClass(!isAprobaciones)}>
         Todas las órdenes
       </Link>
-      <Link
-        to="/compras?vista=aprobaciones"
-        className={tabClass(isAprobaciones)}
-        style={isAprobaciones ? { color: CO_PRIMARY, borderColor: CO_PRIMARY } : undefined}
-      >
+      <Link to="/compras?vista=aprobaciones" className={tabClass(isAprobaciones)}>
         Pendientes de aprobación
       </Link>
-    </div>
+    </>
   );
 }

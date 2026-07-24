@@ -7,7 +7,8 @@ import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProformaPDF } from '../components/ProformaPDF';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
-import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft } from 'lucide-react';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, ArrowLeft, X, DollarSign } from 'lucide-react';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -106,19 +107,29 @@ export const ProformaDetallePage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
+      <div className="space-y-3 sm:space-y-5 animate-slide-up" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <style>{`.shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }`}</style>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+        </div>
       </div>
     );
   }
 
   if (!proforma) {
     return (
-      <div className="max-w-4xl mx-auto py-12 text-center" style={{ fontFamily: "'Inter', sans-serif" }}>
-        <p className="text-slate-600 font-semibold mb-4">Proforma no encontrada</p>
-        <button onClick={() => navigate('/proformas')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
-          Volver a Proformas
-        </button>
+      <div className="space-y-3 sm:space-y-5 animate-slide-up pb-8" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <style>{`.shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }`}</style>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 py-16 text-center px-4">
+          <p className="text-slate-600 font-semibold mb-4">Proforma no encontrada</p>
+          <button
+            type="button"
+            onClick={() => navigate('/proformas')}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors"
+          >
+            Volver a Proformas
+          </button>
+        </div>
       </div>
     );
   }
@@ -170,13 +181,15 @@ export const ProformaDetallePage = () => {
   };
 
   const handleCloseModal = () => {
-    setShowAbonoModal(false);
-    setEditingAbono(null);
-    setAbonoForm({
-      monto: '',
-      metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
-      referencia: '',
-      aplicarIva: proforma?.iva > 0,
+    deferClose(() => {
+      setShowAbonoModal(false);
+      setEditingAbono(null);
+      setAbonoForm({
+        monto: '',
+        metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
+        referencia: '',
+        aplicarIva: proforma?.iva > 0,
+      });
     });
   };
 
@@ -306,54 +319,77 @@ export const ProformaDetallePage = () => {
   const estStyle = badgeStyle(proforma.estado);
 
   return (
-    <div className="w-full pb-12" style={{ fontFamily: "'Inter', sans-serif" }}>
-      
-      {/* Back button */}
-      <div className="mb-4">
-        <button onClick={() => navigate('/proformas')} className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5">
-          <ArrowLeft size={16} /> Volver a Proformas
-        </button>
-      </div>
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up pb-8"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up {
+          animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
 
-      {/* Main Header Box */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5 mb-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
-              <FileText size={24} />
+      {/* Header */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => navigate('/proformas')}
+              className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center shrink-0 text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+              title="Volver"
+              aria-label="Volver"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100 text-blue-600">
+              <FileText size={20} />
             </div>
-            <div>
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">PROFORMA</span>
-              <div className="flex items-center gap-2.5 mt-1.5">
-                <h1 className="text-2xl font-black text-slate-900 leading-none">{proforma.id}</h1>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${estStyle.bg}`}>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800 truncate">{proforma.id}</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Detalle
+                </span>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide border ${estStyle.bg}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${estStyle.dot}`} />
                   {proforma.estado === 'Pagada' ? 'Aprobada' : proforma.estado}
                 </span>
               </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Consulta, aprueba y gestiona abonos de la proforma
+              </p>
             </div>
           </div>
-          
-          {/* Action buttons */}
-          <div className="flex items-center gap-3 flex-wrap">
+
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             <button
+              type="button"
               onClick={() => setPreview(proforma)}
-              className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              <Download size={14} className="text-slate-500" /> Ver PDF
+              <Download size={16} className="text-slate-500" />
+              Ver PDF
             </button>
 
             {isAdmin && proforma.estado === 'Pendiente' && (
               <>
                 <button
+                  type="button"
                   onClick={handleRechazar}
-                  className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-sm font-semibold transition-colors"
                 >
-                  Rechazar Proforma
+                  Rechazar
                 </button>
                 <button
+                  type="button"
                   onClick={handleOpenAprobar}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shadow-blue-100"
+                  className="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors"
                 >
                   Aprobar y Registrar Abono
                 </button>
@@ -362,103 +398,110 @@ export const ProformaDetallePage = () => {
 
             {isAdmin && (proforma.estado === 'Aprobada' || proforma.estado === 'Pagada') && totalPendiente > 0.01 && (
               <button
+                type="button"
                 onClick={handleOpenRegistrarAbono}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shadow-blue-100"
+                className="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors"
               >
                 Registrar Nuevo Abono
               </button>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Meta Info Row */}
-        <div className="flex items-center gap-8 flex-wrap text-xs text-slate-500 font-medium">
+      {/* Fechas / meta */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-500">
           <div className="flex items-center gap-2">
-            <Calendar size={15} className="text-slate-400" />
-            <span>Fecha de emisión: <strong className="text-slate-700 font-bold">{formatFecha(proforma.fecha)}</strong></span>
+            <Calendar size={15} className="text-slate-400 shrink-0" />
+            <span>
+              Emisión: <span className="font-semibold text-slate-700">{formatFecha(proforma.fecha)}</span>
+            </span>
           </div>
-          
+
           {proforma.vencimiento && (
             <div className="flex items-center gap-2">
-              <Calendar size={15} className="text-slate-400" />
-              <span>Vence: <strong className="text-slate-700 font-bold">{formatFecha(proforma.vencimiento)}</strong></span>
+              <Calendar size={15} className="text-slate-400 shrink-0" />
+              <span>
+                Vence: <span className="font-semibold text-slate-700">{formatFecha(proforma.vencimiento)}</span>
+              </span>
             </div>
           )}
-          
+
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={15} className="text-slate-400" />
+            <CheckCircle2 size={15} className="text-slate-400 shrink-0" />
             <span>
               {proforma.estado === 'Pendiente' ? (
                 'Pendiente de aprobación'
               ) : (
-                <>Aprobada: <strong className="text-slate-700 font-bold">{proforma.fechaAprobacion ? formatDateTime(proforma.fechaAprobacion) : formatFecha(proforma.fecha)}</strong></>
+                <>
+                  Aprobada:{' '}
+                  <span className="font-semibold text-slate-700">
+                    {proforma.fechaAprobacion ? formatDateTime(proforma.fechaAprobacion) : formatFecha(proforma.fecha)}
+                  </span>
+                </>
               )}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Grid Client & Emisión */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Cliente Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-4">
-              Cliente
-            </h2>
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
-                <User size={22} />
+      {/* Cliente / ejecutivo / condiciones */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">Cliente</p>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+              <User size={20} />
+            </div>
+            <div className="min-w-0">
+              <span className="block font-semibold text-slate-800 text-sm truncate">{proforma.cliente}</span>
+              <span className="block text-xs text-slate-500 mt-1">
+                {proforma.clienteCedula
+                  ? `RUC/CC: ${proforma.clienteCedula}`
+                  : proforma.telefono
+                    ? `Teléfono: ${proforma.telefono}`
+                    : '—'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">Ejecutivo y validez</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                <User size={15} />
               </div>
               <div className="min-w-0">
-                <span className="block font-extrabold text-slate-800 text-sm">{proforma.cliente}</span>
-                <span className="block text-xs text-slate-500 font-medium mt-1">
-                  {proforma.clienteCedula ? `RUC/CC: ${proforma.clienteCedula}` : proforma.telefono ? `Teléfono: ${proforma.telefono}` : '—'}
+                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Atendido por</span>
+                <span className="block text-xs text-slate-700 font-semibold mt-0.5 truncate uppercase">
+                  {proforma.atiende || 'No asignado'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                <Calendar size={15} />
+              </div>
+              <div className="min-w-0">
+                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Validez</span>
+                <span className="block text-xs text-slate-700 font-semibold mt-0.5">
+                  {proforma.diasValidez || 3} días
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Ejecutivo y validez Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-4">
-              Ejecutivo y validez
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
-                  <User size={16} />
-                </div>
-                <div>
-                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Atendido por</span>
-                  <span className="block text-xs text-slate-700 font-bold uppercase mt-0.5">{proforma.atiende || 'No asignado'}</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
-                  <Calendar size={16} />
-                </div>
-                <div>
-                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Días de validez</span>
-                  <span className="block text-xs text-slate-700 font-bold mt-0.5">{proforma.diasValidez || 3} días</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Condiciones de pago Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-3">
-            Condiciones de pago
-          </h2>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Condiciones de pago</p>
           <ul className="space-y-2">
             {getCondicionesList().map((cond, idx) => (
-              <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-500 font-medium">
-                <span className="w-4 h-4 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-500">
+                <span className="w-4 h-4 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
                   <Check size={10} strokeWidth={3} />
                 </span>
                 <span className="leading-snug">{cond}</span>
@@ -468,10 +511,10 @@ export const ProformaDetallePage = () => {
         </div>
       </div>
 
-      {/* Items Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-6">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-bold text-slate-800">Detalle de la Proforma</h2>
+      {/* Items */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
+          <h2 className="text-sm font-bold text-slate-800">Detalle de la proforma</h2>
         </div>
 
         {isMobileSm ? (
@@ -480,9 +523,15 @@ export const ProformaDetallePage = () => {
               <div key={idx} className="px-4 py-3 flex flex-col gap-1">
                 <p className="text-sm font-semibold text-slate-800">{item.descripcion}</p>
                 <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>Cant: <span className="font-mono font-semibold text-slate-700">{item.cantidad.toFixed(2)}</span></span>
-                  <span>P/u: <span className="font-mono font-semibold text-slate-700">{formatUSD(item.precioUnitario)}</span></span>
-                  <span className="font-mono font-bold text-slate-800">{formatUSD(item.cantidad * item.precioUnitario)}</span>
+                  <span>
+                    Cant: <span className="tabular-nums font-semibold text-slate-700">{item.cantidad.toFixed(2)}</span>
+                  </span>
+                  <span>
+                    P/u: <span className="tabular-nums font-semibold text-slate-700">{formatUSD(item.precioUnitario)}</span>
+                  </span>
+                  <span className="tabular-nums font-bold text-slate-800">
+                    {formatUSD(item.cantidad * item.precioUnitario)}
+                  </span>
                 </div>
               </div>
             ))}
@@ -491,20 +540,22 @@ export const ProformaDetallePage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
-                  <th className="text-left px-6 py-3.5">Descripción</th>
-                  <th className="text-center px-4 py-3.5 w-28">Cantidad</th>
-                  <th className="text-right px-4 py-3.5 w-36">Precio Unitario</th>
-                  <th className="text-right px-6 py-3.5 w-36">Subtotal</th>
+                <tr className="border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-50/70">
+                  <th className="text-left px-5 py-3">Descripción</th>
+                  <th className="text-center px-4 py-3 w-28">Cantidad</th>
+                  <th className="text-right px-4 py-3 w-36">Precio unitario</th>
+                  <th className="text-right px-5 py-3 w-36">Subtotal</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {(proforma.items || []).map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-800 font-semibold">{item.descripcion}</td>
-                    <td className="px-4 py-4 text-center text-slate-600 font-mono font-semibold">{item.cantidad.toFixed(2)}</td>
-                    <td className="px-4 py-4 text-right text-slate-600 font-mono font-semibold">{formatUSD(item.precioUnitario)}</td>
-                    <td className="px-6 py-4 text-right text-slate-800 font-bold font-mono">{formatUSD(item.cantidad * item.precioUnitario)}</td>
+                  <tr key={idx} className="hover:bg-slate-50/40 transition-colors">
+                    <td className="px-5 py-3.5 text-slate-800 font-medium">{item.descripcion}</td>
+                    <td className="px-4 py-3.5 text-center text-slate-600 tabular-nums">{item.cantidad.toFixed(2)}</td>
+                    <td className="px-4 py-3.5 text-right text-slate-600 tabular-nums">{formatUSD(item.precioUnitario)}</td>
+                    <td className="px-5 py-3.5 text-right text-slate-800 font-semibold tabular-nums">
+                      {formatUSD(item.cantidad * item.precioUnitario)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -512,19 +563,18 @@ export const ProformaDetallePage = () => {
           </div>
         )}
 
-        {/* Totals Summary */}
-        <div className="border-t border-slate-100 bg-slate-50/30 px-6 py-4 flex flex-col items-end">
+        <div className="border-t border-slate-100 bg-slate-50/40 px-4 sm:px-5 py-4 flex flex-col items-end">
           <div className="w-full max-w-xs space-y-2 text-sm">
-            <div className="flex justify-between text-slate-500 font-semibold">
+            <div className="flex justify-between text-slate-500">
               <span>Subtotal:</span>
-              <span className="font-mono font-bold text-slate-700">{formatUSD(subtotal)}</span>
+              <span className="tabular-nums font-semibold text-slate-700">{formatUSD(subtotal)}</span>
             </div>
-            <div className="flex justify-between items-center text-slate-500 font-semibold">
+            <div className="flex justify-between items-center text-slate-500">
               <div className="flex items-center gap-1">
                 <span>IVA</span>
                 {proforma.estado === 'Pendiente' ? (
                   <select
-                    className="ml-1 text-xs font-bold bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+                    className="ml-1 text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer"
                     value={proforma.iva}
                     onChange={async (e) => {
                       const newIva = Number(e.target.value);
@@ -533,7 +583,7 @@ export const ProformaDetallePage = () => {
                         setProforma(updated);
                         toast.success(`IVA actualizado al ${newIva * 100}%`);
                       } catch (err) {
-                        toast.error("Error al actualizar el IVA");
+                        toast.error('Error al actualizar el IVA');
                       }
                     }}
                   >
@@ -547,24 +597,25 @@ export const ProformaDetallePage = () => {
                 )}
                 <span>:</span>
               </div>
-              <span className="font-mono font-bold text-slate-700">{formatUSD(subtotal * Number(proforma.iva))}</span>
+              <span className="tabular-nums font-semibold text-slate-700">
+                {formatUSD(subtotal * Number(proforma.iva))}
+              </span>
             </div>
             <div className="flex justify-between text-slate-800 font-bold text-base border-t border-slate-200 pt-2">
-              <span>Total Proforma:</span>
-              <span className="font-mono text-blue-600 font-extrabold">{formatUSD(total)}</span>
+              <span>Total proforma:</span>
+              <span className="tabular-nums text-blue-600">{formatUSD(total)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Payments History Card */}
+      {/* Abonos */}
       {proforma.estado !== 'Pendiente' && (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-4">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h2 className="text-sm font-bold text-slate-800">Historial de Cobros y Abonos</h2>
-            
-            <div className="flex items-center gap-2 text-xs font-bold">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-slate-800">Historial de cobros y abonos</h2>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
               <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg px-3 py-1">
                 Cobrado: {formatUSD(totalCobrado)}
               </span>
@@ -585,32 +636,39 @@ export const ProformaDetallePage = () => {
               <div className="divide-y divide-slate-100">
                 {proforma.abonos.map((ab, idx) => (
                   <div key={ab.id} className="px-4 py-3 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-slate-700">{ab.metodoPago?.nombre || 'Caja General'}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">{formatDateTime(ab.fecha)}</span>
+                        <span className="text-xs font-semibold text-slate-700">
+                          {ab.metodoPago?.nombre || 'Caja General'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 tabular-nums">{formatDateTime(ab.fecha)}</span>
                       </div>
-                      <span className="text-sm font-extrabold text-slate-800 font-mono">{formatUSD(ab.monto)}</span>
+                      <span className="text-sm font-bold text-slate-800 tabular-nums">{formatUSD(ab.monto)}</span>
                     </div>
-                    <div className="flex flex-col gap-1 text-[10px] text-slate-400 bg-slate-50 border border-slate-100/50 rounded-lg p-2">
+                    <div className="flex flex-col gap-1 text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded-lg p-2">
                       {ab.referencia && (
-                        <span><strong className="text-slate-500">Ref:</strong> {ab.referencia}</span>
+                        <span>
+                          <strong className="text-slate-500">Ref:</strong> {ab.referencia}
+                        </span>
                       )}
-                      <span><strong className="text-slate-500">Registrado por:</strong> {ab.registradoPor?.nombre || 'N/A'}</span>
+                      <span>
+                        <strong className="text-slate-500">Registrado por:</strong>{' '}
+                        {ab.registradoPor?.nombre || 'N/A'}
+                      </span>
                     </div>
                     {isAdmin && idx === proforma.abonos.length - 1 && (
                       <div className="flex justify-end gap-3 mt-1 pt-2 border-t border-dashed border-slate-100">
                         <button
                           type="button"
                           onClick={() => handleOpenEditarAbono(ab)}
-                          className="text-xs font-bold text-blue-600 hover:text-blue-800"
+                          className="text-xs font-semibold text-blue-600 hover:text-blue-800"
                         >
                           Editar
                         </button>
                         <button
                           type="button"
                           onClick={() => handleEliminarAbono(ab.id)}
-                          className="text-xs font-bold text-red-600 hover:text-red-800"
+                          className="text-xs font-semibold text-red-600 hover:text-red-800"
                         >
                           Eliminar
                         </button>
@@ -623,37 +681,41 @@ export const ProformaDetallePage = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
-                      <th className="text-left px-6 py-3.5">Fecha y Hora</th>
-                      <th className="text-left px-6 py-3.5">Caja / Cuenta</th>
-                      <th className="text-left px-6 py-3.5">Referencia</th>
-                      <th className="text-left px-6 py-3.5">Usuario</th>
-                      <th className="text-right px-6 py-3.5 font-semibold">Monto</th>
-                      <th className="text-right px-6 py-3.5 w-48">Acciones</th>
+                    <tr className="border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-50/70">
+                      <th className="text-left px-5 py-3">Fecha y hora</th>
+                      <th className="text-left px-5 py-3">Caja / cuenta</th>
+                      <th className="text-left px-5 py-3">Referencia</th>
+                      <th className="text-left px-5 py-3">Usuario</th>
+                      <th className="text-right px-5 py-3">Monto</th>
+                      <th className="text-right px-5 py-3 w-48">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {proforma.abonos.map((ab, idx) => (
-                      <tr key={ab.id} className="hover:bg-slate-50/20 transition-colors">
-                        <td className="px-6 py-4 text-slate-600 font-mono text-xs">{formatDateTime(ab.fecha)}</td>
-                        <td className="px-6 py-4 font-bold text-slate-700">{ab.metodoPago?.nombre || 'General'}</td>
-                        <td className="px-6 py-4 text-slate-500 text-xs font-medium">{ab.referencia || 'N/A'}</td>
-                        <td className="px-6 py-4 text-slate-500 text-xs font-medium">{ab.registradoPor?.nombre || 'N/A'}</td>
-                        <td className="px-6 py-4 text-right font-bold text-slate-800 font-mono">{formatUSD(ab.monto)}</td>
-                        <td className="px-6 py-4 text-right">
+                      <tr key={ab.id} className="hover:bg-slate-50/40 transition-colors">
+                        <td className="px-5 py-3.5 text-slate-600 tabular-nums text-xs">{formatDateTime(ab.fecha)}</td>
+                        <td className="px-5 py-3.5 font-medium text-slate-700">{ab.metodoPago?.nombre || 'General'}</td>
+                        <td className="px-5 py-3.5 text-slate-500 text-xs">{ab.referencia || 'N/A'}</td>
+                        <td className="px-5 py-3.5 text-slate-500 text-xs">{ab.registradoPor?.nombre || 'N/A'}</td>
+                        <td className="px-5 py-3.5 text-right font-semibold text-slate-800 tabular-nums">
+                          {formatUSD(ab.monto)}
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
                           {isAdmin && idx === proforma.abonos.length - 1 && (
-                            <div className="flex justify-end gap-3.5">
+                            <div className="flex justify-end gap-3">
                               <button
+                                type="button"
                                 onClick={() => handleOpenEditarAbono(ab)}
-                                className="text-blue-600 hover:text-blue-800 font-bold text-xs flex items-center gap-1"
+                                className="text-blue-600 hover:text-blue-800 font-semibold text-xs inline-flex items-center gap-1"
                                 title="Editar Abono"
                               >
                                 <Edit2 size={13} />
                                 Editar
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleEliminarAbono(ab.id)}
-                                className="text-red-600 hover:text-red-800 font-bold text-xs flex items-center gap-1"
+                                className="text-red-600 hover:text-red-800 font-semibold text-xs inline-flex items-center gap-1"
                                 title="Eliminar Abono"
                               >
                                 <Trash2 size={13} />
@@ -669,194 +731,210 @@ export const ProformaDetallePage = () => {
               </div>
             )
           ) : (
-            <div className="p-6 text-center text-slate-400 text-sm font-medium">
+            <div className="p-8 text-center text-slate-400 text-sm">
               No se han registrado abonos en esta proforma.
             </div>
           )}
         </div>
       )}
 
-      {/* Watermark/Footer metadata */}
       {proforma.fechaAprobacion && (
-        <div className="text-center text-[10px] text-slate-400 font-semibold tracking-wider uppercase mt-6">
+        <p className="text-center text-xs text-slate-400">
           Última actualización: {formatDateTime(proforma.fechaAprobacion)}
-        </div>
+        </p>
       )}
 
       {/* Abonos Modal */}
-      {showAbonoModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
-          {/* Backdrop */}
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={handleCloseModal} />
-          
-          {/* Box */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl w-full max-w-3xl overflow-hidden relative z-[201] animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-base">
-                {editingAbono 
-                  ? 'Editar Abono' 
-                  : (proforma.estado === 'Pendiente' ? 'Aprobación y Registro de Abono' : 'Registrar Abono')}
-              </h3>
-              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-            
-            <form onSubmit={handleSaveAbono} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Columna Izquierda: Información Financiera y Monto */}
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                      {editingAbono 
-                        ? 'Modifica los valores del abono. El total del abono no debe superar el saldo pendiente.'
-                        : 'Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.'}
-                    </p>
-                    
-                    {proforma.estado === 'Pendiente' && !editingAbono && (
-                      <label className="flex items-center cursor-pointer flex-shrink-0 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            className="sr-only"
-                            checked={abonoForm.aplicarIva}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setAbonoForm(prev => {
-                                const newIvaVal = checked ? 0.15 : 0;
-                                const newTotal = subtotal * (1 + newIvaVal);
-                                const isTotal = prev.monto === total.toFixed(2);
-                                return {
-                                  ...prev,
-                                  aplicarIva: checked,
-                                  monto: isTotal ? newTotal.toFixed(2) : prev.monto
-                                };
-                              });
-                            }}
-                          />
-                          <div className={`block w-10 h-6 rounded-full transition-colors ${abonoForm.aplicarIva ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
-                          <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${abonoForm.aplicarIva ? 'transform translate-x-4' : ''}`}></div>
-                        </div>
-                        <div className="ml-3 text-xs font-bold text-slate-700 select-none">
-                          Aplicar IVA (15%)
-                        </div>
-                      </label>
-                    )}
+      <ModalPortal open={showAbonoModal}>
+        <>
+          <div
+            className="fixed inset-0 z-[200] bg-slate-200/60 backdrop-blur-md"
+            onClick={handleCloseModal}
+          />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+            <div
+              className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-3xl overflow-hidden relative pointer-events-auto max-h-[90vh] flex flex-col"
+              style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+            >
+              <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 border border-blue-100 text-blue-600">
+                    <DollarSign size={18} strokeWidth={2.5} />
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
-                      <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Valor Total</span>
-                      <span className="font-extrabold text-blue-600 font-mono text-base mt-1">{formatUSD(total)}</span>
-                    </div>
-
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
-                      <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Saldo Pendiente</span>
-                      <span className="font-extrabold text-amber-600 font-mono text-base mt-1">
-                        {proforma.estado === 'Pendiente' 
-                          ? formatUSD(total) 
-                          : formatUSD(editingAbono ? total - sumOtrosAbonos : totalPendiente)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Monto del Abono *
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        value={abonoForm.monto}
-                        onChange={e => setAbonoForm(prev => ({ ...prev, monto: e.target.value }))}
-                        className="w-full pl-7 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div className="flex gap-2.5 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => setAbonoForm(prev => ({ ...prev, monto: (proforma.estado === 'Pendiente' ? total : totalPendiente).toFixed(2) }))}
-                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
-                      >
-                        Abono Total (100%)
-                      </button>
-                      {proforma.estado === 'Pendiente' && (
-                        <button
-                          type="button"
-                          onClick={() => setAbonoForm(prev => ({ ...prev, monto: (total / 2).toFixed(2) }))}
-                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
-                        >
-                          Abono 50%
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <h3 className="font-bold text-slate-800 text-base truncate">
+                    {editingAbono
+                      ? 'Editar Abono'
+                      : (proforma.estado === 'Pendiente' ? 'Aprobación y Registro de Abono' : 'Registrar Abono')}
+                  </h3>
                 </div>
-
-                {/* Columna Derecha: Detalles del Pago */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Caja / Método de Pago *
-                    </label>
-                    <select
-                      required
-                      value={abonoForm.metodoPagoId}
-                      onChange={e => setAbonoForm(prev => ({ ...prev, metodoPagoId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccione una caja...</option>
-                      {metodosPago.map(m => (
-                        <option key={m.id} value={m.id}>{m.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Referencia / N° Comprobante
-                    </label>
-                    <input
-                      type="text"
-                      value={abonoForm.referencia}
-                      onChange={e => setAbonoForm(prev => ({ ...prev, referencia: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ej. Transf 88910, Depósito, Efectivo"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 border border-slate-200 transition-colors shrink-0"
+                  title="Cerrar"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingAbono}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-100 flex items-center gap-1.5"
-                >
-                  {submittingAbono && (
-                    <span
-                      className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white"
-                      aria-hidden="true"
-                    />
-                  )}
-                  {submittingAbono ? (editingAbono ? 'Guardando...' : 'Registrando...') : (editingAbono ? 'Guardar Cambios' : 'Confirmar Registro')}
+                  <X size={14} />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveAbono} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Columna Izquierda: Información Financiera y Monto */}
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                      <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                        {editingAbono
+                          ? 'Modifica los valores del abono. El total del abono no debe superar el saldo pendiente.'
+                          : 'Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.'}
+                      </p>
+
+                      {proforma.estado === 'Pendiente' && !editingAbono && (
+                        <label className="flex items-center cursor-pointer flex-shrink-0 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={abonoForm.aplicarIva}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setAbonoForm(prev => {
+                                  const newIvaVal = checked ? 0.15 : 0;
+                                  const newTotal = subtotal * (1 + newIvaVal);
+                                  const isTotal = prev.monto === total.toFixed(2);
+                                  return {
+                                    ...prev,
+                                    aplicarIva: checked,
+                                    monto: isTotal ? newTotal.toFixed(2) : prev.monto
+                                  };
+                                });
+                              }}
+                            />
+                            <div className={`block w-10 h-6 rounded-full transition-colors ${abonoForm.aplicarIva ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
+                            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${abonoForm.aplicarIva ? 'transform translate-x-4' : ''}`}></div>
+                          </div>
+                          <div className="ml-3 text-xs font-bold text-slate-700 select-none">
+                            Aplicar IVA (15%)
+                          </div>
+                        </label>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
+                        <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Valor Total</span>
+                        <span className="font-extrabold text-blue-600 font-mono text-base mt-1">{formatUSD(total)}</span>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
+                        <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Saldo Pendiente</span>
+                        <span className="font-extrabold text-amber-600 font-mono text-base mt-1">
+                          {proforma.estado === 'Pendiente'
+                            ? formatUSD(total)
+                            : formatUSD(editingAbono ? total - sumOtrosAbonos : totalPendiente)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Monto del Abono *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          required
+                          value={abonoForm.monto}
+                          onChange={e => setAbonoForm(prev => ({ ...prev, monto: e.target.value }))}
+                          className="w-full pl-7 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-gray-50 font-mono font-bold focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-colors"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="flex gap-2.5 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setAbonoForm(prev => ({ ...prev, monto: (proforma.estado === 'Pendiente' ? total : totalPendiente).toFixed(2) }))}
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
+                        >
+                          Abono Total (100%)
+                        </button>
+                        {proforma.estado === 'Pendiente' && (
+                          <button
+                            type="button"
+                            onClick={() => setAbonoForm(prev => ({ ...prev, monto: (total / 2).toFixed(2) }))}
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
+                          >
+                            Abono 50%
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Columna Derecha: Detalles del Pago */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Caja / Método de Pago *
+                      </label>
+                      <select
+                        required
+                        value={abonoForm.metodoPagoId}
+                        onChange={e => setAbonoForm(prev => ({ ...prev, metodoPagoId: e.target.value }))}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-gray-50 font-semibold text-slate-700 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-colors"
+                      >
+                        <option value="">Seleccione una caja...</option>
+                        {metodosPago.map(m => (
+                          <option key={m.id} value={m.id}>{m.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Referencia / N° Comprobante
+                      </label>
+                      <input
+                        type="text"
+                        value={abonoForm.referencia}
+                        onChange={e => setAbonoForm(prev => ({ ...prev, referencia: e.target.value }))}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-gray-50 placeholder-slate-400 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-colors"
+                        placeholder="Ej. Transf 88910, Depósito, Efectivo"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingAbono}
+                    className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {submittingAbono && (
+                      <span
+                        className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white"
+                        aria-hidden="true"
+                      />
+                    )}
+                    {submittingAbono ? (editingAbono ? 'Guardando...' : 'Registrando...') : (editingAbono ? 'Guardar Cambios' : 'Confirmar Registro')}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        </>
+      </ModalPortal>
 
       {preview && (
         <ProformaPDF
@@ -866,28 +944,6 @@ export const ProformaDetallePage = () => {
         />
       )}
 
-      <style>{`
-        .co-desktop-only { display: block; }
-        .co-mobile-only { display: none; }
-        @media (max-width: 768px) {
-          .co-desktop-only { display: none !important; }
-          .co-mobile-only { display: block !important; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.2s ease-out forwards;
-        }
-        .animate-slide-up {
-          animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-      `}</style>
     </div>
   );
 };

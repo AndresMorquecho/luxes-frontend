@@ -3,12 +3,16 @@ import { ArrowUpDown } from 'lucide-react';
 import { ProductRow } from './ProductRow.jsx';
 import { ProductMobileCard } from './ProductMobileCard.jsx';
 
+const thClass = 'text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider';
+
 export function InventoryTable({ items, activeTab, isAdmin, onViewHistory, onEdit, onDelete }) {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const getEstado = (item) => {
     const isTool = item.tipo === 'herramienta';
-    const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
+    const tracksStock = item.descargaStock !== undefined
+      ? item.descargaStock
+      : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
     if (isTool) return String(item.estadoUso || '').toUpperCase();
     if (!tracksStock) return 'SOLO REGISTRO';
     if (item.stockActual === 0) return 'AGOTADO';
@@ -17,10 +21,11 @@ export function InventoryTable({ items, activeTab, isAdmin, onViewHistory, onEdi
   };
 
   const sortedItems = useMemo(() => {
-    let sortableItems = [...items];
+    const sortableItems = [...items];
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
-        let aValue, bValue;
+        let aValue;
+        let bValue;
 
         if (sortConfig.key === 'estado') {
           aValue = getEstado(a);
@@ -33,12 +38,8 @@ export function InventoryTable({ items, activeTab, isAdmin, onViewHistory, onEdi
           bValue = b.costoPromedioPonderado !== undefined ? b.costoPromedioPonderado : (b.precioCosto || 0);
         }
 
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
@@ -54,68 +55,72 @@ export function InventoryTable({ items, activeTab, isAdmin, onViewHistory, onEdi
   };
 
   const SortableHeader = ({ label, sortKey, align = 'left' }) => (
-    <th style={{ textAlign: align, cursor: 'pointer', userSelect: 'none', padding: '1rem' }} onClick={() => requestSort(sortKey)}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'flex-start', gap: '0.4rem' }}>
+    <th
+      className={`${thClass} ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'} cursor-pointer select-none`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className={`inline-flex items-center gap-1.5 ${align === 'right' ? 'justify-end w-full' : align === 'center' ? 'justify-center w-full' : ''}`}>
         {label}
-        <ArrowUpDown size={14} style={{ color: sortConfig.key === sortKey ? '#1d4ed8' : '#94a3b8' }} />
+        <ArrowUpDown size={12} className={sortConfig.key === sortKey ? 'text-blue-600' : 'text-slate-400'} />
       </div>
     </th>
   );
 
+  const colSpan = activeTab === 'all' ? 8 : 7;
+
   return (
     <>
-      <div className="inv-desktop-only">
-        <table className="inv-table">
+      <div className="hidden md:block overflow-x-auto relative">
+        <table className="w-full text-sm">
           <thead>
-            <tr>
-              <th style={{ padding: '1rem' }}>Producto / Equipo</th>
-              {activeTab === 'all' && <th style={{ textAlign: 'center', padding: '1rem' }}>Sección</th>}
-              <th style={{ padding: '1rem' }}>Stock / Disp.</th>
-              <SortableHeader label="Estado" sortKey="estado" align="center" />
+            <tr className="border-b border-slate-100">
+              <th className={thClass}>Producto / Equipo</th>
+              {activeTab === 'all' && <th className={`${thClass} text-center`}>Sección</th>}
+              <th className={thClass}>Stock / Disp.</th>
+              <SortableHeader label="Estado" sortKey="estado" align="left" />
               <SortableHeader label="Costo Unit." sortKey="costo" />
               <SortableHeader label="CPP" sortKey="cpp" />
-              <th style={{ padding: '1rem' }}>Última Compra</th>
-              <th style={{ textAlign: 'center', padding: '1rem' }}>Acciones</th>
+              <th className={thClass}>Última Compra</th>
+              <th className={`${thClass} text-right`}>Acciones</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {sortedItems.length === 0 && (
               <tr>
-                <td colSpan={activeTab === 'all' ? 8 : 7} className="inv-empty" style={{ padding: '2rem', textAlign: 'center' }}>
+                <td colSpan={colSpan} className="text-center py-12 text-sm text-slate-400">
                   Sin productos registrados.
                 </td>
               </tr>
             )}
-            {sortedItems.map(item => (
-              <ProductRow 
-                key={item.id} 
-                item={item} 
-                activeTab={activeTab} 
-                isAdmin={isAdmin} 
-                onViewHistory={onViewHistory} 
-                onEdit={onEdit} 
-                onDelete={onDelete} 
+            {sortedItems.map((item) => (
+              <ProductRow
+                key={item.id}
+                item={item}
+                activeTab={activeTab}
+                isAdmin={isAdmin}
+                onViewHistory={onViewHistory}
+                onEdit={onEdit}
+                onDelete={onDelete}
               />
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Mobile View */}
-      <div className="inv-mobile-only">
-        <div className="inv-mobile-cards-grid">
+      <div className="md:hidden">
+        <div className="divide-y divide-slate-100">
           {sortedItems.length === 0 && (
-            <div className="inv-empty-mobile" style={{ padding: '2rem', textAlign: 'center' }}>Sin productos registrados.</div>
+            <div className="text-center py-12 text-sm text-slate-400 px-4">Sin productos registrados.</div>
           )}
-          {sortedItems.map(item => (
-            <ProductMobileCard 
-              key={item.id} 
-              item={item} 
-              activeTab={activeTab} 
-              isAdmin={isAdmin} 
-              onViewHistory={onViewHistory} 
-              onEdit={onEdit} 
-              onDelete={onDelete} 
+          {sortedItems.map((item) => (
+            <ProductMobileCard
+              key={item.id}
+              item={item}
+              activeTab={activeTab}
+              isAdmin={isAdmin}
+              onViewHistory={onViewHistory}
+              onEdit={onEdit}
+              onDelete={onDelete}
             />
           ))}
         </div>

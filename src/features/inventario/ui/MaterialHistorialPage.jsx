@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Clock, ShoppingCart, Package, 
-  History, Calendar, DollarSign, Activity, CheckCircle2
+  History, Calendar, Activity, CheckCircle2
 } from 'lucide-react';
 import { getMaterialHistorial } from '../application/inventarioService.js';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
@@ -103,36 +103,24 @@ export function MaterialHistorialPage() {
       {/* KPI Cards */}
       <div className="hist-kpi-grid">
         <div className="hist-kpi-card">
-          <div className="hist-kpi-icon purchases"><ShoppingCart size={20} /></div>
-          <div className="hist-kpi-info">
-            <span className="hist-kpi-val">{totalComprado} {material.unidadMedida?.abreviacion || 'unid'}</span>
-            <span className="hist-kpi-lbl">Total Adquirido</span>
-          </div>
+          <span className="hist-kpi-lbl">Total adquirido</span>
+          <span className="hist-kpi-val">{totalComprado} {material.unidadMedida?.abreviacion || 'unid'}</span>
         </div>
         <div className="hist-kpi-card">
-          <div className="hist-kpi-icon usage"><History size={20} /></div>
-          <div className="hist-kpi-info">
-            <span className="hist-kpi-val">{totalUsado} {material.unidadMedida?.abreviacion || 'unid'}</span>
-            <span className="hist-kpi-lbl">Consumo en Proyectos</span>
-          </div>
+          <span className="hist-kpi-lbl">Consumo en proyectos</span>
+          <span className="hist-kpi-val">{totalUsado} {material.unidadMedida?.abreviacion || 'unid'}</span>
         </div>
         <div className="hist-kpi-card">
-          <div className="hist-kpi-icon stock"><Package size={20} /></div>
-          <div className="hist-kpi-info">
-            <span className="hist-kpi-val">
-              {isTaller ? 'N/A' : `${material.stockActual} ${material.unidadMedida?.abreviacion || 'unid'}`}
-            </span>
-            <span className="hist-kpi-lbl">{isTaller ? 'Stock Físico' : 'Stock Disponible'}</span>
-          </div>
+          <span className="hist-kpi-lbl">{isTaller ? 'Stock físico' : 'Stock disponible'}</span>
+          <span className="hist-kpi-val">
+            {isTaller ? 'N/A' : `${material.stockActual} ${material.unidadMedida?.abreviacion || 'unid'}`}
+          </span>
         </div>
         <div className="hist-kpi-card">
-          <div className="hist-kpi-icon cpp"><DollarSign size={20} /></div>
-          <div className="hist-kpi-info">
-            <span className="hist-kpi-val">
-              {fmtCurrency(material.costoPromedioPonderado || material.precioCosto)}
-            </span>
-            <span className="hist-kpi-lbl">CPP (Costo Promedio)</span>
-          </div>
+          <span className="hist-kpi-lbl">CPP (costo promedio)</span>
+          <span className="hist-kpi-val">
+            {fmtCurrency(material.costoPromedioPonderado || material.precioCosto)}
+          </span>
         </div>
       </div>
 

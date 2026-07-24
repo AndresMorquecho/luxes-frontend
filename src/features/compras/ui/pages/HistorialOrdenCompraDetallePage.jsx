@@ -85,9 +85,8 @@ export const HistorialOrdenCompraDetallePage = () => {
             </ComprasHeaderButton>
           </>
         )}
+        tabs={<ComprasOperativoNav />}
       />
-
-      <ComprasOperativoNav />
 
       <div className="co-detail-grid">
         <div className="co-card co-detail-panel">

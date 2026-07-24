@@ -58,8 +58,8 @@ export const NominaPage = () => {
   };
 
   return (
-    <div className="space-y-6 animate-slide-up">
-      
+    <div className="space-y-6 animate-slide-up" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`.shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }`}</style>
       {/* Cabecera Principal */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-gray-200/60">
         <div>
@@ -78,27 +78,22 @@ export const NominaPage = () => {
         </div>
       </div>
 
-      {/* Tarjetas de Resumen Rápido (KPIs) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div className="premium-card p-5 rounded-xl border-t-4 border-t-blue-700 flex flex-col justify-between h-[120px]">
-          <span className="text-3xs font-bold text-gray-400 uppercase tracking-widest">Costo Nómina</span>
-          <span className="text-2xl font-black text-blue-900 leading-none">{formatUSD(globalSummary.netoTotal)}</span>
-          <span className="text-3xs text-gray-400 font-medium">Valor neto total a pagar</span>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-blue-600 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Costo nómina</p>
+          <p className="text-lg font-bold text-blue-700 mt-1 tabular-nums">{formatUSD(globalSummary.netoTotal)}</p>
         </div>
-        <div className="premium-card p-5 rounded-xl border-t-4 border-t-green-600 flex flex-col justify-between h-[120px]">
-          <span className="text-3xs font-bold text-green-700 uppercase tracking-widest">Abonado / Anticipos</span>
-          <span className="text-2xl font-black text-green-600 leading-none">+{formatUSD(globalSummary.abonadoTotal)}</span>
-          <span className="text-3xs text-gray-400 font-medium">Suma de adelantos registrados</span>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-emerald-500 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Abonado / anticipos</p>
+          <p className="text-lg font-bold text-emerald-600 mt-1 tabular-nums">{formatUSD(globalSummary.abonadoTotal)}</p>
         </div>
-        <div className="premium-card p-5 rounded-xl border-t-4 border-t-red-500 flex flex-col justify-between h-[120px]">
-          <span className="text-3xs font-bold text-red-700 uppercase tracking-widest">Saldo Pendiente</span>
-          <span className="text-2xl font-black text-red-500 leading-none">{formatUSD(globalSummary.pendienteTotal)}</span>
-          <span className="text-3xs text-gray-400 font-medium">Valor restante por pagar</span>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-red-500 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Saldo pendiente</p>
+          <p className="text-lg font-bold text-red-500 mt-1 tabular-nums">{formatUSD(globalSummary.pendienteTotal)}</p>
         </div>
-        <div className="premium-card p-5 rounded-xl border-t-4 border-t-slate-400 flex flex-col justify-between h-[120px]">
-          <span className="text-3xs font-bold text-gray-400 uppercase tracking-widest">Colaboradores</span>
-          <span className="text-2xl font-black text-slate-800 leading-none">{globalSummary.totalColaboradores} Activos</span>
-          <span className="text-3xs text-gray-400 font-medium">Nóminas vigentes en el período</span>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-slate-400 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Colaboradores</p>
+          <p className="text-lg font-bold text-slate-700 mt-1 tabular-nums">{globalSummary.totalColaboradores}</p>
         </div>
       </div>
 

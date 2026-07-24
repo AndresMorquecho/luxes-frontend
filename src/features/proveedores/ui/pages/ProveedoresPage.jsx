@@ -1,11 +1,28 @@
 import React, { useEffect, useState } from 'react';
+import { Truck, Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { getProveedores, saveProveedor, deleteProveedor } from '../../application/proveedoresService';
+import {
+  ComprasPageHeader,
+  ComprasHeaderButton,
+} from '../../../compras/ui/components/ComprasPageHeader';
 
-const EMPTY_FORM = { nombre: '', cedulaRuc: '', telefono: '', email: '', direccion: '', contacto: '', tipo: 'Persona', notas: '' };
+const EMPTY_FORM = {
+  nombre: '',
+  cedulaRuc: '',
+  telefono: '',
+  email: '',
+  direccion: '',
+  contacto: '',
+  tipo: 'Persona',
+  notas: '',
+};
 const TIPOS = ['Persona', 'Empresa'];
+
+const inputClass =
+  'w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-gray-50 text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-colors';
 
 const initial = (name) => name?.charAt(0)?.toUpperCase() ?? '?';
 
@@ -30,7 +47,9 @@ export const ProveedoresPage = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const openNew = () => {
     setEditing(null);
@@ -45,7 +64,7 @@ export const ProveedoresPage = () => {
   };
 
   const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSave = async (e) => {
@@ -53,8 +72,8 @@ export const ProveedoresPage = () => {
     setSaving(true);
     try {
       const saved = await saveProveedor(form);
-      setItems(prev => {
-        const idx = prev.findIndex(p => p.id === saved.id);
+      setItems((prev) => {
+        const idx = prev.findIndex((p) => p.id === saved.id);
         if (idx >= 0) {
           const next = [...prev];
           next[idx] = saved;
@@ -65,7 +84,9 @@ export const ProveedoresPage = () => {
       deferClose(() => {
         setFormOpen(false);
         setSaving(false);
-        toast.success(editing ? 'Proveedor actualizado correctamente' : 'Proveedor registrado correctamente');
+        toast.success(
+          editing ? 'Proveedor actualizado correctamente' : 'Proveedor registrado correctamente'
+        );
       });
     } catch (err) {
       deferClose(() => setSaving(false));
@@ -82,7 +103,7 @@ export const ProveedoresPage = () => {
     if (!confirmed) return;
     try {
       await deleteProveedor(id);
-      setItems(prev => prev.filter(p => p.id !== id));
+      setItems((prev) => prev.filter((p) => p.id !== id));
       deferClose(() => toast.success('Proveedor eliminado correctamente'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar el proveedor');
@@ -90,266 +111,216 @@ export const ProveedoresPage = () => {
   };
 
   const q = search.toLowerCase();
-  const filteredAll = items.filter(p =>
-    !q || p.nombre.toLowerCase().includes(q) ||
-    p.cedulaRuc.includes(q) || p.email?.toLowerCase().includes(q) ||
-    p.contacto?.toLowerCase().includes(q)
+  const filteredAll = items.filter(
+    (p) =>
+      !q ||
+      p.nombre.toLowerCase().includes(q) ||
+      p.cedulaRuc.includes(q) ||
+      p.email?.toLowerCase().includes(q) ||
+      p.contacto?.toLowerCase().includes(q)
   );
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
   const safePage = Math.min(page, totalPages);
   const paginated = filteredAll.slice((safePage - 1) * perPage, safePage * perPage);
 
-  useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const totales = {
     total: items.length,
-    personas: items.filter(p => p.tipo === 'Persona').length,
-    empresas: items.filter(p => p.tipo === 'Empresa').length,
+    personas: items.filter((p) => p.tipo === 'Persona').length,
+    empresas: items.filter((p) => p.tipo === 'Empresa').length,
   };
 
+  const kpiItems = [
+    { label: 'Total', value: totales.total, border: 'border-t-blue-600', color: 'text-blue-600' },
+    { label: 'Personas', value: totales.personas, border: 'border-t-emerald-500', color: 'text-emerald-600' },
+    { label: 'Empresas', value: totales.empresas, border: 'border-t-indigo-500', color: 'text-indigo-600' },
+  ];
+
+  const renderTipoBadge = (tipo) => (
+    <span
+      className={`inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 ${
+        tipo === 'Empresa'
+          ? 'bg-slate-100 text-slate-700'
+          : 'bg-blue-50 text-blue-700'
+      }`}
+    >
+      {tipo}
+    </span>
+  );
+
   return (
-    <div className="p-4 sm:p-6 xl:p-8 pb-24 md:pb-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
-
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up pb-10"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
-        .pr-root * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
-
-        .pr-card {
-          background: rgba(255,255,255,0.75);
-          backdrop-filter: blur(20px) saturate(160%);
-          -webkit-backdrop-filter: blur(20px) saturate(160%);
-          border: 1px solid rgba(255,255,255,0.5);
-          border-radius: 20px;
-          box-shadow: 0 8px 32px rgba(37,99,235,0.06), 0 1px 2px rgba(0,0,0,0.03);
-          overflow: hidden;
-        }
-
-        .pr-btn-primary {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-          color: white;
-          border: none;
-          border-radius: 12px;
-          padding: 10px 20px;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(37,99,235,0.3);
-          letter-spacing: 0.01em;
-        }
-        .pr-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(37,99,235,0.42); }
-        .pr-btn-primary:active { transform: translateY(0); }
-        .pr-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-        .pr-btn-ghost {
-          background: transparent;
-          border: none;
-          border-radius: 10px;
-          padding: 8px 16px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #64748b;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-        .pr-btn-ghost:hover { background: rgba(241,245,249,0.8); color: #475569; }
-
-        .pr-input {
-          width: 100%;
-          border: 1.5px solid rgba(226,232,240,0.8);
-          border-radius: 10px;
-          padding: 9px 13px;
-          font-size: 13px;
-          font-weight: 500;
-          color: #1e293b;
-          outline: none;
-          transition: all 0.2s ease;
-          background: rgba(255,255,255,0.9);
-          backdrop-filter: blur(4px);
-        }
-        .pr-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); background: #fff; }
-        .pr-input::placeholder { color: #94a3b8; }
-
-        .pr-tr { transition: background 0.15s ease; }
-        .pr-tr:hover td { background: rgba(59,130,246,0.03); }
-
-        @keyframes pr-modal-in {
-          from { transform: scale(0.95) translateY(8px); opacity: 0; }
-          to   { transform: scale(1) translateY(0); opacity: 1; }
-        }
-        .animate-pr-modal-in { animation: pr-modal-in 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
       `}</style>
 
-      {/* Header */}
-      <div className="pr-card px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">Proveedores</h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5 font-medium">Registro y gestión de proveedores</p>
-        </div>
-        <button onClick={openNew} className="pr-btn-primary w-full sm:w-auto justify-center shrink-0">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nuevo Proveedor
-        </button>
+      <ComprasPageHeader
+        icon={Truck}
+        badge="Compras"
+        title="Proveedores"
+        subtitle="Registro y gestión de proveedores"
+        action={(
+          <ComprasHeaderButton onClick={openNew}>
+            <Plus size={15} />
+            Nuevo proveedor
+          </ComprasHeaderButton>
+        )}
+      />
+
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {kpiItems.map((kpi) => (
+          <div
+            key={kpi.label}
+            className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 ${kpi.border} px-2.5 sm:px-4 py-3 sm:py-4 min-w-0`}
+          >
+            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{kpi.label}</p>
+            <p className={`text-base sm:text-lg font-bold mt-1 tabular-nums ${kpi.color}`}>{kpi.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-        <div className="pr-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
-            <svg className="w-5 h-5" style={{ color: '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-            </svg>
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-gray-800">Lista de proveedores</h2>
+            <span className="text-xs font-medium text-gray-400">{filteredAll.length} registros</span>
           </div>
-          <div>
-            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total</div>
-            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.total}</div>
+          <div className="relative w-full sm:w-auto">
+            <Search
+              size={15}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              className="pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-full sm:w-80 sm:min-w-[280px] transition-colors"
+              placeholder="Buscar por nombre, RUC, email o contacto…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        </div>
-        <div className="pr-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.1)' }}>
-            <svg className="w-5 h-5" style={{ color: '#10b981' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Personas</div>
-            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.personas}</div>
-          </div>
-        </div>
-        <div className="pr-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.1)' }}>
-            <svg className="w-5 h-5" style={{ color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Empresas</div>
-            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.empresas}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="pr-card">
-        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100/60 flex items-center gap-3">
-          <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input className="pr-input w-full sm:max-w-xs !border-0 !bg-transparent !p-0 !shadow-none !text-sm !font-medium placeholder:!text-slate-400 focus:!ring-0"
-            placeholder="Buscar por nombre, RUC, email o contacto…"
-            value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
           </div>
         ) : (
           <>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-[13px]">
+            <div className="hidden md:block overflow-x-auto relative">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100/60">
-                    <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proveedor</th>
-                    <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">RUC / Cédula</th>
-                    <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contacto</th>
-                    <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Correo / Teléfono</th>
-                    <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tipo</th>
-                    <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-24">Acciones</th>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Proveedor</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">RUC / Cédula</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Contacto</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Correo / Teléfono</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
+                    <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100/40">
+                <tbody className="divide-y divide-slate-100">
                   {paginated.map((p) => (
-                    <tr key={p.id} className="pr-tr">
+                    <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                            style={{ background: p.tipo === 'Empresa' ? 'rgba(99,102,241,0.12)' : 'rgba(59,130,246,0.1)', color: p.tipo === 'Empresa' ? '#6366f1' : '#3b82f6' }}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 border ${
+                              p.tipo === 'Empresa'
+                                ? 'bg-slate-50 text-slate-600 border-slate-200'
+                                : 'bg-blue-50 text-blue-600 border-blue-100'
+                            }`}
+                          >
                             {initial(p.nombre)}
                           </span>
-                          <div>
-                            <div className="font-semibold text-slate-800">{p.nombre}</div>
-                            {p.notas && <div className="text-[11px] text-slate-400 mt-0.5">{p.notas}</div>}
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 leading-tight truncate">{p.nombre}</p>
+                            {p.notas && (
+                              <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[220px]">
+                                {p.notas}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 font-mono text-slate-500 text-[12px]">{p.cedulaRuc}</td>
-                      <td className="px-5 py-4">
-                        {p.contacto ? (
-                          <div className="text-slate-700 font-medium">{p.contacto}</div>
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
+                      <td className="px-5 py-4 font-mono text-sm text-slate-700">
+                        {p.cedulaRuc}
+                      </td>
+                      <td className="px-5 py-4 text-sm font-medium text-slate-800">
+                        {p.contacto || '—'}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="text-slate-700 font-medium text-[12px]">{p.email}</div>
-                        <div className="text-[12px] text-slate-400 mt-0.5">{p.telefono}</div>
+                        <p className="text-sm font-medium text-slate-800">{p.email || '—'}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{p.telefono || '—'}</p>
                       </td>
-                      <td className="px-5 py-4 text-center">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                          style={{
-                            background: p.tipo === 'Empresa' ? 'rgba(99,102,241,0.1)' : 'rgba(59,130,246,0.08)',
-                            color: p.tipo === 'Empresa' ? '#6366f1' : '#3b82f6',
-                          }}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: p.tipo === 'Empresa' ? '#6366f1' : '#3b82f6' }} />
-                          {p.tipo}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => openEdit(p)}
-                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" title="Editar">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                            </svg>
+                      <td className="px-5 py-4">{renderTipoBadge(p.tipo)}</td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(p)}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                            title="Editar"
+                          >
+                            <Pencil className="w-4 h-4" strokeWidth={1.5} />
                           </button>
-                          <button onClick={() => handleDelete(p.id)}
-                            className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                            </svg>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(p.id)}
+                            className="p-1.5 rounded-lg bg-rose-50 text-rose-500 border border-rose-100 hover:bg-rose-100 hover:text-rose-600 transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                           </button>
                         </div>
                       </td>
                     </tr>
                   ))}
                   {paginated.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-16 text-slate-400 text-sm font-medium">No se encontraron proveedores</td></tr>
+                    <tr>
+                      <td colSpan={6} className="text-center py-12 text-sm text-slate-400">
+                        No se encontraron proveedores
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
             </div>
 
-            <div className="md:hidden p-3 sm:p-4 space-y-3">
+            <div className="md:hidden p-3 space-y-3">
               {paginated.map((p) => (
-                <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+                <div
+                  key={p.id}
+                  className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm"
+                >
                   <div className="flex items-start gap-3">
-                    <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                      style={{ background: p.tipo === 'Empresa' ? 'rgba(99,102,241,0.12)' : 'rgba(59,130,246,0.1)', color: p.tipo === 'Empresa' ? '#6366f1' : '#3b82f6' }}>
+                    <span
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 border ${
+                        p.tipo === 'Empresa'
+                          ? 'bg-slate-50 text-slate-600 border-slate-200'
+                          : 'bg-blue-50 text-blue-600 border-blue-100'
+                      }`}
+                    >
                       {initial(p.nombre)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900 leading-snug normal-case">{p.nombre}</p>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mt-1.5"
-                        style={{
-                          background: p.tipo === 'Empresa' ? 'rgba(99,102,241,0.1)' : 'rgba(59,130,246,0.08)',
-                          color: p.tipo === 'Empresa' ? '#6366f1' : '#3b82f6',
-                        }}>
-                        {p.tipo}
-                      </span>
+                      <p className="text-sm font-semibold text-slate-900 leading-snug">
+                        {p.nombre}
+                      </p>
+                      <div className="mt-1.5">{renderTipoBadge(p.tipo)}</div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 pt-3 border-t border-slate-100 text-[11px]">
                     <div>
                       <span className="text-slate-400 font-medium block">RUC / Cédula</span>
-                      <span className="text-slate-700 font-semibold font-mono text-[10px]">{p.cedulaRuc || '—'}</span>
+                      <span className="text-slate-700 font-semibold font-mono text-[10px]">
+                        {p.cedulaRuc || '—'}
+                      </span>
                     </div>
                     <div>
                       <span className="text-slate-400 font-medium block">Contacto</span>
@@ -361,7 +332,9 @@ export const ProveedoresPage = () => {
                     </div>
                     <div>
                       <span className="text-slate-400 font-medium block">Email</span>
-                      <span className="text-slate-700 font-semibold break-all">{p.email || '—'}</span>
+                      <span className="text-slate-700 font-semibold break-all">
+                        {p.email || '—'}
+                      </span>
                     </div>
                     {p.direccion ? (
                       <div className="col-span-2">
@@ -372,111 +345,236 @@ export const ProveedoresPage = () => {
                   </div>
 
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-                    <button type="button" onClick={() => openEdit(p)}
-                      className="flex-1 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(p)}
+                      className="flex-1 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[11px] font-bold"
+                    >
                       Editar
                     </button>
-                    <button type="button" onClick={() => handleDelete(p.id)}
-                      className="px-3 py-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100" title="Eliminar">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                      </svg>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id)}
+                      className="px-3 py-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                     </button>
                   </div>
                 </div>
               ))}
               {paginated.length === 0 && (
-                <div className="text-center py-12 text-slate-400 text-sm font-medium">No se encontraron proveedores</div>
+                <div className="text-center py-12 text-sm text-slate-400">
+                  No se encontraron proveedores
+                </div>
               )}
             </div>
           </>
         )}
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100/60 bg-slate-50/30">
-            <span className="text-[12px] font-medium text-slate-400">{filteredAll.length} proveedor{filteredAll.length !== 1 ? 'es' : ''}</span>
-            <div className="flex items-center gap-1">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold">‹</button>
-              <span className="text-[12px] font-semibold text-slate-500 px-2">{safePage} / {totalPages}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold">›</button>
-            </div>
+        {filteredAll.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-gray-100">
+            <span className="text-[11px] font-medium text-gray-400">
+              {filteredAll.length} proveedor{filteredAll.length !== 1 ? 'es' : ''}
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage(safePage - 1)}
+                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Anterior
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPage(n)}
+                    className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${
+                      n === safePage ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage(safePage + 1)}
+                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       <ModalPortal open={formOpen}>
-        <div className="pr-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)', animation: 'overlay-in 0.2s ease' }}
-            onClick={() => deferClose(() => setFormOpen(false))} />
-          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-pr-modal-in max-h-[90vh] flex flex-col border border-slate-100"
-              style={{ boxShadow: '0 25px 60px rgba(15,23,42,0.15), 0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-                <h2 className="text-lg font-bold text-slate-800">{editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}</h2>
-                <button type="button" onClick={() => deferClose(() => setFormOpen(false))}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+        <>
+          <div
+            className="fixed inset-0 z-[200] bg-slate-200/60 backdrop-blur-md"
+            onClick={() => deferClose(() => setFormOpen(false))}
+          />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-lg bg-white rounded-xl shadow-xl max-h-[90vh] flex flex-col border border-slate-200 overflow-hidden pointer-events-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 border border-blue-100 text-blue-600">
+                    <Truck size={18} strokeWidth={2.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-slate-800">
+                      {editing ? 'Editar proveedor' : 'Nuevo proveedor'}
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {editing ? 'Actualiza los datos del proveedor' : 'Completa los datos para registrar el proveedor'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deferClose(() => setFormOpen(false))}
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shrink-0"
+                >
+                  <X size={16} />
                 </button>
               </div>
-              <div className="overflow-y-auto p-6">
-                <form onSubmit={handleSave} className="space-y-4">
+              <div className="overflow-y-auto px-5 py-4">
+                <form onSubmit={handleSave} className="space-y-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Nombre / Razón Social</label>
-                    <input name="nombre" value={form.nombre} onChange={handleChange} required placeholder="Ej. Importadora del Sur S.A." className="pr-input" />
+                    <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                      Nombre / Razón social
+                    </label>
+                    <input
+                      name="nombre"
+                      value={form.nombre}
+                      onChange={handleChange}
+                      required
+                      placeholder="Ej. Importadora del Sur S.A."
+                      className={inputClass}
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">RUC / Cédula</label>
-                      <input name="cedulaRuc" value={form.cedulaRuc} onChange={handleChange} required placeholder="1790034567001" className="pr-input font-mono" />
+                      <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                        RUC / Cédula
+                      </label>
+                      <input
+                        name="cedulaRuc"
+                        value={form.cedulaRuc}
+                        onChange={handleChange}
+                        required
+                        placeholder="1790034567001"
+                        className={`${inputClass} font-mono`}
+                      />
                     </div>
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Tipo</label>
-                      <select name="tipo" value={form.tipo} onChange={handleChange} className="pr-input">
-                        {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+                      <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                        Tipo
+                      </label>
+                      <select
+                        name="tipo"
+                        value={form.tipo}
+                        onChange={handleChange}
+                        className={inputClass}
+                      >
+                        {TIPOS.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Teléfono</label>
-                      <input name="telefono" value={form.telefono} onChange={handleChange} placeholder="022345678" className="pr-input" />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Correo electrónico</label>
-                      <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="proveedor@ejemplo.com" className="pr-input" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Dirección</label>
-                    <input name="direccion" value={form.direccion} onChange={handleChange} placeholder="Av. Principal y calle secundaria" className="pr-input" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Persona de Contacto</label>
-                    <input name="contacto" value={form.contacto} onChange={handleChange} placeholder="Nombre del contacto en la empresa" className="pr-input" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Notas</label>
-                    <textarea name="notas" value={form.notas} onChange={handleChange} rows={2} placeholder="Información adicional…" className="pr-input resize-none" />
-                  </div>
-                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => deferClose(() => setFormOpen(false))} className="pr-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={saving} className="pr-btn-primary">
-                      <span
-                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
-                        aria-hidden={!saving}
+                      <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                        Teléfono
+                      </label>
+                      <input
+                        name="telefono"
+                        value={form.telefono}
+                        onChange={handleChange}
+                        placeholder="022345678"
+                        className={inputClass}
                       />
-                      {editing ? 'Guardar cambios' : 'Registrar Proveedor'}
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                        Correo electrónico
+                      </label>
+                      <input
+                        name="email"
+                        type="email"
+                        value={form.email}
+                        onChange={handleChange}
+                        placeholder="proveedor@ejemplo.com"
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                      Dirección
+                    </label>
+                    <input
+                      name="direccion"
+                      value={form.direccion}
+                      onChange={handleChange}
+                      placeholder="Av. Principal y calle secundaria"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                      Persona de contacto
+                    </label>
+                    <input
+                      name="contacto"
+                      value={form.contacto}
+                      onChange={handleChange}
+                      placeholder="Nombre del contacto en la empresa"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                      Notas
+                    </label>
+                    <textarea
+                      name="notas"
+                      value={form.notas}
+                      onChange={handleChange}
+                      rows={2}
+                      placeholder="Información adicional…"
+                      className={`${inputClass} resize-none`}
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => deferClose(() => setFormOpen(false))}
+                      className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm disabled:opacity-50"
+                    >
+                      {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Registrar proveedor'}
                     </button>
                   </div>
                 </form>
               </div>
             </div>
           </div>
-        </div>
+        </>
       </ModalPortal>
     </div>
   );

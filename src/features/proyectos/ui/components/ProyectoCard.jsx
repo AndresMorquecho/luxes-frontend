@@ -24,7 +24,7 @@ export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
 
   return (
     <div
-      className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+      className="bg-white rounded-xl border border-slate-200 shadow-card hover:border-slate-300 transition-colors cursor-pointer overflow-hidden"
       style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
       onClick={() => navigate(`/proyectos/${proyecto.id}`)}
     >

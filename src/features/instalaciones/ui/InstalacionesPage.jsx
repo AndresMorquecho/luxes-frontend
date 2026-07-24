@@ -1,21 +1,19 @@
-// src/features/instalaciones/ui/InstalacionesPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProyectos } from '../../proyectos/application/hooks/useProyectos.js';
-import { useProyectosContext } from '../../proyectos/application/context/ProyectosContext.jsx';
-import { 
-  Wrench, Search, Play, CheckCircle2, User, MapPin, 
-  Calendar, Clock, CheckCircle, Eye, ClipboardList, AlertTriangle 
+import {
+  Wrench, Search, MapPin, Calendar, Clock, CheckCircle, Eye, ClipboardList, AlertTriangle,
 } from 'lucide-react';
 import { DateRangePicker } from '../../../shared/ui/components/DateRangePicker.jsx';
-import './InstalacionesPage.css';
+import {
+  ComprasPageHeader,
+} from '../../compras/ui/components/ComprasPageHeader';
 
-const PRIORIDAD_COLORS = {
-  BAJA: 'baja',
-  MEDIA: 'media',
-  ALTA: 'alta',
-  URGENTE: 'urgente',
+const PRIORIDAD_CLS = {
+  BAJA: 'bg-slate-100 text-slate-600',
+  MEDIA: 'bg-blue-50 text-blue-700',
+  ALTA: 'bg-amber-50 text-amber-700',
+  URGENTE: 'bg-rose-50 text-rose-700',
 };
 
 const FASE_LABELS = {
@@ -27,54 +25,66 @@ const FASE_LABELS = {
   COMPLETADO: 'Completado',
 };
 
-const FASE_COLORS = {
-  COTIZACION: '#6366f1',
-  DISEÑO: '#f59e0b',
-  PRODUCCION: '#3b82f6',
-  INSTALACION: '#f97316',
-  ENTREGA: '#10b981',
-  COMPLETADO: '#059669',
-};
+function getInitials(name = '') {
+  return name
+    .split(' ')
+    .filter((w) => w.length > 0)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
 
 export function InstalacionesPage() {
   const navigate = useNavigate();
-  const { todosLosProyectos, updateProyecto, avanzarFaseProyecto } = useProyectos();
-  const { state } = useProyectosContext();
-  const { ordenesCompra = [] } = state || {};
+  const { todosLosProyectos } = useProyectos();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('EN_PROGRESO'); // Default to EN_PROGRESO (Pendientes + En Curso)
+  const [activeTab, setActiveTab] = useState('EN_PROGRESO');
   const [fechas, setFechas] = useState({ start: '', end: '' });
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
-  // Filtrar proyectos que requieren instalación y que YA están en la fase de instalación o posteriores
-  const proyectosInstalacion = todosLosProyectos.filter(p => 
-    p.requiereInstalacion === true && 
-    ['INSTALACION', 'ENTREGA', 'COMPLETADO'].includes(p.faseActual)
+  const proyectosInstalacion = todosLosProyectos.filter(
+    (p) =>
+      p.requiereInstalacion === true &&
+      ['INSTALACION', 'ENTREGA', 'COMPLETADO'].includes(p.faseActual)
   );
 
-  const getStarted = (p) => !!(p.fases?.INSTALACION?.datos?.fechaInstalacion && p.fases?.INSTALACION?.datos?.horaInstalacion);
-  const getFinished = (p) => ['ENTREGA', 'COMPLETADO'].includes(p.faseActual) || p.fases?.INSTALACION?.datos?.instalacionCompletada === true;
+  const getStarted = (p) =>
+    !!(p.fases?.INSTALACION?.datos?.fechaInstalacion && p.fases?.INSTALACION?.datos?.horaInstalacion);
+  const getFinished = (p) =>
+    ['ENTREGA', 'COMPLETADO'].includes(p.faseActual) ||
+    p.fases?.INSTALACION?.datos?.instalacionCompletada === true;
 
-  // Estadísticas KPI
   const stats = {
     total: proyectosInstalacion.length,
-    pendientes: proyectosInstalacion.filter(p => 
-      p.faseActual === 'INSTALACION' && !getFinished(p) && !getStarted(p)
+    pendientes: proyectosInstalacion.filter(
+      (p) => p.faseActual === 'INSTALACION' && !getFinished(p) && !getStarted(p)
     ).length,
-    activas: proyectosInstalacion.filter(p => 
-      p.faseActual === 'INSTALACION' && !getFinished(p) && getStarted(p)
+    activas: proyectosInstalacion.filter(
+      (p) => p.faseActual === 'INSTALACION' && !getFinished(p) && getStarted(p)
     ).length,
-    completadas: proyectosInstalacion.filter(p => 
-      getFinished(p)
-    ).length,
+    completadas: proyectosInstalacion.filter((p) => getFinished(p)).length,
   };
 
-  // Filtrado final
+  const kpiItems = [
+    { label: 'Total proyectos', value: stats.total, border: 'border-t-blue-600', color: 'text-blue-600' },
+    { label: 'Pendientes', value: stats.pendientes, border: 'border-t-amber-500', color: 'text-amber-600' },
+    { label: 'En curso', value: stats.activas, border: 'border-t-orange-500', color: 'text-orange-600' },
+    { label: 'Finalizadas', value: stats.completadas, border: 'border-t-emerald-500', color: 'text-emerald-600' },
+  ];
+
+  const tabs = [
+    { id: 'EN_PROGRESO', label: `Pendientes / En Curso (${stats.pendientes + stats.activas})` },
+    { id: 'PENDIENTES', label: `Por Iniciar (${stats.pendientes})` },
+    { id: 'ACTIVAS', label: `En Montaje (${stats.activas})` },
+    { id: 'COMPLETADAS', label: `Completadas (${stats.completadas})` },
+    { id: 'TODAS', label: `Todas (${stats.total})` },
+  ];
+
   const filteredInstallations = proyectosInstalacion.filter((p) => {
-    // 1. Filtro de Búsqueda
-    const matchesSearch = 
+    const matchesSearch =
       p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.cliente.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,34 +92,27 @@ export function InstalacionesPage() {
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
 
-    // 2. Filtro de Pestaña/Estado
     let matchesTab = true;
     const isFinished = getFinished(p);
     const isStarted = getStarted(p);
 
-    if (activeTab === 'EN_PROGRESO') {
-      matchesTab = !isFinished;
-    } else if (activeTab === 'PENDIENTES') {
-      matchesTab = p.faseActual === 'INSTALACION' && !isFinished && !isStarted;
-    } else if (activeTab === 'ACTIVAS') {
-      matchesTab = p.faseActual === 'INSTALACION' && !isFinished && isStarted;
-    } else if (activeTab === 'COMPLETADAS') {
-      matchesTab = isFinished;
-    }
+    if (activeTab === 'EN_PROGRESO') matchesTab = !isFinished;
+    else if (activeTab === 'PENDIENTES') matchesTab = p.faseActual === 'INSTALACION' && !isFinished && !isStarted;
+    else if (activeTab === 'ACTIVAS') matchesTab = p.faseActual === 'INSTALACION' && !isFinished && isStarted;
+    else if (activeTab === 'COMPLETADAS') matchesTab = isFinished;
 
-    // 3. Filtro de Rango de Fechas
     let matchesDates = true;
     const projDateStr = p.fases?.INSTALACION?.datos?.fechaInstalacion || p.fechaCreacion || p.fecha;
     if (projDateStr) {
       const projDate = new Date(projDateStr);
       if (fechas.start) {
         const start = new Date(fechas.start);
-        start.setHours(0,0,0,0);
+        start.setHours(0, 0, 0, 0);
         if (projDate < start) matchesDates = false;
       }
       if (fechas.end) {
         const end = new Date(fechas.end);
-        end.setHours(23,59,59,999);
+        end.setHours(23, 59, 59, 999);
         if (projDate > end) matchesDates = false;
       }
     }
@@ -123,341 +126,347 @@ export function InstalacionesPage() {
 
   const total = filteredInstallations.length;
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
-  const startIndex = (page - 1) * LIMIT;
-  const paginatedInstallations = filteredInstallations.slice(startIndex, startIndex + LIMIT);
+  const paginatedInstallations = filteredInstallations.slice((page - 1) * LIMIT, page * LIMIT);
 
-  // Obtener iniciales de los empleados
-  function getInitials(name = '') {
-    return name
-      .split(' ')
-      .filter(w => w.length > 0)
-      .map(w => w[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
-  }
+  const renderEstadoBadge = (proyecto) => {
+    const datos = proyecto.fases?.INSTALACION?.datos || {};
+    const isStarted = !!(datos.fechaInstalacion && datos.horaInstalacion);
+    const isFinished =
+      ['ENTREGA', 'COMPLETADO'].includes(proyecto.faseActual) || datos.instalacionCompletada === true;
 
-  const renderPageButtons = () => {
-    const buttons = [];
-    const maxVisible = 5;
-    let start = Math.max(1, page - Math.floor(maxVisible / 2));
-    let end = Math.min(totalPages, start + maxVisible - 1);
-    
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-    
-    for (let i = start; i <= end; i++) {
-      buttons.push(
-        <button
-          key={i}
-          type="button"
-          className={`prest-page-btn ${page === i ? 'active-page' : ''}`}
-          onClick={() => setPage(i)}
-        >
-          {i}
-        </button>
+    if (isFinished) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full text-xs font-medium px-2.5 py-1 bg-emerald-50 text-emerald-700">
+          <CheckCircle size={12} /> Completada
+        </span>
       );
     }
-    return buttons;
+    if (proyecto.faseActual === 'INSTALACION') {
+      return isStarted ? (
+        <span className="inline-flex items-center gap-1 rounded-full text-xs font-medium px-2.5 py-1 bg-orange-50 text-orange-700">
+          <Clock size={12} /> En Montaje
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 rounded-full text-xs font-medium px-2.5 py-1 bg-amber-50 text-amber-700">
+          <AlertTriangle size={12} /> Iniciar Montaje
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-600">
+        <ClipboardList size={12} /> {FASE_LABELS[proyecto.faseActual]}
+      </span>
+    );
+  };
+
+  const renderOcBadge = (proyecto) => {
+    const ocDelProyecto = proyecto.ordenesCompra || [];
+    if (!ocDelProyecto.length) return null;
+    const ocPendiente = ocDelProyecto.find((oc) => oc.estado === 'PENDIENTE');
+    const ocAprobada = ocDelProyecto.find((oc) => oc.estado === 'APROBADA');
+    const ocRecibida = ocDelProyecto.find((oc) => oc.estado === 'RECIBIDA');
+    const ocRechazada = ocDelProyecto.find((oc) => oc.estado === 'RECHAZADA');
+
+    if (ocPendiente) return <span className="inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 bg-amber-50 text-amber-700">OC Pendiente</span>;
+    if (ocAprobada) return <span className="inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 bg-blue-50 text-blue-700">OC Aprobada</span>;
+    if (ocRecibida) return <span className="inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 bg-emerald-50 text-emerald-700">OC Recibida</span>;
+    if (ocRechazada) return <span className="inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 bg-rose-50 text-rose-700">OC Rechazada</span>;
+    return null;
+  };
+
+  const renderRowContent = (proyecto) => {
+    const datosInstalacion = proyecto.fases?.INSTALACION?.datos || {};
+    const personalAsignado = datosInstalacion.personalAsignado || [];
+    const materiales = datosInstalacion.materiales || [];
+    const prioridadCls = PRIORIDAD_CLS[proyecto.prioridad] || PRIORIDAD_CLS.MEDIA;
+
+    return {
+      datosInstalacion,
+      personalAsignado,
+      materiales,
+      prioridadCls,
+    };
   };
 
   return (
-    <div className="instalaciones-container">
-      {/* Header */}
-      <div className="instalaciones-header-box">
-        <h1 className="instalaciones-title">Módulo de Instalaciones</h1>
-        <p className="instalaciones-subtitle">
-          Gestión, planificación y seguimiento en tiempo real de los montajes e instalaciones en sitio.
-        </p>
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up pb-10"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+
+      <ComprasPageHeader
+        icon={Wrench}
+        badge="Operaciones"
+        title="Instalaciones"
+        subtitle="Gestión, planificación y seguimiento de montajes en sitio"
+      />
+
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        {kpiItems.map((kpi) => (
+          <div
+            key={kpi.label}
+            className={`bg-white shadow-card rounded-xl border border-gray-100 border-t-2 ${kpi.border} px-2.5 sm:px-4 py-3 sm:py-4 min-w-0`}
+          >
+            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{kpi.label}</p>
+            <p className={`text-base sm:text-lg font-bold mt-1 tabular-nums ${kpi.color}`}>{kpi.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Stats KPI Widgets */}
-      <div className="instalaciones-stats-grid">
-        <div className="instalaciones-stat-card">
-          <div className="stat-icon-wrapper total">
-            <Wrench size={20} />
-          </div>
-          <div className="stat-data">
-            <span className="stat-value">{stats.total}</span>
-            <span className="stat-label">Total Proyectos</span>
-          </div>
-        </div>
-
-        <div className="instalaciones-stat-card">
-          <div className="stat-icon-wrapper pending">
-            <ClipboardList size={20} />
-          </div>
-          <div className="stat-data">
-            <span className="stat-value">{stats.pendientes}</span>
-            <span className="stat-label">Pendientes en cola</span>
-          </div>
-        </div>
-
-        <div className="instalaciones-stat-card">
-          <div className="stat-icon-wrapper active">
-            <Play size={20} />
-          </div>
-          <div className="stat-data">
-            <span className="stat-value">{stats.activas}</span>
-            <span className="stat-label">En curso en sitio</span>
-          </div>
-        </div>
-
-        <div className="instalaciones-stat-card">
-          <div className="stat-icon-wrapper completed">
-            <CheckCircle2 size={20} />
-          </div>
-          <div className="stat-data">
-            <span className="stat-value">{stats.completadas}</span>
-            <span className="stat-label">Instaladas / Finalizadas</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Search & Filter controls */}
-      <div className="instalaciones-control-bar">
-        <div className="instalaciones-search-wrapper">
-          <Search size={18} className="search-input-icon" />
-          <input
-            type="text"
-            className="search-input-field"
-            placeholder="Buscar por proyecto, cliente o dirección..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="prest-datepicker-container">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div className="max-w-xs w-full sm:w-auto">
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Fechas</label>
           <DateRangePicker
             value={fechas}
             onChange={(val) => setFechas({ start: val.start, end: val.end })}
             placeholder="Rango de fechas"
+            size="sm"
           />
         </div>
-
-        <div className="instalaciones-tabs">
-          <button
-            onClick={() => setActiveTab('EN_PROGRESO')}
-            className={`tab-pill-btn ${activeTab === 'EN_PROGRESO' ? 'active' : ''}`}
-          >
-            Pendientes / En Curso ({stats.pendientes + stats.activas})
-          </button>
-          <button
-            onClick={() => setActiveTab('PENDIENTES')}
-            className={`tab-pill-btn ${activeTab === 'PENDIENTES' ? 'active' : ''}`}
-          >
-            Por Iniciar ({stats.pendientes})
-          </button>
-          <button
-            onClick={() => setActiveTab('ACTIVAS')}
-            className={`tab-pill-btn ${activeTab === 'ACTIVAS' ? 'active' : ''}`}
-          >
-            En Montaje ({stats.activas})
-          </button>
-          <button
-            onClick={() => setActiveTab('COMPLETADAS')}
-            className={`tab-pill-btn ${activeTab === 'COMPLETADAS' ? 'active' : ''}`}
-          >
-            Completadas ({stats.completadas})
-          </button>
-          <button
-            onClick={() => setActiveTab('TODAS')}
-            className={`tab-pill-btn ${activeTab === 'TODAS' ? 'active' : ''}`}
-          >
-            Todas ({stats.total})
-          </button>
+        <div className="flex items-center justify-end gap-1.5 overflow-x-auto no-scrollbar">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`inline-flex items-center px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
+                activeTab === tab.id
+                  ? 'bg-blue-900 text-white shadow-md'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 shadow-card'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* List layout */}
-      {paginatedInstallations.length === 0 ? (
-        <div className="instalaciones-empty-state">
-          <div className="empty-state-icon-box">
-            <Wrench size={32} />
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-gray-800">Lista de instalaciones</h2>
+            <span className="text-xs font-medium text-gray-400">{total} registros</span>
           </div>
-          <h3 className="empty-state-title">Sin instalaciones encontradas</h3>
-          <p className="empty-state-desc">
-            No hay proyectos que coincidan con los filtros de búsqueda o estados seleccionados en este momento.
-          </p>
+          <div className="relative w-full sm:w-auto">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              className="pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-full sm:w-80 sm:min-w-[280px] transition-colors"
+              placeholder="Buscar por proyecto, cliente o dirección…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
-      ) : (
-        <div className="instalaciones-list-container">
-          {paginatedInstallations.map((proyecto) => {
-            const datosInstalacion = proyecto.fases?.INSTALACION?.datos || {};
-            const isStarted = !!(datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion);
-            const isFinished = ['ENTREGA', 'COMPLETADO'].includes(proyecto.faseActual) || datosInstalacion.instalacionCompletada === true;
-            
-            const personalAsignado = datosInstalacion.personalAsignado || [];
-            const materiales = datosInstalacion.materiales || [];
-            
-            const priorityClass = PRIORIDAD_COLORS[proyecto.prioridad] || 'media';
-            const progressColor = FASE_COLORS[proyecto.faseActual] || '#6366f1';
 
-            const ocDelProyecto = proyecto.ordenesCompra || [];
-            const ocPendiente = ocDelProyecto.find(oc => oc.estado === 'PENDIENTE');
-            const ocAprobada = ocDelProyecto.find(oc => oc.estado === 'APROBADA');
-            const ocRecibida = ocDelProyecto.find(oc => oc.estado === 'RECIBIDA');
-            const ocRechazada = ocDelProyecto.find(oc => oc.estado === 'RECHAZADA');
-
-            return (
-              <div key={proyecto.id} className="instalacion-list-row">
-                {/* Columna 1: Proyecto e Info Principal */}
-                <div className="list-col col-main">
-                  <div className="list-proj-header">
-                    <span className={`badge-priority ${priorityClass}`}>
-                      {proyecto.prioridad}
-                    </span>
-                    <span className="list-proj-id">{proyecto.id}</span>
-                  </div>
-                  <h3 className="list-proj-title">{proyecto.nombre}</h3>
-                </div>
-
-                {/* Columna 2: Cliente */}
-                <div className="list-col col-client">
-                  <span className="list-client-empresa">{proyecto.cliente.empresa}</span>
-                  <span className="list-client-contacto">Contacto: {proyecto.cliente.nombre}</span>
-                </div>
-
-                {/* Columna 3: Dirección & Programación */}
-                <div className="list-col col-details">
-                  <div className="list-detail-item">
-                    <MapPin size={14} className="list-detail-icon" />
-                    <span className="list-detail-text" title={datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}>
-                      {datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}
-                    </span>
-                  </div>
-                  <div className="list-detail-item mt-1.5">
-                    <Calendar size={14} className="list-detail-icon" />
-                    <span className="list-detail-text">
-                      {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion
-                        ? `${datosInstalacion.fechaInstalacion} a las ${datosInstalacion.horaInstalacion}`
-                        : 'Pendiente de arranque'
-                      }
-                    </span>
-                  </div>
-                </div>
-
-                {/* Columna 4: Equipo y Materiales */}
-                <div className="list-col col-team-materials">
-                  <div className="list-team-avatars">
-                    {personalAsignado.length > 0 ? (
-                      <div className="team-avatars-list">
-                        {personalAsignado.map((p, i) => (
-                          <div 
-                            key={i} 
-                            className="team-avatar-circle" 
-                            title={`${p.nombre} - ${p.rol}`}
-                          >
-                            {getInitials(p.nombre)}
+        {paginatedInstallations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mb-3">
+              <Wrench size={22} />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-700">Sin instalaciones encontradas</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm">
+              No hay proyectos que coincidan con los filtros seleccionados.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:block overflow-x-auto relative">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Proyecto</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Dirección / Fecha</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Equipo</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                    <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedInstallations.map((proyecto) => {
+                    const { datosInstalacion, personalAsignado, materiales, prioridadCls } = renderRowContent(proyecto);
+                    return (
+                      <tr key={proyecto.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`inline-flex items-center rounded-full text-[10px] font-semibold px-2 py-0.5 ${prioridadCls}`}>
+                              {proyecto.prioridad}
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-mono">{proyecto.id}</span>
                           </div>
-                        ))}
+                          <p className="text-sm font-semibold text-slate-900 leading-tight">{proyecto.nombre}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-semibold text-slate-800">{proyecto.cliente.empresa}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{proyecto.cliente.nombre}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-start gap-1.5 text-sm text-slate-700">
+                            <MapPin size={14} className="text-slate-400 shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">
+                              {datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1.5">
+                            <Calendar size={12} className="shrink-0" />
+                            {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion
+                              ? `${datosInstalacion.fechaInstalacion} · ${datosInstalacion.horaInstalacion}`
+                              : 'Pendiente de arranque'}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          {personalAsignado.length > 0 ? (
+                            <div className="flex items-center -space-x-1.5">
+                              {personalAsignado.slice(0, 4).map((p, i) => (
+                                <span
+                                  key={i}
+                                  title={`${p.nombre} - ${p.rol}`}
+                                  className="w-7 h-7 rounded-full bg-blue-50 text-blue-700 border border-white text-[10px] font-bold flex items-center justify-center"
+                                >
+                                  {getInitials(p.nombre)}
+                                </span>
+                              ))}
+                              {personalAsignado.length > 4 && (
+                                <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 border border-white text-[10px] font-bold flex items-center justify-center">
+                                  +{personalAsignado.length - 4}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">Sin personal</span>
+                          )}
+                          <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+                            <Wrench size={11} />
+                            {materiales.length > 0 ? `${materiales.length} materiales` : 'Sin materiales'}
+                          </p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex flex-col items-start gap-1.5">
+                            {renderEstadoBadge(proyecto)}
+                            {renderOcBadge(proyecto)}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/instalaciones/${proyecto.id}/materiales`)}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                            title="Ver proyecto"
+                            aria-label="Ver proyecto"
+                          >
+                            <Eye size={16} strokeWidth={1.5} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden divide-y divide-slate-100">
+              {paginatedInstallations.map((proyecto) => {
+                const { datosInstalacion, personalAsignado, materiales, prioridadCls } = renderRowContent(proyecto);
+                return (
+                  <div key={proyecto.id} className="px-4 py-3.5">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`inline-flex items-center rounded-full text-[10px] font-semibold px-2 py-0.5 ${prioridadCls}`}>
+                            {proyecto.prioridad}
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-mono">{proyecto.id}</span>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-900 leading-tight">{proyecto.nombre}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{proyecto.cliente.empresa}</p>
                       </div>
-                    ) : (
-                      <span className="team-empty-msg">Sin personal asignado</span>
-                    )}
-                  </div>
-                  <div className="list-materials-count mt-2">
-                    <Wrench size={13} style={{ color: '#94a3b8' }} />
-                    <span>
-                      {materiales.length > 0 
-                        ? `${materiales.length} materiales`
-                        : 'Sin materiales'
-                      }
-                    </span>
-                  </div>
-                </div>
-
-                {/* Columna 5: Estado / Orden de Compra */}
-                <div className="list-col col-status">
-                  {/* Estado Montaje */}
-                  {isFinished ? (
-                    <span className="list-state-badge completed">
-                      <CheckCircle size={12} /> Completada
-                    </span>
-                  ) : proyecto.faseActual === 'INSTALACION' ? (
-                    isStarted ? (
-                      <span className="list-state-badge started">
-                        <Clock size={12} /> En Montaje
-                      </span>
-                    ) : (
-                      <span className="list-state-badge idle">
-                        <AlertTriangle size={12} /> Iniciar Montaje
-                      </span>
-                    )
-                  ) : (
-                    <span className="list-state-badge queue" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>
-                      <ClipboardList size={12} /> {FASE_LABELS[proyecto.faseActual]}
-                    </span>
-                  )}
-
-                  {/* Orden de Compra */}
-                  {ocDelProyecto.length > 0 && (
-                    <div className="mt-2">
-                      {ocPendiente ? (
-                        <span className="list-oc-badge pending">
-                          OC Pendiente
-                        </span>
-                      ) : ocAprobada ? (
-                        <span className="list-oc-badge approved">
-                          OC Aprobada
-                        </span>
-                      ) : ocRecibida ? (
-                        <span className="list-oc-badge approved">
-                          OC Recibida
-                        </span>
-                      ) : ocRechazada ? (
-                        <span className="list-oc-badge rejected">
-                          OC Rechazada
-                        </span>
-                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/instalaciones/${proyecto.id}/materiales`)}
+                        className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 shrink-0"
+                        title="Ver proyecto"
+                      >
+                        <Eye size={16} strokeWidth={1.5} />
+                      </button>
                     </div>
-                  )}
-                </div>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {renderEstadoBadge(proyecto)}
+                      {renderOcBadge(proyecto)}
+                    </div>
+                    <div className="text-xs text-slate-500 space-y-1">
+                      <p className="flex items-start gap-1.5">
+                        <MapPin size={12} className="mt-0.5 shrink-0" />
+                        <span className="line-clamp-2">
+                          {datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección'}
+                        </span>
+                      </p>
+                      <p className="flex items-center gap-1.5">
+                        <Calendar size={12} />
+                        {datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion
+                          ? `${datosInstalacion.fechaInstalacion} · ${datosInstalacion.horaInstalacion}`
+                          : 'Pendiente de arranque'}
+                      </p>
+                      <p className="flex items-center gap-1.5">
+                        <Wrench size={12} />
+                        {personalAsignado.length} personal · {materiales.length} materiales
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-                {/* Columna 6: Acciones */}
-                <div className="list-col col-actions">
+            {totalPages > 1 && (
+              <div className="px-4 sm:px-5 py-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <p className="text-xs text-slate-400 text-center sm:text-left">
+                  {total} instalaciones · Página {page} de {totalPages}
+                </p>
+                <div className="flex items-center justify-center gap-1">
                   <button
-                    onClick={() => navigate(`/instalaciones/${proyecto.id}/materiales`)}
-                    className="card-action-btn primary list-btn"
-                    title="Ver ficha del proyecto"
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
                   >
-                    <Eye size={14} />
-                    Ver Proyecto
+                    Anterior
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 2)
+                    .map((n, idx, arr) => {
+                      const prev = arr[idx - 1];
+                      const showDots = prev && n - prev > 1;
+                      return (
+                        <React.Fragment key={n}>
+                          {showDots && <span className="text-xs text-slate-400 px-1">…</span>}
+                          <button
+                            type="button"
+                            onClick={() => setPage(n)}
+                            className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${
+                              n === page ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    Siguiente
                   </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Pagination Bar */}
-      {totalPages > 1 && (
-        <div className="prest-pagination" style={{ background: '#ffffff', marginTop: '1.5rem' }}>
-          <span className="prest-pagination-info">
-            {total} instalaciones ({page} de {totalPages})
-          </span>
-          <div className="prest-pagination-pages">
-            <button
-              type="button"
-              className="prest-page-btn"
-              disabled={page <= 1}
-              onClick={() => setPage(p => p - 1)}
-            >
-              &lt;
-            </button>
-            {renderPageButtons()}
-            <button
-              type="button"
-              className="prest-page-btn"
-              disabled={page >= totalPages}
-              onClick={() => setPage(p => p + 1)}
-            >
-              &gt;
-            </button>
-          </div>
-        </div>
-      )}
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

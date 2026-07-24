@@ -1179,10 +1179,11 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
         .kpi-card { position: relative; overflow: hidden; }
         .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 2px 2px 0 0; }
-        .kpi-card.total::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-        .kpi-card.asistencias::before { background: linear-gradient(90deg, #10b981, #34d399); }
-        .kpi-card.faltas::before { background: linear-gradient(90deg, #ef4444, #f87171); }
-        .kpi-card.permisos::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
+        .kpi-card.total::before { background: #3b82f6; }
+        .kpi-card.asistencias::before { background: #10b981; }
+        .kpi-card.faltas::before { background: #ef4444; }
+        .kpi-card.permisos::before { background: #6366f1; }
+        .kpi-card.almuerzo::before { background: #f59e0b; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
@@ -1218,18 +1219,17 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 
 
 
-      {/* KPIs Grid - placed above calendar selector, in a single row */}
-      <div className="flex flex-wrap lg:flex-nowrap gap-3">
+      <div className="grid grid-cols-5 gap-2 sm:gap-3">
         {[
           { label: 'Colaboradores', value: kpis.total, cssClass: 'total', color: 'text-blue-600' },
           { label: 'Asistencias', value: kpis.asistieron, cssClass: 'asistencias', color: 'text-emerald-600' },
           { label: 'Faltas', value: kpis.faltaron, cssClass: 'faltas', color: 'text-red-600' },
           { label: 'Permisos', value: kpis.permisos, cssClass: 'permisos', color: 'text-indigo-600' },
-          { label: 'Sin almuerzo', value: kpis.sinAlmuerzo, cssClass: 'faltas', color: 'text-amber-600' },
-        ].map(s => (
-          <div key={s.label} className={`flex-1 min-w-[120px] bg-white shadow-card kpi-card ${s.cssClass} rounded-xl p-3 border border-gray-100`}>
-            <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider truncate">{s.label}</p>
-            <p className={`text-lg sm:text-2xl font-black mt-1 ${s.color}`}>{s.value}</p>
+          { label: 'Sin almuerzo', value: kpis.sinAlmuerzo, cssClass: 'almuerzo', color: 'text-amber-600' },
+        ].map((s) => (
+          <div key={s.label} className={`bg-white shadow-card kpi-card ${s.cssClass} rounded-xl border border-gray-100 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0`}>
+            <p className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider truncate">{s.label}</p>
+            <p className={`text-base sm:text-2xl font-bold mt-1 tabular-nums ${s.color}`}>{s.value}</p>
           </div>
         ))}
       </div>
@@ -1271,17 +1271,6 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                 {weekDays[0] && formatFecha(weekDays[0])} – {weekDays[6] && formatFecha(weekDays[6])}
               </span>
             </div>
-
-            <div className="flex items-center gap-1.5 lg:hidden">
-              <label htmlFor="fecha-filtro-mobile" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Fecha</label>
-              <input
-                id="fecha-filtro-mobile"
-                type="date"
-                value={fechaFiltro}
-                onChange={e => setFechaFiltro(e.target.value)}
-                className="px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all bg-white cursor-pointer"
-              />
-            </div>
           </div>
 
           {/* Días de la semana */}
@@ -1319,11 +1308,11 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             })}
           </div>
 
-          {/* Selector de fecha (escritorio) */}
-          <div className="hidden lg:flex items-center gap-1.5 shrink-0">
-            <label htmlFor="fecha-filtro-desktop" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Ir a fecha</label>
+          {/* Selector de fecha */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <label htmlFor="fecha-filtro" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Fecha</label>
             <input
-              id="fecha-filtro-desktop"
+              id="fecha-filtro"
               type="date"
               value={fechaFiltro}
               onChange={e => setFechaFiltro(e.target.value)}

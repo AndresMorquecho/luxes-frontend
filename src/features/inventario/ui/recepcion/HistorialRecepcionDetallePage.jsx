@@ -95,7 +95,11 @@ export const HistorialRecepcionDetallePage = ({ basePath = '/compras/recepcion' 
         </div>
       </div>
 
-      <RecepcionNav basePath={basePath} />
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-4">
+        <div className="px-4 sm:px-5 pb-4 flex gap-1 border-t-0 pt-3 bg-slate-50/50 overflow-x-auto">
+          <RecepcionNav basePath={basePath} />
+        </div>
+      </div>
 
       {/* Tarjeta de Información Principal - Rediseño */}
       <div className="bg-white border border-slate-100 rounded-2xl shadow-sm mb-6 p-6">

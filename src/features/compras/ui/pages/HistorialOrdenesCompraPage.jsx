@@ -123,9 +123,8 @@ export const HistorialOrdenesCompraPage = () => {
             </ComprasHeaderButton>
           </>
         )}
+        tabs={<ComprasOperativoNav />}
       />
-
-      <ComprasOperativoNav />
 
       <div className="co-filter-chips">
         {FILTROS_HISTORIAL.map((f) => (

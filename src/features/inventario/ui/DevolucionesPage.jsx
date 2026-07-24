@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Wrench, Clock, User, RefreshCw, CheckCircle2, Search, X,
+  Wrench, Clock, User, CheckCircle2, Search, X, Undo2,
 } from 'lucide-react';
 import { getPrestamos, devolverPrestamo, sincronizarDevolucionesInstalacion } from '../application/inventarioService.js';
 import { isAdminUser } from '../../../shared/utils/userRoleHelpers.js';
 import { DateRangePicker } from '../../../shared/ui/components/DateRangePicker.jsx';
 import { toast } from '../../../shared/ui/components/Toast.jsx';
-import './PrestamosPage.css';
+import { ComprasPageHeader } from '../../compras/ui/components/ComprasPageHeader';
 import { unidadLabel } from './prestamosUtils.js';
 
 const elapsed = (fechaSalida) => {
@@ -28,6 +28,9 @@ function getEncargadoDisplay(prestamo) {
   if (match?.[1]) return match[1].trim();
   return prestamo.responsable?.nombre || 'Desconocido';
 }
+
+const inputClass =
+  'w-full h-10 px-3 border border-slate-200 rounded-xl bg-gray-50 text-sm text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-colors';
 
 export function DevolucionesPage() {
   const currentUser = useMemo(
@@ -53,11 +56,11 @@ export function DevolucionesPage() {
     try {
       const [resPend, resHist] = await Promise.all([
         getPrestamos({ estado: 'prestado', page: 1, limit: 1 }),
-        getPrestamos({ estado: 'devuelto', page: 1, limit: 1 })
+        getPrestamos({ estado: 'devuelto', page: 1, limit: 1 }),
       ]);
       setStats({
         pendientes: resPend.total ?? (Array.isArray(resPend) ? resPend.length : 0),
-        devueltos: resHist.total ?? (Array.isArray(resHist) ? resHist.length : 0)
+        devueltos: resHist.total ?? (Array.isArray(resHist) ? resHist.length : 0),
       });
     } catch (e) {
       console.error('Error fetching loan counts:', e);
@@ -74,7 +77,7 @@ export function DevolucionesPage() {
         fechaInicio: fechas.start || undefined,
         fechaFin: fechas.end || undefined,
         searchTool: searchTool || undefined,
-        filterPersona: filterPersona || undefined
+        filterPersona: filterPersona || undefined,
       });
 
       if (data && typeof data === 'object' && 'items' in data) {
@@ -113,8 +116,7 @@ export function DevolucionesPage() {
       }
     })();
     return () => { cancelled = true; };
-    // Solo al montar: sincroniza instalaciones ya cerradas y recarga la lista
-    // eslint-disable-next-line react-hooks/exhaustive-deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -135,7 +137,6 @@ export function DevolucionesPage() {
     return undefined;
   }, [esAdmin]);
 
-  // Reset page when filters change
   useEffect(() => {
     setPage(1);
   }, [searchTool, filterPersona, filterEstado, fechas]);
@@ -162,118 +163,85 @@ export function DevolucionesPage() {
     setFilterPersona('');
     setFechas({ start: '', end: '' });
   };
-  const hasFilters = searchTool || filterPersona || fechas.start || fechas.end;
+  const hasFilters = !!(searchTool || filterPersona || fechas.start || fechas.end);
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
-
-  const renderPageButtons = () => {
-    const buttons = [];
-    const maxButtons = 5;
-    let startPage = Math.max(1, page - 2);
-    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-
-    if (endPage - startPage + 1 < maxButtons) {
-      startPage = Math.max(1, endPage - maxButtons + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      buttons.push(
-        <button
-          key={i}
-          type="button"
-          className={`prest-page-btn ${page === i ? 'active-page' : ''}`}
-          onClick={() => setPage(i)}
-        >
-          {i}
-        </button>
-      );
-    }
-    return buttons;
-  };
 
   const load = () => {
     loadData();
     loadStats();
   };
 
+  const emptyMessage = hasFilters
+    ? 'No hay registros que coincidan con los filtros.'
+    : filterEstado === 'prestado'
+      ? 'No hay herramientas pendientes por devolver.'
+      : 'No hay devoluciones recientes.';
+
+  const colSpan = filterEstado === 'devuelto' ? 8 : 8;
+
   return (
-    <div className="prest-page">
-      <div className="prest-header">
-        <div className="prest-header-main">
-          <div>
-            <h1 className="prest-title">Devoluciones</h1>
-            <p className="prest-sub">
-              {esAdmin
-                ? 'Herramientas y equipos que salieron con un encargado'
-                : 'Tus herramientas y equipos pendientes por devolver'}
-            </p>
-          </div>
-          <div className="prest-header-actions">
-            <button type="button" className="prest-btn-ghost" onClick={load} title="Actualizar">
-              <RefreshCw size={15} />
-            </button>
-          </div>
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up pb-10"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+
+      <ComprasPageHeader
+        icon={Undo2}
+        badge="Taller"
+        title="Devoluciones"
+        subtitle={
+          esAdmin
+            ? 'Herramientas y equipos que salieron con un encargado'
+            : 'Tus herramientas y equipos pendientes por devolver'
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-amber-500 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Por devolver</p>
+          <p className="text-base sm:text-lg font-bold text-amber-600 mt-1 tabular-nums">{stats.pendientes}</p>
+        </div>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-emerald-500 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">Devueltas</p>
+          <p className="text-base sm:text-lg font-bold text-emerald-600 mt-1 tabular-nums">{stats.devueltos}</p>
         </div>
       </div>
 
-      <div className="prest-kpi-strip">
-        <div className="prest-kpi prest-kpi--amber">
-          <Clock size={18} />
-          <div>
-            <span className="prest-kpi-num">{stats.pendientes}</span>
-            <span className="prest-kpi-lbl">Por devolver</span>
-          </div>
-        </div>
-        <div className="prest-kpi prest-kpi--green">
-          <CheckCircle2 size={18} />
-          <div>
-            <span className="prest-kpi-num">{stats.devueltos}</span>
-            <span className="prest-kpi-lbl">Recientes devueltas</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="prest-filter-bar">
-        <div className="prest-search-wrap">
-          <Search size={14} className="prest-search-ico" />
-          <input
-            className="prest-search-inp"
-            placeholder="Buscar herramienta..."
-            value={searchTool}
-            onChange={(e) => setSearchTool(e.target.value)}
-          />
-          {searchTool && (
-            <button type="button" className="prest-clear-x" onClick={() => setSearchTool('')}>
-              <X size={12} />
-            </button>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mt-1 sm:mt-2">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 min-w-0">
+          {esAdmin && (
+            <div className="min-w-0 w-full sm:w-52">
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Persona</label>
+              <div className="relative">
+                <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <select
+                  className={`${inputClass} pl-9`}
+                  value={filterPersona}
+                  onChange={(e) => setFilterPersona(e.target.value)}
+                >
+                  <option value="">Todas las personas</option>
+                  {personas.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           )}
-        </div>
-
-        {esAdmin && (
-          <div className="prest-select-wrap">
-            <User size={14} className="prest-select-ico" />
-            <select
-              className="prest-select"
-              value={filterPersona}
-              onChange={(e) => setFilterPersona(e.target.value)}
-            >
-              <option value="">Todas las personas</option>
-              {personas.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
+          <div className="max-w-xs w-full sm:w-auto">
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Fechas</label>
+            <DateRangePicker
+              value={fechas}
+              onChange={(val) => setFechas({ start: val.start, end: val.end })}
+              placeholder="Rango de fechas"
+              size="sm"
+            />
           </div>
-        )}
-
-        <div className="prest-datepicker-container">
-          <DateRangePicker
-            value={fechas}
-            onChange={(val) => setFechas({ start: val.start, end: val.end })}
-            placeholder="Rango de fechas"
-          />
         </div>
-
-        <div className="prest-estado-group">
+        <div className="flex items-center justify-end gap-1.5 overflow-x-auto no-scrollbar shrink-0">
           {[
             { val: 'prestado', label: `Pendientes (${stats.pendientes})` },
             { val: 'devuelto', label: 'Historial' },
@@ -281,267 +249,291 @@ export function DevolucionesPage() {
             <button
               key={opt.val}
               type="button"
-              className={`prest-estado-btn ${filterEstado === opt.val ? 'active' : ''}`}
               onClick={() => setFilterEstado(opt.val)}
+              className={`inline-flex items-center px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0 ${
+                filterEstado === opt.val
+                  ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
             >
               {opt.label}
             </button>
           ))}
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 border border-slate-200 bg-white hover:bg-slate-50 shrink-0"
+            >
+              <X size={13} /> Limpiar
+            </button>
+          )}
         </div>
-
-        {hasFilters && (
-          <button type="button" className="prest-clear-all" onClick={clearFilters}>
-            <X size={13} /> Limpiar
-          </button>
-        )}
-
-        <span className="prest-count">
-          {total} registro{total !== 1 ? 's' : ''}
-        </span>
       </div>
 
-      {loading ? (
-        <div className="prest-loading">
-          <div className="prest-spinner" />
-          <span>Cargando devoluciones…</span>
-        </div>
-      ) : (
-        <>
-          {/* Desktop View: Table */}
-          <div className="prest-table-card devoluciones-desktop-only">
-            <table className="prest-table">
-              <thead>
-                <tr>
-                  <th>Herramienta</th>
-                  <th>Encargado</th>
-                  <th>Cantidad</th>
-                  <th>Fecha Salida</th>
-                  <th>Tiempo / Retorno</th>
-                  <th>Estado</th>
-                  <th>Motivo salida</th>
-                  {filterEstado === 'devuelto' && <th>Observación</th>}
-                  {filterEstado === 'prestado' && <th>Acción</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={filterEstado === 'devuelto' ? 8 : 8} className="prest-empty">
-                      {hasFilters
-                        ? 'No hay registros que coincidan con los filtros.'
-                        : filterEstado === 'prestado'
-                          ? 'No hay herramientas pendientes por devolver.'
-                          : 'No hay devoluciones recientes.'}
-                    </td>
-                  </tr>
-                ) : filtered.map((p) => (
-                  <tr key={p.id} className={`prest-tr ${p.estado}`}>
-                    <td className="prest-td-tool">
-                      <div className="prest-tool-cell">
-                        <div className="prest-tool-icon"><Wrench size={13} /></div>
-                        <div>
-                          <span style={{ fontWeight: 600, color: '#0f172a' }}>
-                            {p.material?.nombre || '—'}
-                          </span>
-                          {p.material?.codigo && (
-                            <div style={{
-                              fontFamily: 'DM Mono, monospace',
-                              fontSize: '0.75rem',
-                              color: '#64748b',
-                              marginTop: '0.1rem',
-                            }}
-                            >
-                              {p.material.codigo}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="prest-td-person">
-                      <div className="prest-person-cell prest-person-cell--plain">
-                        <div className="prest-person-name">{getEncargadoDisplay(p)}</div>
-                        <div className="prest-person-user">@{p.responsable?.username || '—'}</div>
-                      </div>
-                    </td>
-                    <td className="prest-td-qty">
-                      {p.cantidad}
-                      {' '}
-                      <span className="prest-unit">
-                        {unidadLabel(p.material?.unidadMedida)}
-                      </span>
-                    </td>
-                    <td className="prest-td-date">{fmtDate(p.fechaSalida)}</td>
-                    <td>
-                      {p.estado === 'prestado' ? (
-                        <span className="prest-elapsed">
-                          <Clock size={12} />
-                          {' '}
-                          {elapsed(p.fechaSalida)}
-                          {' '}
-                          fuera
-                        </span>
-                      ) : (
-                        <span className="prest-td-date">{fmtDate(p.fechaRetorno)}</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`prest-badge prest-badge--${p.estado}`}>
-                        {p.estado === 'prestado' ? <Clock size={11} /> : <CheckCircle2 size={11} />}
-                        {p.estado === 'prestado' ? 'Fuera' : 'Devuelta'}
-                      </span>
-                    </td>
-                    <td className="prest-td-comment">{p.comentarios || '—'}</td>
-                    {filterEstado === 'devuelto' && (
-                      <td className="prest-td-comment">{p.observacionDevolucion || '—'}</td>
-                    )}
-                    {filterEstado === 'prestado' && (
-                      <td>
-                        <button
-                          type="button"
-                          className="prest-btn-devolver"
-                          disabled={returningId === p.id}
-                          onClick={() => handleDevolucion(p)}
-                        >
-                          {returningId === p.id ? 'Registrando…' : 'Devolución realizada'}
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-gray-800">
+              {filterEstado === 'prestado' ? 'Pendientes por devolver' : 'Historial de devoluciones'}
+            </h2>
+            <span className="text-xs font-medium text-gray-400">{total} registros</span>
           </div>
+          <div className="relative w-full sm:w-auto">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              className="pl-10 pr-9 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white w-full sm:w-80 sm:min-w-[280px] transition-colors"
+              placeholder="Buscar herramienta…"
+              value={searchTool}
+              onChange={(e) => setSearchTool(e.target.value)}
+            />
+            {searchTool && (
+              <button
+                type="button"
+                onClick={() => setSearchTool('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
 
-          {/* Mobile View: Cards */}
-          <div className="prest-devoluciones-mobile-only">
-            <div className="prest-mobile-cards">
-              {filtered.length === 0 ? (
-                <div className="prest-empty" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '1rem' }}>
-                  {hasFilters
-                    ? 'No hay registros que coincidan con los filtros.'
-                    : filterEstado === 'prestado'
-                      ? 'No hay herramientas pendientes por devolver.'
-                      : 'No hay devoluciones recientes.'}
-                </div>
-              ) : (
-                filtered.map((p) => (
-                  <div key={p.id} className="prest-card">
-                    <div className="prest-card-header">
-                      <div className="prest-card-tool">
-                        <div className="prest-tool-icon"><Wrench size={13} /></div>
-                        <div>
-                          <span className="prest-card-tool-name">{p.material?.nombre || '—'}</span>
-                          {p.material?.codigo && (
-                            <div className="prest-card-tool-code">{p.material.codigo}</div>
-                          )}
-                        </div>
-                      </div>
-                      <span className={`prest-badge prest-badge--${p.estado}`}>
-                        {p.estado === 'prestado' ? <Clock size={11} /> : <CheckCircle2 size={11} />}
-                        {p.estado === 'prestado' ? 'Fuera' : 'Devuelta'}
-                      </span>
-                    </div>
-
-                    <div className="prest-card-body">
-                      <div className="prest-card-field">
-                        <span className="prest-card-field-label">Encargado</span>
-                        <span className="prest-card-field-value">
-                          {getEncargadoDisplay(p)}
-                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block' }}>
-                            @{p.responsable?.username || '—'}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="prest-card-field">
-                        <span className="prest-card-field-label">Cantidad</span>
-                        <span className="prest-card-field-value">
-                          {p.cantidad} <span className="prest-unit">{unidadLabel(p.material?.unidadMedida)}</span>
-                        </span>
-                      </div>
-                      <div className="prest-card-field">
-                        <span className="prest-card-field-label">Fecha Salida</span>
-                        <span className="prest-card-field-value">{fmtDate(p.fechaSalida)}</span>
-                      </div>
-                      <div className="prest-card-field">
-                        <span className="prest-card-field-label">
-                          {p.estado === 'prestado' ? 'Tiempo Fuera' : 'Fecha Retorno'}
-                        </span>
-                        <span className="prest-card-field-value">
-                          {p.estado === 'prestado' ? (
-                            <span className="prest-elapsed" style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem' }}>
-                              <Clock size={10} /> {elapsed(p.fechaSalida)}
-                            </span>
-                          ) : (
-                            fmtDate(p.fechaRetorno)
-                          )}
-                        </span>
-                      </div>
-                      <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
-                        <span className="prest-card-field-label">Motivo salida</span>
-                        <span className="prest-card-field-value" style={{ fontStyle: 'italic', fontWeight: 400 }}>
-                          {p.comentarios || '—'}
-                        </span>
-                      </div>
-                      {filterEstado === 'devuelto' && (
-                        <div className="prest-card-field" style={{ gridColumn: 'span 2' }}>
-                          <span className="prest-card-field-label">Observación</span>
-                          <span className="prest-card-field-value" style={{ fontStyle: 'italic', fontWeight: 400 }}>
-                            {p.observacionDevolucion || '—'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400 text-sm">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+            <span>Cargando devoluciones…</span>
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:block overflow-x-auto relative">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Herramienta</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Encargado</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cantidad</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Fecha salida</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tiempo / Retorno</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                    <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
+                    {filterEstado === 'devuelto' && (
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Observación</th>
+                    )}
                     {filterEstado === 'prestado' && (
-                      <div className="prest-card-footer">
-                        <div className="prest-card-actions">
+                      <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={colSpan} className="text-center py-12 text-sm text-slate-400">
+                        {emptyMessage}
+                      </td>
+                    </tr>
+                  ) : filtered.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                            <Wrench size={14} />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 leading-tight truncate">
+                              {p.material?.nombre || '—'}
+                            </p>
+                            {p.material?.codigo && (
+                              <p className="text-xs text-slate-400 font-mono mt-0.5">{p.material.codigo}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-semibold text-slate-800">{getEncargadoDisplay(p)}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">@{p.responsable?.username || '—'}</p>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700 tabular-nums">
+                        {p.cantidad}{' '}
+                        <span className="text-slate-400 text-xs">{unidadLabel(p.material?.unidadMedida)}</span>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-600 whitespace-nowrap">{fmtDate(p.fechaSalida)}</td>
+                      <td className="px-5 py-4">
+                        {p.estado === 'prestado' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full text-xs font-medium px-2.5 py-1 bg-amber-50 text-amber-700">
+                            <Clock size={12} />
+                            {elapsed(p.fechaSalida)} fuera
+                          </span>
+                        ) : (
+                          <span className="text-sm text-slate-600 whitespace-nowrap">{fmtDate(p.fechaRetorno)}</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full text-xs font-medium px-2.5 py-1 ${
+                            p.estado === 'prestado'
+                              ? 'bg-orange-50 text-orange-700'
+                              : 'bg-emerald-50 text-emerald-700'
+                          }`}
+                        >
+                          {p.estado === 'prestado' ? <Clock size={12} /> : <CheckCircle2 size={12} />}
+                          {p.estado === 'prestado' ? 'Fuera' : 'Devuelta'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-500 max-w-[180px]">
+                        <span className="line-clamp-2">{p.comentarios || '—'}</span>
+                      </td>
+                      {filterEstado === 'devuelto' && (
+                        <td className="px-5 py-4 text-sm text-slate-500 max-w-[180px]">
+                          <span className="line-clamp-2">{p.observacionDevolucion || '—'}</span>
+                        </td>
+                      )}
+                      {filterEstado === 'prestado' && (
+                        <td className="px-5 py-4 text-right">
                           <button
                             type="button"
-                            className="prest-btn-devolver"
                             disabled={returningId === p.id}
                             onClick={() => handleDevolucion(p)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:text-emerald-800 transition-colors disabled:opacity-50"
+                            title="Registrar devolución"
                           >
-                            {returningId === p.id ? 'Registrando…' : 'Devolución realizada'}
+                            <Undo2 size={14} strokeWidth={1.5} />
+                            {returningId === p.id ? 'Registrando…' : 'Devolver'}
                           </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden divide-y divide-slate-100">
+              {filtered.length === 0 ? (
+                <div className="text-center py-12 text-sm text-slate-400 px-4">{emptyMessage}</div>
+              ) : (
+                filtered.map((p) => (
+                  <div key={p.id} className="px-4 py-3.5">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                          <Wrench size={14} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{p.material?.nombre || '—'}</p>
+                          {p.material?.codigo && (
+                            <p className="text-xs text-slate-400 font-mono">{p.material.codigo}</p>
+                          )}
                         </div>
                       </div>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full text-xs font-medium px-2.5 py-1 shrink-0 ${
+                          p.estado === 'prestado'
+                            ? 'bg-orange-50 text-orange-700'
+                            : 'bg-emerald-50 text-emerald-700'
+                        }`}
+                      >
+                        {p.estado === 'prestado' ? 'Fuera' : 'Devuelta'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Encargado</span>
+                        <span className="font-semibold text-slate-800">{getEncargadoDisplay(p)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Cantidad</span>
+                        <span className="font-medium text-slate-700">
+                          {p.cantidad} {unidadLabel(p.material?.unidadMedida)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Salida</span>
+                        <span className="font-medium text-slate-600">{fmtDate(p.fechaSalida)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">
+                          {p.estado === 'prestado' ? 'Tiempo fuera' : 'Retorno'}
+                        </span>
+                        <span className="font-medium text-slate-600">
+                          {p.estado === 'prestado' ? elapsed(p.fechaSalida) : fmtDate(p.fechaRetorno)}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-400 block text-[10px]">Motivo</span>
+                        <span className="text-slate-600">{p.comentarios || '—'}</span>
+                      </div>
+                      {filterEstado === 'devuelto' && (
+                        <div className="col-span-2">
+                          <span className="text-slate-400 block text-[10px]">Observación</span>
+                          <span className="text-slate-600">{p.observacionDevolucion || '—'}</span>
+                        </div>
+                      )}
+                    </div>
+                    {filterEstado === 'prestado' && (
+                      <button
+                        type="button"
+                        disabled={returningId === p.id}
+                        onClick={() => handleDevolucion(p)}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                      >
+                        <Undo2 size={14} />
+                        {returningId === p.id ? 'Registrando…' : 'Devolución realizada'}
+                      </button>
                     )}
                   </div>
                 ))
               )}
             </div>
-          </div>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="prest-pagination">
-              <span className="prest-pagination-info">
-                {total} registros encontrados ({page} de {totalPages})
-              </span>
-              <div className="prest-pagination-pages">
-                <button
-                  type="button"
-                  className="prest-page-btn"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                >
-                  &lt;
-                </button>
-                {renderPageButtons()}
-                <button
-                  type="button"
-                  className="prest-page-btn"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                >
-                  &gt;
-                </button>
+            {totalPages > 1 && (
+              <div className="px-4 sm:px-5 py-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <p className="text-xs text-slate-400 text-center sm:text-left">
+                  {total} registros · Página {page} de {totalPages}
+                </p>
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    Anterior
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 2)
+                    .map((n, idx, arr) => {
+                      const prev = arr[idx - 1];
+                      const showDots = prev && n - prev > 1;
+                      return (
+                        <React.Fragment key={n}>
+                          {showDots && <span className="text-xs text-slate-400 px-1">…</span>}
+                          <button
+                            type="button"
+                            onClick={() => setPage(n)}
+                            className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${
+                              n === page ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    Siguiente
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </>
-      )}
-
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

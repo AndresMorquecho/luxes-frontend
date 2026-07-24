@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { Settings } from 'lucide-react';
 import { getConfiguracion, updateConfiguracion } from '../../application/configuracionService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { getHorarioConfig, saveHorarioConfig } from '../../../asistencia/application/asistenciaService';
 import { HorarioDelDiaBanner, HorarioEditModal } from '../../../asistencia/ui/components/HorarioDelDiaBanner';
 import { normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../../asistencia/helpers/horarioLaboral';
-
 import { DEFAULT_HIDDEN_MODULES, normalizeHiddenModules, SIDEBAR_MODULES } from '../../../navigation/application/sidebarModules';
 
 const AVAILABLE_MODULES = SIDEBAR_MODULES;
@@ -160,74 +160,72 @@ export const ConfiguracionPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
-      </div>
-    );
-  }
+  const tabSubtitle =
+    activeTab === 'general'
+      ? 'Datos de la empresa y políticas de cotizaciones'
+      : activeTab === 'sidebar'
+        ? 'Visibilidad de módulos en la barra lateral'
+        : 'Horarios laborales para el control de asistencia';
+
+  const inputClass =
+    'w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 focus:bg-white transition-colors';
+
+  const tabBtn = (id, label) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => setActiveTab(id)}
+      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+        activeTab === id
+          ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+          : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
-    <div className="p-4 sm:p-6 xl:p-8 w-full animate-slide-up pb-12" style={{ fontFamily: "'Inter', sans-serif" }}>
-        {/* Header */}
-        <div className="bg-white border border-slate-200 rounded-xl px-6 py-5 flex items-center justify-between mb-6 shadow-sm">
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">
-              {activeTab === 'general' ? 'Configuración General' : activeTab === 'sidebar' ? 'Personalizar Sidebar' : 'Horarios Laborales'}
-            </h1>
-          <p className="text-sm text-slate-500">
-            {activeTab === 'general'
-              ? 'Datos de la empresa y políticas de cotizaciones'
-              : activeTab === 'sidebar'
-              ? 'Configura la visibilidad de los módulos de la barra lateral'
-              : 'Configura los horarios laborales estándar para el control de asistencia'}
-          </p>
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up pb-10"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
+
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+            <Settings className="w-5 h-5 text-blue-600" strokeWidth={2} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-800">Configuración</h1>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                Sistema
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">{tabSubtitle}</p>
+          </div>
         </div>
+
+        {isAdmin && (
+          <div className="px-4 sm:px-5 pb-4 flex gap-1 border-t border-slate-100 pt-3 bg-slate-50/50 overflow-x-auto">
+            {tabBtn('general', 'General')}
+            {tabBtn('sidebar', 'Sidebar')}
+            {tabBtn('horarios', 'Horarios')}
+          </div>
+        )}
       </div>
 
-      {/* Tabs */}
-      {isAdmin && (
-        <div className="flex border-b border-slate-200 mb-6 gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('general')}
-            className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${
-              activeTab === 'general'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Configuración General
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('sidebar')}
-            className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${
-              activeTab === 'sidebar'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Personalizar Sidebar
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('horarios')}
-            className={`px-4 py-2.5 font-semibold text-sm border-b-2 transition-all ${
-              activeTab === 'horarios'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Horarios Laborales
-          </button>
+      {loading ? (
+        <div className="flex items-center justify-center py-20 gap-2 text-slate-400 text-sm">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
+          <span>Cargando...</span>
         </div>
-      )}
-
-      {/* Content based on active tab */}
-      {activeTab === 'horarios' && isAdmin ? (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+      ) : activeTab === 'horarios' && isAdmin ? (
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-6">
           <HorarioDelDiaBanner
             horariosConfig={horariosConfig}
             fechaActiva={new Date().toISOString().split('T')[0]}
@@ -244,19 +242,17 @@ export const ConfiguracionPage = () => {
             saving={savingHorario}
           />
         </div>
-      ) : (activeTab === 'general' || !isAdmin) ? (
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="p-6 space-y-6">
-            
-            {/* Company Details Section */}
+      ) : activeTab === 'general' || !isAdmin ? (
+        <form onSubmit={handleSubmit} className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+          <div className="p-4 sm:p-6 space-y-6">
             <div className="space-y-4">
-              <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider border-b border-slate-100 pb-2">
-                Datos de contacto de la empresa
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2">
+                Datos de contacto
               </h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Celular / Teléfono *</label>
+                  <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Celular / teléfono *</label>
                   <input
                     name="celular"
                     type="text"
@@ -264,12 +260,12 @@ export const ConfiguracionPage = () => {
                     onChange={handleChange}
                     required
                     placeholder="Ej. +593 99 999 9999"
-                    className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    className={inputClass}
                   />
                 </div>
-                
+
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Email *</label>
+                  <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Email *</label>
                   <input
                     name="email"
                     type="email"
@@ -277,34 +273,33 @@ export const ConfiguracionPage = () => {
                     onChange={handleChange}
                     required
                     placeholder="Ej. administracion@luxes.com"
-                    className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    className={inputClass}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1 block">Dirección Física *</label>
+                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Dirección física *</label>
                 <input
                   name="direccion"
                   type="text"
                   value={form.direccion}
                   onChange={handleChange}
                   required
-                  placeholder="Ej. Av. República de El Salvador y Naciones Unidas, Edificio Luxes"
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  placeholder="Ej. Av. República de El Salvador y Naciones Unidas"
+                  className={inputClass}
                 />
               </div>
             </div>
 
-            {/* Proformas Parameters Section */}
-            <div className="space-y-4 pt-4">
-              <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider border-b border-slate-100 pb-2">
+            <div className="space-y-4 pt-2">
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2">
                 Parámetros de proformas
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Días de Validez por Defecto *</label>
+                  <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Días de validez por defecto *</label>
                   <input
                     name="diasValidez"
                     type="number"
@@ -312,17 +307,17 @@ export const ConfiguracionPage = () => {
                     value={form.diasValidez}
                     onChange={handleChange}
                     required
-                    className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    className={inputClass}
                   />
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    Número de días antes del vencimiento automático
+                  <span className="text-[11px] text-slate-400 mt-1.5 block">
+                    Días antes del vencimiento automático
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1 block">
-                  Condiciones y formas de pago (Política Precargada) *
+                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
+                  Condiciones y formas de pago *
                 </label>
                 <textarea
                   name="condicionesPago"
@@ -331,84 +326,80 @@ export const ConfiguracionPage = () => {
                   required
                   rows={6}
                   placeholder="Escribe cada término en una línea nueva..."
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-sans resize-y"
+                  className={`${inputClass} font-sans resize-y`}
                 />
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Cada párrafo o condición en una línea separada se dibujará en las proformas generadas
+                <span className="text-[11px] text-slate-400 mt-1.5 block">
+                  Cada línea se mostrará como condición en las proformas
                 </span>
               </div>
             </div>
-
           </div>
 
-          {/* Form Footer */}
-          <div className="bg-slate-50 border-t border-slate-150 px-6 py-4 flex items-center justify-end">
+          <div className="bg-slate-50/80 border-t border-slate-100 px-4 sm:px-6 py-4 flex items-center justify-end">
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 shadow-sm text-sm"
-              style={{ backgroundColor: '#1d4ed8' }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
             >
               {saving && (
                 <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" aria-hidden="true" />
               )}
-              {saving ? 'Guardando...' : 'Guardar Configuración'}
+              {saving ? 'Guardando...' : 'Guardar configuración'}
             </button>
           </div>
         </form>
       ) : (
-        <form onSubmit={handleSaveSidebar} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="p-6 space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider border-b border-slate-100 pb-2">
+        <form onSubmit={handleSaveSidebar} className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+          <div className="p-4 sm:p-6 space-y-4">
+            <div>
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2">
                 Categorías del menú lateral
               </h2>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Elige qué secciones aparecen en el modo <strong>Módulos principales</strong>.
-                Las categorías desactivadas siguen disponibles al activar <strong>Ver todo</strong> en el sidebar.
+              <p className="text-sm text-slate-500 mt-3 leading-relaxed">
+                Elige qué secciones aparecen en <span className="font-semibold text-slate-700">Módulos principales</span>.
+                Las desactivadas siguen disponibles con <span className="font-semibold text-slate-700">Ver todo</span>.
               </p>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4">
-                {AVAILABLE_MODULES.map((mod) => {
-                  const isVisible = !selectedHidden.includes(mod.key);
-                  return (
-                    <div
-                      key={mod.key}
-                      onClick={() => handleToggleModuleVisible(mod.key)}
-                      className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all duration-200 select-none ${
-                        isVisible
-                          ? 'border-blue-200 bg-blue-50/20 hover:bg-blue-50/40'
-                          : 'border-slate-200 bg-white hover:bg-slate-50'
-                      }`}
-                    >
-                      <div>
-                        <span className="text-sm font-semibold text-slate-800">{mod.label}</span>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                          {isVisible ? 'Visible en Principales' : 'Oculto en Principales'}
-                        </p>
-                      </div>
-                      <div className={`relative w-9 h-5 rounded-full transition-colors ${isVisible ? 'bg-blue-600' : 'bg-slate-200'}`}>
-                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${isVisible ? 'translate-x-4' : ''}`} />
-                      </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
+              {AVAILABLE_MODULES.map((mod) => {
+                const isVisible = !selectedHidden.includes(mod.key);
+                return (
+                  <button
+                    key={mod.key}
+                    type="button"
+                    onClick={() => handleToggleModuleVisible(mod.key)}
+                    className={`flex items-center justify-between p-4 border rounded-xl text-left transition-colors select-none ${
+                      isVisible
+                        ? 'border-blue-100 bg-white hover:bg-slate-50'
+                        : 'border-slate-200 bg-slate-50/60 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="min-w-0 pr-3">
+                      <span className="text-sm font-semibold text-slate-800 block truncate">{mod.label}</span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {isVisible ? 'Visible en principales' : 'Oculto en principales'}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${isVisible ? 'bg-blue-600' : 'bg-slate-200'}`}>
+                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${isVisible ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Form Footer */}
-          <div className="bg-slate-50 border-t border-slate-150 px-6 py-4 flex items-center justify-end">
+          <div className="bg-slate-50/80 border-t border-slate-100 px-4 sm:px-6 py-4 flex items-center justify-end">
             <button
               type="submit"
               disabled={savingSidebar}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 shadow-sm text-sm"
-              style={{ backgroundColor: '#1d4ed8' }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
             >
               {savingSidebar && (
                 <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" aria-hidden="true" />
               )}
-              {savingSidebar ? 'Guardando...' : 'Guardar Configuración de Sidebar'}
+              {savingSidebar ? 'Guardando...' : 'Guardar sidebar'}
             </button>
           </div>
         </form>

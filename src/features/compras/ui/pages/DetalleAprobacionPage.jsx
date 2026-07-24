@@ -1,12 +1,16 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
+import { ArrowLeft, ClipboardCheck, X } from 'lucide-react';
 import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../../application/comprasService';
 import { getOrdenProyectoLabel, normalizeOrdenDetalles } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
-import { ComprasPageHeader, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
 import './ComprasPage.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+const inputClass =
+  'w-full h-10 px-3 border border-slate-200 rounded-xl bg-gray-50 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:opacity-60 disabled:cursor-not-allowed';
+const labelClass = 'block text-xs font-semibold text-slate-500 mb-1.5';
 
 const mergeOrdenConDetalles = (ordenApi, ordenFallback) => {
   if (!ordenApi) return null;
@@ -24,7 +28,7 @@ export const DetalleAprobacionPage = () => {
   const { id } = useParams();
   const [ordenFromList] = useState(() => location.state?.ordenFromList ?? null);
   const [currentUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
-  
+
   const [orden, setOrden] = useState(null);
   const [proveedores, setProveedores] = useState([]);
   const [metodosPago, setMetodosPago] = useState([]);
@@ -37,13 +41,13 @@ export const DetalleAprobacionPage = () => {
   const [impuesto, setImpuesto] = useState('0');
   const [preciosEditados, setPreciosEditados] = useState({});
 
-  // Payment integration states
   const [abonoMonto, setAbonoMonto] = useState('');
   const [metodoPagoId, setMetodoPagoId] = useState('');
   const [abonoReferencia, setAbonoReferencia] = useState('');
 
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -73,9 +77,9 @@ export const DetalleAprobacionPage = () => {
 
       setImpuesto(String(ordenMerged.impuesto || 0));
 
-      const lineas = normalizeOrdenDetalles(ordenMerged);
+      const lineasInit = normalizeOrdenDetalles(ordenMerged);
       const preciosIniciales = {};
-      lineas.forEach((linea) => {
+      lineasInit.forEach((linea) => {
         preciosIniciales[linea.id] = linea.precioUnitario;
       });
       setPreciosEditados(preciosIniciales);
@@ -95,9 +99,8 @@ export const DetalleAprobacionPage = () => {
     if (p === null) {
       setProveedorId('');
       setProviderSearch('Sin proveedor específico');
-      // If payment is partial, reset to 0/empty to prevent saving with unassigned provider
-      const numericAbono = parseFloat(abonoMonto) || 0;
-      if (numericAbono > 0 && numericAbono < total - 0.01) {
+      const numericAbonoLocal = parseFloat(abonoMonto) || 0;
+      if (numericAbonoLocal > 0 && numericAbonoLocal < total - 0.01) {
         setAbonoMonto('');
       }
     } else {
@@ -124,8 +127,6 @@ export const DetalleAprobacionPage = () => {
   const impuestoVal = parseFloat(impuesto) || 0;
   const total = subtotal + impuestoVal;
 
-  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
-
   const numericAbono = parseFloat(abonoMonto) || 0;
   const isSinProveedor = !proveedorId;
 
@@ -133,7 +134,6 @@ export const DetalleAprobacionPage = () => {
     if (numericAbono < 0) return true;
     if (numericAbono > total + 0.01) return true;
     if (numericAbono > 0 && !metodoPagoId) return true;
-    // Unassigned provider cannot leave debt (no 0 payment, no partial payment)
     if (isSinProveedor && numericAbono < total - 0.01) return true;
     return false;
   };
@@ -214,9 +214,9 @@ export const DetalleAprobacionPage = () => {
 
   if (loading) {
     return (
-      <div className="co-page animate-slide-up">
-        <div className="co-card co-loader-box">
-          <div className="co-spinner" />
+      <div className="space-y-3 sm:space-y-5 animate-slide-up" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
         </div>
       </div>
     );
@@ -225,50 +225,80 @@ export const DetalleAprobacionPage = () => {
   if (!orden) return null;
 
   const proyectoLabel = getOrdenProyectoLabel(orden);
+  const estadoPendiente = orden.estado === 'pendiente_aprobacion';
 
   return (
-    <div className="co-page animate-slide-up">
-      <ComprasPageHeader
-        title={`Detalle de Orden - ${orden.numero}`}
-        subtitle="Asigna proveedor y precios a cada item antes de aprobar"
-        action={(
-          <ComprasHeaderGhostButton onClick={() => navigate('/compras?vista=aprobaciones')}>
-            ← Volver a Aprobaciones
-          </ComprasHeaderGhostButton>
-        )}
-      />
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up pb-8"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+      `}</style>
 
-      {/* Información General */}
-      <div className="co-card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <h3 className="text-xs font-bold text-slate-500" style={{ marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Información General
-        </h3>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem' }}>
+      {/* Header */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => navigate('/compras?vista=aprobaciones')}
+            className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center shrink-0 text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+            title="Volver"
+            aria-label="Volver"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+            <ClipboardCheck className="w-5 h-5 text-blue-600" strokeWidth={2} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-slate-800 leading-tight truncate">
+                Detalle de orden — {orden.numero}
+              </h1>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700">
+                Aprobación
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-snug">
+              Asigna proveedor y precios a cada ítem antes de aprobar
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Información general */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">
+          Información general
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div>
-            <p className="co-label">Orden</p>
-            <p className="text-sm font-bold text-slate-800">{orden.numero}</p>
+            <p className={labelClass}>Orden</p>
+            <p className="text-sm font-bold text-slate-800 font-mono">{orden.numero}</p>
           </div>
           <div>
-            <p className="co-label">Emisor</p>
+            <p className={labelClass}>Emisor</p>
             <p className="text-sm font-semibold text-slate-700">{orden.usuario?.nombre || '—'}</p>
           </div>
           <div>
-            <p className="co-label">Fecha</p>
+            <p className={labelClass}>Fecha</p>
             <p className="text-sm font-semibold text-slate-700">
               {orden.fecha ? new Date(orden.fecha).toLocaleDateString('es-EC') : '—'}
             </p>
           </div>
           <div>
-            <p className="co-label">Estado</p>
-            <span className="co-badge" style={{
-              background: orden.estado === 'pendiente_aprobacion' ? '#fef3c7' : '#dbeafe',
-              color: orden.estado === 'pendiente_aprobacion' ? '#f59e0b' : '#3b82f6'
-            }}>
-              {orden.estado === 'pendiente_aprobacion' ? 'Pendiente' : orden.estado}
+            <p className={labelClass}>Estado</p>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+              estadoPendiente
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-blue-50 text-blue-700 border-blue-100'
+            }`}>
+              {estadoPendiente ? 'Pendiente' : orden.estado}
             </span>
           </div>
-          <div>
-            <p className="co-label">Proyecto</p>
+          <div className="col-span-2 md:col-span-1">
+            <p className={labelClass}>Proyecto</p>
             {proyectoLabel ? (
               orden.proyecto?.id ? (
                 <Link
@@ -286,16 +316,16 @@ export const DetalleAprobacionPage = () => {
           </div>
         </div>
         {(orden.concepto || orden.notas) && (
-          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
             {orden.concepto && (
-              <div style={{ marginBottom: '0.75rem' }}>
-                <p className="co-label">Concepto</p>
+              <div>
+                <p className={labelClass}>Concepto</p>
                 <p className="text-sm text-slate-700">{orden.concepto}</p>
               </div>
             )}
             {orden.notas && (
               <div>
-                <p className="co-label">Notas</p>
+                <p className={labelClass}>Notas</p>
                 <p className="text-sm text-slate-500">{orden.notas}</p>
               </div>
             )}
@@ -303,19 +333,17 @@ export const DetalleAprobacionPage = () => {
         )}
       </div>
 
-      {/* Datos de Facturación */}
-      <div className="co-card" style={{ padding: '1.5rem', marginBottom: '1.5rem', overflow: 'visible', position: 'relative', zIndex: 10 }}>
-        <h3 className="text-xs font-bold text-slate-500" style={{ marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Datos de Facturación
-        </h3>
-        <div className="co-form-row-split">
-          <div className="co-form-field relative">
-            <label className="co-label">
-              Proveedor
-            </label>
+      {/* Datos de facturación */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5 overflow-visible relative z-10">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">
+          Datos de facturación
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="relative">
+            <label className={labelClass}>Proveedor</label>
             <input
               type="text"
-              className="co-input"
+              className={inputClass}
               placeholder="Buscar proveedor..."
               value={providerSearch}
               onChange={e => {
@@ -326,8 +354,8 @@ export const DetalleAprobacionPage = () => {
                   setProveedorId(found.id);
                 } else if (e.target.value === 'Sin proveedor específico' || e.target.value === '') {
                   setProveedorId('');
-                  const numericAbono = parseFloat(abonoMonto) || 0;
-                  if (numericAbono > 0 && numericAbono < total - 0.01) {
+                  const nAbono = parseFloat(abonoMonto) || 0;
+                  if (nAbono > 0 && nAbono < total - 0.01) {
                     setAbonoMonto('');
                   }
                 }
@@ -385,68 +413,66 @@ export const DetalleAprobacionPage = () => {
               </div>
             )}
           </div>
-          <div className="co-form-field">
-            <label className="co-label">IVA / Impuesto</label>
+          <div>
+            <label className={labelClass}>IVA / Impuesto</label>
             <input
               type="number"
               step="0.01"
               value={impuesto}
               onChange={(e) => setImpuesto(e.target.value)}
-              className="co-input"
+              className={inputClass}
               placeholder="0.00"
             />
           </div>
         </div>
       </div>
 
-
-
-
-      {/* Items de la Orden */}
-      <div className="co-card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <h3 className="text-xs font-bold text-slate-500" style={{ marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Items de la Orden
-        </h3>
-        
+      {/* Ítems */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-gray-100 flex items-center gap-3">
+          <h3 className="text-sm font-semibold text-gray-800">Ítems de la orden</h3>
+          <span className="text-xs font-medium text-gray-400">
+            {lineas.length} {lineas.length === 1 ? 'registro' : 'registros'}
+          </span>
+        </div>
         <div className="overflow-x-auto">
-          <table className="co-items-table">
-            <thead>
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-50/60 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
               <tr>
-                <th>Descripción</th>
-                <th style={{ width: '100px', textAlign: 'center' }}>Cantidad</th>
-                <th style={{ width: '180px', textAlign: 'right' }}>Precio Unitario</th>
-                <th style={{ width: '140px', textAlign: 'right' }}>Total parcial</th>
+                <th className="px-4 py-3">Descripción</th>
+                <th className="px-4 py-3 text-center w-[100px]">Cantidad</th>
+                <th className="px-4 py-3 text-right w-[180px]">Precio unitario</th>
+                <th className="px-4 py-3 text-right w-[140px]">Total parcial</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {lineas.map((d) => {
                 const subtotalItem = d.cantidad * (parseFloat(d.precioUnitario) || 0);
                 return (
-                  <tr key={d.id}>
-                    <td className="font-semibold text-slate-800">{d.descripcion}</td>
-                    <td className="text-center text-slate-500">{d.cantidad}</td>
-                    <td style={{ textAlign: 'right' }}>
+                  <tr key={d.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-800">{d.descripcion}</td>
+                    <td className="px-4 py-3 text-center text-slate-500 tabular-nums">{d.cantidad}</td>
+                    <td className="px-4 py-3 text-right">
                       <input
                         type="number"
                         step="0.01"
                         min="0"
                         value={d.precioUnitario}
                         onChange={(e) => updateDetallePrecio(d.id, e.target.value)}
-                        className="co-table-input"
-                        style={{ maxWidth: '140px', marginLeft: 'auto' }}
+                        className={`${inputClass} text-right !h-9 ml-auto`}
+                        style={{ maxWidth: '140px' }}
                         placeholder="0.00"
                       />
                     </td>
-                    <td className="text-right font-bold text-slate-800">{fmt(subtotalItem)}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-800 tabular-nums">{fmt(subtotalItem)}</td>
                   </tr>
                 );
               })}
               {lineas.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-slate-400 text-sm font-medium">
+                  <td colSpan={4} className="px-4 py-16 text-center text-slate-400 text-sm">
                     <p>No hay artículos registrados en esta orden.</p>
                     <p className="mt-2 text-xs text-slate-400">
-                      Si la orden tenía materiales, es posible que se hayan perdido al aprobar sin cargar los ítems.
                       Gestiona los ítems desde esta pantalla de aprobación antes de confirmar.
                     </p>
                   </td>
@@ -456,116 +482,110 @@ export const DetalleAprobacionPage = () => {
           </table>
         </div>
 
-        {/* Totales */}
-        <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ width: '320px' }}>
-            <div className="co-totals-box">
-              <div className="co-total-row">
-                <span>Total parcial:</span>
-                <span className="font-bold text-slate-800">{fmt(subtotal)}</span>
-              </div>
-              <div className="co-total-row">
-                <span>IVA / Impuesto:</span>
-                <span className="font-bold text-slate-800">{fmt(impuestoVal)}</span>
-              </div>
-              <div className="co-total-row co-total-final">
-                <span>Total:</span>
-                <span>{fmt(total)}</span>
-              </div>
+        <div className="px-4 sm:px-5 py-4 border-t border-slate-100 flex justify-end">
+          <div className="w-full max-w-xs space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Total parcial</span>
+              <span className="font-semibold text-slate-800 tabular-nums">{fmt(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">IVA / Impuesto</span>
+              <span className="font-semibold text-slate-800 tabular-nums">{fmt(impuestoVal)}</span>
+            </div>
+            <div className="flex justify-between text-sm pt-2 border-t border-slate-100">
+              <span className="font-semibold text-slate-700">Total</span>
+              <span className="font-bold text-slate-900 tabular-nums text-base">{fmt(total)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Botones de Acción */}
-      <div className="co-actions-row">
+      {/* Acciones */}
+      <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
         <button
-          onClick={triggerAprobarConfirm}
-          disabled={saving}
-          className="co-btn-primary"
-          style={{ 
-            background: saving ? '#94a3b8' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-            boxShadow: saving ? 'none' : '0 4px 14px rgba(22,163,74,0.3)'
-          }}
-        >
-          {saving ? 'Procesando...' : 'Guardar y Aprobar Orden'}
-        </button>
-        <button
+          type="button"
           onClick={() => setShowRejectModal(true)}
           disabled={saving}
-          className="co-btn-primary"
-          style={{ 
-            background: saving ? '#94a3b8' : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-            boxShadow: saving ? 'none' : '0 4px 14px rgba(220,38,38,0.3)'
-          }}
+          className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-semibold text-sm text-rose-600 border border-rose-200 bg-white hover:bg-rose-50 transition-colors disabled:opacity-50"
         >
-          Rechazar Orden
+          Rechazar orden
+        </button>
+        <button
+          type="button"
+          onClick={triggerAprobarConfirm}
+          disabled={saving}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-700 transition-opacity shadow-sm disabled:opacity-50"
+        >
+          {saving ? 'Procesando...' : 'Guardar y aprobar orden'}
         </button>
       </div>
 
-      {/* Modal de Confirmación de Aprobación con Pago Integrado */}
+      {/* Modal aprobar */}
       {showApproveConfirm && (
         <>
-          <div className="co-overlay" onClick={() => setShowApproveConfirm(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal-fixed-wide animate-co-modal-in">
-              <div className="co-modal-header">
+          <div
+            className="fixed inset-0 z-[200] bg-slate-200/60 backdrop-blur-md"
+            onClick={() => setShowApproveConfirm(false)}
+          />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-3xl bg-white rounded-xl shadow-xl flex flex-col border border-slate-200 max-h-[min(780px,92vh)] overflow-hidden pointer-events-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0 gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Confirmar Aprobación</h3>
+                  <h3 className="text-sm font-bold text-slate-800">Confirmar aprobación</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Verifica los datos y registra el abono inicial</p>
                 </div>
-                <button onClick={() => setShowApproveConfirm(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <button
+                  type="button"
+                  onClick={() => setShowApproveConfirm(false)}
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
+                >
+                  <X size={16} />
                 </button>
               </div>
-              <div className="co-modal-body">
-                <div className="co-modal-grid-2col">
-                  {/* Left Column: Summary */}
-                  <div className="co-modal-col-left" style={{ justifyContent: 'center' }}>
-                    <div style={{ padding: '1.5rem', borderRadius: '16px', background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.01)' }}>
-                      <p className="text-[10px] font-bold text-slate-400 mb-4" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Resumen de Orden
-                      </p>
-                      <div className="flex justify-between text-xs" style={{ marginBottom: '0.85rem' }}>
-                        <span className="text-slate-500 font-medium">Orden:</span>
-                        <span className="font-bold text-slate-800 font-mono" style={{ letterSpacing: '0.02em' }}>{orden.numero}</span>
-                      </div>
-                      <div className="flex justify-between text-xs" style={{ marginBottom: '0.85rem' }}>
-                        <span className="text-slate-500 font-medium">Proveedor:</span>
-                        <span className="font-semibold text-slate-700">{providerSearch || 'Sin proveedor específico'}</span>
-                      </div>
-                      <div className="flex justify-between text-xs" style={{ marginBottom: '0.85rem' }}>
-                        <span className="text-slate-500 font-medium">Proyecto:</span>
-                        <span className="font-semibold text-slate-700 text-right max-w-[60%]">
-                          {proyectoLabel || 'Gasto general'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs" style={{ paddingTop: '0.85rem', borderTop: '1px solid #f1f5f9' }}>
-                        <span className="text-slate-500 font-bold">Total de Orden:</span>
-                        <span className="font-extrabold text-slate-900" style={{ fontSize: '15px' }}>{fmt(total)}</span>
-                      </div>
+
+              <div className="px-5 py-4 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Resumen de orden
+                    </p>
+                    <div className="flex justify-between text-xs gap-3">
+                      <span className="text-slate-500 font-medium">Orden</span>
+                      <span className="font-bold text-slate-800 font-mono">{orden.numero}</span>
+                    </div>
+                    <div className="flex justify-between text-xs gap-3">
+                      <span className="text-slate-500 font-medium">Proveedor</span>
+                      <span className="font-semibold text-slate-700 text-right">{providerSearch || 'Sin proveedor específico'}</span>
+                    </div>
+                    <div className="flex justify-between text-xs gap-3">
+                      <span className="text-slate-500 font-medium">Proyecto</span>
+                      <span className="font-semibold text-slate-700 text-right max-w-[60%]">
+                        {proyectoLabel || 'Gasto general'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs gap-3 pt-3 border-t border-slate-200">
+                      <span className="text-slate-500 font-bold">Total de orden</span>
+                      <span className="font-bold text-slate-900 tabular-nums">{fmt(total)}</span>
                     </div>
                   </div>
 
-                  {/* Right Column: Inputs */}
-                  <div className="co-modal-col-right">
+                  <div className="space-y-3">
                     <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="co-label" style={{ margin: 0, fontSize: '10px' }}>Monto a Abonar ($)</label>
-                        <span 
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className={`${labelClass} !mb-0`}>Monto a abonar ($)</label>
+                        <button
+                          type="button"
+                          className="text-[11px] font-semibold text-blue-600 hover:text-blue-700"
                           onClick={() => {
                             setAbonoMonto(total.toFixed(2));
                             if (!metodoPagoId && metodosPago.length > 0) {
                               const activeMethod = metodosPago.find(mp => mp.activo);
                               if (activeMethod) setMetodoPagoId(activeMethod.id);
                             }
-                          }} 
-                          style={{ cursor: 'pointer', fontSize: '10px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline' }}
+                          }}
                         >
-                          Copiar Total
-                        </span>
+                          Copiar total
+                        </button>
                       </div>
                       <input
                         type="number"
@@ -575,77 +595,54 @@ export const DetalleAprobacionPage = () => {
                         value={abonoMonto}
                         onChange={(e) => {
                           setAbonoMonto(e.target.value);
-                          // Auto-select payment method if empty and they start typing a value
                           if (e.target.value && parseFloat(e.target.value) > 0 && !metodoPagoId && metodosPago.length > 0) {
                             const activeMethod = metodosPago.find(mp => mp.activo);
                             if (activeMethod) setMetodoPagoId(activeMethod.id);
                           }
                         }}
-                        className="co-input"
-                        placeholder="0.00 (Dejar en blanco para Ninguno)"
+                        className={inputClass}
+                        placeholder="0.00 (dejar en blanco para ninguno)"
                       />
-                      
-                      {/* Legends under input with SVG icons, NO emojis */}
                       {numericAbono < 0 && (
-                        <p style={{ color: '#ef4444', fontSize: '10.5px', fontWeight: '600', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                          El abono no puede ser menor a 0.
-                        </p>
+                        <p className="text-[10.5px] font-semibold text-red-600 mt-1">El abono no puede ser menor a 0.</p>
                       )}
                       {numericAbono > total + 0.01 && (
-                        <p style={{ color: '#ef4444', fontSize: '10.5px', fontWeight: '600', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
+                        <p className="text-[10.5px] font-semibold text-red-600 mt-1">
                           El abono no puede exceder el total de {fmt(total)}.
                         </p>
                       )}
                       {isSinProveedor && numericAbono < total - 0.01 && (
-                        <p style={{ color: '#ea580c', fontSize: '10.5px', fontWeight: '600', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-orange-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
+                        <p className="text-[10.5px] font-semibold text-orange-600 mt-1">
                           No se puede abonar menos del total sin un proveedor específico.
                         </p>
                       )}
                       {!isSinProveedor && numericAbono === 0 && (
-                        <p style={{ color: '#64748b', fontSize: '10.5px', fontWeight: '500', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                        <p className="text-[10.5px] font-medium text-slate-500 mt-1">
                           Se registrará la orden como cuenta por pagar de {fmt(total)}.
                         </p>
                       )}
                       {!isSinProveedor && numericAbono > 0 && numericAbono < total - 0.01 && (
-                        <p style={{ color: '#2563eb', fontSize: '10.5px', fontWeight: '500', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Abono parcial. Saldo de {fmt(total - numericAbono)} a Cuentas por Pagar.
+                        <p className="text-[10.5px] font-medium text-blue-600 mt-1">
+                          Abono parcial. Saldo de {fmt(total - numericAbono)} a cuentas por pagar.
                         </p>
                       )}
                       {numericAbono >= total - 0.01 && numericAbono <= total + 0.01 && (
-                        <p style={{ color: '#16a34a', fontSize: '10.5px', fontWeight: '500', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Pago Total: La orden se registrará como pagada y cerrada.
+                        <p className="text-[10.5px] font-medium text-emerald-600 mt-1">
+                          Pago total: la orden se registrará como pagada y cerrada.
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="co-label" style={{ fontSize: '10px' }}>Cuenta / Método de Pago</label>
+                      <label className={labelClass}>Cuenta / método de pago</label>
                       <select
                         value={metodoPagoId}
                         onChange={(e) => setMetodoPagoId(e.target.value)}
-                        className="co-input"
+                        className={inputClass}
                         disabled={!(parseFloat(abonoMonto) > 0)}
                         style={{ background: !(parseFloat(abonoMonto) > 0) ? '#f8fafc' : '#ffffff' }}
                       >
-                        <option value="">{parseFloat(abonoMonto) > 0 ? "Selecciona cuenta..." : "No requiere (Sin abono)"}</option>
+                        <option value="">{parseFloat(abonoMonto) > 0 ? 'Selecciona cuenta...' : 'No requiere (sin abono)'}</option>
                         {metodosPago
                           .filter(mp => mp.activo)
                           .map(mp => (
@@ -657,12 +654,12 @@ export const DetalleAprobacionPage = () => {
                     </div>
 
                     <div>
-                      <label className="co-label" style={{ fontSize: '10px' }}>Referencia / Observación</label>
+                      <label className={labelClass}>Referencia / observación</label>
                       <input
                         type="text"
                         value={abonoReferencia}
                         onChange={(e) => setAbonoReferencia(e.target.value)}
-                        className="co-input"
+                        className={inputClass}
                         disabled={!(parseFloat(abonoMonto) > 0)}
                         style={{ background: !(parseFloat(abonoMonto) > 0) ? '#f8fafc' : '#ffffff' }}
                         placeholder="No. transferencia, cheque, etc."
@@ -672,21 +669,21 @@ export const DetalleAprobacionPage = () => {
                 </div>
               </div>
 
-              {/* Footer containing action buttons */}
-              <div className="co-modal-fixed-footer">
-                <button onClick={() => setShowApproveConfirm(false)} className="co-btn-ghost">
+              <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setShowApproveConfirm(false)}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                >
                   Cancelar
                 </button>
                 <button
+                  type="button"
                   onClick={handleGuardarYAprobar}
                   disabled={saving || isSubmitDisabled()}
-                  className="co-btn-primary"
-                  style={{ 
-                    background: (saving || isSubmitDisabled()) ? '#94a3b8' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-                    boxShadow: (saving || isSubmitDisabled()) ? 'none' : '0 4px 14px rgba(22,163,74,0.3)'
-                  }}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-700 transition-opacity shadow-sm disabled:opacity-50 min-w-[160px]"
                 >
-                  {saving ? 'Aprobando...' : 'Confirmar y Aprobar'}
+                  {saving ? 'Aprobando...' : 'Confirmar y aprobar'}
                 </button>
               </div>
             </div>
@@ -694,45 +691,51 @@ export const DetalleAprobacionPage = () => {
         </>
       )}
 
-      {/* Modal de Rechazo */}
+      {/* Modal rechazar */}
       {showRejectModal && (
         <>
-          <div className="co-overlay" onClick={() => setShowRejectModal(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal animate-co-modal-in">
-              <div className="co-modal-header">
+          <div
+            className="fixed inset-0 z-[200] bg-slate-200/60 backdrop-blur-md"
+            onClick={() => setShowRejectModal(false)}
+          />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-md bg-white rounded-xl shadow-xl flex flex-col border border-slate-200 overflow-hidden pointer-events-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0 gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Rechazar Orden</h3>
+                  <h3 className="text-sm font-bold text-slate-800">Rechazar orden</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Indica el motivo del rechazo</p>
                 </div>
-                <button onClick={() => setShowRejectModal(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <button
+                  type="button"
+                  onClick={() => setShowRejectModal(false)}
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
+                >
+                  <X size={16} />
                 </button>
               </div>
-              <div className="co-modal-body">
+              <div className="px-5 py-4 space-y-4">
                 <textarea
                   value={motivoRechazo}
                   onChange={(e) => setMotivoRechazo(e.target.value)}
-                  className="co-input co-textarea"
+                  className={`${inputClass} h-auto py-2.5 resize-y min-h-[100px]`}
                   rows={4}
                   placeholder="Motivo del rechazo..."
                 />
-                <div className="flex justify-end gap-3 mt-4">
-                  <button onClick={() => { setShowRejectModal(false); setMotivoRechazo(''); }} className="co-btn-ghost">
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setShowRejectModal(false); setMotivoRechazo(''); }}
+                    className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                  >
                     Cancelar
                   </button>
                   <button
+                    type="button"
                     onClick={handleRechazar}
                     disabled={saving || !motivoRechazo.trim()}
-                    className="co-btn-primary"
-                    style={{ 
-                      background: (saving || !motivoRechazo.trim()) ? '#94a3b8' : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                      boxShadow: (saving || !motivoRechazo.trim()) ? 'none' : '0 4px 14px rgba(220,38,38,0.3)'
-                    }}
+                    className="inline-flex items-center justify-center px-5 py-2.5 text-white rounded-xl font-semibold text-sm bg-rose-600 hover:bg-rose-700 transition-opacity shadow-sm disabled:opacity-50"
                   >
-                    {saving ? 'Rechazando...' : 'Confirmar Rechazo'}
+                    {saving ? 'Rechazando...' : 'Confirmar rechazo'}
                   </button>
                 </div>
               </div>

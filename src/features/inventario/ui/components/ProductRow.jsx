@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Wrench, Eye, Edit2, Trash2 } from 'lucide-react';
+import { Package, Wrench, Eye, Pencil, Trash2 } from 'lucide-react';
 import { StatusBadge } from './StatusBadge.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
 
@@ -8,9 +8,11 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { day: '2-dig
 
 export function ProductRow({ item, activeTab, isAdmin, onViewHistory, onEdit, onDelete }) {
   const isTool = item.tipo === 'herramienta';
-  const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
+  const tracksStock = item.descargaStock !== undefined
+    ? item.descargaStock
+    : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
   const unidad = item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unid';
-  
+
   const estado = isTool ? item.estadoUso : (
     !tracksStock ? 'Solo registro' :
     item.stockActual === 0 ? 'Agotado' :
@@ -20,54 +22,72 @@ export function ProductRow({ item, activeTab, isAdmin, onViewHistory, onEdit, on
   const cpp = item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto;
 
   return (
-    <tr>
-      <td className="inv-td-name" style={{ fontSize: '0.875rem', padding: '1rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            {isTool ? <Wrench size={14} style={{ color: '#64748b' }} /> : <Package size={14} style={{ color: '#64748b' }} />}
-            <strong style={{ color: '#0f172a' }}>{item.nombre}</strong>
+    <tr className="hover:bg-slate-50/70 transition-colors">
+      <td className="px-5 py-4">
+        <div className="flex items-center gap-2 min-w-0">
+          {isTool
+            ? <Wrench size={14} className="text-slate-400 shrink-0" />
+            : <Package size={14} className="text-slate-400 shrink-0" />}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900 leading-tight truncate">{item.nombre}</p>
+            {item.codigo && (
+              <p className="text-xs text-slate-400 font-mono mt-0.5">Cod: {item.codigo}</p>
+            )}
           </div>
-          {item.codigo && (
-            <span style={{ color: '#64748b', marginTop: '0.15rem' }}>
-              Cod: {item.codigo}
-            </span>
-          )}
         </div>
       </td>
       {activeTab === 'all' && (
-        <td style={{ textAlign: 'center', padding: '1rem' }}>
+        <td className="px-5 py-4">
           <SectionBadge section={item.categoria} />
         </td>
       )}
-      <td className="inv-td-stock" style={{ fontSize: '0.875rem', padding: '1rem' }}>
-        <strong style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>
+      <td className="px-5 py-4 text-sm font-semibold text-slate-800 tabular-nums">
+        <span className={!tracksStock ? 'text-slate-500 font-medium' : ''}>
           {item.stockActual} {unidad}
-        </strong>
+        </span>
       </td>
-      <td style={{ fontSize: '0.875rem', textAlign: 'center', padding: '1rem' }}>
+      <td className="px-5 py-4">
         <StatusBadge status={estado} />
       </td>
-      <td style={{ fontSize: '0.875rem', padding: '1rem' }}>{fmt(item.precioCosto)}</td>
-      <td style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1d4ed8', padding: '1rem' }}>
-        {fmt(cpp)}
-      </td>
-      <td style={{ fontSize: '0.875rem', color: '#64748b', padding: '1rem' }}>
+      <td className="px-5 py-4 text-sm text-slate-700 tabular-nums">{fmt(item.precioCosto)}</td>
+      <td className="px-5 py-4 text-sm font-semibold text-blue-700 tabular-nums">{fmt(cpp)}</td>
+      <td className="px-5 py-4 text-sm text-slate-500 whitespace-nowrap">
         {item.ultimaFechaCompra ? fmtDate(item.ultimaFechaCompra) : '—'}
       </td>
-      <td className="inv-td-actions" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', padding: '1.25rem 1rem' }}>
-        <button className="inv-icon-btn" title="Ver Historial" onClick={() => onViewHistory(item)} style={{ color: '#64748b', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
-          <Eye size={18}/>
-        </button>
-        {isAdmin && (
-          <button className="inv-icon-btn" title="Editar" onClick={() => onEdit(item)} style={{ color: '#64748b', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
-            <Edit2 size={18}/>
+      <td className="px-5 py-4 text-right">
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            title="Ver historial"
+            aria-label="Ver historial"
+            onClick={() => onViewHistory(item)}
+            className="p-1.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+          >
+            <Eye size={16} strokeWidth={1.5} />
           </button>
-        )}
-        {isAdmin && (
-          <button className="inv-icon-btn" title="Eliminar" onClick={() => onDelete(item)} style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
-            <Trash2 size={18}/>
-          </button>
-        )}
+          {isAdmin && (
+            <button
+              type="button"
+              title="Editar"
+              aria-label="Editar"
+              onClick={() => onEdit(item)}
+              className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+            >
+              <Pencil size={16} strokeWidth={1.5} />
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              title="Eliminar"
+              aria-label="Eliminar"
+              onClick={() => onDelete(item)}
+              className="p-1.5 rounded-lg bg-rose-50 text-rose-500 border border-rose-100 hover:bg-rose-100 hover:text-rose-600 transition-colors"
+            >
+              <Trash2 size={16} strokeWidth={1.5} />
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );

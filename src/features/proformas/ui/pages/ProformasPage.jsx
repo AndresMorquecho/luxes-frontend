@@ -6,10 +6,8 @@ import { ProformaPDF } from '../components/ProformaPDF';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
-import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
-import { FileText, Clock, CheckCircle2, DollarSign, Search, Trash2, Download, Eye, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
-
-const ESTADOS = ['Pendiente', 'Aprobada', 'Rechazada'];
+import { confirmDialog, alertDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { Search, Trash2, Download, Eye } from 'lucide-react';
 
 const SearchableSelect = ({ label, value, onChange, options, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,10 +30,10 @@ const SearchableSelect = ({ label, value, onChange, options, placeholder }) => {
 
   return (
     <div className="relative" ref={containerRef}>
-      <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">{label}</label>
+      <label className="block text-xs font-semibold text-slate-500 mb-1.5">{label}</label>
       <div 
         onClick={() => { setIsOpen(!isOpen); setSearch(''); }}
-        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer flex justify-between items-center min-h-[38px]"
+        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-gray-50 text-slate-700 focus:outline-none cursor-pointer flex justify-between items-center min-h-[42px]"
       >
         <span className={value ? "text-slate-700 font-medium" : "text-slate-400"}>
           {value || placeholder}
@@ -86,6 +84,7 @@ export const ProformasPage = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (currentUser.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
+  const isVentasODisenador = ['VENTAS', 'DISEÑADOR', 'DISENADOR'].includes(userRole);
   
   // Core lists & stats
   const [proformas, setProformas] = useState([]);
@@ -93,7 +92,6 @@ export const ProformasPage = () => {
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState(null);
   const [configuracion, setConfiguracion] = useState(null);
-  const [activeDropdownId, setActiveDropdownId] = useState(null);
   
   // KPIs & Dynamic Filter Options
   const [stats, setStats] = useState({ total: 0, totalEsteMes: 0, pendientes: 0, aprobadas: 0, montoTotal: 0 });
@@ -105,19 +103,13 @@ export const ProformasPage = () => {
   const [paymentMethodModal, setPaymentMethodModal] = useState(null);
   const [selectedMetodoId, setSelectedMetodoId] = useState('');
   
-  // Committed Filter query states
+  // Filter query states (se aplican automáticamente)
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [clienteFilter, setClienteFilter] = useState('');
   const [usuarioFilter, setUsuarioFilter] = useState('');
   const [estado, setEstado] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-
-  // Input control states (for explicit Apply/Clear buttons)
-  const [localSearch, setLocalSearch] = useState('');
-  const [localCliente, setLocalCliente] = useState('');
-  const [localExecutive, setLocalExecutive] = useState('');
-  const [localEstado, setLocalEstado] = useState('');
-  const [localDateRange, setLocalDateRange] = useState({ start: '', end: '' });
   
   // Paginación
   const [page, setPage] = useState(1);
@@ -130,13 +122,6 @@ export const ProformasPage = () => {
   };
 
   const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
-
-  // Close dropdowns on clicking outside
-  useEffect(() => {
-    const handleOutsideClick = () => setActiveDropdownId(null);
-    document.addEventListener('click', handleOutsideClick);
-    return () => document.removeEventListener('click', handleOutsideClick);
-  }, []);
 
   // Fetch unique payment methods
   useEffect(() => {
@@ -230,6 +215,14 @@ export const ProformasPage = () => {
     load();
   }, [load]);
 
+  // Debounce de búsqueda general
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   // Reset page when page-size limit or filter states change
   useEffect(() => {
     setPage(1);
@@ -286,35 +279,10 @@ export const ProformasPage = () => {
       load();
     } catch (err) {
       console.error(err);
-      alert('Error al actualizar el estado: ' + err.message);
+      await alertDialog('Error', 'Error al actualizar el estado: ' + err.message, { type: 'warning' });
     }
   };
 
-  const aplicarFiltros = () => {
-    setSearch(localSearch);
-    setClienteFilter(localCliente);
-    setUsuarioFilter(localExecutive);
-    setEstado(localEstado);
-    setDateRange(localDateRange);
-    setPage(1);
-  };
-
-  const limpiarFiltros = () => {
-    setLocalSearch('');
-    setLocalCliente('');
-    setLocalExecutive('');
-    setLocalEstado('');
-    setLocalDateRange({ start: '', end: '' });
-
-    setSearch('');
-    setClienteFilter('');
-    setUsuarioFilter('');
-    setEstado('');
-    setDateRange({ start: '', end: '' });
-    setPage(1);
-  };
-
-  // UI Helper functions
   const badgeStyle = (est) => {
     switch (est) {
       case 'Aprobada':
@@ -446,551 +414,21 @@ export const ProformasPage = () => {
     dateRange.end
   );
 
+  const setEstadoTab = (nextEstado) => {
+    setEstado(nextEstado);
+    setPage(1);
+  };
+
   return (
-    <div className="pb-10" style={{ fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Proformas</h1>
-          <p className="text-sm text-slate-500 mt-1">Gestiona y da seguimiento a todas las proformas de tus clientes.</p>
-        </div>
-        <button onClick={openNew} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm shadow-blue-100">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nueva Proforma
-        </button>
-      </div>
-
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
-        {/* Total Proformas */}
-        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
-            <FileText size={22} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Total proformas</span>
-            <span className="block text-2xl font-bold text-slate-800 mt-1 leading-none">{stats.total}</span>
-            <span className="block text-xs text-slate-500 mt-1.5 font-medium">
-              Este mes <span className="text-blue-600 font-bold ml-1">{stats.totalEsteMes}</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Pendientes */}
-        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 flex-shrink-0">
-            <Clock size={22} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Pendientes</span>
-            <span className="block text-2xl font-bold text-slate-800 mt-1 leading-none">{stats.pendientes}</span>
-            <span className="block text-xs text-slate-500 mt-1.5 font-medium">
-              <span className="text-orange-600 font-bold mr-1">
-                {stats.total > 0 ? ((stats.pendientes / stats.total) * 100).toFixed(1) : 0}%
-              </span> del total
-            </span>
-          </div>
-        </div>
-
-        {/* Aprobadas */}
-        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
-            <CheckCircle2 size={22} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Aprobadas</span>
-            <span className="block text-2xl font-bold text-slate-800 mt-1 leading-none">{stats.aprobadas}</span>
-            <span className="block text-xs text-slate-500 mt-1.5 font-medium">
-              <span className="text-emerald-600 font-bold mr-1">
-                {stats.total > 0 ? ((stats.aprobadas / stats.total) * 100).toFixed(1) : 0}%
-              </span> del total
-            </span>
-          </div>
-        </div>
-
-        {/* Monto Total */}
-        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
-            <DollarSign size={22} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Monto total</span>
-            <span className="block text-xl font-bold text-slate-800 mt-1 leading-none truncate" title={formatUSD(stats.montoTotal)}>
-              {formatUSD(stats.montoTotal)}
-            </span>
-            <span className="block text-xs text-slate-400 mt-1.5 font-medium">De todas las proformas</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters Container */}
-      <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm mb-6">
-        <div className="flex flex-col xl:flex-row xl:items-end gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 flex-1">
-            {/* Búsqueda general */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Búsqueda general</label>
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                <input 
-                  type="text" 
-                  value={localSearch} 
-                  onChange={e => setLocalSearch(e.target.value)}
-                  placeholder="Buscar por N.° proforma o cliente..."
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all min-h-[38px]" 
-                />
-              </div>
-            </div>
-
-            {/* Cliente */}
-            <SearchableSelect
-              label="Cliente"
-              value={localCliente}
-              onChange={setLocalCliente}
-              options={clientesList}
-              placeholder="Seleccionar cliente"
-            />
-
-            {/* Usuario */}
-            <SearchableSelect
-              label="Usuario"
-              value={localExecutive}
-              onChange={setLocalExecutive}
-              options={ejecutivos}
-              placeholder="Seleccionar usuario"
-            />
-
-            {/* Estado */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Estado</label>
-              <select 
-                value={localEstado} 
-                onChange={e => setLocalEstado(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all min-h-[38px]"
-              >
-                <option value="">Todos los estados</option>
-                {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
-
-            {/* Rango de fechas */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Rango de fechas</label>
-              <DateRangePicker
-                value={localDateRange}
-                onChange={setLocalDateRange}
-                placeholder="Seleccionar rango"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 w-full xl:w-auto justify-end xl:mb-0.5">
-            <button 
-              onClick={limpiarFiltros}
-              className="flex items-center justify-center gap-2 px-5 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors w-full sm:w-auto min-h-[38px]"
-            >
-              Limpiar filtros
-            </button>
-            <button 
-              onClick={aplicarFiltros}
-              className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm shadow-blue-100 w-full sm:w-auto min-h-[38px]"
-            >
-              <Search size={15} /> Aplicar filtros
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Table Section Controls */}
-      <div className="flex items-center justify-between gap-4 flex-wrap mb-4 px-1">
-        <span className="text-sm font-semibold text-slate-500">
-          {pagination.total} proforma{pagination.total !== 1 ? 's' : ''} encontrada{pagination.total !== 1 ? 's' : ''}
-        </span>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={exportToCSV}
-            className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            <Download size={14} /> Exportar
-          </button>
-          
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
-            <span>Mostrar</span>
-            <select 
-              value={limit} 
-              onChange={e => setLimit(Number(e.target.value))}
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 focus:outline-none"
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-            <span>por página</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
-          </div>
-        ) : (
-          <>
-            <div className="co-desktop-only">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
-                      <th className="text-left px-6 py-4">N.° Proforma</th>
-                      <th className="text-left px-6 py-4">Fecha</th>
-                      <th className="text-left px-6 py-4">Cliente</th>
-                      <th className="text-left px-6 py-4">Usuario</th>
-                      <th className="text-right px-6 py-4">Total</th>
-                      <th className="text-center px-6 py-4">Estado</th>
-                      <th className="text-left px-6 py-4">Vencimiento</th>
-                      <th className="text-right px-6 py-4">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {proformas.map(p => {
-                      const { fecha, hora } = getFechaHora(p);
-                      const warning = getVencimientoWarning(p.vencimiento, p.estado);
-                      const estStyle = badgeStyle(p.estado);
-                      return (
-                        <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors">
-                          {/* N. PROFORMA */}
-                          <td className="px-6 py-4.5">
-                            <span 
-                              onClick={() => navigate(`/proformas/detalle/${p.id}`)}
-                              className="font-bold text-blue-600 hover:text-blue-800 cursor-pointer block text-sm"
-                            >
-                              {p.id}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium block mt-1">ID: {getMockLongId(p.id)}</span>
-                          </td>
-
-                          {/* FECHA */}
-                          <td className="px-6 py-4.5">
-                            <span className="font-semibold text-slate-800 block text-sm">{fecha}</span>
-                            <span className="text-xs text-slate-400 block mt-1 font-medium">{hora}</span>
-                          </td>
-
-                          {/* CLIENTE */}
-                          <td className="px-6 py-4.5">
-                            <span className="font-semibold text-slate-800 block text-sm">{p.cliente}</span>
-                            <span className="text-xs text-slate-400 block mt-1 font-medium">
-                              {p.clienteCedula ? `RUC: ${p.clienteCedula}` : p.telefono ? `Tel: ${p.telefono}` : '—'}
-                            </span>
-                          </td>
-
-                          {/* EJECUTIVO */}
-                          <td className="px-6 py-4.5 text-slate-600 font-medium text-sm">
-                            {p.atiende || '—'}
-                          </td>
-
-                          {/* TOTAL */}
-                          <td className="px-6 py-4.5 text-right font-bold text-slate-800 text-base">
-                            {formatUSD(calcularTotal(p.items, p.iva))}
-                          </td>
-
-                          {/* ESTADO */}
-                          <td className="px-6 py-4.5 text-center">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${estStyle.bg}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${estStyle.dot}`} />
-                              {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
-                            </span>
-                          </td>
-
-                          {/* VENCIMIENTO */}
-                          <td className="px-6 py-4.5">
-                            <span className="font-semibold text-slate-700 block text-sm">{formatVencimiento(p.vencimiento)}</span>
-                            {warning && (
-                              <span className="text-[10px] font-bold block mt-1" style={{ color: warning.color }}>
-                                {warning.text}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* ACCIONES */}
-                          <td className="px-6 py-4.5 relative">
-                            <div className="flex items-center justify-end gap-2">
-                              <button 
-                                onClick={() => navigate(`/proformas/detalle/${p.id}`)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors hover:border-slate-300"
-                                title="Ver Detalle / Aprobar"
-                              >
-                                <Eye size={12} className="text-blue-500" /> Ver detalle
-                              </button>
-                              
-                              <button 
-                                onClick={() => setPreview(p)}
-                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
-                                title="Ver / Imprimir PDF"
-                              >
-                                <Download size={14} />
-                              </button>
-                              
-                              <button 
-                                disabled={!isAdmin}
-                                onClick={() => openEdit(p)}
-                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-                                title="Editar proforma"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                </svg>
-                              </button>
-
-                              <button 
-                                disabled={!isAdmin}
-                                onClick={() => handleDelete(p.id)}
-                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-                                title="Eliminar proforma"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {proformas.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="text-center py-20 text-slate-400">
-                          <svg className="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <p className="text-sm font-medium">
-                            {hayFiltrosActivos ? 'No se encontraron proformas con los filtros aplicados' : 'No hay proformas registradas'}
-                          </p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Mobile Cards for Proformas */}
-            <div className="co-mobile-only p-4">
-              <div className="flex flex-col gap-4">
-                {proformas.map(p => {
-                  const { fecha, hora } = getFechaHora(p);
-                  const warning = getVencimientoWarning(p.vencimiento, p.estado);
-                  const estStyle = badgeStyle(p.estado);
-                  return (
-                    <div key={p.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3 relative">
-                      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                        <div>
-                          <span 
-                            onClick={() => navigate(`/proformas/detalle/${p.id}`)}
-                            className="font-bold text-blue-600 hover:text-blue-800 cursor-pointer text-sm"
-                          >
-                            {p.id}
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">ID: {getMockLongId(p.id)}</span>
-                        </div>
-                        <span className="text-slate-400 text-xs font-semibold">{fecha}</span>
-                      </div>
-                      
-                      <div className="flex flex-col gap-1.5">
-                        <div>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Cliente</span>
-                          <span className="font-bold text-slate-800 text-sm">{p.cliente}</span>
-                          {p.clienteCedula && <span className="text-xs text-slate-500 font-mono block mt-0.5">RUC/CC: {p.clienteCedula}</span>}
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2 mt-1">
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Usuario</span>
-                            <span className="text-xs text-slate-600 font-semibold">{p.atiende || '—'}</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Hora</span>
-                            <span className="text-xs text-slate-600 font-semibold">{hora}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-100">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total</span>
-                          <span className="text-base font-extrabold text-slate-800">{formatUSD(calcularTotal(p.items, p.iva))}</span>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${estStyle.bg}`}>
-                            <span className={`w-1 h-1 rounded-full ${estStyle.dot}`} />
-                            {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
-                          </span>
-                          {warning && (
-                            <span className="text-[9px] font-bold" style={{ color: warning.color }}>
-                              {warning.text}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
-                        <button 
-                          onClick={() => navigate(`/proformas/detalle/${p.id}`)}
-                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-                        >
-                          <Eye size={12} className="text-blue-500" /> Ver detalle
-                        </button>
-                        
-                        <button 
-                          onClick={() => setPreview(p)}
-                          className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
-                          title="Ver / Imprimir PDF"
-                        >
-                          <Download size={14} />
-                        </button>
-                        
-                        <button 
-                          disabled={!isAdmin}
-                          onClick={() => openEdit(p)}
-                          className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-                          title="Editar proforma"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-
-                        <button 
-                          disabled={!isAdmin}
-                          onClick={() => handleDelete(p.id)}
-                          className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-                          title="Eliminar proforma"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Footer Pagination */}
-        {pagination.totalPages > 1 && !loading && (
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between flex-wrap gap-4">
-            <span className="text-xs font-bold text-slate-400">
-              Mostrando {((page - 1) * limit) + 1} a {Math.min(page * limit, pagination.total)} de {pagination.total} resultados
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button 
-                disabled={page <= 1} 
-                onClick={() => setPage(page - 1)}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white transition-colors disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              
-              {getPageNumbers().map((pNum, idx) => (
-                <button
-                  key={idx}
-                  disabled={pNum === '...'}
-                  onClick={() => setPage(pNum)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                    pNum === page 
-                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-100' 
-                      : pNum === '...' 
-                        ? 'text-slate-400 cursor-default' 
-                        : 'border border-slate-200 text-slate-600 hover:bg-white'
-                  }`}
-                >
-                  {pNum}
-                </button>
-              ))}
-
-              <button 
-                disabled={page >= pagination.totalPages} 
-                onClick={() => setPage(page + 1)}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white transition-colors disabled:cursor-not-allowed"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {preview && (
-        <ProformaPDF
-          proforma={preview}
-          configuracion={configuracion}
-          onClose={() => setPreview(null)}
-        />
-      )}
-
-      {paymentMethodModal && (
-        <ModalPortal>
-        <>
-          <div className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm"
-            onClick={() => deferClose(() => setPaymentMethodModal(null))} />
-          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-            <div className="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden border border-slate-100 animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800 text-base">Registrar Transacción</h3>
-                <button type="button" onClick={() => setPaymentMethodModal(null)}
-                  className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
-              </div>
-              <form onSubmit={confirmEstadoWithMethod} className="p-5 space-y-4">
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Para cambiar el estado de la proforma a <strong className="text-slate-700">{paymentMethodModal.nuevoEstado}</strong>, debes seleccionar el método de pago por el cual ingresa el dinero.
-                </p>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Método de Pago</label>
-                  <select 
-                    value={selectedMetodoId} 
-                    onChange={e => setSelectedMetodoId(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Seleccione un método...</option>
-                    {metodosPago.map(m => (
-                      <option key={m.id} value={m.id}>{m.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-                  <button type="button" onClick={() => setPaymentMethodModal(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors">
-                    Cancelar
-                  </button>
-                  <button type="submit"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-200">
-                    Confirmar Cambio
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </>
-        </ModalPortal>
-      )}
-
+    <div className="space-y-3 sm:space-y-5 animate-slide-up proformas-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
+        .proformas-page, .proformas-page * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
         .co-desktop-only { display: block; }
         .co-mobile-only { display: none; }
         @media (max-width: 768px) {
           .co-desktop-only { display: none !important; }
           .co-mobile-only { display: block !important; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.15s ease-out forwards;
         }
         .co-search-dropdown {
           position: absolute;
@@ -1014,13 +452,516 @@ export const ProformasPage = () => {
           text-align: left;
           color: #334155;
         }
-        .co-search-item:hover {
-          background-color: #f8fafc;
-        }
-        .co-search-item:last-child {
-          border-bottom: none;
-        }
+        .co-search-item:hover { background-color: #f8fafc; }
+        .co-search-item:last-child { border-bottom: none; }
       `}</style>
+
+      {/* Header — mismo lenguaje visual que Empleados */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Proformas</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Lista
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Gestión y seguimiento de cotizaciones a clientes
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={openNew}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm whitespace-nowrap transition-opacity hover:opacity-90 shadow-sm w-full sm:w-auto bg-blue-600 hover:bg-blue-700 shrink-0"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nueva proforma
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards — una fila en web; 2×2 solo en móvil */}
+      <div className="grid grid-cols-4 max-sm:grid-cols-2 gap-2 sm:gap-3">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-blue-600 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total proformas</p>
+          <p className="text-base sm:text-lg font-bold text-blue-600 mt-1 tabular-nums">{stats.total}</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">Este mes <span className="text-blue-600 font-semibold">{stats.totalEsteMes}</span></p>
+        </div>
+
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-amber-500 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pendientes</p>
+          <p className="text-base sm:text-lg font-bold text-amber-600 mt-1 tabular-nums">{stats.pendientes}</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">
+            <span className="text-amber-600 font-semibold">{stats.total > 0 ? ((stats.pendientes / stats.total) * 100).toFixed(1) : 0}%</span> del total
+          </p>
+        </div>
+
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-emerald-500 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aprobadas</p>
+          <p className="text-base sm:text-lg font-bold text-emerald-600 mt-1 tabular-nums">{stats.aprobadas}</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">
+            <span className="text-emerald-600 font-semibold">{stats.total > 0 ? ((stats.aprobadas / stats.total) * 100).toFixed(1) : 0}%</span> del total
+          </p>
+        </div>
+
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-indigo-500 px-2.5 sm:px-4 py-3 sm:py-4 min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Monto total</p>
+          <p className="text-base sm:text-lg font-bold text-indigo-600 mt-1 tabular-nums truncate" title={formatUSD(stats.montoTotal)}>
+            {formatUSD(stats.montoTotal)}
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">De todas las proformas</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Búsqueda general</label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="N.° proforma o cliente..."
+                className="w-full pl-10 pr-9 py-2.5 border border-slate-200 rounded-xl text-sm bg-gray-50 placeholder-slate-400 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-colors"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  title="Vaciar búsqueda"
+                  aria-label="Vaciar búsqueda"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <SearchableSelect
+            label="Cliente"
+            value={clienteFilter}
+            onChange={setClienteFilter}
+            options={clientesList}
+            placeholder="Seleccionar cliente"
+          />
+
+          <SearchableSelect
+            label="Usuario"
+            value={usuarioFilter}
+            onChange={setUsuarioFilter}
+            options={ejecutivos}
+            placeholder="Seleccionar usuario"
+          />
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Rango de fechas</label>
+            <DateRangePicker
+              value={dateRange}
+              onChange={setDateRange}
+              placeholder="Seleccionar rango"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Filtros de estado — encima de Lista de Proformas */}
+      <div className="flex items-center justify-start sm:justify-end gap-1.5 overflow-x-auto no-scrollbar w-full min-w-0">
+        {[
+          { key: '', label: 'Todas' },
+          { key: 'Pendiente', label: 'Pendientes' },
+          { key: 'Aprobada', label: 'Aprobadas' },
+          { key: 'Rechazada', label: 'Rechazadas' },
+        ].map((tab) => (
+          <button
+            key={tab.key || 'all'}
+            type="button"
+            onClick={() => setEstadoTab(tab.key)}
+            className={`px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              estado === tab.key
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Table Card */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-gray-800">Lista de Proformas</h2>
+            <span className="text-xs font-medium text-gray-400">{pagination.total} registros</span>
+          </div>
+          <button
+            type="button"
+            onClick={exportToCSV}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors self-start sm:self-auto"
+          >
+            <Download size={14} /> Exportar
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
+          </div>
+        ) : (
+          <>
+            <div className="co-desktop-only">
+              <div className="overflow-x-auto relative">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">N.° Proforma</th>
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Usuario</th>
+                      <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
+                      <th className="text-center px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Vencimiento</th>
+                      <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {proformas.map(p => {
+                      const { fecha, hora } = getFechaHora(p);
+                      const warning = getVencimientoWarning(p.vencimiento, p.estado);
+                      const estStyle = badgeStyle(p.estado);
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-5 py-4">
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                              className="text-left bg-transparent border-0 p-0 cursor-pointer"
+                            >
+                              <span className="text-sm font-semibold text-blue-600 hover:text-blue-800 block">{p.id}</span>
+                              <span className="text-[11px] text-slate-400 block mt-0.5">ID: {getMockLongId(p.id)}</span>
+                            </button>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm font-medium text-slate-800 block">{fecha}</span>
+                            <span className="text-xs text-slate-400 block mt-0.5">{hora}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm font-semibold text-slate-900 block normal-case">{p.cliente}</span>
+                            <span className="text-xs text-slate-400 block mt-0.5">
+                              {p.clienteCedula ? `RUC: ${p.clienteCedula}` : p.telefono ? `Tel: ${p.telefono}` : '—'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-sm text-slate-600 font-medium">
+                            {p.atiende || '—'}
+                          </td>
+                          <td className="px-5 py-4 text-right text-sm font-bold text-slate-900">
+                            {formatUSD(calcularTotal(p.items, p.iva))}
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${estStyle.bg}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${estStyle.dot}`} />
+                              {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm font-medium text-slate-700 block">{formatVencimiento(p.vencimiento)}</span>
+                            {warning && (
+                              <span className="text-[10px] font-semibold block mt-0.5" style={{ color: warning.color }}>
+                                {warning.text}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                                className="p-1.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                                title="Ver detalle"
+                              >
+                                <Eye size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPreview(p)}
+                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                                title="Ver / Imprimir PDF"
+                              >
+                                <Download size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!(isAdmin || (isVentasODisenador && p.estado === 'Rechazada'))}
+                                onClick={() => openEdit(p)}
+                                className="p-1.5 rounded-lg bg-blue-50 text-blue-500 border border-blue-100 hover:bg-blue-100 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                                title="Editar proforma"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!isAdmin}
+                                onClick={() => handleDelete(p.id)}
+                                className="p-1.5 rounded-lg bg-rose-50 text-rose-500 border border-rose-100 hover:bg-rose-100 hover:text-rose-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                                title="Eliminar proforma"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {proformas.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="text-center py-12 text-sm text-slate-400">
+                          {hayFiltrosActivos ? 'No se encontraron proformas con los filtros aplicados' : 'No hay proformas registradas'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="co-mobile-only p-3 sm:p-4 space-y-3">
+              {proformas.map(p => {
+                const { fecha, hora } = getFechaHora(p);
+                const warning = getVencimientoWarning(p.vencimiento, p.estado);
+                const estStyle = badgeStyle(p.estado);
+                return (
+                  <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                          className="text-left bg-transparent border-0 p-0 cursor-pointer"
+                        >
+                          <span className="text-sm font-semibold text-blue-600">{p.id}</span>
+                        </button>
+                        <p className="text-[11px] text-slate-400 mt-0.5">ID: {getMockLongId(p.id)}</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${estStyle.bg}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${estStyle.dot}`} />
+                        {p.estado === 'Pagada' ? 'Aprobada' : p.estado}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 pt-3 border-t border-slate-100 text-[11px]">
+                      <div className="col-span-2">
+                        <span className="text-slate-400 font-medium block">Cliente</span>
+                        <span className="text-slate-800 font-semibold normal-case">{p.cliente}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-medium block">Fecha</span>
+                        <span className="text-slate-700 font-semibold">{fecha}</span>
+                        <span className="text-slate-400 block">{hora}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-medium block">Usuario</span>
+                        <span className="text-slate-700 font-semibold">{p.atiende || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-medium block">Total</span>
+                        <span className="text-slate-900 font-bold">{formatUSD(calcularTotal(p.items, p.iva))}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-medium block">Vencimiento</span>
+                        <span className="text-slate-700 font-semibold">{formatVencimiento(p.vencimiento)}</span>
+                        {warning && (
+                          <span className="block text-[10px] font-semibold mt-0.5" style={{ color: warning.color }}>{warning.text}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/proformas/detalle/${p.id}`)}
+                        className="flex-1 py-2 rounded-lg bg-slate-50 text-slate-600 border border-slate-200 text-[11px] font-bold"
+                      >
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreview(p)}
+                        className="px-3 py-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100"
+                        title="PDF"
+                      >
+                        <Download size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!(isAdmin || (isVentasODisenador && p.estado === 'Rechazada'))}
+                        onClick={() => openEdit(p)}
+                        className="px-3 py-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 disabled:opacity-40"
+                        title="Editar"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!isAdmin}
+                        onClick={() => handleDelete(p.id)}
+                        className="px-3 py-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 disabled:opacity-40"
+                        title="Eliminar"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {proformas.length === 0 && (
+                <div className="text-center py-10 text-sm text-slate-400">
+                  {hayFiltrosActivos ? 'No se encontraron proformas con los filtros aplicados' : 'No hay proformas registradas'}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {!loading && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-gray-100">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-gray-400">Mostrar:</span>
+                <select
+                  value={limit}
+                  onChange={e => setLimit(Number(e.target.value))}
+                  className="px-2 py-1 text-[11px] font-semibold text-gray-500 border border-gray-200 rounded-lg outline-none bg-white focus:border-blue-300 transition-colors cursor-pointer"
+                >
+                  <option value={10}>10 por página</option>
+                  <option value={20}>20 por página</option>
+                  <option value={50}>50 por página</option>
+                </select>
+              </div>
+              {pagination.total > 0 && (
+                <span className="text-[11px] font-medium text-gray-400">
+                  Página {page} de {Math.max(1, pagination.totalPages)} · {pagination.total} resultados
+                </span>
+              )}
+            </div>
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Anterior
+                </button>
+                {getPageNumbers().map((pNum, idx) => (
+                  <button
+                    key={`${pNum}-${idx}`}
+                    type="button"
+                    disabled={pNum === '...'}
+                    onClick={() => typeof pNum === 'number' && setPage(pNum)}
+                    className={`w-7 h-7 rounded-lg text-[11px] font-semibold transition-colors ${
+                      pNum === page
+                        ? 'bg-blue-600 text-white'
+                        : pNum === '...'
+                          ? 'text-gray-400 cursor-default'
+                          : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    {pNum}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={page >= pagination.totalPages}
+                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {preview && (
+        <ProformaPDF
+          proforma={preview}
+          configuracion={configuracion}
+          onClose={() => setPreview(null)}
+        />
+      )}
+
+      {paymentMethodModal && (
+        <ModalPortal>
+          <>
+            <div className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm"
+              onClick={() => deferClose(() => setPaymentMethodModal(null))} />
+            <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
+              <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 animate-slide-up">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-base">Registrar Transacción</h3>
+                  <button type="button" onClick={() => setPaymentMethodModal(null)}
+                    className="text-slate-400 hover:text-slate-600 text-sm bg-transparent border-0 cursor-pointer">✕</button>
+                </div>
+                <form onSubmit={confirmEstadoWithMethod} className="p-5 space-y-4">
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Para cambiar el estado de la proforma a <strong className="text-slate-700">{paymentMethodModal.nuevoEstado}</strong>, debes seleccionar el método de pago por el cual ingresa el dinero.
+                  </p>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-2">Método de Pago</label>
+                    <select
+                      value={selectedMetodoId}
+                      onChange={e => setSelectedMetodoId(e.target.value)}
+                      required
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="">Seleccione un método...</option>
+                      {metodosPago.map(m => (
+                        <option key={m.id} value={m.id}>{m.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onClick={() => setPaymentMethodModal(null)}
+                      className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition-colors">
+                      Cancelar
+                    </button>
+                    <button type="submit"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm">
+                      Confirmar Cambio
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </>
+        </ModalPortal>
+      )}
     </div>
   );
 };

@@ -39,6 +39,10 @@ import { uploadEvidenciaInstalacion } from '../../proyectos/application/proyecto
 import { CameraCaptureModal } from './components/CameraCaptureModal.jsx';
 import { ProjectMediaImage } from '../../../shared/ui/components/ProjectMediaImage.jsx';
 import { resolveEvidenciaSrc } from '../../../shared/utils/mediaUrl.js';
+import {
+  ComprasPageHeader,
+  ComprasHeaderGhostButton,
+} from '../../compras/ui/components/ComprasPageHeader';
 import './MaterialesRequestPage.css';
 
 
@@ -716,9 +720,16 @@ export function MaterialesRequestPage() {
     return (
       <>
         {surveyModalEl}
-        <div className="request-page-container flex flex-col items-center justify-center py-12 gap-4">
-          <p className="text-slate-500">Proyecto no encontrado</p>
-          <button onClick={() => navigate('/instalaciones')} className="text-blue-600 underline">
+        <div
+          className="space-y-3 sm:space-y-5 animate-slide-up pb-10 flex flex-col items-center justify-center py-20"
+          style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+        >
+          <p className="text-sm text-slate-500">Proyecto no encontrado</p>
+          <button
+            type="button"
+            onClick={() => navigate('/instalaciones')}
+            className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+          >
             Volver a Instalaciones
           </button>
         </div>
@@ -758,48 +769,59 @@ export function MaterialesRequestPage() {
   });
 
   return (
-    <div className="request-page-container">
-      {/* Botón de Retorno */}
-      <button onClick={() => navigate('/instalaciones')} className="request-back-btn print:hidden">
-        <ArrowLeft size={16} />
-        Volver a Panel de Instalaciones
-      </button>
+    <div
+      className="space-y-3 sm:space-y-5 animate-slide-up pb-10"
+      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
+      <style>{`
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+        .hero-details-container.collapsed { display: none; }
+        @media (min-width: 1024px) {
+          .hero-details-container.collapsed { display: block; }
+        }
+        .hero-details-container.expanded { display: block; }
+      `}</style>
 
-      {/* Título de la página */}
-      <div className="inventario-header-box print:hidden">
-        <h1 className="inventario-title">Gestión de Instalación y Materiales</h1>
-        <p className="inventario-subtitle">
-          Control del montaje, asignación de personal, distribución de insumos a llevar y registro del cierre de obra.
-        </p>
-      </div>
+      <ComprasPageHeader
+        icon={Wrench}
+        badge="Operaciones"
+        title="Gestión de instalación"
+        subtitle="Personal, materiales, compras y cierre de obra"
+        action={(
+          <ComprasHeaderGhostButton onClick={() => navigate('/instalaciones')} className="print:hidden">
+            <ArrowLeft size={15} />
+            Volver
+          </ComprasHeaderGhostButton>
+        )}
+      />
 
-      {/* Hero Banner general (Datos Generales de la Obra) */}
-      <div className="request-hero-banner bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6 flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center print:hidden">
-        <div className="flex-1 space-y-4">
+      {/* Hero Banner */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5 flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center print:hidden">
+        <div className="flex-1 space-y-3 min-w-0 w-full">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                <Package size={20} />
-              </span>
-              <div>
-                <h2 className="text-lg font-black text-slate-800">Ficha de Instalación: {proyecto.nombre}</h2>
-                <p className="text-xs text-slate-400">Cliente: <strong className="text-slate-600">{proyecto.cliente.empresa}</strong> • Contacto: {proyecto.cliente.nombre}</p>
+            <div className="flex items-center gap-3 flex-wrap min-w-0">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 border border-blue-100 text-blue-600">
+                <Package size={18} strokeWidth={2.5} />
               </div>
-              <div className="flex items-center gap-1.5 ml-0 lg:ml-4">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Estado:</span>
-                {datosInstalacion.instalacionCompletada ? (
-                  <span className="oc-history-badge aprobada">Completada</span>
-                ) : datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion ? (
-                  <span className="oc-history-badge pendiente">En Montaje</span>
-                ) : (
-                  <span className="oc-history-badge" style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>En Cola</span>
-                )}
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-slate-800 truncate">{proyecto.nombre}</h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Cliente: <strong className="text-slate-600 font-semibold">{proyecto.cliente.empresa}</strong>
+                  {' · '}{proyecto.cliente.nombre}
+                </p>
               </div>
+              {datosInstalacion.instalacionCompletada ? (
+                <span className="inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 bg-emerald-50 text-emerald-700">Completada</span>
+              ) : datosInstalacion.fechaInstalacion && datosInstalacion.horaInstalacion ? (
+                <span className="inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 bg-orange-50 text-orange-700">En Montaje</span>
+              ) : (
+                <span className="inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-600">En Cola</span>
+              )}
             </div>
-            <button 
+            <button
               type="button"
-              onClick={() => setIsDetailsExpanded(!isDetailsExpanded)} 
-              className="lg:hidden px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors"
+              onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
+              className="lg:hidden px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors"
             >
               {isDetailsExpanded ? 'Ocultar detalles ▲' : 'Ver detalles ▼'}
             </button>
@@ -807,23 +829,20 @@ export function MaterialesRequestPage() {
 
           <div className={`hero-details-container ${isDetailsExpanded ? 'expanded' : 'collapsed'}`}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3 border-t border-slate-100 text-xs">
-              {/* Dirección */}
               <div className="flex items-start gap-2 text-slate-600">
-                <MapPin size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+                <MapPin size={16} className="text-blue-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Dirección de Instalación</p>
-                  <p className="font-medium mt-0.5">{datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}</p>
+                  <p className="font-semibold text-slate-400 uppercase text-[9px] tracking-wider">Dirección</p>
+                  <p className="font-medium mt-0.5 text-slate-700">{datosInstalacion.direccionInstalacion || proyecto.cliente.direccion || 'Sin dirección registrada'}</p>
                 </div>
               </div>
-
-              {/* Fecha Programada / Cierre */}
               <div className="flex items-start gap-2 text-slate-600">
-                <Calendar size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+                <Calendar size={16} className="text-blue-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">
+                  <p className="font-semibold text-slate-400 uppercase text-[9px] tracking-wider">
                     {datosInstalacion.instalacionCompletada ? 'Cierre en obra' : 'Programación'}
                   </p>
-                  <p className="font-medium mt-0.5">
+                  <p className="font-medium mt-0.5 text-slate-700">
                     {datosInstalacion.instalacionCompletada ? (
                       formatFechaCierre(
                         datosInstalacion.fechaFin,
@@ -838,18 +857,16 @@ export function MaterialesRequestPage() {
                   </p>
                 </div>
               </div>
-
-              {/* Equipo Resumen */}
               <div className="flex items-start gap-2 text-slate-600">
-                <Wrench size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+                <Wrench size={16} className="text-blue-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider">Equipo Técnico</p>
+                  <p className="font-semibold text-slate-400 uppercase text-[9px] tracking-wider">Equipo técnico</p>
                   {datosInstalacion.personalAsignado && datosInstalacion.personalAsignado.length > 0 ? (
                     <div className="flex gap-1 mt-1">
                       {datosInstalacion.personalAsignado.map((p, idx) => (
-                        <div 
-                          key={idx} 
-                          className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[9px]"
+                        <div
+                          key={idx}
+                          className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[9px]"
                           title={`${p.nombre} (${p.rol})`}
                         >
                           {getInitials(p.nombre)}
@@ -863,54 +880,58 @@ export function MaterialesRequestPage() {
               </div>
             </div>
 
-            {/* Notas Especiales */}
             {datosInstalacion.notasInstalacion && (
               <div className="bg-amber-50/70 border border-amber-100 rounded-xl p-3 text-xs text-amber-800 flex gap-2 items-start mt-2">
                 <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
-                <span><strong>Instrucciones Especiales:</strong> {datosInstalacion.notasInstalacion}</span>
+                <span><strong>Instrucciones especiales:</strong> {datosInstalacion.notasInstalacion}</span>
               </div>
             )}
           </div>
         </div>
-      {!datosInstalacion.instalacionCompletada && !instalacionIniciada && (
-        <button
-          onClick={handleIniciarInstalacion}
-          disabled={bloqueoPorHerramientas}
-          title={
-            bloqueoPorHerramientas
-              ? 'Asigna un responsable a cada herramienta en Materiales de Bodega'
-              : undefined
-          }
-          className={`px-5 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all shrink-0 ${
-            bloqueoPorHerramientas
-              ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100 cursor-pointer'
-          }`}
-        >
-          <Play size={16} fill="currentColor" />
-          Iniciar Instalación
-        </button>
-      )}
-    </div>
+        {!datosInstalacion.instalacionCompletada && !instalacionIniciada && (
+          <button
+            type="button"
+            onClick={handleIniciarInstalacion}
+            disabled={bloqueoPorHerramientas}
+            title={
+              bloqueoPorHerramientas
+                ? 'Asigna un responsable a cada herramienta en Materiales de Bodega'
+                : undefined
+            }
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all shrink-0 ${
+              bloqueoPorHerramientas
+                ? 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+            }`}
+          >
+            <Play size={16} fill="currentColor" />
+            Iniciar instalación
+          </button>
+        )}
+      </div>
 
-      {/* Barra de Navegación de Pestañas (Tabs) */}
-      <div className="tabs-navigation-bar print:hidden">
+      {/* Tabs */}
+      <div className="bg-white shadow-card rounded-xl border border-gray-100 p-2 print:hidden flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         {tabs.map((tab) => {
           const Icon = tab.Icon;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer shrink-0 ${
+                activeTab === tab.id
+                  ? 'bg-blue-900 text-white shadow-md'
+                  : 'bg-transparent text-gray-600 hover:bg-gray-50'
+              }`}
             >
               <Icon size={15} />
-              <span className="tab-label-desktop">{tab.label}</span>
-              <span className="tab-label-mobile">{tab.shortLabel}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.shortLabel}</span>
               {isTabSaved(tab.id) && (
-                <CheckCircle 
-                  size={14} 
-                  className="tab-saved-check text-emerald-500 shrink-0" 
-                  style={{ fill: '#e6fffa', color: '#10b981' }} 
+                <CheckCircle
+                  size={14}
+                  className={`shrink-0 ${activeTab === tab.id ? 'text-emerald-300' : 'text-emerald-500'}`}
                 />
               )}
             </button>
@@ -923,13 +944,13 @@ export function MaterialesRequestPage() {
         
         {/* --- PESTAÑA 1: EQUIPO TÉCNICO --- */}
         {activeTab === 'equipo' && (
-          <div className="request-section-card glass-panel animate-slide-up">
+          <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5 animate-slide-up">
             <div>
-              <h2 className="request-card-title flex items-center gap-2">
-                <User size={18} className="text-indigo-600" />
-                Asignación del Equipo Técnico
+              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-1">
+                <User size={16} className="text-blue-600" />
+                Asignación del equipo técnico
               </h2>
-              <p className="text-xs text-slate-400 -mt-2">
+              <p className="text-xs text-slate-400 mb-4">
                 {isTallerUser(user)
                   ? 'Selecciona personal del equipo de Taller que realizará la instalación. Guarda los cambios al terminar.'
                   : 'Selecciona al personal que realizará los trabajos de instalación. Asegúrate de hacer clic en el botón de guardar.'}
@@ -946,11 +967,12 @@ export function MaterialesRequestPage() {
             {!esSoloLectura && (
               <div className="flex justify-end mt-4 pt-4 border-t border-slate-100">
                 <button
+                  type="button"
                   onClick={handleGuardarEquipo}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-sm shadow-indigo-100 transition-all cursor-pointer"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
                   <Save size={16} />
-                  Guardar Equipo de Trabajo
+                  Guardar equipo de trabajo
                 </button>
               </div>
             )}
@@ -964,10 +986,10 @@ export function MaterialesRequestPage() {
             {/* Buscador de Stock */}
             {!esSoloLectura && (
               <div className="lg:col-span-5" style={{ position: 'relative', zIndex: 20 }}>
-                <div className="request-section-card glass-panel h-full">
+                <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5 h-full">
                   <div>
                     <h2 className="request-card-title flex items-center gap-2">
-                      <Search size={18} className="text-indigo-600" />
+                      <Search size={18} className="text-blue-600" />
                       Consultar Inventario Central (Bodega)
                     </h2>
                     <p className="text-xs text-slate-400 -mt-2">
@@ -1081,7 +1103,7 @@ export function MaterialesRequestPage() {
 
                       <button
                         onClick={handleAddToDraft}
-                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
                       >
                         <Plus size={16} />
                         Agregar a la Lista de Obra
@@ -1094,10 +1116,10 @@ export function MaterialesRequestPage() {
 
             {/* Panel de Materiales Asignados */}
             <div className={esSoloLectura ? "lg:col-span-12" : "lg:col-span-7"} style={{ position: 'relative', zIndex: 10 }}>
-              <div className="request-section-card glass-panel min-h-[350px] flex flex-col justify-between">
+              <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5 min-h-[350px] flex flex-col justify-between">
                 <div>
                   <h2 className="request-card-title flex items-center gap-2">
-                    <Package size={18} className="text-indigo-600" />
+                    <Package size={18} className="text-blue-600" />
                     Materiales y Herramientas Asignados
                   </h2>
                   <p className="text-xs text-slate-400 -mt-2">
@@ -1121,42 +1143,43 @@ export function MaterialesRequestPage() {
                       <span>No has asignado materiales aún. Búscar e agregar en el panel izquierdo.</span>
                     </div>
                   ) : (
-                    <div className="overflow-auto max-h-[420px] mt-4 thin-scrollbar pr-1 mobile-table-cards">
-                      <table className="materials-list-table">
+                    <div className="overflow-auto max-h-[420px] mt-4 pr-1 mobile-table-cards">
+                      <table className="w-full text-sm">
                         <thead>
-                          <tr>
-                            <th style={{ width: '30%' }}>Material / Herramienta</th>
-                            <th style={{ width: '15%', textAlign: 'center' }}>Stock</th>
-                            <th style={{ width: '15%', textAlign: 'center' }}>Cantidad</th>
-                            <th style={{ width: '20%' }}>Responsable</th>
-                            <th style={{ width: '15%' }}>Notas</th>
-                            {!esSoloLectura && <th style={{ width: '5%', textAlign: 'center' }}></th>}
+                          <tr className="border-b border-slate-100">
+                            <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Material / Herramienta</th>
+                            <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Stock</th>
+                            <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cantidad</th>
+                            <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Responsable</th>
+                            <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Notas</th>
+                            {!esSoloLectura && (
+                              <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
+                            )}
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-slate-100">
                           {materialesConStock.map((m, i) => (
-                            <tr key={`${m.sku}-${m.nombre}`}>
-                              <td data-label="Material">
+                            <tr key={`${m.sku}-${m.nombre}`} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="px-5 py-4" data-label="Material">
                                 <div className="flex flex-col">
-                                  <span className="font-bold text-slate-800">{m.nombre}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono">SKU: {m.sku}</span>
-                                  <span className={`origin-badge w-max mt-1 ${m.origen === 'compra' ? 'compra' : 'inventario'}`}>
+                                  <span className="font-semibold text-slate-800 text-sm">{m.nombre}</span>
+                                  <span className="text-[10px] text-slate-400 font-mono mt-0.5">SKU: {m.sku}</span>
+                                  <span className={`inline-flex items-center rounded-full text-[10px] font-medium px-2 py-0.5 w-max mt-1 ${m.origen === 'compra' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
                                     {m.origen === 'compra' ? 'Compra' : 'Stock'}
                                   </span>
                                 </div>
                               </td>
-                              <td style={{ textAlign: 'center' }} className="text-slate-500 font-medium" data-label="Stock">
+                              <td className="px-5 py-4 text-slate-500 font-medium text-sm" data-label="Stock">
                                 {m.stock} {m.unidad}s
                               </td>
-                              <td style={{ textAlign: 'center' }} data-label="Cantidad">
+                              <td className="px-5 py-4" data-label="Cantidad">
                                 {esSoloLectura ? (
-                                  <span className="font-bold text-slate-700">{m.cantidad} {m.unidad}s</span>
+                                  <span className="font-semibold text-slate-700">{m.cantidad} {m.unidad}s</span>
                                 ) : (
                                   <input
                                     type="number"
                                     min="1"
-                                    className="qty-input-field"
-                                    style={{ width: '65px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                    className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-gray-50 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                                     value={m.cantidad}
                                     onChange={(e) => {
                                       const val = Math.max(1, parseInt(e.target.value) || 1);
@@ -1165,16 +1188,16 @@ export function MaterialesRequestPage() {
                                   />
                                 )}
                               </td>
-                              <td data-label="Responsable">
+                              <td className="px-5 py-4" data-label="Responsable">
                                 {esSoloLectura ? (
-                                  <span className="text-slate-700 font-medium">{m.responsable || 'Sin asignar'}</span>
+                                  <span className="text-slate-700 font-medium text-sm">{m.responsable || 'Sin asignar'}</span>
                                 ) : (
                                   m.tipo === 'herramienta' ? (
                                     <select
-                                      className={`w-full border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 bg-white ${
+                                      className={`w-full border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 bg-white ${
                                         !(m.responsable || '').trim()
                                           ? 'border-red-300 ring-1 ring-red-200 focus:ring-red-400'
-                                          : 'border-slate-200 focus:ring-indigo-400'
+                                          : 'border-slate-200 focus:ring-blue-400'
                                       }`}
                                       value={m.responsable || ''}
                                       onChange={(e) => handleLocalMaterialChange(i, 'responsable', e.target.value)}
@@ -1191,13 +1214,13 @@ export function MaterialesRequestPage() {
                                   )
                                 )}
                               </td>
-                              <td data-label="Notas">
+                              <td className="px-5 py-4" data-label="Notas">
                                 {esSoloLectura ? (
-                                  <span className="text-slate-600 italic">{m.observacion || 'Sin notas'}</span>
+                                  <span className="text-slate-600 italic text-sm">{m.observacion || 'Sin notas'}</span>
                                 ) : (
                                   <input
                                     type="text"
-                                    className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 bg-gray-50"
                                     placeholder="Notas..."
                                     value={m.observacion || ''}
                                     onChange={(e) => handleLocalMaterialChange(i, 'observacion', e.target.value)}
@@ -1205,13 +1228,14 @@ export function MaterialesRequestPage() {
                                 )}
                               </td>
                               {!esSoloLectura && (
-                                <td style={{ textAlign: 'center' }} data-label="Acción">
+                                <td className="px-5 py-4 text-right" data-label="Acción">
                                   <button
+                                    type="button"
                                     onClick={() => handleRemoveFromDraft(m.sku || m.nombre)}
-                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    className="p-1.5 rounded-lg bg-rose-50 text-rose-500 border border-rose-100 hover:bg-rose-100 hover:text-rose-600 transition-colors"
                                     title="Eliminar material"
                                   >
-                                    <Trash2 size={16} />
+                                    <Trash2 size={16} strokeWidth={1.5} />
                                   </button>
                                 </td>
                               )}
@@ -1251,96 +1275,98 @@ export function MaterialesRequestPage() {
 
         {/* --- PESTAÑA 4: ÓRDENES DE COMPRA --- */}
         {activeTab === 'compras' && (
-          <div className="request-section-card glass-panel animate-slide-up">
+          <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5 animate-slide-up">
             <div className="flex justify-between items-center flex-wrap gap-4 border-b border-slate-100 pb-4">
               <div>
-                <h2 className="request-card-title flex items-center gap-2">
-                  <ShoppingCart size={18} className="text-indigo-600" />
-                  Historial de Solicitudes de Compra
+                <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-1">
+                  <ShoppingCart size={16} className="text-blue-600" />
+                  Historial de solicitudes de compra
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Solo se muestran las órdenes de compra vinculadas a este proyecto ({proyecto.id}).
+                  Solo se muestran las órdenes vinculadas a este proyecto ({proyecto.id}).
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => navigate(`/compras/nueva?proyectoId=${proyecto.id}`)}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
               >
                 <Plus size={14} />
-                Solicitar Compra
+                Solicitar compra
               </button>
             </div>
 
             {ordenesProyecto.length === 0 ? (
-              <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>
+              <div className="py-12 text-center text-slate-400 text-sm">
                 Ninguna solicitud de compra registrada aún para este proyecto.
               </div>
             ) : (
-              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm mt-2 mobile-table-cards">
-                <table className="w-full text-left text-xs border-collapse">
+              <div className="overflow-x-auto rounded-xl border border-slate-100 mt-3 mobile-table-cards">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                      <th className="p-3 font-bold uppercase tracking-wider" style={{ width: '120px' }}>Nº Orden</th>
-                      <th className="p-3 font-bold uppercase tracking-wider" style={{ width: '100px' }}>Fecha</th>
-                      <th className="p-3 font-bold uppercase tracking-wider">Detalle de Insumos</th>
-                      <th className="p-3 font-bold uppercase tracking-wider">Obs. Administración</th>
-                      <th className="p-3 font-bold uppercase tracking-wider text-center" style={{ width: '120px' }}>Estado</th>
-                      <th className="p-3 font-bold uppercase tracking-wider text-right" style={{ width: '180px' }}>Acciones</th>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Nº Orden</th>
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Detalle</th>
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Obs. admin</th>
+                      <th className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                      <th className="text-right px-5 py-3.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {ordenesProyecto.map((oc) => {
                       const statusClass = oc.estado.toLowerCase();
                       return (
-                        <tr key={oc.id} className="border-b border-slate-100 text-slate-600 hover:bg-slate-50/50">
-                          <td className="p-3 font-bold text-slate-800" data-label="Nº Orden">
+                        <tr key={oc.id} className="hover:bg-slate-50/70 transition-colors text-slate-700">
+                          <td className="px-5 py-4 font-semibold text-slate-900" data-label="Nº Orden">
                             {oc.numero || oc.id}
                           </td>
-                          <td className="p-3 text-slate-500" data-label="Fecha">
+                          <td className="px-5 py-4 text-slate-500" data-label="Fecha">
                             {oc.fechaCreacion || oc.fecha}
                           </td>
-                          <td className="p-3" data-label="Detalle de Insumos">
+                          <td className="px-5 py-4" data-label="Detalle">
                             <div className="space-y-1">
                               {(oc.items || []).map((item, idx) => (
-                                <div key={idx} className="flex justify-between max-w-xs text-[11px]">
+                                <div key={idx} className="flex justify-between max-w-xs text-xs">
                                   <span className="text-slate-700">{item.nombre}</span>
-                                  <span className="font-bold text-slate-500 ml-2">
+                                  <span className="font-semibold text-slate-500 ml-2">
                                     {oc.estado === 'APROBADA' || oc.estado === 'RECIBIDA'
                                       ? `${item.cantidadAprobada} / ${item.cantidadSolicitada} ud.`
-                                      : `${item.cantidadSolicitada} ud.`
-                                    }
+                                      : `${item.cantidadSolicitada} ud.`}
                                   </span>
                                 </div>
                               ))}
                             </div>
                           </td>
-                          <td className="p-3 text-slate-400 italic" data-label="Obs. Administración">
+                          <td className="px-5 py-4 text-slate-400 italic" data-label="Obs. admin">
                             {oc.comentarios || '—'}
                           </td>
-                          <td className="p-3 text-center" data-label="Estado">
+                          <td className="px-5 py-4" data-label="Estado">
                             <span className={`oc-history-badge ${statusClass}`}>
                               {oc.estado}
                             </span>
                           </td>
-                          <td className="p-3 text-right" data-label="Acciones">
-                            <div className="flex gap-2 justify-end">
+                          <td className="px-5 py-4 text-right" data-label="Acciones">
+                            <div className="flex gap-1.5 justify-end">
                               <button
+                                type="button"
                                 onClick={() => {
                                   setPreviewOC(mapOrdenToPDFFormat(oc));
                                   setIsPDFOpen(true);
                                 }}
-                                className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                                className="p-1.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                                title="Ver PDF"
                               >
-                                <Eye size={12} />
-                                PDF
+                                <Eye size={16} strokeWidth={1.5} />
                               </button>
                               {oc.estado === 'APROBADA' && (
                                 <button
+                                  type="button"
                                   onClick={() => navigate(`/compras/recepcion/${oc.id}`)}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                                  title="Recibir"
                                 >
-                                  <Package size={12} />
-                                  Recibir
+                                  <Package size={16} strokeWidth={1.5} />
                                 </button>
                               )}
                             </div>
@@ -1376,10 +1402,10 @@ export function MaterialesRequestPage() {
                 )}
                 
                 {/* Evidencia Fotográfica en Cierre */}
-                <div className="request-section-card glass-panel">
+                <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5">
                   <div>
                     <h2 className="request-card-title flex items-center gap-2">
-                      <Camera size={18} className="text-indigo-600" />
+                      <Camera size={18} className="text-blue-600" />
                       Evidencia Fotográfica de la Instalación
                     </h2>
                     <p className="text-xs text-slate-400 -mt-2">
@@ -1413,7 +1439,7 @@ export function MaterialesRequestPage() {
                           }}
                         />
                         <label htmlFor="evidencias-input-gallery" className="dropzone-label cursor-pointer flex flex-col items-center justify-center">
-                          <UploadCloud size={36} className="text-indigo-500 mb-2 animate-bounce" />
+                          <UploadCloud size={36} className="text-blue-500 mb-2 animate-bounce" />
                           <span className="font-bold text-slate-700 text-xs sm:text-sm">Elegir de Galería</span>
                           <span className="text-[10px] text-slate-400 mt-1">Arrastra aquí o haz clic para buscar</span>
                         </label>
@@ -1493,7 +1519,7 @@ export function MaterialesRequestPage() {
                 </div>
 
                 {/* Cierre de la Instalación */}
-                <div className="request-section-card glass-panel">
+                <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5">
                   <h2 className={`request-card-title flex items-center gap-2 ${
                     datosInstalacion.instalacionCompletada ? 'text-emerald-800' : 'text-amber-800'
                   }`}>
@@ -1605,7 +1631,7 @@ export function MaterialesRequestPage() {
 
               </div>
             ) : (
-              <div className="request-section-card glass-panel p-6 text-center text-slate-400 italic text-sm">
+              <div className="bg-white shadow-card rounded-xl border border-gray-100 p-4 sm:p-5 p-6 text-center text-slate-400 italic text-sm">
                 Asigna al menos un técnico en &quot;Equipo Técnico&quot; y registra materiales en &quot;Materiales de Bodega&quot;
                 antes de cargar evidencias o cerrar la obra en sitio.
               </div>
@@ -1629,45 +1655,62 @@ export function MaterialesRequestPage() {
       {/* Modal Dialog de Alertas (Reemplazo de alert nativo) */}
       {modalConfig.isOpen && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`p-2.5 rounded-full ${
-                modalConfig.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
-                modalConfig.type === 'error' ? 'bg-red-50 text-red-600' :
-                'bg-amber-50 text-amber-600'
-              }`}>
-                {modalConfig.type === 'success' && <CheckCircle size={22} />}
-                {modalConfig.type === 'error' && <AlertTriangle size={22} />}
-                {modalConfig.type === 'confirm' && <HelpCircle size={22} />}
+          <>
+            <div
+              className="fixed inset-0 z-[1000] bg-slate-200/60 backdrop-blur-md"
+              onClick={closeModal}
+            />
+            <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4 pointer-events-none">
+              <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden pointer-events-auto">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                      modalConfig.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                      modalConfig.type === 'error' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                      'bg-amber-50 text-amber-600 border-amber-100'
+                    }`}>
+                      {modalConfig.type === 'success' && <CheckCircle size={18} strokeWidth={2.5} />}
+                      {modalConfig.type === 'error' && <AlertTriangle size={18} strokeWidth={2.5} />}
+                      {modalConfig.type === 'confirm' && <HelpCircle size={18} strokeWidth={2.5} />}
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-800">{modalConfig.title}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="px-5 py-4">
+                  <p className="text-slate-600 text-sm leading-relaxed">{modalConfig.message}</p>
+                  <div className="flex gap-2 justify-end mt-5">
+                    {modalConfig.type === 'confirm' && (
+                      <button
+                        type="button"
+                        onClick={closeModal}
+                        className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const confirm = modalConfig.onConfirm;
+                        closeModal();
+                        if (confirm) deferClose(async () => { await confirm(); });
+                      }}
+                      className="inline-flex items-center justify-center px-5 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm"
+                    >
+                      Aceptar
+                    </button>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-extrabold text-slate-800 text-lg">{modalConfig.title}</h3>
             </div>
-            
-            <p className="text-slate-600 text-sm mb-6 leading-relaxed">{modalConfig.message}</p>
-            
-            <div className="flex gap-2 justify-end">
-              {modalConfig.type === 'confirm' && (
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-              )}
-              <button
-                onClick={async () => {
-                  const confirm = modalConfig.onConfirm;
-                  closeModal();
-                  if (confirm) deferClose(async () => { await confirm(); });
-                }}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm cursor-pointer"
-              >
-                Aceptar
-              </button>
-            </div>
-          </div>
-        </div>
+          </>
         </ModalPortal>
       )}
 

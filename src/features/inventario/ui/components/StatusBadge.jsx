@@ -1,40 +1,25 @@
 import React from 'react';
 
-const COMMON_BADGE_STYLE = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '100px',
-  height: '24px',
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  borderRadius: '0.375rem',
-  whiteSpace: 'nowrap',
-  boxSizing: 'border-box'
-};
-
 const CONFIG = {
-  'agotado': { bg: '#ffebee', color: '#c62828', label: 'Agotado' },
-  'solo registro': { bg: '#f5f5f5', color: '#666666', label: 'Solo registro' },
-  'en uso': { bg: '#fff3e0', color: '#e65100', label: 'En Uso' },
-  'stock bajo': { bg: '#fff3e0', color: '#e65100', label: 'Stock Bajo' },
-  'en stock': { bg: '#e8f5e9', color: '#2e7d32', label: 'En Stock' },
-  'dañado': { bg: '#ffebee', color: '#c62828', label: 'Dañado' },
-  'reparación': { bg: '#e3f2fd', color: '#1565c0', label: 'Reparación' },
-  'bodega': { bg: '#e8f5e9', color: '#2e7d32', label: 'Bodega' },
+  agotado: { cls: 'bg-rose-50 text-rose-700', label: 'Agotado' },
+  'solo registro': { cls: 'bg-slate-100 text-slate-600', label: 'Solo registro' },
+  'en uso': { cls: 'bg-amber-50 text-amber-700', label: 'En Uso' },
+  'stock bajo': { cls: 'bg-amber-50 text-amber-700', label: 'Stock Bajo' },
+  'en stock': { cls: 'bg-emerald-50 text-emerald-700', label: 'En Stock' },
+  dañado: { cls: 'bg-rose-50 text-rose-700', label: 'Dañado' },
+  reparación: { cls: 'bg-blue-50 text-blue-700', label: 'Reparación' },
+  bodega: { cls: 'bg-emerald-50 text-emerald-700', label: 'Bodega' },
 };
 
 export function StatusBadge({ status }) {
-  const lowerStatus = String(status || '').toLowerCase();
-  
-  let key = lowerStatus;
+  let key = String(status || '').toLowerCase();
   if (key === 'no sirve') key = 'dañado';
   if (key === 'en reparacion' || key === 'en reparación') key = 'reparación';
-  
-  const conf = CONFIG[key] || { bg: '#f1f5f9', color: '#475569', label: status };
-  
+
+  const conf = CONFIG[key] || { cls: 'bg-slate-100 text-slate-600', label: status || '—' };
+
   return (
-    <span style={{ ...COMMON_BADGE_STYLE, backgroundColor: conf.bg, color: conf.color }}>
+    <span className={`inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 whitespace-nowrap ${conf.cls}`}>
       {conf.label}
     </span>
   );

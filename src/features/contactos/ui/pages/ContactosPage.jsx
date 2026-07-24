@@ -115,34 +115,32 @@ export const ContactosPage = () => {
         .co-root * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
 
         .co-card {
-          background: rgba(255,255,255,0.75);
-          backdrop-filter: blur(20px) saturate(160%);
-          -webkit-backdrop-filter: blur(20px) saturate(160%);
-          border: 1px solid rgba(255,255,255,0.5);
-          border-radius: 20px;
-          box-shadow: 0 8px 32px rgba(37,99,235,0.06), 0 1px 2px rgba(0,0,0,0.03);
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02);
           overflow: hidden;
         }
+        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
 
         .co-btn-primary {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          background: #2563eb;
           color: white;
           border: none;
           border-radius: 12px;
-          padding: 10px 20px;
+          padding: 10px 16px;
           font-size: 13px;
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(37,99,235,0.3);
-          letter-spacing: 0.01em;
+          transition: background 0.15s ease;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
-        .co-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(37,99,235,0.42); }
-        .co-btn-primary:active { transform: translateY(0); }
-        .co-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .co-btn-primary:hover { background: #1d4ed8; }
+        .co-btn-primary:active { background: #1e40af; }
+        .co-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .co-btn-ghost {
           background: transparent;
@@ -198,39 +196,18 @@ export const ContactosPage = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-        <div className="co-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
-            <svg className="w-5 h-5" style={{ color: '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm0 0c0 1.657 1.007 3 2.25 3S21 13.657 21 12a9 9 0 1 0-2.636 6.364M16.5 12V8.25" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total</div>
-            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.total}</div>
-          </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-blue-600 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+          <p className="text-lg font-bold text-blue-600 mt-1 tabular-nums">{totales.total}</p>
         </div>
-        <div className="co-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.1)' }}>
-            <svg className="w-5 h-5" style={{ color: '#10b981' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Con empresa</div>
-            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.conEmpresa}</div>
-          </div>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-emerald-500 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Con empresa</p>
+          <p className="text-lg font-bold text-emerald-600 mt-1 tabular-nums">{totales.conEmpresa}</p>
         </div>
-        <div className="co-card px-3 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.1)' }}>
-            <svg className="w-5 h-5" style={{ color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Indep.</div>
-            <div className="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">{totales.sinEmpresa}</div>
-          </div>
+        <div className="bg-white shadow-card rounded-xl border border-gray-100 border-t-2 border-t-amber-500 px-4 py-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Independientes</p>
+          <p className="text-lg font-bold text-amber-600 mt-1 tabular-nums">{totales.sinEmpresa}</p>
         </div>
       </div>
 

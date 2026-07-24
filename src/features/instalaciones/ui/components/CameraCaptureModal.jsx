@@ -126,79 +126,90 @@ export function CameraCaptureModal({ isOpen, onClose, onCapture }) {
 
   return (
     <ModalPortal open={isOpen}>
-      <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <>
         <div
-          className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
-            <div className="flex items-center gap-2">
-              <Camera size={18} className="text-emerald-600" />
-              <h3 className="font-bold text-slate-800 text-sm">Tomar foto de evidencia</h3>
+          className="fixed inset-0 z-[1100] bg-slate-200/60 backdrop-blur-md"
+          onClick={handleClose}
+        />
+        <div className="fixed inset-0 z-[1101] flex items-center justify-center p-4 pointer-events-none">
+          <div
+            className="relative w-full max-w-lg bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 border border-emerald-100 text-emerald-600">
+                  <Camera size={18} strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-slate-800">Tomar foto de evidencia</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Captura para el cierre de obra</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shrink-0"
+                aria-label="Cerrar"
+              >
+                <X size={16} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors border-0 bg-transparent cursor-pointer"
-              aria-label="Cerrar"
-            >
-              <X size={18} />
-            </button>
-          </div>
 
-          <div className="p-4 bg-black">
-            {error ? (
-              <div className="flex flex-col items-center justify-center min-h-[240px] text-center px-4">
-                <p className="text-sm text-red-300 mb-2">{error}</p>
+            <div className="p-4 bg-slate-900">
+              {error ? (
+                <div className="flex flex-col items-center justify-center min-h-[240px] text-center px-4">
+                  <p className="text-sm text-rose-300 mb-3">{error}</p>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-semibold hover:bg-white/20 cursor-pointer border-0"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              ) : (
+                <div className="relative aspect-[4/3] bg-slate-800 rounded-xl overflow-hidden">
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center text-white text-sm z-10">
+                      Iniciando cámara...
+                    </div>
+                  )}
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+
+            {!error && (
+              <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={handleClose}
-                  className="px-4 py-2 rounded-lg bg-white/10 text-white text-xs font-semibold hover:bg-white/20 cursor-pointer border-0"
+                  onClick={toggleCamera}
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 cursor-pointer bg-white"
+                  title="Cambiar cámara"
                 >
-                  Cerrar
+                  <RefreshCw size={14} />
+                  Voltear
                 </button>
-              </div>
-            ) : (
-              <div className="relative aspect-[4/3] bg-slate-900 rounded-xl overflow-hidden">
-                {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center text-white text-sm z-10">
-                    Iniciando cámara...
-                  </div>
-                )}
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
+                <button
+                  type="button"
+                  onClick={handleCapture}
+                  disabled={loading}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold cursor-pointer border-0 transition-colors"
+                >
+                  Capturar foto
+                </button>
               </div>
             )}
           </div>
-
-          {!error && (
-            <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={toggleCamera}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 cursor-pointer bg-white"
-                title="Cambiar cámara"
-              >
-                <RefreshCw size={14} />
-                Voltear
-              </button>
-              <button
-                type="button"
-                onClick={handleCapture}
-                disabled={loading}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold cursor-pointer border-0 transition-colors"
-              >
-                Capturar foto
-              </button>
-            </div>
-          )}
         </div>
-      </div>
+      </>
     </ModalPortal>
   );
-};
+}
