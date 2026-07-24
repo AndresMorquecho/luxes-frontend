@@ -875,7 +875,6 @@ export const UsuariosPage = () => {
                         value={userForm.username}
                         onChange={(e) => setUserForm((prev) => ({ ...prev, username: e.target.value }))}
                         required
-                        disabled={!!editingUser}
                         placeholder="ej. MorquechoI"
                         className={`${inputClass} disabled:opacity-60 disabled:cursor-not-allowed`}
                       />

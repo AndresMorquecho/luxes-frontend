@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './WhatsAppFloat.css';
 
-const WHATSAPP_NUMBER = '593968982380';
-const DEFAULT_MESSAGE = 'Hola, me interesa conocer más sobre los servicios de LUXES.';
+const FALLBACK_NUMBER = '593968982380';
+const FALLBACK_MESSAGE = 'Hola, me interesa conocer más sobre los servicios de LUXES.';
 
 const WhatsAppIcon = () => (
   <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false">
@@ -14,7 +14,25 @@ const WhatsAppIcon = () => (
 );
 
 export const WhatsAppFloat = () => {
-  const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(DEFAULT_MESSAGE)}`;
+  const [phone, setPhone] = useState(FALLBACK_NUMBER);
+  const [message, setMessage] = useState(FALLBACK_MESSAGE);
+
+  useEffect(() => {
+    // Carga la config de WhatsApp desde el endpoint público
+    fetch('/api/landing/whatsapp')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.success && data.data) {
+          if (data.data.phone) setPhone(data.data.phone);
+          if (data.data.message) setMessage(data.data.message);
+        }
+      })
+      .catch(() => {
+        // silently fallback to defaults
+      });
+  }, []);
+
+  const waLink = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 
   return (
     <div className="landing-whatsapp-float">

@@ -9,6 +9,7 @@ import { obtenerResumenNomina } from '../../domain/use-cases/obtenerResumenNomin
 import { registrarAbono } from '../../domain/use-cases/registrarAbono';
 import { Nomina } from '../../domain/entities/Nomina';
 import { HoraExtra } from '../../domain/entities/HoraExtra';
+import { toast } from '../../../../shared/ui/components/Toast';
 
 /**
  * Helper para obtener fechas de inicio y fin según el año, mes y tipo de período.
@@ -101,7 +102,7 @@ export function useNomina() {
       dispatch({ type: NOMINA_ACTIONS.UPDATE_PAYROLL, payload: saved });
       return saved;
     } catch (err) {
-      alert(`Error al guardar nómina: ${err.message}`);
+      toast.error(`Error al guardar nómina: ${err.message}`);
       throw err;
     }
   }, [adapter, dispatch]);
@@ -112,7 +113,7 @@ export function useNomina() {
   const addAbono = useCallback(async (empleadoId, monto, fecha) => {
     const nomina = state.payrolls.find(p => p.empleadoId === empleadoId);
     if (!nomina) {
-      alert('No se encontró el registro de nómina para este colaborador.');
+      toast.error('No se encontró el registro de nómina para este colaborador.');
       return;
     }
 
@@ -120,7 +121,7 @@ export function useNomina() {
       const nominaActualizada = registrarAbono(nomina, { monto, fecha });
       await savePayrollRecord(nominaActualizada);
     } catch (err) {
-      alert(`Error al registrar abono: ${err.message}`);
+      toast.error(`Error al registrar abono: ${err.message}`);
     }
   }, [state.payrolls, savePayrollRecord]);
 
@@ -139,7 +140,7 @@ export function useNomina() {
       dispatch({ type: NOMINA_ACTIONS.SET_OVERTIME, payload: updatedOvertime });
       return saved;
     } catch (err) {
-      alert(`Error al guardar horas extras: ${err.message}`);
+      toast.error(`Error al guardar horas extras: ${err.message}`);
       throw err;
     }
   }, [adapter, fechasActuales, dispatch]);

@@ -28,6 +28,7 @@ import { NotificacionesPage } from '../features/notificaciones/ui/pages/Notifica
 import { FormOrdenCompraPage } from '../features/compras/ui/pages/FormOrdenCompraPage';
 import ConfiguracionFeature from '../features/configuracion/ui';
 import { MovimientosPage } from '../features/gastos/ui/pages/MovimientosPage';
+import { BalancesPage } from '../features/gastos/ui/pages/BalancesPage';
 import { ToastContainer } from '../shared/ui/components/Toast';
 import { isAsistenciaUser, isTallerUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
@@ -261,11 +262,15 @@ function App() {
             </Routes>
           ) : (
             <Routes>
-              <Route path="/" element={isImpresion ? <Navigate to="/colas-impresion" replace /> : <DashboardPage />} />
+              <Route path="/" element={
+                isImpresion ? <Navigate to="/colas-impresion" replace /> :
+                (isVentas || isDisenador) ? <Navigate to="/proformas" replace /> :
+                <DashboardPage />
+              } />
               <Route path="/notificaciones" element={<NotificacionesPage />} />
               {!isImpresion && <Route path="/nomina/*" element={<NominaFeature />} />}
               {!isImpresion && <Route path="/impresiones" element={<ImpresionesPage />} />}
-              {!isVentas && !isDisenador && <Route path="/colas-impresion" element={<ColasImpresionPage />} />}
+              <Route path="/colas-impresion" element={<ColasImpresionPage />} />
               <Route path="/instalaciones" element={<InstalacionesPage />} />
               <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
               <Route path="/inventario/*" element={<InventarioFeature />} />
@@ -282,6 +287,7 @@ function App() {
               {!isImpresion && <Route path="/flota/*" element={<GastosFeature defaultTab="vehiculos" />} />}
               {!isImpresion && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
               {!isImpresion && <Route path="/movimientos/*" element={<MovimientosPage />} />}
+              {!isImpresion && <Route path="/balances" element={<BalancesPage />} />}
               <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
               <Route path="/tareas/*" element={<TareasFeature />} />
               <Route path="/taller/control" element={<TallerControlPage />} />

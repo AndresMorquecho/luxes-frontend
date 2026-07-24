@@ -31,8 +31,8 @@ export const Layout = ({ children, user, onLogout }) => {
     { name: 'Instalaciones de Equipos', path: '/instalaciones' },
     { name: 'Compras de Materiales', path: '/compras' },
     { name: 'Ventas y Facturación', path: '/ventas' },
-    { name: 'Relaciones: Clientes', path: '/clientes' },
-    { name: 'Relaciones: Proveedores', path: '/proveedores' },
+    { name: 'Contactos: Clientes', path: '/clientes' },
+    { name: 'Contactos: Proveedores', path: '/proveedores' },
     { name: 'Configuración: Usuarios', path: '/usuarios' },
     { name: 'Configuración: General', path: '/configuracion' },
   ];

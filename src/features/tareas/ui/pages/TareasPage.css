@@ -7,7 +7,13 @@
   border-radius: 12px;
   background: #f8fafc;
   padding: 0.5rem;
-  max-height: 280px;
+  max-height: 180px;
+}
+
+@media (min-width: 768px) {
+  .ta-user-selector {
+    max-height: 280px;
+  }
 }
 
 .ta-user-option {

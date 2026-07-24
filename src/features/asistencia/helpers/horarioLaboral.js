@@ -193,7 +193,10 @@ export function formatDiffMinutos(diff) {
   return diff > 0 ? `+${parte} tarde` : `-${parte} temprano`;
 }
 
-export function getEstadoAlmuerzo(marcaciones = [], dateStr, config) {
+export function getEstadoAlmuerzo(marcaciones = [], dateStr, config, tipoContrato = 'Tiempo Completo') {
+  if (tipoContrato === 'Medio Día') {
+    return { status: 'SIN_DATOS', label: '—', cls: 'slate' };
+  }
   const horario = getHorarioEsperado(dateStr, config);
   const tipos = new Set(marcaciones.map((m) => m.tipo));
   if (tipos.has('PERMISO')) return { status: 'PERMISO', label: 'Permiso pagado', cls: 'indigo' };

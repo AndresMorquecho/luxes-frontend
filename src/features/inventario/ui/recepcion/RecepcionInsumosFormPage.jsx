@@ -4,32 +4,18 @@ import { getOrdenById, recepcionarOrden } from '../../../compras/application/com
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { formatDateOnlyES, toDateInputValue, todayDateInputValue } from '../../../../shared/utils/dateOnly.js';
-import { ArrowLeft, Calendar, Package, ChevronDown, Plus, Minus, FileText, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, CheckCircle2 } from 'lucide-react';
+import { isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 const fmtDate = (d) => formatDateOnlyES(d, { year: 'numeric', month: 'long', day: 'numeric' });
 
-const isRoll = (material) => {
-  if (!material) return false;
-  const unit = (material.unidadMedida?.nombre || material.unidadMedida?.abreviacion || '').toLowerCase();
-  const name = (material.nombre || '').toLowerCase();
-  const cat = (material.categoria || '').toLowerCase();
-  return (
-    material.ancho != null || 
-    unit === 'm' || 
-    unit === 'metros' || 
-    cat === 'impresión' || 
-    cat === 'impresion' ||
-    name.includes('rollo') || 
-    name.includes('lona') || 
-    name.includes('vinil')
-  );
-};
 
-const mapDetalleFromOrden = (d) => {
-  const isDownloadable = d.material 
-    ? (d.material.subtipo === 'consumible_descargable' || d.material.categoria === 'Impresión')
-    : false;
-  const isMaterialRoll = isRoll(d.material);
+const mapDetalleFromOrden = (d, forceNoDescargable = false) => {
+  const isDownloadable = forceNoDescargable
+    ? false
+    : d.material 
+      ? (d.material.subtipo === 'consumible_descargable' || d.material.categoria === 'Impresión')
+      : false;
   return {
     id: d.id,
     descripcion: d.descripcion,
@@ -38,16 +24,14 @@ const mapDetalleFromOrden = (d) => {
     cantidadSolicitada: d.cantidad,
     cantidadRecibida: d.cantidadRecibida != null 
       ? String(d.cantidadRecibida) 
-      : (isMaterialRoll ? '0' : String(d.cantidad)),
+      : (isDownloadable ? '' : String(d.cantidad)),
     precioUnitario: d.precioUnitario,
     observacion: '',
-    descargableInventario: d.descargableInventario ?? isDownloadable,
+    descargableInventario: forceNoDescargable ? false : (d.descargableInventario ?? isDownloadable),
     fechaRecepcion: d.fechaRecepcion
       ? toDateInputValue(d.fechaRecepcion)
       : todayDateInputValue(),
     yaRecibido: (d.cantidadRecibida ?? 0) > 0,
-    rollosCalc: String(d.cantidad),
-    metrosPorRolloCalc: '',
   };
 };
 
@@ -55,7 +39,7 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
   const { ordenId } = useParams();
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const isTaller = user?.rol === 'taller';
+  const isTaller = isTallerUser(user);
 
   const [orden, setOrden] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +61,9 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
     }
     setOrden(data);
     setObservaciones(data.notasRecepcion || '');
-    setDetalles((data.detalles || []).map(mapDetalleFromOrden));
+    // Para taller: forzar descargableInventario=false en todos los items (solo registro)
+    const isTallerLocal = isTallerUser(JSON.parse(localStorage.getItem('user') || 'null'));
+    setDetalles((data.detalles || []).map(d => mapDetalleFromOrden(d, isTallerLocal)));
     return data;
   }, [ordenId, basePath, navigate]);
 
@@ -107,35 +93,30 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
     setDetalles(prev => prev.map((item, idx) => (idx === index ? { ...item, ...patch } : item)));
   };
 
-  const handleQtyChange = (index, val) => {
+  const handleQtyChange = (index, rawVal) => {
+    // Permitir string vacío mientras se edita, pero guardar como string
+    const strVal = rawVal === '' ? '' : String(rawVal);
     const detail = detalles[index];
-    const isMaterialRoll = isRoll(detail.material);
-    const maxVal = isMaterialRoll ? 999999 : detail.cantidadSolicitada;
-    const newQty = Math.max(0, Math.min(maxVal, val));
-    updateDetalle(index, { cantidadRecibida: String(newQty) });
-  };
-
-  const handleRollosCalcChange = (index, rollos) => {
-    const detail = detalles[index];
-    const metros = parseFloat(detail.metrosPorRolloCalc) || 0;
-    const totalMetros = (parseFloat(rollos) || 0) * metros;
-    updateDetalle(index, { 
-      rollosCalc: rollos, 
-      cantidadRecibida: String(totalMetros) 
-    });
-  };
-
-  const handleMetrosPorRolloCalcChange = (index, metros) => {
-    const detail = detalles[index];
-    const rollos = parseFloat(detail.rollosCalc) || 0;
-    const totalMetros = rollos * (parseFloat(metros) || 0);
-    updateDetalle(index, { 
-      metrosPorRolloCalc: metros, 
-      cantidadRecibida: String(totalMetros) 
-    });
+    const isDownloadable = detail.descargableInventario;
+    if (!isDownloadable) {
+      // Materiales no rastreables: limitar a cantidad solicitada
+      const num = parseFloat(strVal) || 0;
+      const capped = Math.min(num, detail.cantidadSolicitada);
+      updateDetalle(index, { cantidadRecibida: String(capped) });
+    } else {
+      // Materiales descargables (rollos/lonas): metros libres
+      updateDetalle(index, { cantidadRecibida: strVal });
+    }
   };
 
   const handleRecepcionarTodo = async () => {
+    // Validar que todos los pendientes tengan cantidad > 0
+    const pendientesConCero = detalles.filter(d => !d.yaRecibido && !(parseFloat(d.cantidadRecibida) > 0));
+    if (pendientesConCero.length > 0) {
+      toast.error('Todos los productos deben tener una cantidad recibida mayor a 0');
+      return;
+    }
+
     const itemsParaRecepcionar = detalles.filter(d => !d.yaRecibido && (parseFloat(d.cantidadRecibida) || 0) > 0);
 
     if (itemsParaRecepcionar.length === 0) {
@@ -152,7 +133,8 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
           materialId: detalle.materialId,
           cantidad: parseFloat(detalle.cantidadRecibida) || 0,
           fechaRecepcion: fechaRecepcionGlobal,
-          descargableInventario: detalle.descargableInventario === true && !!detalle.materialId,
+          // Taller nunca descuenta inventario: solo es registro
+          descargableInventario: isTaller ? false : (detalle.descargableInventario === true && !!detalle.materialId),
           observacion: detalle.observacion || undefined,
         })),
       };
@@ -346,67 +328,90 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
 
                     {/* Cantidad Ordenada */}
                     <td className="px-6 py-4 text-center font-semibold text-slate-600">
-                      {detalle.cantidadSolicitada} {isRoll(detalle.material) ? (detalle.cantidadSolicitada === 1 ? 'rollo' : 'rollos') : (detalle.cantidadSolicitada === 1 ? 'unidad' : 'unidades')}
+                      {isTaller
+                        ? detalle.cantidadSolicitada
+                        : `${detalle.cantidadSolicitada} ${detalle.descargableInventario ? 'rollo(s)' : (detalle.cantidadSolicitada === 1 ? 'unidad' : 'unidades')}`
+                      }
                     </td>
 
                     {/* Cantidad por Recibir */}
                     <td className="px-6 py-4 text-center font-bold text-slate-800">
-                      {(detalle.yaRecibido ? 0 : detalle.cantidadSolicitada)} {isRoll(detalle.material) ? (detalle.cantidadSolicitada === 1 ? 'rollo' : 'rollos') : (detalle.cantidadSolicitada === 1 ? 'unidad' : 'unidades')}
+                      {isTaller
+                        ? (detalle.yaRecibido ? 0 : detalle.cantidadSolicitada)
+                        : `${detalle.yaRecibido ? 0 : detalle.cantidadSolicitada} ${detalle.descargableInventario ? 'rollo(s)' : (detalle.cantidadSolicitada === 1 ? 'unidad' : 'unidades')}`
+                      }
                     </td>
 
-                    {/* Cantidad Recibida (Input Stepper) */}
+                    {/* Cantidad Recibida */}
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center">
                         {detalle.yaRecibido ? (
-                          <span className="font-bold text-slate-500">{detalle.cantidadRecibida} {detalle.material?.unidadMedida?.abreviacion || detalle.material?.unidadMedida?.nombre || 'unidad(s)'}</span>
+                          <span className="font-bold text-slate-500">
+                            {detalle.cantidadRecibida}
+                            {!isTaller && ` ${detalle.descargableInventario ? 'm' : (detalle.material?.unidadMedida?.abreviacion || 'u')}`}
+                          </span>
+                        ) : isTaller ? (
+                          /* Rol taller: solo cantidad recibida, sin unidad ni validación estricta */
+                          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all max-w-[100px]">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={detalle.cantidadRecibida}
+                              onChange={(e) => handleQtyChange(index, e.target.value)}
+                              className="w-full text-center py-2 text-sm font-bold text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              placeholder="0"
+                            />
+                          </div>
+                        ) : detalle.descargableInventario ? (
+                          /* Rol impresión — Material descargable (rollos/lonas): input en metros */
+                          <div className="flex flex-col items-center gap-1">
+                            <div className={`flex items-center rounded-lg overflow-hidden shadow-sm bg-white transition-all max-w-[120px] ${
+                              !detalle.cantidadRecibida || parseFloat(detalle.cantidadRecibida) <= 0
+                                ? 'border-2 border-red-300 focus-within:ring-2 focus-within:ring-red-400'
+                                : 'border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent'
+                            }`}>
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={detalle.cantidadRecibida}
+                                onChange={(e) => handleQtyChange(index, e.target.value)}
+                                className="w-full text-center py-2 text-sm font-bold text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                placeholder="0.00"
+                              />
+                              <span className="pr-2.5 text-[11px] font-bold text-blue-500 bg-white select-none whitespace-nowrap">
+                                m
+                              </span>
+                            </div>
+                            {(!detalle.cantidadRecibida || parseFloat(detalle.cantidadRecibida) <= 0) && (
+                              <span className="text-[10px] font-semibold text-red-500">Requerido</span>
+                            )}
+                          </div>
                         ) : (
-                          <div className="flex flex-col items-center gap-2">
-                              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all max-w-[110px]">
-                                <input 
-                                  type="number"
-                                  min="0"
-                                  max={isRoll(detalle.material) ? undefined : detalle.cantidadSolicitada}
-                                  step="0.01"
-                                  value={detalle.cantidadRecibida}
-                                  onChange={(e) => handleQtyChange(index, parseFloat(e.target.value) || 0)}
-                                  className="w-full text-center py-1.5 text-xs font-bold text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
-                                <span className="pr-2.5 text-[10px] font-bold text-slate-400 bg-white select-none whitespace-nowrap">
-                                  {detalle.material?.unidadMedida?.abreviacion || detalle.material?.unidadMedida?.nombre || 'm'}
-                                </span>
-                              </div>
-
-                            {isRoll(detalle.material) && (
-                              <div className="flex flex-col gap-1.5 p-2 bg-blue-50/40 border border-blue-100 rounded-lg text-[11px] w-full max-w-[180px]">
-                                <span className="font-bold text-blue-700 block text-center border-b border-blue-100/50 pb-1">Convertir a Metros:</span>
-                                <div className="flex items-center gap-1 justify-center">
-                                  <input 
-                                    type="number" 
-                                    min="0"
-                                    step="1"
-                                    placeholder="Rollos"
-                                    value={detalle.rollosCalc}
-                                    onChange={(e) => handleRollosCalcChange(index, e.target.value)}
-                                    className="w-12 p-1 border border-slate-300 rounded text-center font-bold text-slate-700 bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                    title="Cantidad de Rollos"
-                                  />
-                                  <span className="text-slate-400 font-bold">x</span>
-                                  <input 
-                                    type="number" 
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="Metros"
-                                    value={detalle.metrosPorRolloCalc}
-                                    onChange={(e) => handleMetrosPorRolloCalcChange(index, e.target.value)}
-                                    className="w-16 p-1 border border-slate-300 rounded text-center font-bold text-slate-700 bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                    title="Metros por Rollo"
-                                  />
-                                  <span className="text-slate-400 font-bold">=</span>
-                                  <span className="font-extrabold text-blue-600">
-                                    {qtyRecibidaVal.toFixed(1)}m
-                                  </span>
-                                </div>
-                              </div>
+                          /* Rol impresión — Material no rastreable (tintas, etc.): input de unidades */
+                          <div className="flex flex-col items-center gap-1">
+                            <div className={`flex items-center rounded-lg overflow-hidden shadow-sm bg-white transition-all max-w-[110px] ${
+                              !detalle.cantidadRecibida || parseFloat(detalle.cantidadRecibida) <= 0
+                                ? 'border-2 border-red-300 focus-within:ring-2 focus-within:ring-red-400'
+                                : 'border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent'
+                            }`}>
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                max={detalle.cantidadSolicitada}
+                                value={detalle.cantidadRecibida}
+                                onChange={(e) => handleQtyChange(index, e.target.value)}
+                                className="w-full text-center py-2 text-sm font-bold text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                placeholder="0"
+                              />
+                              <span className="pr-2 text-[10px] font-bold text-slate-400 bg-white select-none whitespace-nowrap">
+                                {detalle.material?.unidadMedida?.abreviacion || detalle.material?.unidadMedida?.nombre || 'u'}
+                              </span>
+                            </div>
+                            {(!detalle.cantidadRecibida || parseFloat(detalle.cantidadRecibida) <= 0) && (
+                              <span className="text-[10px] font-semibold text-red-500">Requerido</span>
                             )}
                           </div>
                         )}
@@ -426,14 +431,20 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
           </table>
         </div>
 
-        {/* Alerta de Inventario en el footer de la tabla */}
-        {totalProductosRecibiendo > 0 && (
+        {/* Alerta de Inventario en el footer de la tabla — solo para impresion */}
+        {!isTaller && totalProductosRecibiendo > 0 && (
           <div className="px-6 py-4 bg-emerald-50/50 border-t border-slate-100 flex items-center gap-3 text-emerald-800 text-xs font-bold">
             <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
             <span>
               Se recibirá{totalProductosRecibiendo !== 1 ? 'n' : ''} {totalProductosRecibiendo} producto{totalProductosRecibiendo !== 1 ? 's' : ''}
               {totalSumarInventario > 0 ? ` (de los cuales ${totalSumarInventario} se ingresará${totalSumarInventario !== 1 ? 'n' : ''} automáticamente al stock del inventario).` : '.'}
             </span>
+          </div>
+        )}
+        {isTaller && totalProductosRecibiendo > 0 && (
+          <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center gap-3 text-slate-600 text-xs font-medium">
+            <CheckCircle2 size={16} className="text-slate-400 flex-shrink-0" />
+            <span>Se registrará la recepción de {totalProductosRecibiendo} producto{totalProductosRecibiendo !== 1 ? 's' : ''}. No afecta el inventario.</span>
           </div>
         )}
       </div>

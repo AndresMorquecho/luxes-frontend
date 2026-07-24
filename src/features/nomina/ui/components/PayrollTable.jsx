@@ -66,7 +66,7 @@ export const PayrollTable = ({ calculatedPayrolls, globalSummary, onEdit, onView
                     {row.diasLaborados}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-center text-gray-600 text-xs font-semibold">
-                    {row.permisoHoras} hs
+                    {formatUSD(row.valorPermisoHoras)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-center text-gray-700 font-bold text-xs">
                     {formatUSD(row.subtotalDias)}

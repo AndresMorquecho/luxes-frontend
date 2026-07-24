@@ -209,6 +209,7 @@ const KioskView = () => {
   const [horarioHoy, setHorarioHoy] = useState(null);
   const [recentRegistros, setRecentRegistros] = useState([]);
 
+
   const loadRecentRegistros = async () => {
     try {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -325,19 +326,30 @@ const KioskView = () => {
         lapsos,
       });
 
-      if (!puedeRegistrarMarcacion(marcaciones)) {
+      if (!puedeRegistrarMarcacion(marcaciones, proxima.tipoContrato, horarioHoy?.diaConfig?.salida)) {
         throw new Error('El colaborador ya completó las marcaciones del día.');
       }
 
+      const horaSalidaConfig = horarioHoy?.diaConfig?.salida ?? null;
       const opciones = proxima.opciones?.length
-        ? proxima.opciones
-        : getOpcionesMarcacion(marcaciones);
+        ? proxima.opciones.filter(op => {
+            if (op.tipo === 'SALIDA_PERMISO') {
+              const now = new Date();
+              if (horaSalidaConfig) {
+                const [sh, sm] = horaSalidaConfig.split(':').map(Number);
+                if (now.getHours() * 60 + now.getMinutes() >= sh * 60 + sm) return false;
+              }
+            }
+            return true;
+          })
+        : getOpcionesMarcacion(marcaciones, proxima.tipoContrato, horaSalidaConfig);
 
       setPendingScan({
         empleadoId,
         nombreEmpleado: marcaciones[0]?.nombreEmpleado || empleadoId,
         marcaciones,
         opciones,
+        tipoContrato: proxima.tipoContrato,
       });
       setIsCameraActive(false);
       setIsProcessingScan(false);
@@ -348,6 +360,21 @@ const KioskView = () => {
       setTimeout(() => setScanError(null), 5000);
       setIsProcessingScan(false);
     }
+  };
+
+  const getExpectedReturnTime = (fechaHoraStr) => {
+    if (!horarioHoy?.diaConfig?.inicioAlmuerzo || !horarioHoy?.diaConfig?.finAlmuerzo) {
+      const d = new Date(fechaHoraStr);
+      d.setHours(d.getHours() + 1);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    const [ish, ism] = horarioHoy.diaConfig.inicioAlmuerzo.split(':').map(Number);
+    const [fsh, fsm] = horarioHoy.diaConfig.finAlmuerzo.split(':').map(Number);
+    const durationMinutes = (fsh * 60 + fsm) - (ish * 60 + ism);
+    
+    const d = new Date(fechaHoraStr);
+    d.setMinutes(d.getMinutes() + durationMinutes);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const toastDetails = lastScan ? getMarcacionToastDetails(lastScan.tipo) : null;
@@ -422,6 +449,7 @@ const KioskView = () => {
           )}
         </div>
       </div>
+
 
       {/* Main Grid: 3 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
@@ -735,6 +763,7 @@ const KioskView = () => {
                 marcaciones={pendingScan.marcaciones}
                 opciones={pendingScan.opciones}
                 loading={isProcessingScan}
+                horaSalidaConfig={horarioHoy?.diaConfig?.salida ?? null}
                 onSelect={(tipo) => ejecutarRegistroKiosk(pendingScan.empleadoId, tipo)}
                 onCancel={() => { setPendingScan(null); setIsCameraActive(true); }}
               />
@@ -757,6 +786,17 @@ const KioskView = () => {
                     Hora: {new Date(lastScan.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </p>
                 </div>
+
+                {lastScan.tipo === 'INICIO_ALMUERZO' && (
+                  <div className="py-3 px-5 rounded-2xl bg-amber-50 border border-amber-100 text-center shadow-xs animate-bounce max-w-[280px]">
+                    <p className="text-xs font-black text-amber-800">
+                      Debes regresar a las {getExpectedReturnTime(lastScan.fechaHora)}
+                    </p>
+                    <p className="text-[10px] text-amber-600 font-semibold mt-0.5">
+                      Tu tiempo de almuerzo autorizado ha comenzado.
+                    </p>
+                  </div>
+                )}
                 <div className="w-full">
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Marcaciones del día</p>
                   <MarcacionesTimeline marcaciones={lastScan.marcaciones} highlightTipo={lastScan.tipo} compact theme="light" />
@@ -1083,7 +1123,7 @@ const AdminView = () => {
         emp,
         marcaciones,
         estado,
-        almuerzo: getEstadoAlmuerzo(marcaciones, fechaFiltro, horariosConfig),
+        almuerzo: getEstadoAlmuerzo(marcaciones, fechaFiltro, horariosConfig, emp.tipoContrato),
       };
     });
   }, [empleados, asistencias, fechaFiltro, horariosConfig]);

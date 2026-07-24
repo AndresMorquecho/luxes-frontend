@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { Nomina } from '../../domain/entities/Nomina';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
 
@@ -100,7 +101,7 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
       const nominaParaGuardar = new Nomina(formData);
       onSave(nominaParaGuardar);
     } catch (err) {
-      alert(`Error de validación: ${err.message}`);
+      await alertDialog('Error de validación', err.message, { type: 'warning' });
     }
   };
 
@@ -139,12 +140,9 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
                 <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1">Días Laborados</label>
                 <input
                   type="number"
-                  min="0"
-                  max="30"
+                  disabled
                   value={formData.diasLaborados}
-                  onChange={(e) => handleGeneralChange('diasLaborados', e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all payroll-input"
-                  required
+                  className="w-full bg-slate-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-400 outline-none cursor-not-allowed"
                 />
               </div>
               <div>

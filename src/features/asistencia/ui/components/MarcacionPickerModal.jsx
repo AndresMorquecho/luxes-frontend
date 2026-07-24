@@ -8,6 +8,7 @@ const BTN_STYLES = {
   FIN_ALMUERZO: 'bg-sky-600 hover:bg-sky-500 border-sky-400/30 text-white',
   SALIDA: 'bg-indigo-600 hover:bg-indigo-500 border-indigo-400/30 text-white',
   FIN_HORAS_EXTRA: 'bg-violet-600 hover:bg-violet-500 border-violet-400/30 text-white',
+  SALIDA_PERMISO: 'bg-rose-600 hover:bg-rose-500 border-rose-400/30 text-white',
 };
 
 export function MarcacionPickerModal({
@@ -18,9 +19,10 @@ export function MarcacionPickerModal({
   onSelect,
   onCancel,
   loading = false,
+  horaSalidaConfig = null,
 }) {
   const hePreview = opciones.some((o) => o.tipo === 'FIN_HORAS_EXTRA')
-    ? previewHorasExtras(marcaciones)
+    ? previewHorasExtras(marcaciones, horaSalidaConfig)
     : null;
 
   return (

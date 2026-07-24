@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Camera, Image as ImageIcon, CheckCircle, UploadCloud, Trash2, PenTool, ShieldCheck, Loader2 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { uploadArchivoDiseno } from '../../application/proyectosService.js';
+import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 
 export function EntregaPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
@@ -59,7 +60,7 @@ export function EntregaPanel({ proyectoId, soloLectura }) {
       });
     } catch (error) {
       console.error('Error al subir fotos de entrega:', error);
-      alert('Error al subir fotos: ' + error.message);
+      await alertDialog('Error', 'Error al subir fotos: ' + error.message, { type: 'warning' });
     } finally {
       setUploading(false);
     }

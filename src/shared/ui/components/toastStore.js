@@ -14,7 +14,7 @@ export const toastStore = {
   getSnapshot() {
     return toasts;
   },
-  add(message, type = 'info', duration = 4000) {
+  add(message, type = 'info', duration = 1500) {
     const id = `toast-${++nextId}-${Date.now()}`;
     toasts = [...toasts, { id, message, type, duration }];
     emitChange();
@@ -29,19 +29,19 @@ export const toastStore = {
 };
 
 export const toast = {
-  show(message, type = 'info', duration = 4000) {
+  show(message, type = 'info', duration = 1500) {
     toastStore.add(message, type, duration);
   },
   success(message, duration) {
-    toastStore.add(message, 'success', duration ?? 4000);
+    toastStore.add(message, 'success', duration ?? 1500);
   },
   error(message, duration) {
-    toastStore.add(message, 'error', duration ?? 5000);
+    toastStore.add(message, 'error', duration ?? 2500);
   },
   info(message, duration) {
-    toastStore.add(message, 'info', duration ?? 4000);
+    toastStore.add(message, 'info', duration ?? 1500);
   },
   warning(message, duration) {
-    toastStore.add(message, 'warning', duration ?? 4500);
+    toastStore.add(message, 'warning', duration ?? 2000);
   },
 };

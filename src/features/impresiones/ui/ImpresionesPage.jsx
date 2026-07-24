@@ -315,8 +315,7 @@ export const ImpresionesPage = () => {
       jobName = filesToSubmit.length === 1 ? filesToSubmit[0].name : `${filesToSubmit.length} archivos de diseño`;
     }
 
-    const now = new Date();
-    const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const sentAtFormatted = new Date().toISOString();
 
     try {
       const newJob = {
@@ -404,7 +403,23 @@ export const ImpresionesPage = () => {
     if (filterDate) {
       const [y, m, d] = filterDate.split('-');
       const formattedFilterDate = `${d}/${m}/${y}`;
-      matchesDate = job.sentAt && job.sentAt.includes(formattedFilterDate);
+      const isoFilterDate = `${y}-${m}-${d}`;
+      const checkMatch = (dateStr) => {
+        if (!dateStr) return false;
+        if (dateStr.includes(formattedFilterDate)) return true;
+        if (dateStr.includes(isoFilterDate)) return true;
+        try {
+          const dt = new Date(dateStr);
+          if (!isNaN(dt.getTime())) {
+            const lY = dt.getFullYear();
+            const lM = String(dt.getMonth() + 1).padStart(2, '0');
+            const lD = String(dt.getDate()).padStart(2, '0');
+            return `${lY}-${lM}-${lD}` === isoFilterDate;
+          }
+        } catch {}
+        return false;
+      };
+      matchesDate = checkMatch(job.sentAt);
     }
     const matchesUser = filterUser ? (job.sentBy && job.sentBy.toLowerCase().includes(filterUser.toLowerCase())) : true;
     const matchesStatus = filterStatus === 'Todos' || !filterStatus ? true : job.trackingStatus === filterStatus;
@@ -420,6 +435,25 @@ export const ImpresionesPage = () => {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}m ${seconds}s`;
+  };
+
+  const formatLocalDateTime = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString('es-EC', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -1225,11 +1259,11 @@ export const ImpresionesPage = () => {
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Fecha de Envío</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.sentAt || 'Sin fecha'}</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{formatLocalDateTime(selectedJobDetails.sentAt)}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-item-label" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Hora de Finalización</span>
-                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{selectedJobDetails.completedAt || 'Sin registrar'}</span>
+                  <span className="detail-item-value" style={{ fontWeight: 600, color: '#334155' }}>{formatLocalDateTime(selectedJobDetails.completedAt)}</span>
                 </div>
               </div>
 

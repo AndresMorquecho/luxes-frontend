@@ -170,7 +170,10 @@ export const PrintQueueProvider = ({ children }) => {
       const res = await fetch(`/api/impresiones/${activeJob.id}`, {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify({ 
+          status: nextStatus,
+          responsible: getActiveUser(),
+        }),
       });
       if (res.ok) {
         notifyUpdate();

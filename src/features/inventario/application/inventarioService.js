@@ -17,14 +17,19 @@ export function getInventarioCategoriaPorRol(user) {
 /** Arma opciones de consulta respetando el inventario del rol. */
 export function buildMaterialesQuery(options = {}) {
   const categoriaRol = getInventarioCategoriaPorRol();
-  const { categoria, ...rest } = options;
+  const { categoria, incluirDerivados, ...rest } = options;
+  const categoriaFinal = categoriaRol || categoria || undefined;
   return {
     page: 1,
     limit: 500,
     ...rest,
-    ...(categoriaRol ? { categoria: categoriaRol } : categoria ? { categoria } : {}),
+    ...(categoriaFinal ? { categoria: categoriaFinal } : {}),
+    // Solo incluir derivados [R001],[R002] si se pide explícitamente
+    // El dropdown de OC NUNCA debe pasarlo; solo InventarioPage de impresión lo pide
+    ...(incluirDerivados !== undefined ? { incluirDerivados } : {}),
   };
 }
+
 
 /** Normaliza la respuesta del API (array plano o { items, total }). */
 export function normalizeMaterialesList(data) {
@@ -40,12 +45,13 @@ export async function getMateriales(options = {}) {
   if (typeof options === 'string') {
     params.append('tipo', options);
   } else {
-    const { tipo, page, limit, search, categoria } = options;
+    const { tipo, page, limit, search, categoria, incluirDerivados } = options;
     if (tipo) params.append('tipo', tipo);
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
     if (search) params.append('search', search);
     if (categoria) params.append('categoria', categoria);
+    if (incluirDerivados) params.append('incluirDerivados', 'true');
   }
 
   const url = `/api/inventario?${params.toString()}`;

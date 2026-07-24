@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Printer, PlayCircle, CheckCircle, Clock, AlertTriangle, Send, XCircle, User, 
   UploadCloud, Plus, Minus, FileText, Lock, Image as ImageIcon
@@ -11,6 +11,24 @@ import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMedia
 import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 
 export function ProduccionPanel({ proyectoId, soloLectura = false }) {
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString('es-EC', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    } catch {
+      return dateStr;
+    }
+  };
   const { proyecto } = useProyecto(proyectoId);
   const { getJobsByProyectoId, addJobToQueue } = usePrintQueue();
   const [activeSubTab, setActiveSubTab] = useState('timeline'); // 'timeline' or 'enviar'
@@ -55,19 +73,40 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successJobName, setSuccessJobName] = useState('');
   const [materialesList, setMaterialesList] = useState([]);
+  // Combobox de sustrato
+  const [matSearch, setMatSearch] = useState('');
+  const [matOpen, setMatOpen] = useState(false);
+  const matComboRef = useRef(null);
+
+  // Cerrar dropdown al click fuera
+  useEffect(() => {
+    const handler = (e) => {
+      if (matComboRef.current && !matComboRef.current.contains(e.target)) {
+        setMatOpen(false);
+        setMatSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const materialesFiltrados = matSearch.trim()
+    ? materialesList.filter(m => m.nombre.toLowerCase().includes(matSearch.toLowerCase()))
+    : materialesList;
 
   useEffect(() => {
     const fetchMateriales = async () => {
       try {
-        const response = await getMateriales({ tipo: 'consumible', categoria: 'Impresión' });
+        const response = await getMateriales({ tipo: 'consumible', categoria: 'Impresión', incluirDerivados: true });
         const list = Array.isArray(response) ? response : (response?.items || []);
-        // Filtrar tintas que no son sustratos de impresión
-        const sustratos = list.filter(m => 
+        // Filtrar tintas + materiales sin stock
+        const sustratos = list.filter(m =>
           !m.nombre.toLowerCase().includes('tinta') &&
           !m.nombre.toLowerCase().includes('cyan') &&
           !m.nombre.toLowerCase().includes('magenta') &&
           !m.nombre.toLowerCase().includes('yellow') &&
-          !m.nombre.toLowerCase().includes('black')
+          !m.nombre.toLowerCase().includes('black') &&
+          (m.stockActual ?? 0) > 0  // solo materiales con stock disponible
         );
         setMaterialesList(sustratos);
         if (sustratos.length > 0) {
@@ -86,12 +125,9 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const formBloqueado = soloLectura || impresionEnviada;
 
   useEffect(() => {
-    if (impresionEnviada) {
-      setActiveSubTab('timeline');
-    } else {
-      setActiveSubTab('enviar');
-    }
-  }, [proyectoId, impresionEnviada]);
+    // Set initial tab when switching projects
+    setActiveSubTab(impresionEnviada ? 'timeline' : 'enviar');
+  }, [proyectoId]); // Only on project change, not on impresionEnviada change
 
   // Initialize and pre-fill form data when project changes
   useEffect(() => {
@@ -240,8 +276,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
       jobName = filesToSubmit.length === 1 ? filesToSubmit[0].name : `${filesToSubmit.length} archivos de diseño`;
     }
 
-    const now = new Date();
-    const sentAtFormatted = now.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const sentAtFormatted = new Date().toISOString();
 
     const newJob = {
       name: jobName,
@@ -319,16 +354,12 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
         </button>
         <button
           type="button"
-          onClick={() => !impresionEnviada && setActiveSubTab('enviar')}
-          disabled={impresionEnviada}
+          onClick={() => setActiveSubTab('enviar')}
           className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-            impresionEnviada
-              ? 'text-slate-400 cursor-not-allowed opacity-60'
-              : activeSubTab === 'enviar'
+            activeSubTab === 'enviar'
               ? 'bg-white text-blue-600 shadow-sm font-bold'
               : 'text-slate-600 hover:text-slate-800'
           }`}
-          title={impresionEnviada ? 'Ya se envió a impresión. Sigue el avance en el timeline.' : undefined}
         >
           Enviar a Impresión
         </button>
@@ -435,7 +466,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                                 <span className="text-xs font-bold text-slate-700">Enviado a cola de impresión</span>
                               </div>
                               <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{job.sentToQueueAt}</span>
+                                <span className="text-[11px] text-slate-500">{formatDateTime(job.sentToQueueAt)}</span>
                                 {job.sentBy && (
                                   <span className="text-[11px] text-slate-400 flex items-center gap-1">
                                     <User size={10} /> {job.sentBy}
@@ -456,7 +487,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                                 <span className="text-xs font-bold text-slate-700">Impresión iniciada</span>
                               </div>
                               <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{job.startedPrintingAt}</span>
+                                <span className="text-[11px] text-slate-500">{formatDateTime(job.startedPrintingAt)}</span>
                                 {job.responsible && (
                                   <span className="text-[11px] text-slate-400 flex items-center gap-1">
                                     <User size={10} /> {job.responsible}
@@ -486,7 +517,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                                 </span>
                               </div>
                               <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{job.completedAt}</span>
+                                <span className="text-[11px] text-slate-500">{formatDateTime(job.completedAt)}</span>
                                 {job.elapsedSeconds > 0 && (
                                   <span className="text-[11px] text-slate-400">
                                     Duración: {formatDuration(job.elapsedSeconds)}
@@ -706,35 +737,79 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
               </div>
             </div>
 
-            {/* Row 2: Sustrato / Material */}
-            <div className="flex flex-col gap-1.5">
+            {/* Row 2: Sustrato / Material — Combobox buscador */}
+            <div className="flex flex-col gap-1.5" ref={matComboRef}>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sustrato / Material</label>
-              <select 
-                value={format} 
-                onChange={e => setFormat(e.target.value)}
-                disabled={formBloqueado}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
-              >
-                {materialesList.length > 0 ? (
-                  materialesList.map(mat => (
-                    <option key={mat.id} value={mat.nombre}>
-                      {mat.nombre}
-                    </option>
-                  ))
-                ) : (
-                  <>
-                    <option value="Lona traslúcida">Lona traslúcida</option>
-                    <option value="Lona brillo">Lona brillo</option>
-                    <option value="Lona mate">Lona mate</option>
-                    <option value="Vinil brillo">Vinil brillo</option>
-                    <option value="Vinil mate">Vinil mate</option>
-                    <option value="Vinil laminación brillo">Vinil laminación brillo</option>
-                    <option value="Vinil laminación mate">Vinil laminación mate</option>
-                    <option value="Tela sintética">Tela sintética</option>
-                    <option value="PVC">PVC</option>
-                  </>
+              <div className="relative">
+                {/* Input visible */}
+                <div
+                  className={`w-full flex items-center px-3 py-2 rounded-lg border text-sm bg-white text-slate-800 transition-all cursor-pointer
+                    ${formBloqueado ? 'bg-slate-100 cursor-not-allowed border-slate-300' : 'border-slate-300 hover:border-blue-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'}`}
+                  onClick={() => !formBloqueado && setMatOpen(v => !v)}
+                >
+                  {matOpen ? (
+                    <input
+                      autoFocus
+                      value={matSearch}
+                      onChange={e => setMatSearch(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      placeholder="Buscar material..."
+                      className="flex-1 outline-none bg-transparent text-sm text-slate-800 placeholder-slate-400"
+                      disabled={formBloqueado}
+                    />
+                  ) : (
+                    <span className={`flex-1 truncate ${!format ? 'text-slate-400' : 'text-slate-800'}`}>
+                      {format
+                        ? (() => {
+                            const mat = materialesList.find(m => m.nombre === format);
+                            const unidad = mat?.unidadMedida?.abreviacion || mat?.unidadMedida?.nombre || 'm';
+                            const stock = mat?.stockActual ?? 0;
+                            return mat ? `${mat.nombre} — Stock: ${stock} ${unidad}` : format;
+                          })()
+                        : 'Seleccionar material...'}
+                    </span>
+                  )}
+                  <svg className={`ml-2 w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${matOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+
+                {/* Dropdown */}
+                {matOpen && !formBloqueado && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                    {materialesFiltrados.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-slate-400 text-center">Sin resultados</div>
+                    ) : (
+                      <ul className="max-h-52 overflow-y-auto divide-y divide-slate-50">
+                        {materialesFiltrados.map(mat => {
+                          const unidad = mat.unidadMedida?.abreviacion || mat.unidadMedida?.nombre || 'm';
+                          const stock = mat.stockActual ?? 0;
+                          const isRollo = /^\[R\d+\]/.test(mat.nombre);
+                          const isSelected = format === mat.nombre;
+                          return (
+                            <li
+                              key={mat.id}
+                              onClick={() => { setFormat(mat.nombre); setMatOpen(false); setMatSearch(''); }}
+                              className={`px-4 py-2.5 cursor-pointer flex items-center justify-between gap-3 text-sm transition-colors
+                                ${isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-800'}`}
+                            >
+                              <span className="flex items-center gap-2 min-w-0">
+                                {isRollo && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700 flex-shrink-0">
+                                    {mat.nombre.match(/^\[R(\d+)\]/)?.[1] || 'R'}
+                                  </span>
+                                )}
+                                <span className="truncate font-medium">{isRollo ? mat.nombre.replace(/^\[R\d+\]\s*/, '') : mat.nombre}</span>
+                              </span>
+                              <span className={`text-xs font-semibold flex-shrink-0 ${stock < 10 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                {stock} {unidad}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
                 )}
-              </select>
+              </div>
             </div>
 
             {/* Row 3: Copias + Ancho + Alto */}
@@ -801,9 +876,9 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
             <div className="flex justify-end pt-3">
               <button 
                 type="submit" 
-                disabled={!file || formBloqueado}
+                disabled={!file || impresionEnviada || soloLectura}
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
-                title={impresionEnviada ? 'Este proyecto ya fue enviado a impresión' : undefined}
+                title={impresionEnviada ? 'Este proyecto ya fue enviado a impresión. No se permiten reenvíos.' : undefined}
               >
                 <Printer size={16} />
                 <span>{impresionEnviada ? 'Ya enviado a impresión' : 'Enviar a Impresión'}</span>

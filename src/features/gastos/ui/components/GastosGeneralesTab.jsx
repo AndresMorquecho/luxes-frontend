@@ -14,6 +14,8 @@ const CAT_BADGES = {
   mantenimiento: { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b', label: 'Mantenimiento' },
   servicios: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1', label: 'Servicios' },
   logistica: { bg: 'rgba(16,185,129,0.1)', color: '#10b981', label: 'Logística' },
+  vehiculos: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Vehículos' },
+  redes_y_programas: { bg: 'rgba(14,165,233,0.1)', color: '#0ea5e9', label: 'Redes y Programas' },
   varios: { bg: 'rgba(236,72,153,0.1)', color: '#ec4899', label: 'Varios' },
 };
 

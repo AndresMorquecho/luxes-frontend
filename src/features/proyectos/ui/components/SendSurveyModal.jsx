@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Send, X, Smartphone, MessageCircle, Copy, Star, AlertTriangle } from 'lucide-react';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 
 function formatWhatsAppNumber(telefono) {
   const fallback = '593968982380';
@@ -98,8 +99,10 @@ export function SendSurveyModal({
 
   const handleSendAndComplete = async () => {
     if (mostrandoAdvertencia) {
-      const confirmar = window.confirm(
-        "La encuesta de satisfacción ya fue enviada y está esperando el puntaje del cliente.\n\n¿Está seguro de que desea volver a enviarla?"
+      const confirmar = await confirmDialog(
+        "¿Reenviar encuesta?",
+        "La encuesta de satisfacción ya fue enviada y está esperando el puntaje del cliente. ¿Está seguro de que desea volver a enviarla?",
+        { type: 'warning', confirmLabel: 'Reenviar', cancelLabel: 'Cancelar' }
       );
       if (!confirmar) return;
     }

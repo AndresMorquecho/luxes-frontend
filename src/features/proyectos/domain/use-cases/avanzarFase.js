@@ -40,8 +40,10 @@ export function validarCamposFase(faseConfig, datosFase = {}) {
       faltantes.push('Archivo de diseño aprobado');
     }
   } else if (faseConfig.id === 'COTIZACION') {
-    if (!datosFase.datos?.montoEstimado && !datosFase.montoEstimado) {
-      // monto está en el proyecto raíz, no bloqueamos aquí
+    const datos = datosFase.datos || datosFase || {};
+    const cotizaciones = datos.cotizacionesSeleccionadas || datosFase.cotizacionesSeleccionadas;
+    if (!Array.isArray(cotizaciones) || cotizaciones.length === 0) {
+      faltantes.push('Al menos una proforma vinculada');
     }
   } else if (faseConfig.id === 'ENTREGA') {
     const datos = datosFase.datos || datosFase || {};

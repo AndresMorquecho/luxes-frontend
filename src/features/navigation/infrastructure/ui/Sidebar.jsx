@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUnreadNotifications } from '../../../../shared/hooks/useUnreadNotifications.js';
 import { isAdminUser, getDisplayRole } from '../../../../shared/utils/userRoleHelpers';
+import { isModuleHidden, normalizeHiddenModules } from '../../application/sidebarModules.js';
 import './Sidebar.css';
 
 export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogout }) => {
@@ -29,13 +30,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
         ? JSON.parse(user.sidebarConfig)
         : user.sidebarConfig;
       if (configObj && Array.isArray(configObj.hiddenModules)) {
-        hiddenModules = configObj.hiddenModules.filter((h) => h !== 'reportesFinancieros');
-        if (hiddenModules.includes('cierreCaja')) {
-          hiddenModules = hiddenModules.filter(h => h !== 'cierreCaja');
-          if (!hiddenModules.includes('finanzas')) {
-            hiddenModules.push('finanzas');
-          }
-        }
+        hiddenModules = normalizeHiddenModules(configObj.hiddenModules);
       }
     } catch (e) {
       console.error('Error parsing sidebarConfig:', e);
@@ -62,7 +57,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
     if (!originalCanView) return false;
     if (!isAdmin) return true;
     if (showAll) return true;
-    return !hiddenModules.includes(moduleKey);
+    return !isModuleHidden(hiddenModules, moduleKey);
   };
 
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -251,6 +246,90 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
         <div className="sidebar-category">
           <span className="sidebar-category-title">MÓDULOS</span>
           <ul>
+            {shouldShowModule('finanzas', canViewFinanzas) && (
+              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos') || currentPath === '/balances') ? 'active' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFinanzasOpen(prev => !prev);
+                    // Contraer los demás módulos
+                    if (!isFinanzasOpen) {
+                      setIsNominaOpen(false);
+                      setIsPrintOpen(false);
+                      setIsRelacionesOpen(false);
+                      setIsInventarioOpen(false);
+                      setIsComprasOpen(false);
+                      setIsConfigOpen(false);
+                    }
+                  }}
+                  className="sidebar-submenu-toggle"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-dollar">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v8M9.5 10h4.5a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4.5" />
+                  </svg>
+                  <span className="sidebar-link-text">Finanzas</span>
+                  {!isCollapsed && (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className={`chevron-icon submenu-chevron ${isFinanzasOpen ? 'rotated' : ''}`}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  )}
+                </button>
+
+                {!isCollapsed && isFinanzasOpen && (
+                  <ul className="sidebar-submenu">
+                    {canViewFinanzas && (
+                      <li className={currentPath === '/balances' ? 'submenu-active' : ''}>
+                        <Link to="/balances" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v5.25c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0 1 3 18.375v-5.25ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125v-9.75ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v14.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Balances</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canViewMovimientos && (
+                      <li className={currentPath.startsWith('/movimientos') ? 'submenu-active' : ''}>
+                        <Link to="/movimientos" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 7l5-5 5 5M7 17l5 5 5-5M12 2v20" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Movimientos</span>
+                        </Link>
+                      </li>
+                    )}
+                    {(!isImpresion && !isTaller) && (
+                      <li className={currentPath === '/compras/metodos-pago' ? 'submenu-active' : ''}>
+                        <Link to="/compras/metodos-pago" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Métodos de Pago</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canViewCierreCaja && (
+                      <li className={currentPath.startsWith('/cierre-caja') ? 'submenu-active' : ''}>
+                        <Link to="/cierre-caja" className="sidebar-submenu-link">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" />
+                          </svg>
+                          <span className="sidebar-submenu-text">Cierre de Caja</span>
+                        </Link>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </li>
+            )}
+
             {shouldShowModule('nomina', canViewNomina) && (
               <li className={`sidebar-has-submenu ${isNominaOpen ? 'submenu-open' : ''} ${currentPath.startsWith('/nomina') ? 'active' : ''}`}>
                 <button
@@ -464,16 +543,14 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
                 {!isCollapsed && isPrintOpen && (
                   <ul className="sidebar-submenu">
-                    {!isVentas && !isDisenador && (
-                      <li className={currentPath.startsWith('/colas-impresion') ? 'submenu-active' : ''}>
-                        <Link to="/colas-impresion" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m3.375-3.375V18a2.25 2.25 0 0 0 2.25 2.25H18A2.25 2.25 0 0 0 20.25 18v-5.25A2.25 2.25 0 0 0 18 10.5h-5.25a2.25 2.25 0 0 0-2.25 2.25z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Colas de Impresión</span>
-                        </Link>
-                      </li>
-                    )}
+                    <li className={currentPath.startsWith('/colas-impresion') ? 'submenu-active' : ''}>
+                      <Link to="/colas-impresion" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m3.375-3.375V18a2.25 2.25 0 0 0 2.25 2.25H18A2.25 2.25 0 0 0 20.25 18v-5.25A2.25 2.25 0 0 0 18 10.5h-5.25a2.25 2.25 0 0 0-2.25 2.25z" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Colas de Impresión</span>
+                      </Link>
+                    </li>
                   </ul>
                 )}
               </li>
@@ -503,79 +580,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {shouldShowModule('finanzas', canViewFinanzas) && (
-              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos')) ? 'active' : ''}`}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsFinanzasOpen(prev => !prev);
-                    // Contraer los demás módulos
-                    if (!isFinanzasOpen) {
-                      setIsNominaOpen(false);
-                      setIsPrintOpen(false);
-                      setIsRelacionesOpen(false);
-                      setIsInventarioOpen(false);
-                      setIsComprasOpen(false);
-                      setIsConfigOpen(false);
-                    }
-                  }}
-                  className="sidebar-submenu-toggle"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-finance">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 8v8M9.5 10h4.5a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4.5" />
-                  </svg>
-                  <span className="sidebar-link-text">Finanzas</span>
-                  {!isCollapsed && (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      className={`chevron-icon submenu-chevron ${isFinanzasOpen ? 'rotated' : ''}`}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
-                  )}
-                </button>
 
-                {!isCollapsed && isFinanzasOpen && (
-                  <ul className="sidebar-submenu">
-                    {canViewMovimientos && (
-                      <li className={currentPath.startsWith('/movimientos') ? 'submenu-active' : ''}>
-                        <Link to="/movimientos" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 7l5-5 5 5M7 17l5 5 5-5M12 2v20" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Movimientos</span>
-                        </Link>
-                      </li>
-                    )}
-                    {(!isImpresion && !isTaller) && (
-                      <li className={currentPath === '/compras/metodos-pago' ? 'submenu-active' : ''}>
-                        <Link to="/compras/metodos-pago" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Métodos de Pago</span>
-                        </Link>
-                      </li>
-                    )}
-                    {canViewCierreCaja && (
-                      <li className={currentPath.startsWith('/cierre-caja') ? 'submenu-active' : ''}>
-                        <Link to="/cierre-caja" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Cierre de Caja</span>
-                        </Link>
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </li>
-            )}
 
             {shouldShowModule('tareas', canViewTareas) && (
               <li className={currentPath.startsWith('/tareas') ? 'active' : ''}>
@@ -620,7 +625,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {isTaller && (
+            {shouldShowModule('devolucionesTaller', isTaller) && (
               <li className={currentPath.startsWith('/devoluciones') ? 'active' : ''}>
                 <Link to="/devoluciones">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-install">
@@ -636,7 +641,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {(isTaller || isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && (
+            {shouldShowModule('controlVehiculos', isTaller || isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && (
               <li className={currentPath === '/taller/control' ? 'active' : ''}>
                 <Link to="/taller/control">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-install">
@@ -781,7 +786,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
-                  <span className="sidebar-link-text">Relaciones</span>
+                  <span className="sidebar-link-text">Contactos</span>
                   {!isCollapsed && (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -884,7 +889,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   )}
                 </button>
 
-                {/* Submenu: Usuarios / General */}
+                {/* Submenu: Usuarios / General / Landing Page */}
                 {!isCollapsed && isConfigOpen && (
                   <ul className="sidebar-submenu">
                     <li className={currentPath.startsWith('/usuarios') ? 'submenu-active' : ''}>
@@ -895,13 +900,21 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         <span className="sidebar-submenu-text">Usuarios</span>
                       </Link>
                     </li>
-                    <li className={currentPath.startsWith('/configuracion') ? 'submenu-active' : ''}>
+                    <li className={currentPath === '/configuracion' || currentPath.startsWith('/configuracion/general') ? 'submenu-active' : ''}>
                       <Link to="/configuracion" className="sidebar-submenu-link">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
                           <circle cx="12" cy="12" r="3" />
                           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                         </svg>
                         <span className="sidebar-submenu-text">General</span>
+                      </Link>
+                    </li>
+                    <li className={currentPath.startsWith('/configuracion/landing') ? 'submenu-active' : ''}>
+                      <Link to="/configuracion/landing" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Landing Page</span>
                       </Link>
                     </li>
                   </ul>

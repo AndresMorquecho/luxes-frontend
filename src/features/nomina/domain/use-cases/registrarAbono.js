@@ -35,6 +35,7 @@ export function registrarAbono(nomina, dataAbono) {
       metodoPagoNombre: nuevoAbono.metodoPagoNombre,
       usuarioNombre: nuevoAbono.usuarioNombre,
       fechaHora: nuevoAbono.fechaHora,
+      comprobanteUrl: nuevoAbono.comprobanteUrl || null,
     }
   ];
 
