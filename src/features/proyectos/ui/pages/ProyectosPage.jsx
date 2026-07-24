@@ -105,21 +105,22 @@ export default function ProyectosPage() {
               </p>
             </div>
           </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto shrink-0">
               <button
                 type="button"
                 onClick={() => navigate('/proyectos/reclamos')}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shrink-0"
+                className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-3.5 sm:px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-all shadow-sm"
               >
-                <ShieldAlert size={16} />
-                Reclamos Post-Venta
+                <ShieldAlert size={16} className="shrink-0" />
+                <span className="sm:hidden">Reclamos</span>
+                <span className="hidden sm:inline">Reclamos Post-Venta</span>
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/proyectos/nuevo')}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm shrink-0"
+                className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-3.5 sm:px-4 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm"
               >
-                <Plus size={15} />
+                <Plus size={15} className="shrink-0" />
                 Nuevo proyecto
               </button>
             </div>
