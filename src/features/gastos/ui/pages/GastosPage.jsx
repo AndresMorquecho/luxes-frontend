@@ -20,6 +20,8 @@ import {
   Eye, Pencil
 } from 'lucide-react';
 import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
+import { getDeudasFijasCount } from '../../application/gastosFijosService';
+import { GastosFijosTab } from '../components/GastosFijosTab';
 
 const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
@@ -132,7 +134,8 @@ const StatCard = ({ title, amount, border = 'border-t-blue-600', color = 'text-b
 };
 
 export const GastosPage = ({ defaultTab = 'gastos' }) => {
-  const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'vehiculos' | 'cierre'
+  const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'fijos' | 'vehiculos' | 'cierre'
+  const [deudasFijasCount, setDeudasFijasCount] = useState(0);
   
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = loggedInUser?.rol?.toLowerCase() === 'admin' || loggedInUser?.rol?.toLowerCase() === 'administrador';
@@ -140,6 +143,19 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   useEffect(() => {
     setActiveTab(defaultTab);
   }, [defaultTab]);
+
+  const fetchDeudasFijasCount = async () => {
+    try {
+      const count = await getDeudasFijasCount();
+      setDeudasFijasCount(count);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchDeudasFijasCount();
+  }, [activeTab]);
 
   // --- MÉTODOS DE PAGO ---
   const [metodosPago, setMetodosPago] = useState([]);
@@ -957,6 +973,23 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             </button>
             <button
               type="button"
+              onClick={() => { setActiveTab('fijos'); setSelectedVehiculo(null); }}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap relative ${
+                activeTab === 'fijos'
+                  ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+              }`}
+            >
+              <RefreshCw size={15} />
+              Gastos fijos
+              {deudasFijasCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white bg-rose-500 rounded-full animate-pulse shadow-sm">
+                  {deudasFijasCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
               onClick={() => { setActiveTab('vehiculos'); setSelectedVehiculo(null); }}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
                 activeTab === 'vehiculos'
@@ -1269,6 +1302,17 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             )}
           </div>
         </>
+      )}
+
+      {/* PESTAÑA: GASTOS FIJOS */}
+      {activeTab === 'fijos' && (
+        <GastosFijosTab
+          isAdmin={isAdmin}
+          onPaymentSuccess={() => {
+            loadGastosData();
+            fetchDeudasFijasCount();
+          }}
+        />
       )}
 
       {/* PESTAÑA 2: CONTROL DE VEHÍCULOS */}

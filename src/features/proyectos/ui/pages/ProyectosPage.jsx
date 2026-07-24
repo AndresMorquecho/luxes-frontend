@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, LayoutList, LayoutGrid,
-  Layers, AlertTriangle
+  Layers, AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
@@ -105,14 +105,24 @@ export default function ProyectosPage() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/proyectos/nuevo')}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm shrink-0"
-          >
-            <Plus size={15} />
-            Nuevo proyecto
-          </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate('/proyectos/reclamos')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-all shadow-sm shrink-0"
+              >
+                <ShieldAlert size={16} />
+                Reclamos Post-Venta
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/proyectos/nuevo')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-opacity shadow-sm shrink-0"
+              >
+                <Plus size={15} />
+                Nuevo proyecto
+              </button>
+            </div>
         </div>
 
         <div className="px-4 sm:px-5 pb-4 flex gap-1 border-t border-slate-100 pt-3 bg-slate-50/50 overflow-x-auto">
