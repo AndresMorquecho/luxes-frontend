@@ -48,7 +48,7 @@ export const GastosGeneralesTab = () => {
   const openEdit = (g) => { setEditing(g); setForm({ ...g }); setFormError(''); setFormOpen(true); };
 
   const handleChange = (e) => {
-    const val = e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value;
+    const val = e.target.type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value;
     setForm((prev) => ({ ...prev, [e.target.name]: val }));
   };
 

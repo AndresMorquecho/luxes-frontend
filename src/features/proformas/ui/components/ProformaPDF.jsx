@@ -50,24 +50,86 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         .lx-pdf * { font-family: 'Inter', Arial, sans-serif; box-sizing: border-box; }
 
-        /* ── Estilos de impresión ── */
+        /* ── Estilos de impresión (window.print) ── */
         @media print {
           @page {
-            size: A4;
+            size: A4 portrait;
             margin: 0;
           }
-          body {
-            margin: 0;
-            padding: 0;
+          html, body {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            overflow: visible !important;
           }
           .pdf-modal-overlay {
-            background: white !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            z-index: 99999 !important;
+          }
+          .pdf-modal-container {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100vh !important;
+            max-width: none !important;
+            max-height: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .pdf-toolbar {
+            display: none !important;
+          }
+          .pdf-scroll-area {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100vh !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
+            display: block !important;
+          }
+          .pdf-page-container {
+            width: 100% !important;
+            height: 100vh !important;
+            transform: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
           }
           .pdf-sheet {
+            width: 100% !important;
+            height: 100vh !important;
+            min-height: 100vh !important;
             box-shadow: none !important;
-            page-break-after: avoid;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
           }
-          /* Forzar colores en impresión */
+          /* Forzar la impresión exacta de colores y fondos */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -178,22 +240,28 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
         <div className="pdf-scroll-area">
           <div 
             className="pdf-page-container" 
-            style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
+            style={{ 
+              transform: `scale(${zoom / 100})`, 
+              transformOrigin: 'top center' 
+            }}
           >
             {/* Sheet Page layout styled for A4 look */}
-            <div className="pdf-sheet" style={{ padding: '0px', width: '794px', minHeight: '1050px' }}>
-              <div 
-                ref={contentRef}
-                className="lx-pdf lx-doc" 
-                style={{
-                  background: 'white',
-                  width: '794px',
-                  minHeight: '1050px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                }}
-              >
+            <div 
+              ref={contentRef}
+              className="pdf-sheet lx-pdf lx-doc" 
+              style={{
+                background: 'white',
+                width: '794px',
+                height: '1050px',
+                minHeight: '1050px',
+                padding: '0px',
+                margin: '0 auto',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
 
                 <div>
                   {/* ENCABEZADO — BANNER CENTRADO */}
@@ -382,9 +450,21 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                   <div className="lx-footer" style={{ marginTop: 6 }}>
                     <div className="lx-footer-title">CONDICIONES Y FORMAS DE PAGO</div>
                     {proforma.condiciones ? (
-                      proforma.condiciones.split('\n').map((line, idx) => (
-                        <p key={idx}>{line}</p>
-                      ))
+                      proforma.condiciones.split('\n').map((line, idx) => {
+                        const cleanLine = line
+                          .replace(/d\?\?as/gi, 'días')
+                          .replace(/h\?\?biles/gi, 'hábiles')
+                          .replace(/despu\?\?s/gi, 'después')
+                          .replace(/confirmaci\?\?n/gi, 'confirmación')
+                          .replace(/dise\?\?o/gi, 'diseño')
+                          .replace(/cotizaci\?\?n/gi, 'cotización')
+                          .replace(/v\?\?lida/gi, 'válida')
+                          .replace(/garant\?\?a/gi, 'garantía')
+                          .replace(/m\?\?nimo/gi, 'mínimo')
+                          .replace(/da\?\?os/gi, 'daños')
+                          .replace(/instalaci\?\?n/gi, 'instalación');
+                        return <p key={idx}>{cleanLine}</p>;
+                      })
                     ) : (
                       <>
                         <p>60% de anticipo y 40% contra entrega, efectivo o transferencias bancarias</p>
@@ -403,18 +483,16 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ borderBottom: '1.5px solid #94a3b8', marginBottom: 3, paddingTop: 16 }} />
                       <span style={{ fontSize: 9, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Firma Autorizada — LUXES
+                        Firma Autorizada — {proforma.atiende ? proforma.atiende.toUpperCase() : 'LUXES'}
                       </span>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ borderBottom: '1.5px solid #94a3b8', marginBottom: 3, paddingTop: 16 }} />
                       <span style={{ fontSize: 9, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Firma Cliente — {proforma.cliente}
+                        Firma Cliente — {proforma.cliente ? proforma.cliente.toUpperCase() : ''}
                       </span>
                     </div>
                   </div>
-                </div>
-
               </div>
             </div>
           </div>

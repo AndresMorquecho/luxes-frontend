@@ -88,7 +88,7 @@ export const NuevaProformaPage = () => {
             fecha: today.toISOString().split('T')[0],
             vencimiento: venc.toISOString().split('T')[0],
             diasValidez: valDays,
-            atiende: currentUser.nombre || '',
+            atiende: currentUser?.nombre || currentUser?.name || currentUser?.username || currentUser?.email || '',
             condiciones: config?.condicionesPago || '',
           });
         }

@@ -46,7 +46,8 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const canViewGastos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
   const canViewCierreCaja = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
   const canViewMovimientos = isAdmin;
-  const canViewFinanzas = canViewMovimientos || canViewCierreCaja || (!isImpresion && !isTaller);
+  const canViewBalances = isAdmin || (!isImpresion && !isTaller && !isVentas && !isDisenador);
+  const canViewFinanzas = canViewMovimientos || canViewCierreCaja || canViewBalances || (!isImpresion && !isTaller);
   const canViewTareas = true;
   const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
   const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller);
@@ -247,7 +248,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
           <span className="sidebar-category-title">MÓDULOS</span>
           <ul>
             {shouldShowModule('finanzas', canViewFinanzas) && (
-              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos') || currentPath === '/balances') ? 'active' : ''}`}>
+              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos') || (canViewBalances && currentPath === '/balances')) ? 'active' : ''}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -285,7 +286,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
                 {!isCollapsed && isFinanzasOpen && (
                   <ul className="sidebar-submenu">
-                    {canViewFinanzas && (
+                    {canViewBalances && (
                       <li className={currentPath === '/balances' ? 'submenu-active' : ''}>
                         <Link to="/balances" className="sidebar-submenu-link">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">

@@ -200,7 +200,7 @@ export const GastosCarrosTab = () => {
   };
 
   const handleVehChange = (e) => {
-    const val = e.target.type === 'number' ? Number(e.target.value) || 0 : e.target.value;
+    const val = e.target.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
     setVehForm((p) => ({ ...p, [e.target.name]: val }));
   };
 

@@ -511,7 +511,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleGastoChange = (e) => {
-    const val = e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value;
+    const val = e.target.type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value;
     setForm(prev => ({ ...prev, [e.target.name]: val }));
   };
 
@@ -651,7 +651,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   };
 
   const handleMaintChange = (e) => {
-    const val = e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value;
+    const val = e.target.type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value;
     setMaintForm(prev => ({ ...prev, [e.target.name]: val }));
   };
 

@@ -614,16 +614,7 @@ function CategoriesTab({ categories, setCategories }) {
               type="text" className="lcp-input"
               placeholder="Nombre de la categoría *"
               value={newName}
-              onChange={(e) => {
-                setNewName(e.target.value);
-                if (!newSlug) setNewSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
-              }}
-            />
-            <input
-              type="text" className="lcp-input"
-              placeholder="Slug (auto-generado)"
-              value={newSlug}
-              onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+              onChange={(e) => setNewName(e.target.value)}
             />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -673,7 +664,6 @@ function CategoriesTab({ categories, setCategories }) {
                   ) : (
                     <>
                       <span className="lcp-cat-name">{cat.name}</span>
-                      <span className="lcp-cat-slug">{cat.slug}</span>
                       <span className={`lcp-badge-active ${cat.active ? 'on' : 'off'}`}>{cat.active ? 'Activa' : 'Oculta'}</span>
                       <span className="lcp-cat-count">{imgCount}/6</span>
                       <svg style={{ transform: isExpanded ? 'rotate(180deg)' : '', transition: 'transform .2s', marginLeft: 4, color: '#94a3b8' }} xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>

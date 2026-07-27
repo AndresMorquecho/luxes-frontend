@@ -393,9 +393,6 @@ export const LandingPage = () => {
                             className="landing-catalog-img"
                             loading="lazy"
                           />
-                          <span className="landing-catalog-category-tag">
-                            {getCategoryLabel(item.category)}
-                          </span>
                         </div>
                         <div className="landing-catalog-info">
                           <h3 className="landing-catalog-item-title">{item.title}</h3>
