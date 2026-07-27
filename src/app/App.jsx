@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-do
 import { usePushNotifications } from '../shared/hooks/usePushNotifications';
 import { Login } from '../features/auth/infrastructure/ui/Login';
 import { LandingPage } from '../features/auth/infrastructure/ui/LandingPage';
+import { CategoryDetailPage } from '../features/auth/infrastructure/ui/CategoryDetailPage';
 import { Layout } from '../shared/ui/components/Layout';
 import NominaFeature from '../features/nomina/ui';
 import { RegistrosPage } from '../features/asistencia/ui/pages/RegistrosPage';
@@ -205,6 +206,7 @@ function App() {
         <ErrorBoundary>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/catalogo/:categorySlug" element={<CategoryDetailPage />} />
             <Route path="/login" element={<Login onLogin={handleLogin} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -267,6 +269,7 @@ function App() {
                 (isVentas || isDisenador) ? <Navigate to="/proformas" replace /> :
                 <DashboardPage />
               } />
+              <Route path="/catalogo/:categorySlug" element={<CategoryDetailPage />} />
               <Route path="/notificaciones" element={<NotificacionesPage />} />
               {!isImpresion && <Route path="/nomina/*" element={<NominaFeature />} />}
               {!isImpresion && <Route path="/impresiones" element={<ImpresionesPage />} />}

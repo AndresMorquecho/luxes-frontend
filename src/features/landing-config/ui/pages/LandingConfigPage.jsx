@@ -595,7 +595,7 @@ function CategoriesTab({ categories, setCategories }) {
         <div>
           <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>Categorías del catálogo</h2>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
-            Máximo 6 imágenes por categoría. Las categorías aparecerán en el catálogo de la landing.
+            Máximo 25 imágenes por categoría. Las categorías aparecerán en el catálogo de la landing.
           </p>
         </div>
         {!creating && (

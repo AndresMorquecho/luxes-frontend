@@ -4,6 +4,7 @@ import { useLandingConfig } from '../../../landing-config/application/useLanding
 import { ArrowRight, Play, Award, Users, Clock, Shield, Smile, Palette, Printer, Wrench, Megaphone, PhoneCall } from 'lucide-react';
 import { HeroCarousel } from './HeroCarousel';
 import { WhatsAppFloat } from './WhatsAppFloat';
+import { CategoryCard } from './CategoryCard';
 import './LandingPage.css';
 
 // Las categorías y productos vienen del backend dinámicamente
@@ -12,51 +13,32 @@ export const LandingPage = () => {
   const navigate = useNavigate();
   const { images, whatsapp, social, categories: backendCategories } = useLandingConfig();
   const [activeSection, setActiveSection] = useState('inicio');
-  const [selectedCategory, setSelectedCategory] = useState('todos');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [categorySearchQuery, setCategorySearchQuery] = useState('');
-  const dropdownRef = useRef(null);
+  const [selectedCategorySlugs, setSelectedCategorySlugs] = useState(['todos']);
 
-  // Construir lista de categorías para la UI: [Todos, ...categorías del backend]
-  const CATALOG_CATEGORIES = useMemo(() => {
-    const cats = [{ key: 'todos', label: 'Todos' }];
-    backendCategories.forEach((c) => cats.push({ key: c.slug, label: c.name }));
-    return cats;
-  }, [backendCategories]);
-
-  // Construir los ítems del catálogo a partir de las imágenes de cada categoría
-  const catalogItems = useMemo(() => {
-    const items = [];
-    backendCategories.forEach((cat) => {
-      (cat.images || []).forEach((img) => {
-        items.push({
-          id: img.id,
-          title: img.title || cat.name,
-          category: cat.slug,
-          description: img.description || '',
-          tags: Array.isArray(img.tags) ? img.tags : [],
-          image: img.imageUrl,
-        });
-      });
-    });
-    return items;
-  }, [backendCategories]);
-
-  const filteredCategories = useMemo(() => {
-    return CATALOG_CATEGORIES.filter((category) =>
-      category.label.toLowerCase().includes(categorySearchQuery.toLowerCase())
-    );
-  }, [categorySearchQuery, CATALOG_CATEGORIES]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
+  const toggleCategoryFilter = (slug) => {
+    if (selectedCategorySlugs.includes('todos')) {
+      setSelectedCategorySlugs([slug]);
+    } else {
+      if (selectedCategorySlugs.includes(slug)) {
+        const next = selectedCategorySlugs.filter((s) => s !== slug);
+        setSelectedCategorySlugs(next.length === 0 ? ['todos'] : next);
+      } else {
+        const next = [...selectedCategorySlugs, slug];
+        if (next.length === backendCategories.length) {
+          setSelectedCategorySlugs(['todos']);
+        } else {
+          setSelectedCategorySlugs(next);
+        }
       }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    }
+  };
+
+  const displayedCategories = useMemo(() => {
+    if (selectedCategorySlugs.includes('todos') || selectedCategorySlugs.length === 0) {
+      return backendCategories;
+    }
+    return backendCategories.filter((c) => selectedCategorySlugs.includes(c.slug));
+  }, [backendCategories, selectedCategorySlugs]);
 
   const heroImages = useMemo(
     () => [
@@ -76,18 +58,6 @@ export const LandingPage = () => {
     [waPhone, waMessage]
   );
 
-  const filteredCatalog = useMemo(() => {
-    if (selectedCategory === 'todos') return catalogItems;
-    return catalogItems.filter((item) => item.category === selectedCategory);
-  }, [selectedCategory, catalogItems]);
-
-  const getItemCountForCategory = useMemo(() => (categoryKey) => {
-    if (categoryKey === 'todos') return catalogItems.length;
-    return catalogItems.filter((item) => item.category === categoryKey).length;
-  }, [catalogItems]);
-
-  const getCategoryLabel = (key) =>
-    CATALOG_CATEGORIES.find((c) => c.key === key)?.label ?? key;
 
   useEffect(() => {
     const sections = ['inicio', 'servicios', 'catalogo'];
@@ -288,147 +258,53 @@ export const LandingPage = () => {
       </section>
 
 
-      {/* SECTION 4: CATALOG */}
+      {/* SECTION 4: CATALOG SHOWCASE */}
       <section id="catalogo" className="landing-section landing-catalog-section">
         <div className="landing-slide-inner">
           <div className="landing-catalog-header">
-            <span className="landing-section-badge">Nuestra galería</span>
             <h2 className="landing-section-title">
-              Catálogo de <span className="landing-section-title-accent">productos</span>
+              Catálogo por <span className="landing-section-title-accent">categorías</span>
             </h2>
             <p className="landing-section-description">
-              Explora algunos de nuestros proyectos más destacados e instalaciones reales.
+              Explora nuestros proyectos y trabajos agrupados por especialidad. Selecciona una o varias categorías para filtrar las opciones.
             </p>
-          </div>
 
-          <div className="landing-catalog-layout">
-            <aside className="landing-catalog-sidebar" ref={dropdownRef}>
-              <h3 className="sidebar-title">Categorías</h3>
-              
-              <div className="mobile-category-selector">
-                <button
-                  type="button"
-                  className="mobile-category-dropdown-trigger"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                >
-                  <span>
-                    {selectedCategory === 'todos' 
-                      ? 'Todos' 
-                      : CATALOG_CATEGORIES.find(c => c.key === selectedCategory)?.label
-                    } ({getItemCountForCategory(selectedCategory)})
-                  </span>
-                  <span className={`dropdown-trigger-arrow ${isDropdownOpen ? 'open' : ''}`}>▼</span>
-                </button>
-                
-                {isDropdownOpen && (
-                  <div className="mobile-category-dropdown-menu">
-                    <div className="dropdown-search-box">
-                      <input
-                        type="text"
-                        placeholder="Buscar categoría..."
-                        value={categorySearchQuery}
-                        onChange={(e) => setCategorySearchQuery(e.target.value)}
-                        className="dropdown-search-input"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <ul className="dropdown-options-list">
-                      {filteredCategories.map((category) => {
-                        const count = getItemCountForCategory(category.key);
-                        return (
-                          <li key={category.key}>
-                            <button
-                              type="button"
-                              className={`dropdown-option-btn ${selectedCategory === category.key ? 'active' : ''}`}
-                              onClick={() => {
-                                setSelectedCategory(category.key);
-                                setIsDropdownOpen(false);
-                                setCategorySearchQuery('');
-                              }}
-                            >
-                              <span className="option-label">{category.label}</span>
-                              <span className="option-count">{count}</span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                      {filteredCategories.length === 0 && (
-                        <li className="dropdown-no-results">No se encontraron categorías</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <ul className="sidebar-categories-list">
-                {CATALOG_CATEGORIES.map((category) => {
-                  const count = getItemCountForCategory(category.key);
-                  return (
-                    <li key={category.key}>
-                      <button
-                        type="button"
-                        className={`sidebar-category-btn ${selectedCategory === category.key ? 'active' : ''}`}
-                        onClick={() => setSelectedCategory(category.key)}
-                      >
-                        <span className="category-btn-label">{category.label}</span>
-                        <span className="category-btn-count">{count}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </aside>
-
-            <div className="landing-catalog-main">
-              {filteredCatalog.length > 0 ? (
-                <div className="landing-catalog-grid">
-                  {filteredCatalog.map((item) => {
-                    const productWaLink = `https://wa.me/${waPhone}?text=${encodeURIComponent(`Hola, me interesa conocer más y cotizar el producto: ${item.title}`)}`;
-                    return (
-                      <article key={item.id} className="landing-catalog-card">
-                        <div className="landing-catalog-img-box">
-                          <img
-                            src={item.image}
-                            alt={item.title}
-                            className="landing-catalog-img"
-                            loading="lazy"
-                          />
-                        </div>
-                        <div className="landing-catalog-info">
-                          <h3 className="landing-catalog-item-title">{item.title}</h3>
-                          <p className="landing-catalog-item-desc">{item.description}</p>
-                          <ul className="landing-catalog-tags">
-                            {item.tags.map((tag) => (
-                              <li key={tag} className="landing-catalog-tag">{tag}</li>
-                            ))}
-                          </ul>
-                          <div className="landing-catalog-card-footer">
-                            <a
-                              href={productWaLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn-card-quote"
-                            >
-                              Cotizar por WhatsApp
-                              <ArrowRight size={14} />
-                            </a>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="catalog-empty-state">
-                  <p className="empty-state-text">No hay proyectos registrados en esta categoría por el momento.</p>
-                  <a href={waLink} target="_blank" rel="noopener noreferrer" className="btn-empty-state-quote">
-                    Consultar cotización personalizada
-                    <ArrowRight size={16} />
-                  </a>
-                </div>
-              )}
+            {/* Multi-select category filter tabs */}
+            <div className="landing-category-filter-tabs">
+              <button
+                type="button"
+                className={`category-filter-tab ${selectedCategorySlugs.includes('todos') ? 'active' : ''}`}
+                onClick={() => setSelectedCategorySlugs(['todos'])}
+              >
+                Todos
+              </button>
+              {backendCategories.map((cat) => {
+                const isSelected = !selectedCategorySlugs.includes('todos') && selectedCategorySlugs.includes(cat.slug);
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    className={`category-filter-tab ${isSelected ? 'active' : ''}`}
+                    onClick={() => toggleCategoryFilter(cat.slug)}
+                  >
+                    {cat.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          <div className="landing-categories-showcase-grid">
+            {displayedCategories.map((category) => (
+              <CategoryCard key={category.id} category={category} />
+            ))}
+          </div>
+
+          {backendCategories.length === 0 && (
+            <div className="catalog-empty-state">
+              <p className="empty-state-text">Cargando categorías del catálogo...</p>
+            </div>
+          )}
         </div>
       </section>
 
