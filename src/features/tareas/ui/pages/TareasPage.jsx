@@ -100,12 +100,9 @@ export default function TareasPage() {
       if (res.ok && data.success) {
         const allMultas = data.data || [];
         const taskTag = `[TAREA:${tarea.id}]`;
-        const taskTitle = tarea.titulo.toLowerCase();
 
         const filtered = allMultas.filter(
-          (m) =>
-            (m.motivo && m.motivo.includes(taskTag)) ||
-            (m.motivo && m.motivo.toLowerCase().includes(taskTitle))
+          (m) => m.motivo && m.motivo.includes(taskTag)
         );
 
         setMultasRegistradas(filtered);
