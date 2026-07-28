@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Eye, Trash2, X, FileText, AlertCircle } from 'lucide-react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import {
-  getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats
+  getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats, getAbonos, eliminarAbono
 } from '../../application/comprasService';
 import { buildOrdenParaAbono, getAbonoSaldoPendiente } from '../../helpers/ordenCompraHelpers';
 import { ComprasPageHeader } from '../components/ComprasPageHeader';
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers';
 import './ComprasPage.css';
 
 const CO_PRIMARY = '#2b41b8';
@@ -29,8 +31,12 @@ const ESTADO_FILTER_OPTIONS = [
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+const fmtDateTime = (d) => d ? new Date(d).toLocaleString('es-EC', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
 export const CuentasPorPagarPage = () => {
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = isAdminUser(currentUser);
+
   const [stats, setStats] = useState({ totalOrdenes: 0, pendientes: 0, totalGastado: 0, totalDeuda: 0 });
   const [cxpItems, setCxpItems] = useState([]);
   const [cxpPage, setCxpPage] = useState(1);
@@ -39,10 +45,20 @@ export const CuentasPorPagarPage = () => {
   const [cxpLoading, setCxpLoading] = useState(true);
   const [metodos, setMetodos] = useState([]);
 
+  // Modal Registrar Abono
   const [abonoModalOpen, setAbonoModalOpen] = useState(false);
   const [abonoOrden, setAbonoOrden] = useState(null);
   const [abonoForm, setAbonoForm] = useState({ metodoPagoId: '', monto: '', referencia: '' });
   const [abonoSaving, setAbonoSaving] = useState(false);
+  
+  // Modal Ver Pagos / Abonos
+  const [verModalOpen, setVerModalOpen] = useState(false);
+  const [verCuenta, setVerCuenta] = useState(null);
+  const [verAbonosList, setVerAbonosList] = useState([]);
+  const [verLoading, setVerLoading] = useState(false);
+  const [deletingAbonoId, setDeletingAbonoId] = useState(null);
+  const [confirmDeleteAbono, setConfirmDeleteAbono] = useState(null);
+
   const perPage = 25;
 
   const loadStats = useCallback(async () => {
@@ -79,6 +95,56 @@ export const CuentasPorPagarPage = () => {
     setAbonoModalOpen(true);
   };
 
+  const openVerModal = async (cuenta) => {
+    setVerCuenta(cuenta);
+    setVerModalOpen(true);
+    setVerLoading(true);
+    try {
+      const ordenId = cuenta.ordenCompraId || cuenta.ordenCompra?.id;
+      const list = await getAbonos(ordenId);
+      setVerAbonosList(list || []);
+    } catch (err) {
+      toast.error(err.message || 'Error al obtener el historial de abonos');
+      setVerAbonosList([]);
+    } finally {
+      setVerLoading(false);
+    }
+  };
+
+  const reloadVerAbonos = async () => {
+    if (!verCuenta) return;
+    setVerLoading(true);
+    try {
+      const ordenId = verCuenta.ordenCompraId || verCuenta.ordenCompra?.id;
+      const list = await getAbonos(ordenId);
+      setVerAbonosList(list || []);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setVerLoading(false);
+    }
+  };
+
+  const handleConfirmDeleteAbono = async () => {
+    if (!confirmDeleteAbono || !verCuenta) return;
+    const abonoId = confirmDeleteAbono.id;
+    const ordenId = verCuenta.ordenCompraId || verCuenta.ordenCompra?.id;
+    setDeletingAbonoId(abonoId);
+    try {
+      await eliminarAbono(ordenId, abonoId);
+      toast.success('Abono eliminado con éxito. El dinero ha sido devuelto a la cuenta.');
+      setConfirmDeleteAbono(null);
+      await reloadVerAbonos();
+      loadStats();
+      loadCxP();
+      loadMetodos();
+    } catch (err) {
+      toast.error(err.message || 'Error al eliminar abono');
+    } finally {
+      setDeletingAbonoId(null);
+    }
+  };
+
   const saldoAbono = abonoOrden ? getAbonoSaldoPendiente(abonoOrden) : 0;
 
   const handleAbonoSave = async (e) => {
@@ -94,6 +160,7 @@ export const CuentasPorPagarPage = () => {
       setAbonoModalOpen(false);
       loadStats();
       loadCxP();
+      loadMetodos();
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -188,18 +255,26 @@ export const CuentasPorPagarPage = () => {
         <div><span className="text-slate-400 block text-[10px]">Pagado</span><span className="font-semibold text-emerald-600">{fmt(c.montoPagado)}</span></div>
         <div className="col-span-2"><span className="text-slate-400 block text-[10px]">Vencimiento</span><span className="text-slate-700">{fmtDate(c.fechaVencimiento)}</span></div>
       </div>
-      {c.estado !== 'pagado' && (
-        <div className="px-3 pb-3">
+      <div className="px-3 pb-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => openVerModal(c)}
+          className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+        >
+          <Eye size={14} />
+          Ver pagos
+        </button>
+        {c.estado !== 'pagado' && (
           <button
             type="button"
             onClick={() => openAbonoModal(c)}
-            className="w-full h-9 inline-flex items-center justify-center rounded-lg text-xs font-semibold text-white"
+            className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white"
             style={{ backgroundColor: CO_PRIMARY }}
           >
             Registrar abono
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 
@@ -319,7 +394,7 @@ export const CuentasPorPagarPage = () => {
                   <th className="px-4 py-3 text-right">Saldo</th>
                   <th className="px-4 py-3 text-center">Vencimiento</th>
                   <th className="px-4 py-3 text-center">Estado</th>
-                  <th className="px-4 py-3 text-center w-36">Acciones</th>
+                  <th className="px-4 py-3 text-center w-48">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -333,20 +408,29 @@ export const CuentasPorPagarPage = () => {
                     <td className="px-4 py-3 text-center text-slate-500 text-xs whitespace-nowrap">{fmtDate(c.fechaVencimiento)}</td>
                     <td className="px-4 py-3 text-center">{renderBadge(c.estado)}</td>
                     <td className="px-4 py-3 text-center">
-                      {c.estado !== 'pagado' ? (
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => openAbonoModal(c)}
-                          className="h-9 px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap"
-                          style={{ backgroundColor: CO_PRIMARY }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
+                          onClick={() => openVerModal(c)}
+                          className="h-8 px-2.5 inline-flex items-center justify-center gap-1 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors whitespace-nowrap cursor-pointer"
+                          title="Ver historial de abonos"
                         >
-                          Registrar abono
+                          <Eye size={14} />
+                          Ver
                         </button>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
+                        {c.estado !== 'pagado' && (
+                          <button
+                            type="button"
+                            onClick={() => openAbonoModal(c)}
+                            className="h-8 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap cursor-pointer"
+                            style={{ backgroundColor: CO_PRIMARY }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
+                          >
+                            Registrar abono
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -361,17 +445,17 @@ export const CuentasPorPagarPage = () => {
         </div>
       </div>
 
+      {/* Modal Registrar Abono */}
       <ModalPortal open={abonoModalOpen}>
-        <div className="co-portal-root">
-          <div className="co-overlay" onClick={() => setAbonoModalOpen(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal animate-co-modal-in">
-              <div className="co-modal-header">
-                <h2 className="text-lg font-bold text-slate-800">Registrar Abono</h2>
-                <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setAbonoModalOpen(false)} />
+          <div className="bg-white rounded-[24px] border border-slate-100 shadow-2xl w-full max-w-lg overflow-hidden relative z-[201] animate-slide-up">
+            <div className="co-modal-header">
+              <h2 className="text-lg font-bold text-slate-800">Registrar Abono</h2>
+              <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-modal-close cursor-pointer">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
               <div className="co-modal-body">
                 {abonoOrden && (
                   <div className="co-abono-info">
@@ -436,6 +520,243 @@ export const CuentasPorPagarPage = () => {
                   </div>
                 </form>
               </div>
+            </div>
+          </div>
+        </ModalPortal>
+
+      {/* Modal Ver Historial de Abonos */}
+      <ModalPortal open={verModalOpen}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 animate-fade-in">
+          {/* Backdrop Overlay with Blur */}
+          <div
+            className="fixed inset-0 bg-slate-900/65 backdrop-blur-md transition-opacity"
+            onClick={() => setVerModalOpen(false)}
+          />
+
+          {/* Modal Container: Fixed max height & wide layout */}
+          <div
+            className="bg-white rounded-[20px] sm:rounded-[24px] border border-slate-100 shadow-2xl flex flex-col overflow-hidden relative z-[201] animate-slide-up"
+            style={{ width: '94vw', maxWidth: '1100px', maxHeight: '85vh', fontFamily: "'Inter', sans-serif" }}
+          >
+            {/* Header (Fixed) */}
+            <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100/80 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <FileText size={18} className="sm:w-5 sm:h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-lg font-extrabold text-slate-800 leading-tight truncate">
+                    Historial de Pagos y Abonos
+                  </h2>
+                  <p className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-0.5 truncate">
+                    {verCuenta?.ordenCompra?.numero || 'Orden'} • {verCuenta?.ordenCompra?.proveedor?.nombre || 'Proveedor'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVerModalOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body (Scrollable inside) */}
+            <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5 flex-1 overflow-y-auto min-h-0 bg-white">
+              {verCuenta && (
+                /* 4 KPI Cards ALWAYS in 1 single row */
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-3.5 bg-slate-50/80 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80">
+                  <div className="bg-white p-2 sm:p-3.5 rounded-lg sm:rounded-xl border border-slate-100 shadow-2xs flex flex-col justify-center min-w-0">
+                    <span className="text-[8px] sm:text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider truncate">Monto Total</span>
+                    <span className="text-xs sm:text-base font-extrabold text-slate-800 font-mono mt-0.5 block truncate">{fmt(verCuenta.montoTotal)}</span>
+                  </div>
+                  <div className="bg-white p-2 sm:p-3.5 rounded-lg sm:rounded-xl border border-slate-100 shadow-2xs flex flex-col justify-center min-w-0">
+                    <span className="text-[8px] sm:text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider truncate">Pagado</span>
+                    <span className="text-xs sm:text-base font-extrabold text-emerald-600 font-mono mt-0.5 block truncate">{fmt(verCuenta.montoPagado)}</span>
+                  </div>
+                  <div className="bg-white p-2 sm:p-3.5 rounded-lg sm:rounded-xl border border-slate-100 shadow-2xs flex flex-col justify-center min-w-0">
+                    <span className="text-[8px] sm:text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider truncate">Saldo</span>
+                    <span className="text-xs sm:text-base font-extrabold text-red-600 font-mono mt-0.5 block truncate">{fmt(verCuenta.saldo)}</span>
+                  </div>
+                  <div className="bg-white p-2 sm:p-3.5 rounded-lg sm:rounded-xl border border-slate-100 shadow-2xs flex flex-col justify-between min-w-0">
+                    <span className="text-[8px] sm:text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider truncate">Estado</span>
+                    <div className="mt-0.5 sm:mt-1 truncate">{renderBadge(verCuenta.estado, true)}</div>
+                  </div>
+                </div>
+              )}
+
+              {verLoading ? (
+                <div className="flex justify-center py-10">
+                  <div className="co-spinner" />
+                </div>
+              ) : verAbonosList.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50/50 rounded-xl sm:rounded-2xl border border-dashed border-slate-200">
+                  <p className="text-slate-400 text-xs sm:text-sm font-semibold">No hay abonos registrados para esta cuenta por pagar.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Vista Escritorio: Tabla panorámica completa */}
+                  <div className="hidden sm:block border border-slate-200/80 rounded-2xl shadow-2xs bg-white overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#f8f9fc] text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
+                        <tr>
+                          <th className="px-5 py-3.5">Fecha y Hora</th>
+                          <th className="px-5 py-3.5">Caja / Cuenta de Pago</th>
+                          <th className="px-5 py-3.5">Referencia</th>
+                          <th className="px-5 py-3.5">Registrado Por</th>
+                          <th className="px-5 py-3.5 text-right">Monto Abono</th>
+                          {isAdmin && <th className="px-5 py-3.5 text-center w-28">Acciones</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {verAbonosList.map((ab, idx) => {
+                          const isLastAbono = idx === 0;
+                          return (
+                            <tr key={ab.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="px-5 py-3.5 font-mono font-medium text-slate-600 whitespace-nowrap">{fmtDateTime(ab.fecha)}</td>
+                              <td className="px-5 py-3.5 font-bold text-slate-800 whitespace-nowrap">{ab.metodoPago?.nombre || 'General'}</td>
+                              <td className="px-5 py-3.5 text-slate-600">{ab.referencia || <span className="text-slate-300">—</span>}</td>
+                              <td className="px-5 py-3.5 text-slate-600 font-medium whitespace-nowrap">{ab.registradoPor?.nombre || <span className="text-slate-300">—</span>}</td>
+                              <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 font-mono text-sm whitespace-nowrap">{fmt(ab.monto)}</td>
+                              {isAdmin && (
+                                <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                                  {isLastAbono ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteAbono(ab)}
+                                      disabled={deletingAbonoId === ab.id}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 font-bold text-xs transition-colors cursor-pointer border border-red-100"
+                                      title="Eliminar este abono (reembolsar a la cuenta)"
+                                    >
+                                      <Trash2 size={14} />
+                                      Eliminar
+                                    </button>
+                                  ) : (
+                                    <span className="text-[10px] font-semibold text-slate-300" title="Solo se puede eliminar el último abono registrado">Anteriores</span>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Vista Móvil: Tarjetas optimizadas para pantallas pequeñas */}
+                  <div className="block sm:hidden space-y-2.5">
+                    {verAbonosList.map((ab, idx) => {
+                      const isLastAbono = idx === 0;
+                      return (
+                        <div key={ab.id} className="bg-white border border-slate-200/90 rounded-xl p-3 shadow-2xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-800 text-xs">{ab.metodoPago?.nombre || 'General'}</span>
+                            <span className="font-extrabold text-slate-900 font-mono text-sm">{fmt(ab.monto)}</span>
+                          </div>
+                          <div className="flex flex-col gap-1 text-[10px] text-slate-500 bg-slate-50 rounded-lg p-2 border border-slate-100">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Fecha:</span>
+                              <span className="font-mono text-slate-700 font-medium">{fmtDateTime(ab.fecha)}</span>
+                            </div>
+                            {ab.referencia && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Referencia:</span>
+                                <span className="font-medium text-slate-700">{ab.referencia}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Usuario:</span>
+                              <span className="font-medium text-slate-700">{ab.registradoPor?.nombre || '—'}</span>
+                            </div>
+                          </div>
+                          {isAdmin && isLastAbono && (
+                            <div className="pt-1.5 border-t border-slate-100 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteAbono(ab)}
+                                disabled={deletingAbonoId === ab.id}
+                                className="w-full py-1.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 font-bold text-xs border border-red-100 cursor-pointer"
+                              >
+                                <Trash2 size={14} />
+                                Eliminar abono
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer (Fixed) */}
+            <div className="px-4 sm:px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setVerModalOpen(false)}
+                className="px-5 py-1.5 sm:py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 font-bold text-slate-700 text-xs transition-colors shadow-2xs cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
+
+      {/* Modal de Confirmación para eliminar abono (z-index 300) */}
+      <ModalPortal open={!!confirmDeleteAbono}>
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-fade-in">
+          {/* Backdrop con Blur acumulativo sobre el primer modal */}
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+            onClick={() => setConfirmDeleteAbono(null)}
+          />
+
+          {/* Card Container */}
+          <div className="bg-white rounded-[24px] border border-slate-100 shadow-2xl w-full max-w-md p-6 relative z-[301] space-y-4 animate-slide-up">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
+                <AlertCircle size={22} />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 leading-tight">¿Eliminar último abono?</h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50/70 border border-red-100 rounded-2xl p-4 text-xs text-red-900 space-y-1.5">
+              <div className="flex justify-between">
+                <span className="font-semibold text-red-700">Monto a devolver:</span>
+                <span className="font-extrabold font-mono text-slate-900">{fmt(confirmDeleteAbono?.monto)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-semibold text-red-700">Cuenta / Caja:</span>
+                <span className="font-bold text-slate-900">{confirmDeleteAbono?.metodoPago?.nombre || 'General'}</span>
+              </div>
+              <p className="text-[11px] text-red-600/90 pt-1.5 border-t border-red-200/60 leading-relaxed font-medium">
+                Este dinero regresará al saldo de la cuenta de pago seleccionada y aumentará el saldo pendiente de la cuenta por pagar.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteAbono(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteAbono}
+                disabled={!!deletingAbonoId}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all shadow-md hover:shadow-lg inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {deletingAbonoId && <div className="co-spinner-sm" />}
+                Sí, eliminar y devolver dinero
+              </button>
             </div>
           </div>
         </div>

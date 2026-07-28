@@ -130,6 +130,15 @@ export async function registrarAbono(ordenId, body) {
   return data.data;
 }
 
+export async function eliminarAbono(ordenId, abonoId) {
+  const res = await fetch(`/api/compras/${ordenId}/abonos/${abonoId}`, {
+    method: 'DELETE', headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar abono');
+  return data.data;
+}
+
 // ── Cuentas por Pagar ───────────────────────────────────────────────────────
 
 export async function getCuentasPorPagar(options = {}) {

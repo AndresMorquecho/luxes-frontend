@@ -500,6 +500,7 @@
   border: 1px solid rgba(241,245,249,0.6);
 }
 .co-modal-lg { max-width: 680px; }
+.co-modal-wide { max-width: 1150px !important; width: 94vw !important; }
 .co-modal-header {
   display: flex;
   align-items: center;
