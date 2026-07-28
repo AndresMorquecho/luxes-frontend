@@ -7,7 +7,9 @@ import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProformaPDF } from '../components/ProformaPDF';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
-import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft } from 'lucide-react';
+import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { AbonoModal } from '../components/AbonoModal';
+import { ComprobanteViewerModal } from '../components/ComprobanteViewerModal';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -48,10 +50,12 @@ export const ProformaDetallePage = () => {
   // Modal states
   const [showAbonoModal, setShowAbonoModal] = useState(false);
   const [editingAbono, setEditingAbono] = useState(null);
+  const [viewComprobanteUrl, setViewComprobanteUrl] = useState(null);
   const [abonoForm, setAbonoForm] = useState({
     monto: '',
     metodoPagoId: '',
     referencia: '',
+    comprobanteUrl: null,
     aplicarIva: false,
   });
   const [submittingAbono, setSubmittingAbono] = useState(false);
@@ -173,6 +177,7 @@ export const ProformaDetallePage = () => {
       monto: '',
       metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
       referencia: '',
+      comprobanteUrl: null,
     });
   };
 
@@ -182,6 +187,7 @@ export const ProformaDetallePage = () => {
       monto: abono.monto.toString(),
       metodoPagoId: abono.metodoPago?.id || '',
       referencia: abono.referencia || '',
+      comprobanteUrl: abono.comprobanteUrl || null,
       aplicarIva: proforma?.iva > 0,
     });
     setShowAbonoModal(true);
@@ -233,6 +239,7 @@ export const ProformaDetallePage = () => {
           monto: numericMonto,
           metodoPagoId: abonoForm.metodoPagoId,
           referencia: abonoForm.referencia,
+          comprobanteUrl: abonoForm.comprobanteUrl,
         });
         toast.success('Abono editado correctamente');
       } else if (proforma.estado === 'Pendiente') {
@@ -241,6 +248,7 @@ export const ProformaDetallePage = () => {
           metodoPagoId: abonoForm.metodoPagoId,
           referencia: abonoForm.referencia,
           aplicarIva: abonoForm.aplicarIva,
+          comprobanteUrl: abonoForm.comprobanteUrl,
         });
         toast.success('Proforma aprobada y abono registrado correctamente');
       } else {
@@ -248,6 +256,7 @@ export const ProformaDetallePage = () => {
           monto: numericMonto,
           metodoPagoId: abonoForm.metodoPagoId,
           referencia: abonoForm.referencia,
+          comprobanteUrl: abonoForm.comprobanteUrl,
         });
         toast.success('Abono registrado correctamente');
       }
@@ -599,9 +608,19 @@ export const ProformaDetallePage = () => {
                     </div>
                     <div className="flex flex-col gap-1 text-[10px] text-slate-400 bg-slate-50 border border-slate-100/50 rounded-lg p-2">
                       {ab.referencia && (
-                        <span><strong className="text-slate-500">Ref:</strong> {ab.referencia}</span>
+                        <span><strong className="text-slate-500 font-semibold">Ref:</strong> {ab.referencia}</span>
                       )}
-                      <span><strong className="text-slate-500">Registrado por:</strong> {ab.registradoPor?.nombre || 'N/A'}</span>
+                      {ab.comprobanteUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setViewComprobanteUrl(ab.comprobanteUrl)}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-100 w-fit mt-0.5"
+                        >
+                          <ImageIcon size={12} />
+                          Ver Comprobante
+                        </button>
+                      )}
+                      <span><strong className="text-slate-500 font-semibold">Registrado por:</strong> {ab.registradoPor?.nombre || 'N/A'}</span>
                     </div>
                     {isAdmin && idx === proforma.abonos.length - 1 && (
                       <div className="flex justify-end gap-3 mt-1 pt-2 border-t border-dashed border-slate-100">
@@ -631,7 +650,7 @@ export const ProformaDetallePage = () => {
                     <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
                       <th className="text-left px-6 py-3.5">Fecha y Hora</th>
                       <th className="text-left px-6 py-3.5">Caja / Cuenta</th>
-                      <th className="text-left px-6 py-3.5">Referencia</th>
+                      <th className="text-left px-6 py-3.5">Comprobante</th>
                       <th className="text-left px-6 py-3.5">Usuario</th>
                       <th className="text-right px-6 py-3.5 font-semibold">Monto</th>
                       <th className="text-right px-6 py-3.5 w-48">Acciones</th>
@@ -642,7 +661,24 @@ export const ProformaDetallePage = () => {
                       <tr key={ab.id} className="hover:bg-slate-50/20 transition-colors">
                         <td className="px-6 py-4 text-slate-600 font-mono text-xs">{formatDateTime(ab.fecha)}</td>
                         <td className="px-6 py-4 font-bold text-slate-700">{ab.metodoPago?.nombre || 'General'}</td>
-                        <td className="px-6 py-4 text-slate-500 text-xs font-medium">{ab.referencia || 'N/A'}</td>
+                        <td className="px-6 py-4 text-slate-600 text-xs font-medium">
+                          <div className="flex flex-col gap-1 items-start">
+                            {ab.referencia && <span className="text-slate-700 font-semibold">{ab.referencia}</span>}
+                            {ab.comprobanteUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => setViewComprobanteUrl(ab.comprobanteUrl)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-[11px] font-bold border border-blue-100"
+                                title="Ver Comprobante de Pago"
+                              >
+                                <ImageIcon size={13} />
+                                Ver Comprobante
+                              </button>
+                            ) : (
+                              !ab.referencia && <span className="text-slate-400">Sin comprobante</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-slate-500 text-xs font-medium">{ab.registradoPor?.nombre || 'N/A'}</td>
                         <td className="px-6 py-4 text-right font-bold text-slate-800 font-mono">{formatUSD(ab.monto)}</td>
                         <td className="px-6 py-4 text-right">
@@ -688,149 +724,52 @@ export const ProformaDetallePage = () => {
         </div>
       )}
 
-      {/* Abonos Modal */}
-      {showAbonoModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
-          {/* Backdrop */}
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={handleCloseModal} />
-          
-          {/* Box */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl w-full max-w-3xl overflow-hidden relative z-[201] animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-base">
-                {editingAbono 
-                  ? 'Editar Abono' 
-                  : (proforma.estado === 'Pendiente' ? 'Aprobación y Registro de Abono' : 'Registrar Abono')}
-              </h3>
-              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-            
-            <form onSubmit={handleSaveAbono} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Columna Izquierda: Información Financiera y Monto */}
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                      {editingAbono 
-                        ? 'Modifica los valores del abono. El total del abono no debe superar el saldo pendiente.'
-                        : 'Ingresa el monto del cobro. Este abono puede representar la totalidad de la proforma o ser un pago parcial.'}
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
-                      <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Valor Total</span>
-                      <span className="font-extrabold text-blue-600 font-mono text-base mt-1">{formatUSD(total)}</span>
-                    </div>
+      {/* Abonos Modal Normalizado */}
+      <AbonoModal
+        open={showAbonoModal}
+        onClose={handleCloseModal}
+        title={
+          editingAbono
+            ? 'Editar Abono'
+            : proforma.estado === 'Pendiente'
+            ? 'Aprobación y Registro de Abono'
+            : 'Registrar Abono'
+        }
+        subtitle={
+          editingAbono
+            ? 'Modifica los valores del abono registrado.'
+            : 'Ingresa el monto del cobro y adjunta el comprobante opcional.'
+        }
+        proformaId={proforma.id}
+        total={total}
+        pending={
+          proforma.estado === 'Pendiente'
+            ? total
+            : editingAbono
+            ? total - sumOtrosAbonos
+            : totalPendiente
+        }
+        monto={abonoForm.monto}
+        setMonto={(val) => setAbonoForm((prev) => ({ ...prev, monto: val }))}
+        metodoPagoId={abonoForm.metodoPagoId}
+        setMetodoPagoId={(val) => setAbonoForm((prev) => ({ ...prev, metodoPagoId: val }))}
+        metodosPago={metodosPago}
+        referencia={abonoForm.referencia}
+        setReferencia={(val) => setAbonoForm((prev) => ({ ...prev, referencia: val }))}
+        comprobanteUrl={abonoForm.comprobanteUrl}
+        setComprobanteUrl={(val) => setAbonoForm((prev) => ({ ...prev, comprobanteUrl: val }))}
+        isApproval={proforma.estado === 'Pendiente'}
+        onSubmit={handleSaveAbono}
+        submitting={submittingAbono}
+        submitText={editingAbono ? 'Guardar Cambios' : 'Confirmar Registro'}
+      />
 
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-center text-xs">
-                      <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Saldo Pendiente</span>
-                      <span className="font-extrabold text-amber-600 font-mono text-base mt-1">
-                        {proforma.estado === 'Pendiente' 
-                          ? formatUSD(total) 
-                          : formatUSD(editingAbono ? total - sumOtrosAbonos : totalPendiente)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Monto del Abono *
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={abonoForm.monto}
-                        onChange={e => setAbonoForm(prev => ({ ...prev, monto: e.target.value }))}
-                        className="w-full pl-7 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div className="flex gap-2.5 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => setAbonoForm(prev => ({ ...prev, monto: (proforma.estado === 'Pendiente' ? total : totalPendiente).toFixed(2) }))}
-                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
-                      >
-                        Abono Total (100%)
-                      </button>
-                      {proforma.estado === 'Pendiente' && (
-                        <button
-                          type="button"
-                          onClick={() => setAbonoForm(prev => ({ ...prev, monto: (total / 2).toFixed(2) }))}
-                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
-                        >
-                          Abono 50%
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Columna Derecha: Detalles del Pago */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Caja / Método de Pago *
-                    </label>
-                    <select
-                      required
-                      value={abonoForm.metodoPagoId}
-                      onChange={e => setAbonoForm(prev => ({ ...prev, metodoPagoId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccione una caja...</option>
-                      {metodosPago.map(m => (
-                        <option key={m.id} value={m.id}>{m.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Referencia / N° Comprobante
-                    </label>
-                    <input
-                      type="text"
-                      value={abonoForm.referencia}
-                      onChange={e => setAbonoForm(prev => ({ ...prev, referencia: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ej. Transf 88910, Depósito, Efectivo"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingAbono}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-100 flex items-center gap-1.5"
-                >
-                  {submittingAbono && (
-                    <span
-                      className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white"
-                      aria-hidden="true"
-                    />
-                  )}
-                  {submittingAbono ? (editingAbono ? 'Guardando...' : 'Registrando...') : (editingAbono ? 'Guardar Cambios' : 'Confirmar Registro')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modal Visor de Comprobante */}
+      <ComprobanteViewerModal
+        open={!!viewComprobanteUrl}
+        url={viewComprobanteUrl}
+        onClose={() => setViewComprobanteUrl(null)}
+      />
 
       {preview && (
         <ProformaPDF

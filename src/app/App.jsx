@@ -286,10 +286,10 @@ function App() {
               <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
               <Route path="/compras/*" element={<ComprasFeature />} />
               {!isImpresion && <Route path="/ventas/*" element={<VentasFeature />} />}
-              {!isImpresion && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
-              {!isImpresion && <Route path="/flota/*" element={<GastosFeature defaultTab="vehiculos" />} />}
-              {!isImpresion && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
-              {!isImpresion && <Route path="/movimientos/*" element={<MovimientosPage />} />}
+              {!isImpresion && !isVentas && !isDisenador && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
+              {!isImpresion && !isVentas && !isDisenador && <Route path="/flota/*" element={<GastosFeature defaultTab="vehiculos" />} />}
+              {!isImpresion && !isVentas && !isDisenador && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
+              {!isImpresion && !isVentas && !isDisenador && <Route path="/movimientos/*" element={<MovimientosPage />} />}
               {!isImpresion && !isVentas && !isDisenador && <Route path="/balances" element={<BalancesPage />} />}
               <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
               <Route path="/tareas/*" element={<TareasFeature />} />

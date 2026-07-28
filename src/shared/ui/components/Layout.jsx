@@ -51,7 +51,7 @@ export const Layout = ({ children, user, onLogout }) => {
     : (user?.rol?.toLowerCase() === 'admin' || user?.rol?.toLowerCase() === 'administrador')
       ? modules.filter(m => m.path !== '/instalaciones')
       : isVentasOrDisenador
-        ? modules.filter(m => m.path !== '/proveedores' && m.path !== '/balances')
+        ? modules.filter(m => m.path !== '/proveedores' && m.path !== '/balances' && m.path !== '/gastos')
         : modules;
 
   const filteredModules = searchQuery.trim() === ''

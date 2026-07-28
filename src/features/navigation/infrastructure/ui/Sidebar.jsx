@@ -43,11 +43,11 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const canViewInventario = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion;
   const canViewTallerImpresion = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion || isVentas || isDisenador;
   const canViewImpresionesList = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
-  const canViewGastos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
-  const canViewCierreCaja = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
-  const canViewMovimientos = isAdmin;
+  const canViewGastos = (isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && !isVentas && !isDisenador;
+  const canViewCierreCaja = (isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && !isVentas && !isDisenador;
+  const canViewMovimientos = isAdmin && !isVentas && !isDisenador;
   const canViewBalances = isAdmin || (!isImpresion && !isTaller && !isVentas && !isDisenador);
-  const canViewFinanzas = canViewMovimientos || canViewCierreCaja || canViewBalances || (!isImpresion && !isTaller);
+  const canViewFinanzas = (canViewMovimientos || canViewCierreCaja || canViewBalances) && !isVentas && !isDisenador;
   const canViewTareas = true;
   const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
   const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller);
@@ -306,7 +306,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         </Link>
                       </li>
                     )}
-                    {(!isImpresion && !isTaller) && (
+                    {(!isImpresion && !isTaller && !isVentas && !isDisenador) && (
                       <li className={currentPath === '/compras/metodos-pago' ? 'submenu-active' : ''}>
                         <Link to="/compras/metodos-pago" className="sidebar-submenu-link">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">

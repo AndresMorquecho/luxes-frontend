@@ -81,11 +81,31 @@ export const getProformaById = async (id) => {
   return data.data;
 };
 
-export const aprobarProforma = async (id, { monto, metodoPagoId, referencia, aplicarIva }) => {
+export const uploadComprobanteProforma = async (file) => {
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  formData.append('comprobante', file);
+
+  const res = await fetch('/api/proformas/comprobantes/upload', {
+    method: 'POST',
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al subir comprobante');
+  }
+  return data.data; // { url }
+};
+
+export const aprobarProforma = async (id, { monto, metodoPagoId, referencia, aplicarIva, comprobanteUrl }) => {
   const res = await fetch(`/api/proformas/${id}/aprobar`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ monto, metodoPagoId, referencia, aplicarIva }),
+    body: JSON.stringify({ monto, metodoPagoId, referencia, aplicarIva, comprobanteUrl }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -118,11 +138,11 @@ export const enviarProforma = async (id) => {
   return data.data;
 };
 
-export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referencia }) => {
+export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referencia, comprobanteUrl }) => {
   const res = await fetch(`/api/proformas/${id}/abonos`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ monto, metodoPagoId, referencia }),
+    body: JSON.stringify({ monto, metodoPagoId, referencia, comprobanteUrl }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -131,11 +151,11 @@ export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referenc
   return data.data;
 };
 
-export const editarAbonoProforma = async (id, abonoId, { monto, metodoPagoId, referencia }) => {
+export const editarAbonoProforma = async (id, abonoId, { monto, metodoPagoId, referencia, comprobanteUrl }) => {
   const res = await fetch(`/api/proformas/${id}/abonos/${abonoId}`, {
     method: 'PUT',
     headers: getHeaders(),
-    body: JSON.stringify({ monto, metodoPagoId, referencia }),
+    body: JSON.stringify({ monto, metodoPagoId, referencia, comprobanteUrl }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {

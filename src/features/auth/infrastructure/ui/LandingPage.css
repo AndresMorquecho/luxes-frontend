@@ -1637,6 +1637,27 @@ body {
     margin: 0 auto;
   }
 
+  .landing-services-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .service-card-new {
+    padding: 1.75rem 1.5rem;
+    border-radius: 18px;
+    text-align: center;
+    align-items: center;
+  }
+
+  .service-icon-circle {
+    margin: 0 auto 1rem auto;
+  }
+
+  .landing-categories-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
   .landing-catalog-grid {
     grid-template-columns: 1fr;
   }

@@ -49,6 +49,7 @@ const INITIAL_COMPLETED_JOBS = [
 ];
 
 export const PrintQueueProvider = ({ children }) => {
+  const [activeJobs, setActiveJobs] = useState([]);
   const [activeJob, setActiveJob] = useState(null);
   const [queue, setQueue] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
@@ -66,6 +67,7 @@ export const PrintQueueProvider = ({ children }) => {
 
   // Modal states
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelTargetJob, setCancelTargetJob] = useState(null);
   const [cancelReasonText, setCancelReasonText] = useState('');
   const [prevStatus, setPrevStatus] = useState('Listo'); // To resume correct state if modal is closed
 
@@ -82,7 +84,9 @@ export const PrintQueueProvider = ({ children }) => {
       const res = await fetch('/api/impresiones', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok && data.success) {
-        setActiveJob(data.data.activeJob);
+        const list = data.data.activeJobs || (data.data.activeJob ? [data.data.activeJob] : []);
+        setActiveJobs(list);
+        setActiveJob(list[0] || null);
         setQueue(data.data.queue);
         setCompletedJobs(data.data.completedJobs);
       }
@@ -115,38 +119,44 @@ export const PrintQueueProvider = ({ children }) => {
     };
   }, [fetchJobs]);
 
-  // Timer simulation (counts up elapsed seconds only when status is "Imprimiendo")
+  // Timer simulation (counts up elapsed seconds for all active jobs in "Imprimiendo")
   useEffect(() => {
-    const timer = setInterval(async () => {
-      if (activeJob && activeJob.status === "Imprimiendo") {
-        const nextSeconds = activeJob.elapsedSeconds + 1;
-        setActiveJob(prev => ({
-          ...prev,
-          elapsedSeconds: nextSeconds
-        }));
-
-        if (nextSeconds % 5 === 0) {
-          try {
-            await fetch(`/api/impresiones/${activeJob.id}`, {
-              method: 'PUT',
-              headers: getHeaders(),
-              body: JSON.stringify({ elapsedSeconds: nextSeconds }),
-            });
-          } catch (e) {
-            console.error('Error saving elapsed seconds:', e);
+    const timer = setInterval(() => {
+      setActiveJobs(prevJobs => {
+        if (!prevJobs || prevJobs.length === 0) return prevJobs;
+        let hasChanges = false;
+        const nextJobs = prevJobs.map(job => {
+          if (job.status === "Imprimiendo") {
+            hasChanges = true;
+            const nextSeconds = (job.elapsedSeconds || 0) + 1;
+            if (nextSeconds % 5 === 0) {
+              fetch(`/api/impresiones/${job.id}`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify({ elapsedSeconds: nextSeconds }),
+              }).catch(e => console.error('Error saving elapsed seconds:', e));
+            }
+            return { ...job, elapsedSeconds: nextSeconds };
           }
+          return job;
+        });
+        if (hasChanges) {
+          setActiveJob(nextJobs[0] || null);
+          return nextJobs;
         }
-      }
+        return prevJobs;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [activeJob]);
+  }, []);
 
-  // Start printing the active job (manual trigger)
-  const handleStartActiveJob = async () => {
-    if (!activeJob) return;
+  // Start printing an active job (manual trigger)
+  const handleStartActiveJob = async (jobId) => {
+    const targetId = jobId || activeJob?.id;
+    if (!targetId) return;
     try {
-      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+      const res = await fetch(`/api/impresiones/${targetId}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -163,11 +173,14 @@ export const PrintQueueProvider = ({ children }) => {
   };
 
   // Toggle active job status between Imprimiendo and Pausado
-  const handleTogglePause = async () => {
-    if (!activeJob) return;
-    const nextStatus = activeJob.status === 'Imprimiendo' ? 'Pausado' : 'Imprimiendo';
+  const handleTogglePause = async (jobId) => {
+    const targetId = jobId || activeJob?.id;
+    if (!targetId) return;
+    const current = activeJobs.find(j => j.id === targetId) || activeJob;
+    if (!current) return;
+    const nextStatus = current.status === 'Imprimiendo' ? 'Pausado' : 'Imprimiendo';
     try {
-      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+      const res = await fetch(`/api/impresiones/${targetId}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({ 
@@ -183,11 +196,12 @@ export const PrintQueueProvider = ({ children }) => {
     }
   };
 
-  // Manually mark the active job as completed
-  const handleCompleteActiveJob = async () => {
-    if (!activeJob) return;
+  // Manually mark an active job as completed
+  const handleCompleteActiveJob = async (jobId) => {
+    const targetId = jobId || activeJob?.id;
+    if (!targetId) return;
     try {
-      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+      const res = await fetch(`/api/impresiones/${targetId}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -203,14 +217,16 @@ export const PrintQueueProvider = ({ children }) => {
     }
   };
 
-  // Open the cancellation reason modal
-  const handleOpenCancelModal = () => {
-    if (!activeJob) return;
-    setPrevStatus(activeJob.status);
+  // Open the cancellation reason modal for a specific job
+  const handleOpenCancelModal = (job) => {
+    const target = job || activeJob;
+    if (!target) return;
+    setCancelTargetJob(target);
+    setPrevStatus(target.status);
     
     // Pause the active job printing while entering reason
-    if (activeJob.status === "Imprimiendo") {
-      setActiveJob(prev => ({ ...prev, status: "Pausado" }));
+    if (target.status === "Imprimiendo") {
+      setActiveJobs(prev => prev.map(j => j.id === target.id ? { ...j, status: "Pausado" } : j));
     }
     setShowCancelModal(true);
   };
@@ -218,9 +234,9 @@ export const PrintQueueProvider = ({ children }) => {
   // Confirm cancel and archive with reason
   const handleConfirmCancel = async (e) => {
     e.preventDefault();
-    if (!activeJob || !cancelReasonText.trim()) return;
+    if (!cancelTargetJob || !cancelReasonText.trim()) return;
     try {
-      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+      const res = await fetch(`/api/impresiones/${cancelTargetJob.id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -232,6 +248,7 @@ export const PrintQueueProvider = ({ children }) => {
       if (res.ok) {
         setShowCancelModal(false);
         setCancelReasonText('');
+        setCancelTargetJob(null);
         notifyUpdate();
       }
     } catch (err) {
@@ -243,9 +260,10 @@ export const PrintQueueProvider = ({ children }) => {
   const handleCloseCancelModal = () => {
     setShowCancelModal(false);
     setCancelReasonText('');
-    if (activeJob && prevStatus === "Imprimiendo") {
-      setActiveJob(prev => ({ ...prev, status: "Imprimiendo" }));
+    if (cancelTargetJob && prevStatus === "Imprimiendo") {
+      setActiveJobs(prev => prev.map(j => j.id === cancelTargetJob.id ? { ...j, status: "Imprimiendo" } : j));
     }
+    setCancelTargetJob(null);
   };
 
   // Cancel/Remove a job from the queue table
@@ -263,17 +281,12 @@ export const PrintQueueProvider = ({ children }) => {
     }
   };
 
-  // Start printing a specific job from the queue immediately (promotes select job, sends active back to queue)
+  // Start printing a specific job from the queue (up to 3 active jobs max)
   const handleStartQueueJob = async (id, status = 'Listo', extraData = {}) => {
+    if (activeJobs.length >= 3) {
+      throw new Error('Máximo 3 trabajos de impresión activos simultáneamente. Completa, cancela o devuelve a la cola uno para activar este.');
+    }
     try {
-      if (activeJob) {
-        await fetch(`/api/impresiones/${activeJob.id}`, {
-          method: 'PUT',
-          headers: getHeaders(),
-          body: JSON.stringify({ status: 'En espera' }),
-        });
-      }
-      
       const res = await fetch(`/api/impresiones/${id}`, {
         method: 'PUT',
         headers: getHeaders(),
@@ -288,6 +301,7 @@ export const PrintQueueProvider = ({ children }) => {
       }
     } catch (e) {
       console.error(e);
+      throw e;
     }
   };
 
@@ -313,11 +327,14 @@ export const PrintQueueProvider = ({ children }) => {
     }
   };
 
-  // Return active job back to the top of the queue (only when status is "Listo")
-  const handleReturnToQueue = async () => {
-    if (!activeJob || activeJob.status !== "Listo") return;
+  // Return active job back to the queue (only when status is "Listo")
+  const handleReturnToQueue = async (jobId) => {
+    const targetId = jobId || activeJob?.id;
+    if (!targetId) return;
+    const target = activeJobs.find(j => j.id === targetId) || activeJob;
+    if (!target || target.status !== "Listo") return;
     try {
-      const res = await fetch(`/api/impresiones/${activeJob.id}`, {
+      const res = await fetch(`/api/impresiones/${targetId}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({ status: 'En espera' }),
@@ -349,9 +366,11 @@ export const PrintQueueProvider = ({ children }) => {
   const getJobsByProyectoId = useCallback((proyectoId) => {
     if (!proyectoId) return [];
     const allJobs = [];
-    if (activeJob && activeJob.proyectoId === proyectoId) {
-      allJobs.push({ ...activeJob, trackingStatus: activeJob.status });
-    }
+    activeJobs.forEach(job => {
+      if (job.proyectoId === proyectoId) {
+        allJobs.push({ ...job, trackingStatus: job.status });
+      }
+    });
     queue.forEach(job => {
       if (job.proyectoId === proyectoId) {
         allJobs.push({ ...job, trackingStatus: 'En espera' });
@@ -363,14 +382,16 @@ export const PrintQueueProvider = ({ children }) => {
       }
     });
     return allJobs;
-  }, [activeJob, queue, completedJobs]);
+  }, [activeJobs, queue, completedJobs]);
 
   return (
     <PrintQueueContext.Provider value={{
+      activeJobs,
       activeJob,
       queue,
       completedJobs,
       showCancelModal,
+      cancelTargetJob,
       cancelReasonText,
       setCancelReasonText,
       handleStartActiveJob,

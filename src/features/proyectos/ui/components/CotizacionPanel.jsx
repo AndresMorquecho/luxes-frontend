@@ -72,9 +72,9 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
     if (!proyecto) return;
 
     const filters = { limit: 1000, estado: 'Aprobada' };
-    if (!isAdmin && proyecto.clienteId) {
+    if (proyecto.clienteId) {
       filters.clienteId = proyecto.clienteId;
-    } else if (!isAdmin) {
+    } else {
       const clientName = proyecto.cliente?.nombre || proyecto.clienteNombre;
       if (clientName) filters.search = clientName;
     }
@@ -86,7 +86,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
       console.error('Error loading proformas:', err);
       setProformas([]);
     });
-  }, [proyecto, isAdmin]);
+  }, [proyecto]);
 
   useEffect(() => {
     getProyectos({ limit: 1000 }).then(response => {
@@ -126,7 +126,9 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
 
   const isRelatedToClient = (c) => {
     if (!proyecto) return false;
-    if (c.clienteId && proyecto.clienteId && c.clienteId === proyecto.clienteId) return true;
+    if (c.clienteId && proyecto.clienteId) {
+      return c.clienteId === proyecto.clienteId;
+    }
     const profName = normalizeClientName(c.cliente);
     if (!profName) return false;
     return projectClientNames.some((name) => name === profName || name.includes(profName) || profName.includes(name));
@@ -153,20 +155,20 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
     );
   };
 
-  // Admin: ve todas las aprobadas; otros roles: solo las del cliente del proyecto
+  // Solo proformas del cliente del proyecto, aprobadas/pagadas con abonos, y que no estén vinculadas a otro proyecto
   const filteredProformas = approvedProformas.filter((c) =>
-    (isAdmin || isRelatedToClient(c)) &&
+    isRelatedToClient(c) &&
     !selectedCotizaciones.find((sc) => sc.id === c.id) &&
     !isLinkedToOtherProject(c.id) &&
     matchesSearch(c)
   );
 
   const getEmptyMessage = () => {
-    if (proformas.length === 0) return 'No hay proformas disponibles.';
-    if (approvedProformas.length === 0) return 'No hay proformas aprobadas disponibles.';
+    if (proformas.length === 0) return 'No hay proformas disponibles para este cliente.';
+    if (approvedProformas.length === 0) return 'No hay proformas aprobadas con abonos para este cliente.';
 
-    const availableByClient = approvedProformas.filter((c) => isAdmin || isRelatedToClient(c));
-    if (!isAdmin && availableByClient.length === 0) {
+    const availableByClient = approvedProformas.filter((c) => isRelatedToClient(c));
+    if (availableByClient.length === 0) {
       return 'Hay proformas aprobadas, pero ninguna corresponde al cliente de este proyecto.';
     }
 
@@ -176,7 +178,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
         !isLinkedToOtherProject(c.id)
     );
     if (notLinked.length === 0 && availableByClient.length > 0) {
-      return 'Las proformas aprobadas ya están vinculadas a este u otro proyecto.';
+      return 'Las proformas aprobadas de este cliente ya están vinculadas a este u otro proyecto.';
     }
 
     if (searchTerm.trim()) {

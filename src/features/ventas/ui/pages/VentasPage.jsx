@@ -5,6 +5,7 @@ import { getVentas, registrarCobro } from '../../application/ventasService';
 import { getMetodosPago } from '../../../gastos/application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
+import { AbonoModal } from '../../../proformas/ui/components/AbonoModal.jsx';
 import './VentasPage.css';
 
 const CO_PRIMARY = '#2b41b8';
@@ -40,6 +41,7 @@ export const VentasPage = () => {
     monto: '',
     metodoPagoId: '',
     referencia: '',
+    comprobanteUrl: null,
     pending: 0,
     total: 0,
   });
@@ -89,6 +91,7 @@ export const VentasPage = () => {
       monto: pendiente.toFixed(2),
       metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
       referencia: '',
+      comprobanteUrl: null,
       pending: pendiente,
       total,
     });
@@ -112,6 +115,7 @@ export const VentasPage = () => {
         monto: numericMonto,
         metodoPagoId: abonoForm.metodoPagoId,
         referencia: abonoForm.referencia,
+        comprobanteUrl: abonoForm.comprobanteUrl,
       });
       toast.success('Cobro registrado correctamente');
       setShowAbonoModal(false);
@@ -562,115 +566,28 @@ export const VentasPage = () => {
         </div>
       </div>
 
-      {/* ── Modal Cobro / Abono ── */}
-      <ModalPortal open={showAbonoModal}>
-        <div className="co-portal-root">
-          <div className="co-overlay" onClick={() => setShowAbonoModal(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal co-modal-lg animate-co-modal-in">
-              <div className="co-modal-header">
-                <h2 className="text-lg font-bold text-slate-800">Registrar Cobro / Abono</h2>
-                <button type="button" onClick={() => setShowAbonoModal(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="co-modal-body">
-                {/* Info summary */}
-                <div className="co-abono-info mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Proforma:</span>
-                    <span className="font-bold text-slate-800">{abonoForm.proformaId}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Total:</span>
-                    <span className="font-semibold text-slate-800">{fmt(abonoForm.total)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Saldo pendiente:</span>
-                    <span className="font-bold text-amber-600">{fmt(abonoForm.pending)}</span>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSaveAbono} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Monto */}
-                    <div>
-                      <label className="co-label">Monto a Cobrar *</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          max={abonoForm.pending}
-                          required
-                          value={abonoForm.monto}
-                          onChange={(e) => setAbonoForm((prev) => ({ ...prev, monto: e.target.value }))}
-                          className="co-input !pl-7 font-mono"
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setAbonoForm((prev) => ({ ...prev, monto: abonoForm.pending.toFixed(2) }))}
-                        className="text-[10px] font-bold mt-1 underline"
-                        style={{ color: CO_PRIMARY }}
-                      >
-                        Cobrar saldo total (100%)
-                      </button>
-                    </div>
-
-                    {/* Método de pago */}
-                    <div>
-                      <label className="co-label">Caja / Método de Pago *</label>
-                      <select
-                        required
-                        value={abonoForm.metodoPagoId}
-                        onChange={(e) => setAbonoForm((prev) => ({ ...prev, metodoPagoId: e.target.value }))}
-                        className="co-input"
-                      >
-                        <option value="">Seleccione una caja...</option>
-                        {metodosPago.map((m) => (
-                          <option key={m.id} value={m.id}>{m.nombre}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Referencia */}
-                  <div>
-                    <label className="co-label">Referencia / N° Comprobante</label>
-                    <input
-                      type="text"
-                      value={abonoForm.referencia}
-                      onChange={(e) => setAbonoForm((prev) => ({ ...prev, referencia: e.target.value }))}
-                      className="co-input"
-                      placeholder="Ej. Transferencia, Depósito, N° control"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" onClick={() => setShowAbonoModal(false)} className="co-btn-ghost">
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submittingAbono}
-                      className="co-btn-primary"
-                      style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}
-                    >
-                      {submittingAbono && <div className="co-spinner-sm" />}
-                      {submittingAbono ? 'Registrando...' : 'Confirmar Cobro'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </ModalPortal>
+      {/* ── Modal Cobro / Abono Normalizado ── */}
+      <AbonoModal
+        open={showAbonoModal}
+        onClose={() => setShowAbonoModal(false)}
+        title="Registrar Cobro / Abono"
+        subtitle="Ingresa el monto a cobrar y adjunta el comprobante opcional."
+        proformaId={abonoForm.proformaId}
+        total={abonoForm.total}
+        pending={abonoForm.pending}
+        monto={abonoForm.monto}
+        setMonto={(val) => setAbonoForm((prev) => ({ ...prev, monto: val }))}
+        metodoPagoId={abonoForm.metodoPagoId}
+        setMetodoPagoId={(val) => setAbonoForm((prev) => ({ ...prev, metodoPagoId: val }))}
+        metodosPago={metodosPago}
+        referencia={abonoForm.referencia}
+        setReferencia={(val) => setAbonoForm((prev) => ({ ...prev, referencia: val }))}
+        comprobanteUrl={abonoForm.comprobanteUrl}
+        setComprobanteUrl={(val) => setAbonoForm((prev) => ({ ...prev, comprobanteUrl: val }))}
+        onSubmit={handleSaveAbono}
+        submitting={submittingAbono}
+        submitText="Confirmar Cobro"
+      />
     </div>
   );
 };
