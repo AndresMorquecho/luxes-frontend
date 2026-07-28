@@ -1,7 +1,6 @@
-// src/shared/ui/components/PDFPreviewModal.jsx
-
 import React, { useState } from 'react';
 import { Printer, X, ZoomIn, ZoomOut, FileText, Download } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import { ModalPortal, deferClose, useModalVisibility } from './ModalPortal';
 import './PDFPreviewModal.css';
 
@@ -18,10 +17,20 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
   const handleClose = () => deferClose(onClose);
 
   const handleDownload = () => {
-    const originalTitle = document.title;
-    document.title = `Orden_de_Compra_${oc.id || 'Borrador'}`;
-    window.print();
-    document.title = originalTitle;
+    const element = document.querySelector('.pdf-sheet');
+    if (!element) {
+      window.print();
+      return;
+    }
+    const filename = `Orden_de_Compra_${oc.id || 'Borrador'}.pdf`;
+    const opt = {
+      margin:       0,
+      filename:     filename,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false, width: 750, height: 930 },
+      jsPDF:        { unit: 'px', format: [750, 930], orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save();
   };
 
   const handlePrint = () => {
@@ -167,28 +176,36 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
                   </table>
                 </div>
 
-                <div className="pdf-notes-section">
-                  <p className="pdf-notes-title">OBSERVACIONES Y NOTAS:</p>
-                  <p className="pdf-notes-text">
-                    {oc.comentarios || 'Sin observaciones adicionales.'}
-                  </p>
-                </div>
-
-                <div className="pdf-signatures-row">
-                  <div className="pdf-signature-field">
-                    <div className="pdf-signature-line" />
-                    <span className="pdf-signature-lbl">{oc.usuario?.nombre || oc.solicitadoPor || 'Solicitante Técnico'}</span>
-                    <span className="pdf-signature-lbl-sub">Taller de Montaje e Instalaciones</span>
+                <div className="pdf-footer-section" style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                  <div className="pdf-notes-section">
+                    <p className="pdf-notes-title">OBSERVACIONES Y NOTAS:</p>
+                    <p className="pdf-notes-text">
+                      {oc.comentarios || 'Sin observaciones adicionales.'}
+                    </p>
                   </div>
-                  <div className="pdf-signature-field">
-                    <div className="pdf-signature-line" />
-                    <span className="pdf-signature-lbl">{oc.aprobadoPor || 'Autorizado Por'}</span>
-                    <span className="pdf-signature-lbl-sub">Administración de Proyectos - LUXES</span>
-                  </div>
-                </div>
 
-                <div className="pdf-sheet-footer">
-                  Documento generado electrónicamente en el Portal Operativo Luxes 2026. Todos los derechos reservados.
+                  <div className="pdf-signatures-row">
+                    <div className="pdf-signature-field">
+                      <div className="pdf-signature-line" />
+                      <span className="pdf-signature-lbl">
+                        {oc.solicitadoPor || oc.usuario?.nombre || oc.usuarioNombre || 'Solicitante'}
+                      </span>
+                      <span className="pdf-signature-lbl-sub">Solicitante</span>
+                    </div>
+                    <div className="pdf-signature-field">
+                      <div className="pdf-signature-line" />
+                      <span className="pdf-signature-lbl">
+                        {typeof oc.aprobadoPor === 'string'
+                          ? oc.aprobadoPor
+                          : oc.aprobadoPor?.nombre || oc.aprobadoPorNombre || (oc.estado === 'APROBADA' || oc.estado === 'RECIBIDA' || oc.estado === 'aprobada' || oc.estado === 'recibida' ? 'Administrador' : 'Administrador')}
+                      </span>
+                      <span className="pdf-signature-lbl-sub">Autorizado Por</span>
+                    </div>
+                  </div>
+
+                  <div className="pdf-sheet-footer">
+                    Documento generado electrónicamente en el Portal Operativo Luxes 2026. Todos los derechos reservados.
+                  </div>
                 </div>
               </div>
             </div>

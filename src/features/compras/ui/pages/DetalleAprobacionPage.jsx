@@ -4,6 +4,8 @@ import { getOrdenById, updateOrden, getProveedores, getMetodosPago } from '../..
 import { getOrdenProyectoLabel, normalizeOrdenDetalles } from '../../helpers/ordenCompraHelpers';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { ComprasPageHeader, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal';
+import { X, AlertCircle, Info, CheckCircle, Calendar, Hash, CreditCard } from 'lucide-react';
 import './ComprasPage.css';
 
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -24,7 +26,7 @@ export const DetalleAprobacionPage = () => {
   const { id } = useParams();
   const [ordenFromList] = useState(() => location.state?.ordenFromList ?? null);
   const [currentUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
-  
+
   const [orden, setOrden] = useState(null);
   const [proveedores, setProveedores] = useState([]);
   const [metodosPago, setMetodosPago] = useState([]);
@@ -41,6 +43,9 @@ export const DetalleAprobacionPage = () => {
   const [abonoMonto, setAbonoMonto] = useState('');
   const [metodoPagoId, setMetodoPagoId] = useState('');
   const [abonoReferencia, setAbonoReferencia] = useState('');
+  const [esChequePosfechado, setEsChequePosfechado] = useState(false);
+  const [numeroCheque, setNumeroCheque] = useState('');
+  const [fechaCobroCheque, setFechaCobroCheque] = useState('');
 
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -134,6 +139,10 @@ export const DetalleAprobacionPage = () => {
     if (numericAbono < 0) return true;
     if (numericAbono > total + 0.01) return true;
     if (numericAbono > 0 && !metodoPagoId) return true;
+    if (esChequePosfechado && numericAbono > 0) {
+      if (!numeroCheque.trim()) return true;
+      if (!fechaCobroCheque) return true;
+    }
     // Unassigned provider cannot leave debt (no 0 payment, no partial payment)
     if (isSinProveedor && numericAbono < total - 0.01) return true;
     return false;
@@ -179,10 +188,15 @@ export const DetalleAprobacionPage = () => {
         payload.abonoMonto = nAbono;
         payload.metodoPagoId = metodoPagoId;
         payload.abonoReferencia = abonoReferencia.trim();
+        if (esChequePosfechado) {
+          payload.esChequePosfechado = true;
+          payload.numeroCheque = numeroCheque.trim();
+          payload.fechaCobroCheque = fechaCobroCheque;
+        }
       }
 
       await updateOrden(id, payload);
-      toast.success('Orden guardada y aprobada con éxito');
+      toast.success(esChequePosfechado ? 'Orden aprobada con cheque posfechado registrado con éxito' : 'Orden guardada y aprobada con éxito');
       navigate('/compras?vista=aprobaciones');
     } catch (err) {
       toast.error('Error al aprobar: ' + err.message);
@@ -379,10 +393,10 @@ export const DetalleAprobacionPage = () => {
                   if (providerSearch === 'Sin proveedor específico') return true;
                   return p.nombre.toLowerCase().includes(term);
                 }).length === 0 && providerSearch !== 'Sin proveedor específico' && (
-                  <div className="px-3 py-2 text-xs text-slate-400 text-center">
-                    No se encontraron proveedores
-                  </div>
-                )}
+                    <div className="px-3 py-2 text-xs text-slate-400 text-center">
+                      No se encontraron proveedores
+                    </div>
+                  )}
               </div>
             )}
           </div>
@@ -410,7 +424,7 @@ export const DetalleAprobacionPage = () => {
         <h3 className="text-xs font-bold text-slate-500" style={{ marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Items de la Orden
         </h3>
-        
+
         <div className="overflow-x-auto">
           <table className="co-items-table">
             <thead>
@@ -486,7 +500,7 @@ export const DetalleAprobacionPage = () => {
           onClick={triggerAprobarConfirm}
           disabled={saving}
           className="co-btn-primary"
-          style={{ 
+          style={{
             background: saving ? '#94a3b8' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
             boxShadow: saving ? 'none' : '0 4px 14px rgba(22,163,74,0.3)'
           }}
@@ -497,7 +511,7 @@ export const DetalleAprobacionPage = () => {
           onClick={() => setShowRejectModal(true)}
           disabled={saving}
           className="co-btn-primary"
-          style={{ 
+          style={{
             background: saving ? '#94a3b8' : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
             boxShadow: saving ? 'none' : '0 4px 14px rgba(220,38,38,0.3)'
           }}
@@ -507,242 +521,352 @@ export const DetalleAprobacionPage = () => {
       </div>
 
       {/* Modal de Confirmación de Aprobación con Pago Integrado */}
-      {showApproveConfirm && (
-        <>
-          <div className="co-overlay" onClick={() => setShowApproveConfirm(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal-fixed-wide animate-co-modal-in">
-              <div className="co-modal-header">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800">Confirmar Aprobación</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Verifica los datos y registra el abono inicial</p>
-                </div>
-                <button onClick={() => setShowApproveConfirm(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+      <ModalPortal open={showApproveConfirm}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+          {/* Backdrop Overlay with Blur */}
+          <div
+            className="fixed inset-0 bg-slate-900/65 backdrop-blur-md transition-opacity"
+            onClick={() => setShowApproveConfirm(false)}
+          />
+
+          {/* Modal Container */}
+          <div
+            className="bg-white rounded-[20px] sm:rounded-[24px] border border-slate-100 shadow-2xl flex flex-col overflow-hidden relative z-[201] animate-slide-up w-full max-w-3xl max-h-[92vh]"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            {/* Header */}
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-100/80 flex items-center justify-between bg-white shrink-0">
+              <div>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-800 leading-tight">Confirmar Aprobación</h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">Verifica los datos y registra el abono inicial</p>
               </div>
-              <div className="co-modal-body">
-                <div className="co-modal-grid-2col">
-                  {/* Left Column: Summary */}
-                  <div className="co-modal-col-left" style={{ justifyContent: 'center' }}>
-                    <div style={{ padding: '1.5rem', borderRadius: '16px', background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.01)' }}>
-                      <p className="text-[10px] font-bold text-slate-400 mb-4" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <button
+                type="button"
+                onClick={() => setShowApproveConfirm(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 sm:p-6 flex-1 overflow-y-auto min-h-0 bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 items-start">
+                {/* Left Column: Resumen de Orden (5 cols) */}
+                <div className="md:col-span-5 bg-slate-50/90 p-4 sm:p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
                         Resumen de Orden
-                      </p>
-                      <div className="flex justify-between text-xs" style={{ marginBottom: '0.85rem' }}>
-                        <span className="text-slate-500 font-medium">Orden:</span>
-                        <span className="font-bold text-slate-800 font-mono" style={{ letterSpacing: '0.02em' }}>{orden.numero}</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                        {lineas.length} {lineas.length === 1 ? 'ítem' : 'ítems'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5 text-xs">
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                        <span className="text-slate-500 font-medium">N° Orden:</span>
+                        <span className="font-bold text-slate-900 font-mono">{orden.numero}</span>
                       </div>
-                      <div className="flex justify-between text-xs" style={{ marginBottom: '0.85rem' }}>
-                        <span className="text-slate-500 font-medium">Proveedor:</span>
-                        <span className="font-semibold text-slate-700">{providerSearch || 'Sin proveedor específico'}</span>
+
+                      <div className="flex justify-between items-start pb-2 border-b border-slate-200/60">
+                        <span className="text-slate-500 font-medium shrink-0">Proveedor:</span>
+                        <span className="font-semibold text-slate-800 text-right truncate max-w-[140px]">
+                          {providerSearch || 'Sin proveedor específico'}
+                        </span>
                       </div>
-                      <div className="flex justify-between text-xs" style={{ marginBottom: '0.85rem' }}>
-                        <span className="text-slate-500 font-medium">Proyecto:</span>
-                        <span className="font-semibold text-slate-700 text-right max-w-[60%]">
+
+                      <div className="flex justify-between items-start pb-2 border-b border-slate-200/60">
+                        <span className="text-slate-500 font-medium shrink-0">Proyecto:</span>
+                        <span className="font-semibold text-slate-800 text-right truncate max-w-[140px]">
                           {proyectoLabel || 'Gasto general'}
                         </span>
                       </div>
-                      <div className="flex justify-between text-xs" style={{ paddingTop: '0.85rem', borderTop: '1px solid #f1f5f9' }}>
-                        <span className="text-slate-500 font-bold">Total de Orden:</span>
-                        <span className="font-extrabold text-slate-900" style={{ fontSize: '15px' }}>{fmt(total)}</span>
+
+                      {orden.concepto && (
+                        <div className="flex justify-between items-start pb-2 border-b border-slate-200/60">
+                          <span className="text-slate-500 font-medium shrink-0">Concepto:</span>
+                          <span className="font-medium text-slate-700 text-right line-clamp-2 max-w-[140px]">
+                            {orden.concepto}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Items mini summary */}
+                      <div className="pt-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Detalle de ítems</span>
+                        <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                          {lineas.map((it, idx) => (
+                            <div key={idx} className="flex justify-between text-[11px] text-slate-600">
+                              <span className="truncate max-w-[120px] font-medium">• {it.descripcion}</span>
+                              <span className="font-mono text-slate-800 shrink-0">{it.cantidad}x {fmt(it.precioUnitario)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right Column: Inputs */}
-                  <div className="co-modal-col-right">
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="co-label" style={{ margin: 0, fontSize: '10px' }}>Monto a Abonar ($)</label>
-                        <span 
-                          onClick={() => {
-                            setAbonoMonto(total.toFixed(2));
-                            if (!metodoPagoId && metodosPago.length > 0) {
-                              const activeMethod = metodosPago.find(mp => mp.activo);
-                              if (activeMethod) setMetodoPagoId(activeMethod.id);
-                            }
-                          }} 
-                          style={{ cursor: 'pointer', fontSize: '10px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline' }}
-                        >
-                          Copiar Total
-                        </span>
-                      </div>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={total}
-                        value={abonoMonto}
-                        onChange={(e) => {
-                          setAbonoMonto(e.target.value);
-                          // Auto-select payment method if empty and they start typing a value
-                          if (e.target.value && parseFloat(e.target.value) > 0 && !metodoPagoId && metodosPago.length > 0) {
+                  <div className="pt-3 border-t border-slate-200 flex justify-between items-center bg-white/60 p-2.5 rounded-xl border border-slate-200/60">
+                    <span className="text-xs font-extrabold text-slate-600">Total de Orden:</span>
+                    <span className="text-base font-extrabold text-slate-900 font-mono">{fmt(total)}</span>
+                  </div>
+                </div>
+
+                {/* Right Column: Inputs (7 cols) */}
+                <div className="md:col-span-7 space-y-3.5">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Monto a Abonar ($)</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAbonoMonto(total.toFixed(2));
+                          if (!metodoPagoId && metodosPago.length > 0) {
                             const activeMethod = metodosPago.find(mp => mp.activo);
                             if (activeMethod) setMetodoPagoId(activeMethod.id);
                           }
                         }}
-                        className="co-input"
-                        placeholder="0.00 (Dejar en blanco para Ninguno)"
-                      />
-                      
-                      {/* Legends under input with SVG icons, NO emojis */}
-                      {numericAbono < 0 && (
-                        <p style={{ color: '#ef4444', fontSize: '10.5px', fontWeight: '600', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                          El abono no puede ser menor a 0.
-                        </p>
-                      )}
-                      {numericAbono > total + 0.01 && (
-                        <p style={{ color: '#ef4444', fontSize: '10.5px', fontWeight: '600', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                          El abono no puede exceder el total de {fmt(total)}.
-                        </p>
-                      )}
-                      {isSinProveedor && numericAbono < total - 0.01 && (
-                        <p style={{ color: '#ea580c', fontSize: '10.5px', fontWeight: '600', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-orange-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                          No se puede abonar menos del total sin un proveedor específico.
-                        </p>
-                      )}
-                      {!isSinProveedor && numericAbono === 0 && (
-                        <p style={{ color: '#64748b', fontSize: '10.5px', fontWeight: '500', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Se registrará la orden como cuenta por pagar de {fmt(total)}.
-                        </p>
-                      )}
-                      {!isSinProveedor && numericAbono > 0 && numericAbono < total - 0.01 && (
-                        <p style={{ color: '#2563eb', fontSize: '10.5px', fontWeight: '500', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Abono parcial. Saldo de {fmt(total - numericAbono)} a Cuentas por Pagar.
-                        </p>
-                      )}
-                      {numericAbono >= total - 0.01 && numericAbono <= total + 0.01 && (
-                        <p style={{ color: '#16a34a', fontSize: '10.5px', fontWeight: '500', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <svg className="w-3.5 h-3.5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Pago Total: La orden se registrará como pagada y cerrada.
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="co-label" style={{ fontSize: '10px' }}>Cuenta / Método de Pago</label>
-                      <select
-                        value={metodoPagoId}
-                        onChange={(e) => setMetodoPagoId(e.target.value)}
-                        className="co-input"
-                        disabled={!(parseFloat(abonoMonto) > 0)}
-                        style={{ background: !(parseFloat(abonoMonto) > 0) ? '#f8fafc' : '#ffffff' }}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 underline cursor-pointer bg-transparent border-none p-0"
                       >
-                        <option value="">{parseFloat(abonoMonto) > 0 ? "Selecciona cuenta..." : "No requiere (Sin abono)"}</option>
-                        {metodosPago
-                          .filter(mp => mp.activo)
-                          .map(mp => (
-                            <option key={mp.id} value={mp.id}>
-                              {mp.nombre} ({fmt(mp.saldoActual || 0)})
-                            </option>
-                          ))}
-                      </select>
+                        Copiar Total
+                      </button>
                     </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={total}
+                      value={abonoMonto}
+                      onChange={(e) => {
+                        setAbonoMonto(e.target.value);
+                        if (e.target.value && parseFloat(e.target.value) > 0 && !metodoPagoId && metodosPago.length > 0) {
+                          const activeMethod = metodosPago.find(mp => mp.activo);
+                          if (activeMethod) setMetodoPagoId(activeMethod.id);
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      placeholder="0.00 (Dejar en blanco para Ninguno)"
+                    />
 
-                    <div>
-                      <label className="co-label" style={{ fontSize: '10px' }}>Referencia / Observación</label>
-                      <input
-                        type="text"
-                        value={abonoReferencia}
-                        onChange={(e) => setAbonoReferencia(e.target.value)}
-                        className="co-input"
-                        disabled={!(parseFloat(abonoMonto) > 0)}
-                        style={{ background: !(parseFloat(abonoMonto) > 0) ? '#f8fafc' : '#ffffff' }}
-                        placeholder="No. transferencia, cheque, etc."
-                      />
+                    {/* Legends under input with SVG icons */}
+                    {numericAbono < 0 && (
+                      <p className="text-[11px] text-red-600 font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle size={14} className="shrink-0" />
+                        El abono no puede ser menor a 0.
+                      </p>
+                    )}
+                    {numericAbono > total + 0.01 && (
+                      <p className="text-[11px] text-red-600 font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle size={14} className="shrink-0" />
+                        El abono no puede exceder el total de {fmt(total)}.
+                      </p>
+                    )}
+                    {isSinProveedor && numericAbono < total - 0.01 && (
+                      <p className="text-[11px] text-orange-600 font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle size={14} className="shrink-0" />
+                        No se puede abonar menos del total sin un proveedor específico.
+                      </p>
+                    )}
+                    {!isSinProveedor && numericAbono === 0 && (
+                      <p className="text-[11px] text-slate-500 font-medium mt-1 flex items-center gap-1">
+                        <Info size={14} className="shrink-0 text-slate-400" />
+                        Se registrará la orden como cuenta por pagar de {fmt(total)}.
+                      </p>
+                    )}
+                    {!isSinProveedor && numericAbono > 0 && numericAbono < total - 0.01 && (
+                      <p className="text-[11px] text-blue-600 font-medium mt-1 flex items-center gap-1">
+                        <Info size={14} className="shrink-0 text-blue-500" />
+                        Abono parcial. Saldo de {fmt(total - numericAbono)} a Cuentas por Pagar.
+                      </p>
+                    )}
+                    {numericAbono >= total - 0.01 && numericAbono <= total + 0.01 && (
+                      <p className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                        <CheckCircle size={14} className="shrink-0 text-emerald-500" />
+                        Pago Total: La orden se registrará como pagada y cerrada.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider block mb-1">
+                      Cuenta / Método de Pago
+                    </label>
+                    <select
+                      value={metodoPagoId}
+                      onChange={(e) => setMetodoPagoId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                      disabled={!(parseFloat(abonoMonto) > 0)}
+                    >
+                      <option value="">{parseFloat(abonoMonto) > 0 ? "Selecciona cuenta..." : "No requiere (Sin abono)"}</option>
+                      {metodosPago
+                        .filter(mp => mp.activo)
+                        .map(mp => (
+                          <option key={mp.id} value={mp.id}>
+                            {mp.nombre} ({fmt(mp.saldoActual || 0)})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Toggle & Fields Cheque Posfechado */}
+                  {numericAbono > 0 && (
+                    <div className={`rounded-2xl p-3.5 transition-all duration-200 border ${esChequePosfechado
+                        ? 'bg-blue-50/60 border-blue-200/80 shadow-sm'
+                        : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100/70'
+                      }`}>
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={esChequePosfechado}
+                          onChange={(e) => setEsChequePosfechado(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 rounded-md border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0"
+                        />
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <CreditCard size={15} className={`shrink-0 ${esChequePosfechado ? 'text-blue-600' : 'text-slate-500'}`} />
+                          <span className={`text-xs font-extrabold truncate ${esChequePosfechado ? 'text-blue-950' : 'text-slate-700'}`}>
+                            Registrar como Pago por Cheque Posfechado (A Fecha)
+                          </span>
+                        </div>
+                      </label>
+
+                      {esChequePosfechado && (
+                        <div className="pt-3 mt-2.5 border-t border-blue-200/70 grid grid-cols-2 gap-3 animate-fade-in">
+                          <div>
+                            <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider flex items-center gap-1 mb-1 whitespace-nowrap">
+                              <Hash size={12} className="text-blue-600 shrink-0" /> N° Cheque *
+                            </label>
+                            <input
+                              type="text"
+                              value={numeroCheque}
+                              onChange={(e) => setNumeroCheque(e.target.value)}
+                              placeholder="Ej. CHQ-10492"
+                              className="w-full px-3 py-2 rounded-xl border border-blue-200 text-xs font-mono font-bold bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider flex items-center gap-1 mb-1 whitespace-nowrap">
+                              <Calendar size={12} className="text-blue-600 shrink-0" /> Fecha Cobro *
+                            </label>
+                            <input
+                              type="date"
+                              value={fechaCobroCheque}
+                              onChange={(e) => setFechaCobroCheque(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-blue-200 text-xs font-semibold bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                              required
+                            />
+                          </div>
+                          <div className="col-span-2 bg-white/80 border border-blue-100 rounded-xl p-2.5 flex items-start gap-2 text-[11px] text-slate-600 leading-relaxed font-medium">
+                            <Info size={15} className="shrink-0 text-blue-600 mt-0.5" />
+                            <span>
+                              El dinero permanecerá en la cuenta y se debitará automáticamente en la fecha de cobro.
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  )}
+
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider block mb-1">
+                      Referencia / Observación
+                    </label>
+                    <input
+                      type="text"
+                      value={abonoReferencia}
+                      onChange={(e) => setAbonoReferencia(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                      disabled={!(parseFloat(abonoMonto) > 0)}
+                      placeholder="No. transferencia, cheque, etc."
+                    />
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Footer containing action buttons */}
-              <div className="co-modal-fixed-footer">
-                <button onClick={() => setShowApproveConfirm(false)} className="co-btn-ghost">
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleGuardarYAprobar}
-                  disabled={saving || isSubmitDisabled()}
-                  className="co-btn-primary"
-                  style={{ 
-                    background: (saving || isSubmitDisabled()) ? '#94a3b8' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-                    boxShadow: (saving || isSubmitDisabled()) ? 'none' : '0 4px 14px rgba(22,163,74,0.3)'
-                  }}
-                >
-                  {saving ? 'Aprobando...' : 'Confirmar y Aprobar'}
-                </button>
-              </div>
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowApproveConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleGuardarYAprobar}
+                disabled={saving || isSubmitDisabled()}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white transition-all shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  background: (saving || isSubmitDisabled()) ? '#94a3b8' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                  boxShadow: (saving || isSubmitDisabled()) ? 'none' : '0 4px 14px rgba(22,163,74,0.3)'
+                }}
+              >
+                {saving ? 'Aprobando...' : 'Confirmar y Aprobar'}
+              </button>
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </ModalPortal>
 
       {/* Modal de Rechazo */}
-      {showRejectModal && (
-        <>
-          <div className="co-overlay" onClick={() => setShowRejectModal(false)} />
-          <div className="co-modal-wrap">
-            <div className="co-modal animate-co-modal-in">
-              <div className="co-modal-header">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800">Rechazar Orden</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Indica el motivo del rechazo</p>
-                </div>
-                <button onClick={() => setShowRejectModal(false)} className="co-modal-close">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+      <ModalPortal open={showRejectModal}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
+          <div
+            className="fixed inset-0 bg-slate-900/65 backdrop-blur-md transition-opacity"
+            onClick={() => setShowRejectModal(false)}
+          />
+
+          <div className="bg-white rounded-[24px] border border-slate-100 shadow-2xl w-full max-w-md p-6 relative z-[201] space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-800">Rechazar Orden</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Indica el motivo del rechazo</p>
               </div>
-              <div className="co-modal-body">
-                <textarea
-                  value={motivoRechazo}
-                  onChange={(e) => setMotivoRechazo(e.target.value)}
-                  className="co-input co-textarea"
-                  rows={4}
-                  placeholder="Motivo del rechazo..."
-                />
-                <div className="flex justify-end gap-3 mt-4">
-                  <button onClick={() => { setShowRejectModal(false); setMotivoRechazo(''); }} className="co-btn-ghost">
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleRechazar}
-                    disabled={saving || !motivoRechazo.trim()}
-                    className="co-btn-primary"
-                    style={{ 
-                      background: (saving || !motivoRechazo.trim()) ? '#94a3b8' : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                      boxShadow: (saving || !motivoRechazo.trim()) ? 'none' : '0 4px 14px rgba(220,38,38,0.3)'
-                    }}
-                  >
-                    {saving ? 'Rechazando...' : 'Confirmar Rechazo'}
-                  </button>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <textarea
+              value={motivoRechazo}
+              onChange={(e) => setMotivoRechazo(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+              rows={4}
+              placeholder="Motivo del rechazo..."
+            />
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => { setShowRejectModal(false); setMotivoRechazo(''); }}
+                className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleRechazar}
+                disabled={saving || !motivoRechazo.trim()}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white transition-all shadow-md cursor-pointer disabled:opacity-50"
+                style={{
+                  background: (saving || !motivoRechazo.trim()) ? '#94a3b8' : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                  boxShadow: (saving || !motivoRechazo.trim()) ? 'none' : '0 4px 14px rgba(220,38,38,0.3)'
+                }}
+              >
+                {saving ? 'Rechazando...' : 'Confirmar Rechazo'}
+              </button>
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </ModalPortal>
     </div>
   );
 };

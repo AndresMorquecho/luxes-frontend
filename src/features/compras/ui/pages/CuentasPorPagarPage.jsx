@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Eye, Trash2, X, FileText, AlertCircle } from 'lucide-react';
+import { Eye, Trash2, X, FileText, AlertCircle, Clock, CheckCircle2, CreditCard, Calendar, Hash, Info, Pencil } from 'lucide-react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import {
-  getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats, getAbonos, eliminarAbono
+  getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats, getAbonos, eliminarAbono,
+  getCheques, procesarChequeManual, editarCheque, eliminarCheque
 } from '../../application/comprasService';
 import { buildOrdenParaAbono, getAbonoSaldoPendiente } from '../../helpers/ordenCompraHelpers';
 import { ComprasPageHeader } from '../components/ComprasPageHeader';
@@ -16,9 +17,9 @@ const CO_NAVY = '#1a1c3d';
 
 const CXP_BADGES = {
   pendiente: { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'PENDIENTE' },
-  parcial:   { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
-  pagado:    { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'PAGADO' },
-  vencido:   { bg: 'bg-red-50', color: 'text-red-800', dot: 'bg-red-600', label: 'VENCIDO' },
+  parcial: { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
+  pagado: { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'PAGADO' },
+  vencido: { bg: 'bg-red-50', color: 'text-red-800', dot: 'bg-red-600', label: 'VENCIDO' },
 };
 
 const ESTADO_FILTER_OPTIONS = [
@@ -37,6 +38,17 @@ export const CuentasPorPagarPage = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = isAdminUser(currentUser);
 
+  const [chequesList, setChequesList] = useState([]);
+  const [chequesLoading, setChequesLoading] = useState(false);
+  const [procesandoChequeId, setProcesandoChequeId] = useState(null);
+
+  // States para edición de cheque dentro del modal "Ver"
+  const [editingChequeId, setEditingChequeId] = useState(null);
+  const [editChequeNumero, setEditChequeNumero] = useState('');
+  const [editChequeFecha, setEditChequeFecha] = useState('');
+  const [editChequeMonto, setEditChequeMonto] = useState('');
+  const [savingChequeEdit, setSavingChequeEdit] = useState(false);
+
   const [stats, setStats] = useState({ totalOrdenes: 0, pendientes: 0, totalGastado: 0, totalDeuda: 0 });
   const [cxpItems, setCxpItems] = useState([]);
   const [cxpPage, setCxpPage] = useState(1);
@@ -48,7 +60,14 @@ export const CuentasPorPagarPage = () => {
   // Modal Registrar Abono
   const [abonoModalOpen, setAbonoModalOpen] = useState(false);
   const [abonoOrden, setAbonoOrden] = useState(null);
-  const [abonoForm, setAbonoForm] = useState({ metodoPagoId: '', monto: '', referencia: '' });
+  const [abonoForm, setAbonoForm] = useState({
+    metodoPagoId: '',
+    monto: '',
+    referencia: '',
+    esChequePosfechado: false,
+    numeroCheque: '',
+    fechaCobro: '',
+  });
   const [abonoSaving, setAbonoSaving] = useState(false);
   
   // Modal Ver Pagos / Abonos
@@ -62,7 +81,7 @@ export const CuentasPorPagarPage = () => {
   const perPage = 25;
 
   const loadStats = useCallback(async () => {
-    try { const s = await getComprasStats(); setStats(s); } catch {}
+    try { const s = await getComprasStats(); setStats(s); } catch { }
   }, []);
 
   const loadCxP = useCallback(async () => {
@@ -80,31 +99,102 @@ export const CuentasPorPagarPage = () => {
   }, [cxpPage, cxpFilter]);
 
   const loadMetodos = useCallback(async () => {
-    try { const m = await getMetodosPago(); setMetodos(m); } catch {}
+    try { const m = await getMetodosPago(); setMetodos(m); } catch { }
   }, []);
 
-  useEffect(() => { loadStats(); loadMetodos(); }, [loadStats, loadMetodos]);
+  const loadCheques = useCallback(async () => {
+    setChequesLoading(true);
+    try {
+      const data = await getCheques();
+      setChequesList(data || []);
+    } catch {
+      setChequesList([]);
+    } finally {
+      setChequesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadStats(); loadMetodos(); loadCheques(); }, [loadStats, loadMetodos, loadCheques]);
   useEffect(() => { loadCxP(); }, [loadCxP]);
   useEffect(() => { setCxpPage(1); }, [cxpFilter]);
+
+  const fetchVerPagosData = async (cuenta) => {
+    const ordenId = cuenta.ordenCompraId || cuenta.ordenCompra?.id;
+    const [abonosList, chequesListApi] = await Promise.all([
+      getAbonos(ordenId).catch(() => []),
+      getCheques({ ordenCompraId: ordenId }).catch(() => []),
+    ]);
+
+    const items = [];
+
+    // 1. Cheques pendientes (aún no cobrados en banco)
+    for (const ch of chequesListApi) {
+      if (ch.estado === 'PENDIENTE') {
+        items.push({
+          isCheque: true,
+          isPendingCheque: true,
+          id: ch.id,
+          fecha: ch.fechaEmision || ch.fechaCobro,
+          fechaCobro: ch.fechaCobro,
+          numeroCheque: ch.numeroCheque,
+          monto: ch.monto,
+          metodoPago: ch.metodoPago,
+          referencia: ch.referencia || `Cheque Posfechado N° ${ch.numeroCheque}`,
+          registradoPor: ch.registradoPor,
+          estado: 'PENDIENTE',
+          raw: ch,
+        });
+      }
+    }
+
+    // 2. Abonos reales de dinero (incluyendo cheques que ya fueron cobrados)
+    for (const ab of abonosList) {
+      const matchingCheque = chequesListApi.find(c => c.estado === 'PROCESADO' && (ab.referencia || '').includes(c.numeroCheque));
+      items.push({
+        isCheque: !!matchingCheque,
+        isPendingCheque: false,
+        id: ab.id,
+        chequeId: matchingCheque?.id,
+        numeroCheque: matchingCheque?.numeroCheque,
+        fecha: ab.fecha,
+        monto: ab.monto,
+        referencia: ab.referencia,
+        metodoPago: ab.metodoPago,
+        registradoPor: ab.registradoPor,
+        estado: matchingCheque ? 'PROCESADO' : 'REALIZADO',
+        raw: ab,
+      });
+    }
+
+    items.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    return items;
+  };
 
   const openAbonoModal = (cuenta) => {
     const orden = buildOrdenParaAbono(cuenta);
     if (!orden) return;
     setAbonoOrden(orden);
-    setAbonoForm({ metodoPagoId: metodos.filter(m => m.activo)[0]?.id || '', monto: '', referencia: '' });
+    setAbonoForm({
+      metodoPagoId: metodos.filter(m => m.activo)[0]?.id || '',
+      monto: '',
+      referencia: '',
+      esChequePosfechado: false,
+      numeroCheque: '',
+      fechaCobro: '',
+    });
     setAbonoModalOpen(true);
   };
 
   const openVerModal = async (cuenta) => {
     setVerCuenta(cuenta);
+    setEditingChequeId(null);
     setVerModalOpen(true);
     setVerLoading(true);
     try {
-      const ordenId = cuenta.ordenCompraId || cuenta.ordenCompra?.id;
-      const list = await getAbonos(ordenId);
-      setVerAbonosList(list || []);
+      const items = await fetchVerPagosData(cuenta);
+      setVerAbonosList(items);
     } catch (err) {
-      toast.error(err.message || 'Error al obtener el historial de abonos');
+      toast.error(err.message || 'Error al obtener historial de pagos');
       setVerAbonosList([]);
     } finally {
       setVerLoading(false);
@@ -115,13 +205,71 @@ export const CuentasPorPagarPage = () => {
     if (!verCuenta) return;
     setVerLoading(true);
     try {
-      const ordenId = verCuenta.ordenCompraId || verCuenta.ordenCompra?.id;
-      const list = await getAbonos(ordenId);
-      setVerAbonosList(list || []);
+      const items = await fetchVerPagosData(verCuenta);
+      setVerAbonosList(items);
     } catch (err) {
       toast.error(err.message);
     } finally {
       setVerLoading(false);
+    }
+  };
+
+  const startEditCheque = (item) => {
+    setEditingChequeId(item.id);
+    setEditChequeNumero(item.numeroCheque || '');
+    setEditChequeFecha(item.fechaCobro ? new Date(item.fechaCobro).toISOString().split('T')[0] : '');
+    setEditChequeMonto(String(item.monto || ''));
+  };
+
+  const cancelEditCheque = () => {
+    setEditingChequeId(null);
+  };
+
+  const handleSaveEditCheque = async (chequeId) => {
+    if (!editChequeNumero.trim()) {
+      toast.error('Ingrese el número de cheque.');
+      return;
+    }
+    if (!editChequeFecha) {
+      toast.error('Ingrese la fecha de cobro.');
+      return;
+    }
+
+    setSavingChequeEdit(true);
+    try {
+      await editarCheque(chequeId, {
+        numeroCheque: editChequeNumero.trim(),
+        fechaCobro: editChequeFecha,
+        monto: parseFloat(editChequeMonto) || undefined,
+      });
+      toast.success('Cheque posfechado modificado correctamente.');
+      setEditingChequeId(null);
+      await reloadVerAbonos();
+      loadCxP();
+      loadCheques();
+    } catch (err) {
+      toast.error(err.message || 'Error al modificar el cheque.');
+    } finally {
+      setSavingChequeEdit(false);
+    }
+  };
+
+  const handleDeleteChequePendiente = async (item) => {
+    if (!window.confirm(`¿Está seguro de eliminar/cancelar el cheque posfechado N° ${item.numeroCheque}? El saldo volverá a estar pendiente en esta cuenta por pagar.`)) {
+      return;
+    }
+    setDeletingAbonoId(item.id);
+    try {
+      await eliminarCheque(item.id);
+      toast.success('Cheque posfechado cancelado con éxito. Saldo restaurado.');
+      await reloadVerAbonos();
+      loadCxP();
+      loadCheques();
+      loadStats();
+    } catch (err) {
+      toast.error(err.message || 'Error al eliminar el cheque.');
+    } finally {
+      setDeletingAbonoId(null);
     }
   };
 
@@ -138,6 +286,7 @@ export const CuentasPorPagarPage = () => {
       loadStats();
       loadCxP();
       loadMetodos();
+      loadCheques();
     } catch (err) {
       toast.error(err.message || 'Error al eliminar abono');
     } finally {
@@ -149,18 +298,38 @@ export const CuentasPorPagarPage = () => {
 
   const handleAbonoSave = async (e) => {
     e.preventDefault();
+    if (abonoForm.esChequePosfechado) {
+      if (!abonoForm.numeroCheque.trim()) {
+        toast.error('Ingrese el número de cheque.');
+        return;
+      }
+      if (!abonoForm.fechaCobro) {
+        toast.error('Ingrese la fecha de cobro del cheque.');
+        return;
+      }
+    }
+
     setAbonoSaving(true);
     try {
-      await registrarAbono(abonoOrden.id, {
+      const payload = {
         metodoPagoId: abonoForm.metodoPagoId,
         monto: parseFloat(abonoForm.monto) || 0,
-        referencia: abonoForm.referencia
-      });
-      toast.success('Abono registrado con éxito');
+        referencia: abonoForm.referencia,
+      };
+
+      if (abonoForm.esChequePosfechado) {
+        payload.esChequePosfechado = true;
+        payload.numeroCheque = abonoForm.numeroCheque.trim();
+        payload.fechaCobro = abonoForm.fechaCobro;
+      }
+
+      await registrarAbono(abonoOrden.id, payload);
+      toast.success(abonoForm.esChequePosfechado ? 'Cheque posfechado registrado con éxito' : 'Abono registrado con éxito');
       setAbonoModalOpen(false);
       loadStats();
       loadCxP();
       loadMetodos();
+      loadCheques();
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -216,9 +385,8 @@ export const CuentasPorPagarPage = () => {
   const renderBadge = (estado, compact = false) => {
     const b = CXP_BADGES[estado] || CXP_BADGES.pendiente;
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-wide ${b.bg} ${b.color} ${
-        compact ? 'px-1.5 py-0.5 text-[8px] gap-0.5' : 'px-2.5 py-1 text-[10px] gap-1.5'
-      }`}>
+      <span className={`inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-wide ${b.bg} ${b.color} ${compact ? 'px-1.5 py-0.5 text-[8px] gap-0.5' : 'px-2.5 py-1 text-[10px] gap-1.5'
+        }`}>
         <span className={`rounded-full shrink-0 ${b.dot} ${compact ? 'w-1 h-1' : 'w-1.5 h-1.5'}`} />
         {b.label}
       </span>
@@ -237,14 +405,24 @@ export const CuentasPorPagarPage = () => {
     </select>
   );
 
-  const renderMobileRow = (c) => (
-    <div key={c.id} className="co-orden-row border-b border-slate-100 last:border-b-0">
-      <div className="flex items-start justify-between gap-2 px-3 py-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="font-mono text-[11px] font-bold leading-tight" style={{ color: CO_PRIMARY }}>{c.ordenCompra?.numero || '—'}</p>
-          <p className="text-[10px] text-slate-500 truncate mt-0.5">{c.ordenCompra?.proveedor?.nombre || '—'}</p>
-          <div className="mt-1">{renderBadge(c.estado, true)}</div>
-        </div>
+  const renderMobileRow = (c) => {
+    const ordenId = c.ordenCompraId || c.ordenCompra?.id;
+    const pendingCheque = chequesList.find(ch => ch.ordenCompraId === ordenId && ch.estado === 'PENDIENTE');
+    return (
+      <div key={c.id} className="co-orden-row border-b border-slate-100 last:border-b-0">
+        <div className="flex items-start justify-between gap-2 px-3 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[11px] font-bold leading-tight" style={{ color: CO_PRIMARY }}>{c.ordenCompra?.numero || '—'}</p>
+            <p className="text-[10px] text-slate-500 truncate mt-0.5">{c.ordenCompra?.proveedor?.nombre || '—'}</p>
+            <div className="mt-1 flex flex-wrap gap-1 items-center">
+              {renderBadge(c.estado, true)}
+              {pendingCheque && (
+                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                  <Clock size={9} className="text-amber-600" /> N° {pendingCheque.numeroCheque}
+                </span>
+              )}
+            </div>
+          </div>
         <div className="text-right shrink-0">
           <p className="text-[10px] text-slate-400">Saldo</p>
           <p className="text-sm font-bold text-red-600 tabular-nums">{fmt(c.saldo)}</p>
@@ -264,19 +442,19 @@ export const CuentasPorPagarPage = () => {
           <Eye size={14} />
           Ver pagos
         </button>
-        {c.estado !== 'pagado' && (
-          <button
-            type="button"
-            onClick={() => openAbonoModal(c)}
-            className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white"
-            style={{ backgroundColor: CO_PRIMARY }}
-          >
-            Registrar abono
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => openAbonoModal(c)}
+          disabled={c.estado === 'pagado'}
+          className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ backgroundColor: c.estado === 'pagado' ? '#94a3b8' : CO_PRIMARY }}
+        >
+          Registrar abono
+        </button>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderPagination = () => (
     <div className="px-4 md:px-5 py-3 border-t border-slate-100 bg-white flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
@@ -374,8 +552,16 @@ export const CuentasPorPagarPage = () => {
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="max-w-xs">{renderEstadoFilter('w-full')}</div>
+            {chequesList.filter(c => c.estado === 'PENDIENTE').length > 0 && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-xl text-amber-900 text-xs font-bold">
+                <Clock size={15} className="text-amber-600 shrink-0" />
+                <span>
+                  {chequesList.filter(c => c.estado === 'PENDIENTE').length} Cheque(s) Posfechado(s) Programado(s)
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="overflow-x-auto relative">
@@ -398,42 +584,56 @@ export const CuentasPorPagarPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {!cxpLoading && cxpItems.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: CO_PRIMARY }}>{c.ordenCompra?.numero || '—'}</td>
-                    <td className="px-4 py-3 font-medium" style={{ color: CO_NAVY }}>{c.ordenCompra?.proveedor?.nombre || '—'}</td>
-                    <td className="px-4 py-3 text-right text-slate-700 tabular-nums">{fmt(c.montoTotal)}</td>
-                    <td className="px-4 py-3 text-right text-emerald-600 font-semibold tabular-nums">{fmt(c.montoPagado)}</td>
-                    <td className="px-4 py-3 text-right text-red-600 font-bold tabular-nums">{fmt(c.saldo)}</td>
-                    <td className="px-4 py-3 text-center text-slate-500 text-xs whitespace-nowrap">{fmtDate(c.fechaVencimiento)}</td>
-                    <td className="px-4 py-3 text-center">{renderBadge(c.estado)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openVerModal(c)}
-                          className="h-8 px-2.5 inline-flex items-center justify-center gap-1 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors whitespace-nowrap cursor-pointer"
-                          title="Ver historial de abonos"
-                        >
-                          <Eye size={14} />
-                          Ver
-                        </button>
-                        {c.estado !== 'pagado' && (
+                {!cxpLoading && cxpItems.map((c) => {
+                  const ordenId = c.ordenCompraId || c.ordenCompra?.id;
+                  const pendingCheque = chequesList.find(ch => ch.ordenCompraId === ordenId && ch.estado === 'PENDIENTE');
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-mono text-xs font-semibold" style={{ color: CO_PRIMARY }}>
+                          {c.ordenCompra?.numero || '—'}
+                        </div>
+                        {pendingCheque && (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full" title={`Cheque N° ${pendingCheque.numeroCheque} cobro ${fmtDate(pendingCheque.fechaCobro)}`}>
+                              <Clock size={10} className="text-amber-600" /> N° {pendingCheque.numeroCheque} ({fmtDate(pendingCheque.fechaCobro)})
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-medium" style={{ color: CO_NAVY }}>{c.ordenCompra?.proveedor?.nombre || '—'}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 tabular-nums">{fmt(c.montoTotal)}</td>
+                      <td className="px-4 py-3 text-right text-emerald-600 font-semibold tabular-nums">{fmt(c.montoPagado)}</td>
+                      <td className="px-4 py-3 text-right text-red-600 font-bold tabular-nums">{fmt(c.saldo)}</td>
+                      <td className="px-4 py-3 text-center text-slate-500 text-xs whitespace-nowrap">{fmtDate(c.fechaVencimiento)}</td>
+                      <td className="px-4 py-3 text-center">{renderBadge(c.estado)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openVerModal(c)}
+                            className="h-8 px-2.5 inline-flex items-center justify-center gap-1 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors whitespace-nowrap cursor-pointer"
+                            title="Ver historial de abonos y cheques posfechados"
+                          >
+                            <Eye size={14} />
+                            Ver
+                          </button>
                           <button
                             type="button"
                             onClick={() => openAbonoModal(c)}
-                            className="h-8 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap cursor-pointer"
-                            style={{ backgroundColor: CO_PRIMARY }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
+                            disabled={c.estado === 'pagado'}
+                            className="h-8 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            style={{ backgroundColor: c.estado === 'pagado' ? '#94a3b8' : CO_PRIMARY }}
+                            onMouseEnter={(e) => { if (c.estado !== 'pagado') e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
+                            onMouseLeave={(e) => { if (c.estado !== 'pagado') e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
                           >
                             Registrar abono
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {!cxpLoading && cxpItems.length === 0 && (
                   <tr><td colSpan={8} className="px-4 py-16 text-center text-slate-400 text-sm">No hay cuentas por pagar</td></tr>
                 )}
@@ -456,73 +656,130 @@ export const CuentasPorPagarPage = () => {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-              <div className="co-modal-body">
-                {abonoOrden && (
-                  <div className="co-abono-info">
+            <div className="co-modal-body">
+              {abonoOrden && (
+                <div className="co-abono-info">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Orden:</span>
+                    <span className="font-bold text-slate-800">{abonoOrden.numero}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Total:</span>
+                    <span className="font-semibold">{fmt(abonoOrden.cuentaPorPagar?.montoTotal ?? abonoOrden.total)}</span>
+                  </div>
+                  {(abonoOrden.cuentaPorPagar?.montoPagado ?? 0) > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Orden:</span>
-                      <span className="font-bold text-slate-800">{abonoOrden.numero}</span>
+                      <span className="text-slate-500">Pagado:</span>
+                      <span className="font-semibold text-emerald-600">{fmt(abonoOrden.cuentaPorPagar.montoPagado)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Total:</span>
-                      <span className="font-semibold">{fmt(abonoOrden.cuentaPorPagar?.montoTotal ?? abonoOrden.total)}</span>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Saldo pendiente:</span>
+                    <span className="font-bold text-red-500">{fmt(saldoAbono)}</span>
+                  </div>
+                </div>
+              )}
+              <form onSubmit={handleAbonoSave} className="space-y-4 mt-4">
+                <div>
+                  <label className="co-label">Método de Pago</label>
+                  <select className="co-input" value={abonoForm.metodoPagoId}
+                    onChange={e => setAbonoForm(p => ({ ...p, metodoPagoId: e.target.value }))} required>
+                    <option value="">Seleccionar método…</option>
+                    {metodos.filter(m => m.activo).map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.nombre} ({fmt(m.saldoActual || 0)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="co-label">Monto ($)</label>
+                  <input type="number" className="co-input" step="0.01" min="0.01"
+                    max={saldoAbono || 999999}
+                    value={abonoForm.monto}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (parseFloat(val) > saldoAbono) {
+                        setAbonoForm(p => ({ ...p, monto: saldoAbono.toString() }));
+                      } else {
+                        setAbonoForm(p => ({ ...p, monto: val }));
+                      }
+                    }} required />
+                </div>
+                <div>
+                  <label className="co-label">Referencia (Nro. cheque, transferencia, etc.)</label>
+                  <input className="co-input" value={abonoForm.referencia} placeholder="Opcional"
+                    onChange={e => setAbonoForm(p => ({ ...p, referencia: e.target.value }))} />
+                </div>
+
+                {/* Toggle Cheque Posfechado */}
+                <div className={`rounded-2xl p-3.5 transition-all duration-200 border ${abonoForm.esChequePosfechado
+                    ? 'bg-blue-50/60 border-blue-200/80 shadow-sm'
+                    : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100/70'
+                  }`}>
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={abonoForm.esChequePosfechado}
+                      onChange={e => setAbonoForm(p => ({ ...p, esChequePosfechado: e.target.checked }))}
+                      className="w-4 h-4 text-blue-600 rounded-md border-slate-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <div className="flex items-center gap-1.5">
+                      <CreditCard size={15} className={abonoForm.esChequePosfechado ? 'text-blue-600' : 'text-slate-500'} />
+                      <span className={`text-xs font-extrabold ${abonoForm.esChequePosfechado ? 'text-blue-950' : 'text-slate-700'}`}>
+                        Registrar como Pago por Cheque Posfechado (A Fecha)
+                      </span>
                     </div>
-                    {(abonoOrden.cuentaPorPagar?.montoPagado ?? 0) > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Pagado:</span>
-                        <span className="font-semibold text-emerald-600">{fmt(abonoOrden.cuentaPorPagar.montoPagado)}</span>
+                  </label>
+
+                  {abonoForm.esChequePosfechado && (
+                    <div className="pt-3 mt-2.5 border-t border-blue-200/70 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in">
+                      <div>
+                        <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider flex items-center gap-1 mb-1 whitespace-nowrap">
+                          <Hash size={12} className="text-blue-600 shrink-0" /> N° Cheque *
+                        </label>
+                        <input
+                          type="text"
+                          value={abonoForm.numeroCheque}
+                          onChange={e => setAbonoForm(p => ({ ...p, numeroCheque: e.target.value }))}
+                          placeholder="Ej. CHQ-10492"
+                          className="w-full px-3 py-2 rounded-xl border border-blue-200 text-xs font-mono font-bold bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                          required
+                        />
                       </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Saldo pendiente:</span>
-                      <span className="font-bold text-red-500">{fmt(saldoAbono)}</span>
+                      <div>
+                        <label className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider flex items-center gap-1 mb-1 whitespace-nowrap">
+                          <Calendar size={12} className="text-blue-600 shrink-0" /> Fecha Cobro *
+                        </label>
+                        <input
+                          type="date"
+                          value={abonoForm.fechaCobro}
+                          onChange={e => setAbonoForm(p => ({ ...p, fechaCobro: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-xl border border-blue-200 text-xs font-semibold bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+                      <div className="col-span-full bg-white/80 border border-blue-100 rounded-xl p-2.5 flex items-start gap-2 text-[11px] text-slate-600 leading-relaxed font-medium">
+                        <Info size={15} className="shrink-0 text-blue-600 mt-0.5" />
+                        <span>
+                          El dinero permanecerá en la cuenta y se debitará automáticamente en la fecha de cobro.
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
-                <form onSubmit={handleAbonoSave} className="space-y-4 mt-4">
-                  <div>
-                    <label className="co-label">Método de Pago</label>
-                    <select className="co-input" value={abonoForm.metodoPagoId}
-                      onChange={e => setAbonoForm(p => ({ ...p, metodoPagoId: e.target.value }))} required>
-                      <option value="">Seleccionar método…</option>
-                      {metodos.filter(m => m.activo).map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.nombre} ({fmt(m.saldoActual || 0)})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="co-label">Monto ($)</label>
-                    <input type="number" className="co-input" step="0.01" min="0.01"
-                      max={saldoAbono || 999999}
-                      value={abonoForm.monto}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (parseFloat(val) > saldoAbono) {
-                          setAbonoForm(p => ({ ...p, monto: saldoAbono.toString() }));
-                        } else {
-                          setAbonoForm(p => ({ ...p, monto: val }));
-                        }
-                      }} required />
-                  </div>
-                  <div>
-                    <label className="co-label">Referencia (Nro. cheque, transferencia, etc.)</label>
-                    <input className="co-input" value={abonoForm.referencia} placeholder="Opcional"
-                      onChange={e => setAbonoForm(p => ({ ...p, referencia: e.target.value }))} />
-                  </div>
-                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={abonoSaving || !abonoForm.monto || parseFloat(abonoForm.monto) <= 0 || parseFloat(abonoForm.monto) > saldoAbono} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
-                      {abonoSaving && <div className="co-spinner-sm" />}
-                      Registrar Abono
-                    </button>
-                  </div>
-                </form>
-              </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button type="button" onClick={() => setAbonoModalOpen(false)} className="co-btn-ghost">Cancelar</button>
+                  <button type="submit" disabled={abonoSaving || !abonoForm.monto || parseFloat(abonoForm.monto) <= 0 || parseFloat(abonoForm.monto) > saldoAbono} className="co-btn-primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}>
+                    {abonoSaving && <div className="co-spinner-sm" />}
+                    Registrar Abono
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-        </ModalPortal>
+        </div>
+      </ModalPortal>
 
       {/* Modal Ver Historial de Abonos */}
       <ModalPortal open={verModalOpen}>
@@ -536,7 +793,7 @@ export const CuentasPorPagarPage = () => {
           {/* Modal Container: Fixed max height & wide layout */}
           <div
             className="bg-white rounded-[20px] sm:rounded-[24px] border border-slate-100 shadow-2xl flex flex-col overflow-hidden relative z-[201] animate-slide-up"
-            style={{ width: '94vw', maxWidth: '1100px', maxHeight: '85vh', fontFamily: "'Inter', sans-serif" }}
+            style={{ width: '96vw', maxWidth: '1240px', maxHeight: '88vh', fontFamily: "'Inter', sans-serif" }}
           >
             {/* Header (Fixed) */}
             <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100/80 flex items-center justify-between bg-white shrink-0">
@@ -597,44 +854,158 @@ export const CuentasPorPagarPage = () => {
               ) : (
                 <>
                   {/* Vista Escritorio: Tabla panorámica completa */}
-                  <div className="hidden sm:block border border-slate-200/80 rounded-2xl shadow-2xs bg-white overflow-hidden">
+                  <div className="hidden sm:block border border-slate-200/80 rounded-2xl shadow-2xs bg-white overflow-x-auto min-w-full">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-[#f8f9fc] text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
                         <tr>
-                          <th className="px-5 py-3.5">Fecha y Hora</th>
+                          <th className="px-5 py-3.5">Tipo / Estado</th>
+                          <th className="px-5 py-3.5">Fecha y Hora / Cobro</th>
                           <th className="px-5 py-3.5">Caja / Cuenta de Pago</th>
-                          <th className="px-5 py-3.5">Referencia</th>
+                          <th className="px-5 py-3.5">Referencia / N° Cheque</th>
                           <th className="px-5 py-3.5">Registrado Por</th>
-                          <th className="px-5 py-3.5 text-right">Monto Abono</th>
-                          {isAdmin && <th className="px-5 py-3.5 text-center w-28">Acciones</th>}
+                          <th className="px-5 py-3.5 text-right">Monto</th>
+                          {isAdmin && <th className="px-5 py-3.5 text-center w-36">Acciones</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {verAbonosList.map((ab, idx) => {
                           const isLastAbono = idx === 0;
+                          const isEditingThis = editingChequeId === ab.id;
+
+                          if (isEditingThis) {
+                            return (
+                              <tr key={ab.id} className="bg-blue-50/70 border-b border-blue-200">
+                                <td colSpan={2} className="px-4 py-3">
+                                  <label className="text-[10px] font-bold text-blue-900 block mb-1">Número Cheque *</label>
+                                  <input
+                                    type="text"
+                                    value={editChequeNumero}
+                                    onChange={e => setEditChequeNumero(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-blue-300 text-xs font-mono font-bold bg-white"
+                                    placeholder="Ej. CHQ-10492"
+                                  />
+                                </td>
+                                <td colSpan={2} className="px-4 py-3">
+                                  <label className="text-[10px] font-bold text-blue-900 block mb-1">Fecha de Cobro *</label>
+                                  <input
+                                    type="date"
+                                    value={editChequeFecha}
+                                    onChange={e => setEditChequeFecha(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-blue-300 text-xs font-semibold bg-white"
+                                  />
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <label className="text-[10px] font-bold text-blue-900 block mb-1">Monto ($)</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editChequeMonto}
+                                    onChange={e => setEditChequeMonto(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-blue-300 text-xs font-mono font-bold bg-white text-right"
+                                  />
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex items-center gap-1.5 justify-center mt-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEditCheque(ab.id)}
+                                      disabled={savingChequeEdit}
+                                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs"
+                                    >
+                                      Guardar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={cancelEditCheque}
+                                      className="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs cursor-pointer"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          }
+
                           return (
                             <tr key={ab.id} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="px-5 py-3.5 font-mono font-medium text-slate-600 whitespace-nowrap">{fmtDateTime(ab.fecha)}</td>
-                              <td className="px-5 py-3.5 font-bold text-slate-800 whitespace-nowrap">{ab.metodoPago?.nombre || 'General'}</td>
-                              <td className="px-5 py-3.5 text-slate-600">{ab.referencia || <span className="text-slate-300">—</span>}</td>
-                              <td className="px-5 py-3.5 text-slate-600 font-medium whitespace-nowrap">{ab.registradoPor?.nombre || <span className="text-slate-300">—</span>}</td>
+                              <td className="px-5 py-3.5 whitespace-nowrap">
+                                {ab.isPendingCheque ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                    <Clock size={12} className="text-amber-600" /> PROGRAMADO (A FECHA)
+                                  </span>
+                                ) : ab.isCheque ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    <CheckCircle2 size={12} className="text-emerald-600" /> CHEQUE COBRADO
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                    <CreditCard size={12} /> ABONO DIRECTO
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 font-mono font-medium text-slate-600 whitespace-nowrap">
+                                {ab.isPendingCheque ? (
+                                  <div>
+                                    <span className="block font-bold text-amber-900 text-xs">Cobro: {fmtDate(ab.fechaCobro)}</span>
+                                    <span className="text-[10px] text-slate-400">Emisión: {fmtDate(ab.fecha)}</span>
+                                  </div>
+                                ) : (
+                                  fmtDateTime(ab.fecha)
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 font-bold text-slate-800 whitespace-nowrap max-w-[160px] truncate" title={ab.metodoPago?.nombre || 'General'}>{ab.metodoPago?.nombre || 'General'}</td>
+                              <td className="px-5 py-3.5 text-slate-700 max-w-[150px] truncate" title={ab.referencia || ab.numeroCheque || ''}>
+                                {ab.isPendingCheque ? (
+                                  <span className="font-mono font-bold text-blue-900 bg-blue-50 border border-blue-200/80 px-2 py-0.5 rounded-md text-xs">
+                                    N° {ab.numeroCheque}
+                                  </span>
+                                ) : (
+                                  ab.referencia || <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 text-slate-600 font-medium whitespace-nowrap max-w-[180px] truncate" title={ab.registradoPor?.nombre || ''}>{ab.registradoPor?.nombre || <span className="text-slate-300">—</span>}</td>
                               <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 font-mono text-sm whitespace-nowrap">{fmt(ab.monto)}</td>
                               {isAdmin && (
                                 <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                                  {isLastAbono ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmDeleteAbono(ab)}
-                                      disabled={deletingAbonoId === ab.id}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 font-bold text-xs transition-colors cursor-pointer border border-red-100"
-                                      title="Eliminar este abono (reembolsar a la cuenta)"
-                                    >
-                                      <Trash2 size={14} />
-                                      Eliminar
-                                    </button>
-                                  ) : (
-                                    <span className="text-[10px] font-semibold text-slate-300" title="Solo se puede eliminar el último abono registrado">Anteriores</span>
-                                  )}
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    {ab.isPendingCheque ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => startEditCheque(ab)}
+                                          className="p-1.5 rounded-lg text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 font-bold text-xs transition-colors cursor-pointer border border-blue-100 flex items-center gap-1"
+                                          title="Editar datos del cheque"
+                                        >
+                                          <Pencil size={13} />
+                                          Editar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteChequePendiente(ab)}
+                                          disabled={deletingAbonoId === ab.id}
+                                          className="p-1.5 rounded-lg text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 font-bold text-xs transition-colors cursor-pointer border border-red-100 flex items-center gap-1"
+                                          title="Cancelar/Eliminar cheque"
+                                        >
+                                          <Trash2 size={13} />
+                                          Eliminar
+                                        </button>
+                                      </>
+                                    ) : isLastAbono ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmDeleteAbono(ab)}
+                                        disabled={deletingAbonoId === ab.id}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 font-bold text-xs transition-colors cursor-pointer border border-red-100"
+                                        title="Eliminar este abono (reembolsar a la cuenta)"
+                                      >
+                                        <Trash2 size={14} />
+                                        Eliminar
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] font-semibold text-slate-300" title="Solo se puede eliminar el último abono registrado">Anteriores</span>
+                                    )}
+                                  </div>
                                 </td>
                               )}
                             </tr>
@@ -656,31 +1027,58 @@ export const CuentasPorPagarPage = () => {
                           </div>
                           <div className="flex flex-col gap-1 text-[10px] text-slate-500 bg-slate-50 rounded-lg p-2 border border-slate-100">
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Fecha:</span>
-                              <span className="font-mono text-slate-700 font-medium">{fmtDateTime(ab.fecha)}</span>
+                              <span className="text-slate-400">Tipo:</span>
+                              <span className="font-bold text-slate-700">
+                                {ab.isPendingCheque ? 'Cheque Posfechado (Pendiente)' : ab.isCheque ? 'Cheque Cobrado' : 'Abono'}
+                              </span>
                             </div>
-                            {ab.referencia && (
+                            {ab.isPendingCheque ? (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">N° Cheque:</span>
+                                  <span className="font-mono font-bold text-blue-800">{ab.numeroCheque}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Fecha Cobro:</span>
+                                  <span className="font-mono text-slate-700 font-medium">{fmtDate(ab.fechaCobro)}</span>
+                                </div>
+                              </>
+                            ) : (
                               <div className="flex justify-between">
-                                <span className="text-slate-400">Referencia:</span>
-                                <span className="font-medium text-slate-700">{ab.referencia}</span>
+                                <span className="text-slate-400">Fecha:</span>
+                                <span className="font-mono text-slate-700 font-medium">{fmtDateTime(ab.fecha)}</span>
                               </div>
                             )}
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Usuario:</span>
-                              <span className="font-medium text-slate-700">{ab.registradoPor?.nombre || '—'}</span>
-                            </div>
                           </div>
-                          {isAdmin && isLastAbono && (
-                            <div className="pt-1.5 border-t border-slate-100 flex justify-end">
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeleteAbono(ab)}
-                                disabled={deletingAbonoId === ab.id}
-                                className="w-full py-1.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 font-bold text-xs border border-red-100 cursor-pointer"
-                              >
-                                <Trash2 size={14} />
-                                Eliminar abono
-                              </button>
+                          {isAdmin && (
+                            <div className="pt-1.5 border-t border-slate-100 flex justify-end gap-2">
+                              {ab.isPendingCheque ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditCheque(ab)}
+                                    className="flex-1 py-1.5 inline-flex items-center justify-center gap-1 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 font-bold text-xs border border-blue-100 cursor-pointer"
+                                  >
+                                    <Pencil size={13} /> Editar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteChequePendiente(ab)}
+                                    className="flex-1 py-1.5 inline-flex items-center justify-center gap-1 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 font-bold text-xs border border-red-100 cursor-pointer"
+                                  >
+                                    <Trash2 size={13} /> Eliminar
+                                  </button>
+                                </>
+                              ) : isLastAbono && (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteAbono(ab)}
+                                  disabled={deletingAbonoId === ab.id}
+                                  className="w-full py-1.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 font-bold text-xs border border-red-100 cursor-pointer"
+                                >
+                                  <Trash2 size={14} /> Eliminar abono
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>

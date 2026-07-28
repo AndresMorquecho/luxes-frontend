@@ -139,6 +139,46 @@ export async function eliminarAbono(ordenId, abonoId) {
   return data.data;
 }
 
+// ── Cheques Posfechados ─────────────────────────────────────────────────────
+
+export async function getCheques(options = {}) {
+  const params = new URLSearchParams();
+  if (options.estado) params.set('estado', options.estado);
+  if (options.ordenCompraId) params.set('ordenCompraId', options.ordenCompraId);
+  const q = params.toString() ? `?${params.toString()}` : '';
+  const res = await fetch(`/api/compras/cheques${q}`, { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener cheques');
+  return data.data;
+}
+
+export async function procesarChequeManual(chequeId) {
+  const res = await fetch(`/api/compras/cheques/${chequeId}/procesar`, {
+    method: 'POST', headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al procesar el cheque');
+  return data.data;
+}
+
+export async function editarCheque(chequeId, body) {
+  const res = await fetch(`/api/compras/cheques/${chequeId}`, {
+    method: 'PUT', headers: getHeaders(), body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al editar el cheque');
+  return data.data;
+}
+
+export async function eliminarCheque(chequeId) {
+  const res = await fetch(`/api/compras/cheques/${chequeId}`, {
+    method: 'DELETE', headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar el cheque');
+  return data.data;
+}
+
 // ── Cuentas por Pagar ───────────────────────────────────────────────────────
 
 export async function getCuentasPorPagar(options = {}) {

@@ -143,6 +143,9 @@ export const mapOrdenToPDFFormat = (orden) => {
     estado: (orden.estado || 'PENDIENTE').toUpperCase(),
     proyectoNombre: getOrdenProyectoLabel(orden) || orden.concepto || 'Compra de Materiales',
     comentarios: orden.notas || 'Sin observaciones.',
+    usuario: orden.usuario,
+    solicitadoPor: orden.usuario?.nombre || orden.usuarioNombre || orden.solicitadoPor || 'Solicitante',
+    aprobadoPor: orden.aprobadoPor?.nombre || orden.aprobadoPorNombre || (orden.estado === 'aprobada' || orden.estado === 'recibida' ? 'Administrador' : ''),
     items: (orden.detalles || []).map((d) => ({
       sku: d.material?.codigo || (d.materialId ? d.materialId.slice(-8).toUpperCase() : 'ESP-LIBRE'),
       nombre: d.descripcion,

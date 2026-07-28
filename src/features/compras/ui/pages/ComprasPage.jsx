@@ -313,75 +313,35 @@ export const ComprasPage = () => {
     ] : []),
   ];
 
-  const renderOrdenActions = (o, mobile = false) => (
-    <div className={`flex items-center justify-center ${mobile ? '' : 'gap-1'}`}>
-      {!mobile && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
+  const renderOrdenActions = (o) => {
+    const canRevisar = o.estado === 'pendiente_aprobacion' && hasAprobacionPermission;
+    return (
+      <div className="flex items-center justify-center gap-1.5">
         <button
           type="button"
           onClick={() => goToAprobacion(o)}
-          className="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap"
-          style={{ backgroundColor: CO_PRIMARY }}
-          title="Revisar y aprobar"
+          disabled={!canRevisar}
+          className="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ backgroundColor: canRevisar ? CO_PRIMARY : '#94a3b8' }}
+          title={canRevisar ? "Revisar y aprobar solicitud" : "Orden procesada"}
         >
           Revisar
         </button>
-      )}
-      {!mobile && (
+
         <button
           type="button"
           onClick={() => openPDFPreview(o)}
-          className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-[#eef1fc] hover:text-[#2b41b8] hover:border-[#c7d0f5] transition-colors"
-          title="Ver PDF"
+          className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-[#eef1fc] hover:text-[#2b41b8] hover:border-[#c7d0f5] transition-colors cursor-pointer"
+          title="Ver orden / PDF"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
           </svg>
         </button>
-      )}
-      <div className="relative">
-        <button
-          type="button"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === o.id ? null : o.id); }}
-          className={`inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors ${
-            mobile ? 'w-7 h-7 bg-white/90' : 'w-8 h-8 text-slate-600'
-          }`}
-          title="Más acciones"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>
-        </button>
-        {openMenuId === o.id && (
-          <div
-            className="absolute right-0 top-full mt-1 z-30 min-w-[180px] py-1 bg-white border border-slate-200 rounded-lg shadow-lg"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            {mobile && (
-              <button type="button" onClick={() => { setOpenMenuId(null); openPDFPreview(o); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Ver PDF</button>
-            )}
-            {o.estado === 'cancelada' && o.notas && (
-              <button type="button" onClick={() => { setOpenMenuId(null); openViewReasonModal(o.notas, o.numero); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Ver motivo rechazo</button>
-            )}
-            {isAdmin && o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && (
-              <button type="button" onClick={() => { setOpenMenuId(null); goToAprobacion(o); }} className="w-full text-left px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50">Aprobar / revisar</button>
-            )}
-            {isAdmin && (o.estado === 'aprobada' || o.estado === 'parcialmente_recibida') && (
-              <button type="button" onClick={() => { setOpenMenuId(null); goToRecepcion(o); }} className="w-full text-left px-3 py-2 text-xs text-violet-700 hover:bg-violet-50">Recibir productos</button>
-            )}
-            {isAdmin && o.estadoPago !== 'pagado' && o.estado !== 'cancelada' && o.estado !== 'pendiente_aprobacion' && (
-              <button type="button" onClick={() => { setOpenMenuId(null); openAbonoModal(o); }} className="w-full text-left px-3 py-2 text-xs text-blue-700 hover:bg-blue-50">Registrar abono</button>
-            )}
-            {isAdmin && isOrdenEditable(o.estado) && (
-              <button type="button" onClick={() => { setOpenMenuId(null); navigate(`/compras/editar/${o.id}`); }} className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">Editar orden</button>
-            )}
-            {isAdmin && (
-              <button type="button" onClick={() => { setOpenMenuId(null); handleOrdenDelete(o.id); }} className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50">Eliminar</button>
-            )}
-          </div>
-        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderMobileOrdenRow = (o) => {
     const iconStyle = ORDEN_ESTADO_ICON[o.estado] || ORDEN_ESTADO_ICON.aprobada;
