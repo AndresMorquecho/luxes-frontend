@@ -126,9 +126,10 @@ export const EmpleadosPage = () => {
     setLoading(true);
     try {
       const data = await getEmpleados();
-      setEmpleados(data);
+      setEmpleados(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
+      setEmpleados([]);
     } finally {
       setLoading(false);
     }
@@ -184,15 +185,25 @@ export const EmpleadosPage = () => {
   };
 
   const q = search.toLowerCase();
-  const filteredAll = empleados.filter(e =>
-    (e.nombre || '').toLowerCase().includes(q) ||
-    (e.id || '').toLowerCase().includes(q) ||
-    (e.cedula || '').includes(q) ||
-    (e.cargo || '').toLowerCase().includes(q) ||
-    (e.departamento || '').toLowerCase().includes(q) ||
-    (e.cuentaBanco || '').includes(q) ||
-    (e.banco || '').toLowerCase().includes(q)
-  );
+  const filteredAll = (Array.isArray(empleados) ? empleados : []).filter(e => {
+    if (!e) return false;
+    const nombre = String(e.nombre || '').toLowerCase();
+    const id = String(e.id || '').toLowerCase();
+    const cedula = String(e.cedula || '');
+    const cargo = String(e.cargo || '').toLowerCase();
+    const departamento = String(e.departamento || '').toLowerCase();
+    const cuentaBanco = String(e.cuentaBanco || '');
+    const banco = String(e.banco || '').toLowerCase();
+    return (
+      nombre.includes(q) ||
+      id.includes(q) ||
+      cedula.includes(q) ||
+      cargo.includes(q) ||
+      departamento.includes(q) ||
+      cuentaBanco.includes(q) ||
+      banco.includes(q)
+    );
+  });
 
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
   const safePage = page > totalPages ? 1 : page;
