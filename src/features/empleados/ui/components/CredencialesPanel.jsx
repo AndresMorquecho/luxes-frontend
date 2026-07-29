@@ -28,22 +28,40 @@ export const CredencialesPanel = () => {
   };
 
   const handleFotoUpload = async (emp, file) => {
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const foto = ev.target?.result;
-      if (!foto) return;
-      try {
-        const updated = await saveEmpleado({ ...emp, foto });
-        const updatedWithCacheBust = {
-          ...updated,
-          foto: `/api/empleados/${emp.id}/foto?t=${Date.now()}`,
+    const compressImage = (imageFile) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const scale = Math.min(1, MAX_WIDTH / img.width);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.82);
+            resolve(compressed);
+          };
+          img.src = e.target.result;
         };
-        setEmpleados((prev) => prev.map((e) => (e.id === updated.id ? updatedWithCacheBust : e)));
-      } catch (err) {
-        console.error('Error saving photo', err);
-      }
+        reader.readAsDataURL(imageFile);
+      });
     };
-    reader.readAsDataURL(file);
+
+    try {
+      const foto = await compressImage(file);
+      const updated = await saveEmpleado({ ...emp, foto });
+      const updatedWithCacheBust = {
+        ...updated,
+        foto: `/api/empleados/${emp.id}/foto?t=${Date.now()}`,
+      };
+      setEmpleados((prev) => prev.map((e) => (e.id === updated.id ? updatedWithCacheBust : e)));
+    } catch (err) {
+      console.error('Error saving photo', err);
+    }
   };
 
   const filtered = empleados.filter((emp) =>
