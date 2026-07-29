@@ -277,7 +277,15 @@ export default function DashboardPage() {
     );
   }
 
-  const { kpi, usersActivity, proyectosActivos, recentMovements, dailyData = [], egresosDistribucion = [], quickSummary = {} } = summary;
+  const {
+    kpi = {},
+    usersActivity = [],
+    proyectosActivos = [],
+    recentMovements = [],
+    dailyData = [],
+    egresosDistribucion = [],
+    quickSummary = {},
+  } = summary || {};
 
   // Extracción de datos de sparklines reales
   const sparklineBalance = dailyData.map(d => d.balance);
