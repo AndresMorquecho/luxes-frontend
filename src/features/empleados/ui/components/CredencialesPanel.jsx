@@ -34,7 +34,11 @@ export const CredencialesPanel = () => {
       if (!foto) return;
       try {
         const updated = await saveEmpleado({ ...emp, foto });
-        setEmpleados((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+        const updatedWithCacheBust = {
+          ...updated,
+          foto: `/api/empleados/${emp.id}/foto?t=${Date.now()}`,
+        };
+        setEmpleados((prev) => prev.map((e) => (e.id === updated.id ? updatedWithCacheBust : e)));
       } catch (err) {
         console.error('Error saving photo', err);
       }
