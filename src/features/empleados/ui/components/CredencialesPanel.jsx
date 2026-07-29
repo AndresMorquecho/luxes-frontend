@@ -115,14 +115,14 @@ export const CredencialesPanel = () => {
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          @page { margin: 1cm; }
+          @page { size: 5.5cm 8.5cm; margin: 0; }
           body { visibility: hidden !important; background: white !important; }
           .print-target {
             visibility: visible !important;
             position: absolute !important;
             left: 50% !important; top: 0 !important;
             transform: translateX(-50%) !important;
-            width: 300px !important; height: auto !important;
+            width: 5.5cm !important; height: 8.5cm !important;
             page-break-inside: avoid !important; break-inside: avoid !important;
             margin: 0 !important; box-shadow: none !important;
             border: 1px solid #ddd !important; background: white !important;

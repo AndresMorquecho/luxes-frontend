@@ -12,10 +12,28 @@ const HEADER_BG_STYLE = {
   backgroundRepeat: 'no-repeat',
 };
 
+const formatNombreApellidos = (fullName = '') => {
+  const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) {
+    return { nombres: fullName, apellidos: '' };
+  }
+  if (parts.length === 2) {
+    return { nombres: parts[0], apellidos: parts[1] };
+  }
+  if (parts.length === 3) {
+    return { nombres: parts[0], apellidos: `${parts[1]} ${parts[2]}` };
+  }
+  const mid = Math.min(2, Math.floor(parts.length / 2));
+  const nombres = parts.slice(0, mid).join(' ');
+  const apellidos = parts.slice(mid).join(' ');
+  return { nombres, apellidos };
+};
+
 export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
   const fileInputRef = useRef(null);
   const cardRef = useRef(null);
   const hasFoto = Boolean(emp.foto?.trim());
+  const { nombres, apellidos } = formatNombreApellidos(emp.nombre);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -34,7 +52,7 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
 
     try {
       const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 3,
+        pixelRatio: 4,
         backgroundColor: '#ffffff',
         cacheBust: true,
         filter: (node) => {
@@ -55,22 +73,26 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
   };
 
   return (
-    <div className={`relative group w-full max-w-[300px] ${isPrinting ? 'print-target' : 'perspective'}`}>
+    <div className={`relative group w-full max-w-[275px] ${isPrinting ? 'print-target' : 'perspective'}`}>
       {/* Glow effect */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0433ff]/30 to-[#02188E]/40 rounded-2xl blur opacity-25 group-hover:opacity-45 transition duration-500" />
 
-      <div ref={cardRef} className="relative flex flex-col bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl h-full">
-        
+      {/* Tarjeta con proporción exacta de 5.5 cm x 8.5 cm (1:1.545) */}
+      <div
+        ref={cardRef}
+        className="relative flex flex-col bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl w-full h-[425px] select-none"
+        style={{ aspectRatio: '5.5 / 8.5' }}
+      >
         {/* Card Header Band */}
-        <div className="h-20 relative shrink-0 flex items-end px-4 pb-3 overflow-hidden" style={HEADER_BG_STYLE}>
-          <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-bold text-white/90 border border-white/20 tracking-widest">
+        <div className="h-16 relative shrink-0 flex items-end px-4 pb-2 overflow-hidden" style={HEADER_BG_STYLE}>
+          <div className="absolute top-2.5 right-3 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-bold text-white/90 border border-white/20 tracking-widest">
             LUXES · 2026
           </div>
-          <span className="text-white/40 text-[10px] font-mono tracking-widest">CREDENCIAL</span>
+          <span className="text-white/40 text-[9px] font-mono tracking-widest">CREDENCIAL</span>
         </div>
 
         {/* Avatar */}
-        <div className="flex justify-center -mt-10 relative z-10 shrink-0">
+        <div className="flex justify-center -mt-9 relative z-10 shrink-0">
           <div className="relative cursor-pointer group/avatar" onClick={handleAvatarClick}>
             {hasFoto ? (
               <img
@@ -86,7 +108,7 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
                 </svg>
               </div>
             )}
-            {/* Camera overlay — excluded from image capture */}
+            {/* Camera overlay */}
             <div
               data-exclude="true"
               className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-80 transition-opacity pointer-events-none"
@@ -100,33 +122,38 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
           </div>
         </div>
 
-        {/* Info */}
-        <div className="text-center px-5 pt-3 pb-4 grow">
-          <h3 className="text-lg font-bold text-gray-800 leading-tight">{emp.nombre}</h3>
-          <p className="text-[#02188E] font-semibold text-sm mt-1">{emp.cargo}</p>
-          <span className="inline-block mt-1 bg-[#f0f6ff] text-[#0433ff] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#c7d9ff] uppercase tracking-wide">
-            {emp.departamento}
-          </span>
+        {/* Info: Nombres en Fila 1 y Apellidos en Fila 2 */}
+        <div className="text-center px-4 pt-2 pb-2 grow flex flex-col justify-center min-h-0">
+          <div className="uppercase font-bold text-gray-800 leading-tight">
+            <span className="block text-sm font-bold text-slate-800 tracking-tight">{nombres}</span>
+            {apellidos && <span className="block text-sm font-extrabold text-slate-900 tracking-tight mt-0.5">{apellidos}</span>}
+          </div>
+          {emp.cargo && <p className="text-[#02188E] font-semibold text-[11px] mt-1 truncate">{emp.cargo}</p>}
+          {emp.departamento && (
+            <span className="inline-block self-center mt-1 bg-[#f0f6ff] text-[#0433ff] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#c7d9ff] uppercase tracking-wide truncate max-w-[90%]">
+              {emp.departamento}
+            </span>
+          )}
         </div>
 
         {/* Divider */}
-        <div className="mx-5 border-t border-dashed border-gray-200" />
+        <div className="mx-4 border-t border-dashed border-gray-200" />
 
         {/* QR Section */}
-        <div className="flex flex-col items-center py-5 shrink-0">
-          <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100">
-            <QRCodeSVG value={emp.id} size={140} level="H" fgColor={LUXES_NAVY} />
+        <div className="flex flex-col items-center py-3 shrink-0">
+          <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100">
+            <QRCodeSVG value={emp.id} size={120} level="H" fgColor={LUXES_NAVY} />
           </div>
-          <p className="text-[10px] text-gray-400 mt-2 font-mono tracking-widest">{emp.id}</p>
+          <p className="text-[9px] text-gray-400 mt-1 font-mono tracking-widest">{emp.id}</p>
         </div>
 
         {/* Print Button */}
-        <div data-exclude="true" className="p-4 flex justify-center print-hidden border-t border-gray-100">
+        <div data-exclude="true" className="p-3 flex justify-center print-hidden border-t border-gray-100">
           <button
             onClick={handleDownload}
-            className="bg-[#02188E] hover:bg-[#0433ff] active:scale-95 text-white text-xs font-bold py-2 px-5 rounded-full shadow-lg transition-all flex items-center gap-2 cursor-pointer border-none"
+            className="bg-[#02188E] hover:bg-[#0433ff] active:scale-95 text-white text-[11px] font-bold py-1.5 px-4 rounded-full shadow-md transition-all flex items-center gap-1.5 cursor-pointer border-none"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             Descargar carnet
