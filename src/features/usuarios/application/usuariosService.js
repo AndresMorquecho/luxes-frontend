@@ -146,6 +146,8 @@ export async function getAuditLogs(filters = {}) {
   if (filters.userId) queryParams.append('userId', filters.userId);
   if (filters.modulo) queryParams.append('modulo', filters.modulo);
   if (filters.severidad) queryParams.append('severidad', filters.severidad);
+  if (filters.page) queryParams.append('page', filters.page);
+  if (filters.limit) queryParams.append('limit', filters.limit);
 
   const response = await fetch(`/api/auth/audit-logs?${queryParams.toString()}`, {
     headers: getHeaders(),
@@ -154,5 +156,14 @@ export async function getAuditLogs(filters = {}) {
   if (!response.ok || !data.success) {
     throw new Error(data.error?.message || 'Error al obtener registros de auditoría');
   }
-  return data.data;
+
+  return {
+    data: Array.isArray(data.data) ? data.data : [],
+    pagination: data.pagination || {
+      total: Array.isArray(data.data) ? data.data.length : 0,
+      page: Number(filters.page) || 1,
+      limit: Number(filters.limit) || 20,
+      totalPages: 1,
+    },
+  };
 }
