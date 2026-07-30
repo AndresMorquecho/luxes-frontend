@@ -3,6 +3,7 @@ import { Camera, Image as ImageIcon, CheckCircle, UploadCloud, Trash2, PenTool, 
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { uploadArchivoDiseno } from '../../application/proyectosService.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { getThumbnailMediaUrl, resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 
 export function EntregaPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
@@ -129,7 +130,13 @@ export function EntregaPanel({ proyectoId, soloLectura }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {fotos.map((foto, idx) => (
               <div key={idx} className="relative group bg-slate-100 rounded-xl overflow-hidden aspect-square border border-slate-200">
-                <img src={foto.url} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                <img
+                  src={getThumbnailMediaUrl(resolveMediaUrl(foto.url || foto.previewDataUrl || ''))}
+                  alt={`Evidencia ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
                 {!soloLectura && (
                   <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button 

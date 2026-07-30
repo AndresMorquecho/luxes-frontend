@@ -119,7 +119,8 @@ export const PrintQueueProvider = ({ children }) => {
     };
   }, [fetchJobs]);
 
-  // Timer simulation (counts up elapsed seconds for all active jobs in "Imprimiendo")
+  // Persistir elapsed cada 5s sin forzar re-render global cada segundo.
+  // La UI de TV/cronómetro usa timers locales (TvElapsedTimer).
   useEffect(() => {
     const timer = setInterval(() => {
       setActiveJobs(prevJobs => {
@@ -128,14 +129,12 @@ export const PrintQueueProvider = ({ children }) => {
         const nextJobs = prevJobs.map(job => {
           if (job.status === "Imprimiendo") {
             hasChanges = true;
-            const nextSeconds = (job.elapsedSeconds || 0) + 1;
-            if (nextSeconds % 5 === 0) {
-              fetch(`/api/impresiones/${job.id}`, {
-                method: 'PUT',
-                headers: getHeaders(),
-                body: JSON.stringify({ elapsedSeconds: nextSeconds }),
-              }).catch(e => console.error('Error saving elapsed seconds:', e));
-            }
+            const nextSeconds = (job.elapsedSeconds || 0) + 5;
+            fetch(`/api/impresiones/${job.id}`, {
+              method: 'PUT',
+              headers: getHeaders(),
+              body: JSON.stringify({ elapsedSeconds: nextSeconds }),
+            }).catch(e => console.error('Error saving elapsed seconds:', e));
             return { ...job, elapsedSeconds: nextSeconds };
           }
           return job;
@@ -146,7 +145,7 @@ export const PrintQueueProvider = ({ children }) => {
         }
         return prevJobs;
       });
-    }, 1000);
+    }, 5000);
 
     return () => clearInterval(timer);
   }, []);
