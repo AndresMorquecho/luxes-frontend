@@ -136,6 +136,17 @@ export function useProyecto(id) {
     }
   }
 
+  async function reloadProyecto() {
+    try {
+      const actualizado = await adapter.getById(id);
+      if (actualizado) {
+        dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios: actualizado } });
+      }
+    } catch (error) {
+      console.error('[useProyecto] Error al recargar proyecto:', error);
+    }
+  }
+
   return {
     proyecto,
     loading: state.loading,
@@ -143,6 +154,7 @@ export function useProyecto(id) {
     retroceder,
     updateFaseDatos,
     updateProyecto,
+    reloadProyecto,
     validacionFaseActual,
   };
 }

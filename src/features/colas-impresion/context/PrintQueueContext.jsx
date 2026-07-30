@@ -384,6 +384,41 @@ export const PrintQueueProvider = ({ children }) => {
     return allJobs;
   }, [activeJobs, queue, completedJobs]);
 
+  // Reimprimir un trabajo cancelado (duplica el trabajo y lo pone en la cola "En espera")
+  const reimprimirJob = async (job) => {
+    if (!job) return;
+    try {
+      const res = await fetch('/api/impresiones', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          name: job.name,
+          copies: job.copies || 1,
+          format: job.format || '',
+          sentBy: getActiveUser(),
+          sentAt: new Date().toISOString(),
+          sentToQueueAt: new Date().toISOString(),
+          fileUrl: job.fileUrl,
+          client: job.client || '',
+          urgency: job.urgency || 'Media',
+          width: job.width || 1.0,
+          height: job.height || 1.0,
+          notes: job.notes || '',
+          proyectoId: job.proyectoId || null,
+          proyectoNombre: job.proyectoNombre || null,
+          batchId: job.batchId || null,
+        }),
+      });
+      if (res.ok) {
+        notifyUpdate();
+        return await res.json();
+      }
+    } catch (e) {
+      console.error('[reimprimirJob] Error:', e);
+      throw e;
+    }
+  };
+
   return (
     <PrintQueueContext.Provider value={{
       activeJobs,
@@ -405,6 +440,7 @@ export const PrintQueueProvider = ({ children }) => {
       handleMoveUp,
       handleReturnToQueue,
       addJobToQueue,
+      reimprimirJob,
       getJobsByProyectoId
     }}>
       {children}

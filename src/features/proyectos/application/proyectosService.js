@@ -137,3 +137,65 @@ export const uploadEvidenciaInstalacion = async (proyectoId, file) => {
   }
   return data.data;
 };
+
+// ── Lotes de Diseño Complementarios ────────────────────────────────────────
+
+/**
+ * Crea un nuevo lote de diseño para un proyecto (funciona en cualquier fase).
+ */
+export const createBatchDiseno = async (proyectoId, batchData = {}) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/proyectos/${proyectoId}/diseno/batches`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: JSON.stringify(batchData),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al crear lote de diseño');
+  }
+  return data.data;
+};
+
+/**
+ * Agrega un archivo (ya subido) a un batch de diseño específico.
+ */
+export const addArchivoToBatch = async (proyectoId, batchId, archivo) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/proyectos/${proyectoId}/diseno/batches/${batchId}/archivos`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: JSON.stringify({ archivo }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al agregar archivo al lote');
+  }
+  return data.data;
+};
+
+/**
+ * Envía un lote de diseño a la cola de impresión.
+ */
+export const enviarBatchImpresion = async (proyectoId, batchId, jobData = {}) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/proyectos/${proyectoId}/diseno/batches/${batchId}/enviar-impresion`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: JSON.stringify(jobData),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al enviar lote a impresión');
+  }
+  return data.data;
+};

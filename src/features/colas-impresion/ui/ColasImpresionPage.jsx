@@ -11,7 +11,7 @@ import { createOrden } from '../../compras/application/comprasService';
 import { toast } from '../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../shared/ui/components/ConfirmModal';
 import { isAdminUser } from '../../../shared/utils/userRoleHelpers.js';
-import { User, Folder, Package, Crop, FileText, Clock, List, Printer, Monitor, Play, Pause, ArrowUp, Download, Trash2, XCircle, Tag, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { User, Folder, Package, Crop, FileText, Clock, List, Printer, Monitor, Play, Pause, ArrowUp, Download, Trash2, XCircle, Tag, Check, ChevronLeft, ChevronRight, RotateCcw, RefreshCw } from 'lucide-react';
 
 const renderPriorityBadge = (urgency) => {
   let bgColor = '#f1f5f9';
@@ -218,8 +218,69 @@ export const ColasImpresionPage = () => {
     handleCancelQueueJob,
     handleStartQueueJob,
     handleMoveUp,
-    handleReturnToQueue
+    handleReturnToQueue,
+    addJobToQueue,
+    reimprimirJob,
   } = usePrintQueue();
+
+  const [reintegrarStock, setReintegrarStock] = useState(true);
+  const [reimprimiendoId, setReimprimiendoId] = useState(null);
+
+  const handleReimprimir = async (job) => {
+    if (reimprimiendoId) return;
+
+    // Verificar si ya existe el trabajo activo o en espera en la cola
+    const yaEnCola = [...queue, ...activeJobs].some(
+      (j) => j.proyectoId === job.proyectoId && (job.batchId ? j.batchId === job.batchId : j.name === job.name)
+    );
+
+    if (yaEnCola) {
+      toast.warning('Este trabajo ya fue re-enviado y se encuentra listo en la cola de impresión. Revisa la lista "Documentos en Cola" arriba.', 4000);
+      setActiveTab('cola');
+      return;
+    }
+
+    setReimprimiendoId(job.id);
+    try {
+      await reimprimirJob(job);
+      toast.success(`Trabajo "${job.name}" re-enviado a la cola exitosamente. Revisa la pestaña "Cola de Impresión" para iniciar su impresión. 🖨️`, 4500);
+      setActiveTab('cola');
+    } catch (err) {
+      toast.error('Error al re-enviar el trabajo: ' + err.message);
+    } finally {
+      setReimprimiendoId(null);
+    }
+  };
+
+  const handleCancelFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!cancelTargetJob || !cancelReasonText.trim()) return;
+
+    const targetJob = cancelTargetJob;
+
+    if (reintegrarStock && targetJob.notes && targetJob.notes.includes('INSUS:')) {
+      try {
+        const jsonStr = targetJob.notes.split('INSUS:')[1]?.split('|')[0]?.trim();
+        if (jsonStr) {
+          const insumosToReturn = JSON.parse(jsonStr);
+          if (Array.isArray(insumosToReturn) && insumosToReturn.length > 0) {
+            await Promise.all(insumosToReturn.map(item => 
+              registrarMovimiento(item.materialId, {
+                tipo: 'entrada',
+                cantidad: Number(item.cantidad),
+                motivo: `Devolución por cancelación de impresión - Trabajo: ${targetJob.name}`,
+              })
+            ));
+            toast.success('Insumos devueltos al inventario exitosamente 📦');
+          }
+        }
+      } catch (errInsumos) {
+        console.error('Error al reintegrar insumos al inventario:', errInsumos);
+      }
+    }
+
+    await handleConfirmCancel(e);
+  };
 
   const [activeTab, setActiveTab] = useState('cola'); // 'cola' or 'historial'
   const [activeJobIndex, setActiveJobIndex] = useState(0);
@@ -533,8 +594,19 @@ export const ColasImpresionPage = () => {
       // Prepare detailed string of materials consumed
       const consumoDetalle = deductables.map(item => `${item.nombre} (${item.quantity} ${item.unidad})`).join(', ');
 
+      const insumosGuardar = deductables.map(i => ({
+        materialId: i.materialId,
+        nombre: i.nombre,
+        cantidad: Number(i.quantity),
+        unidad: i.unidad
+      }));
+
+      const notesConInsumos = prepJob.notes
+        ? `${prepJob.notes} | INSUS:${JSON.stringify(insumosGuardar)}`
+        : `INSUS:${JSON.stringify(insumosGuardar)}`;
+
       // Start the print job directly in 'Imprimiendo' status
-      await handleStartQueueJob(prepJob.id, 'Imprimiendo', { consumoDetalle });
+      await handleStartQueueJob(prepJob.id, 'Imprimiendo', { consumoDetalle, notes: notesConInsumos });
       toast.success('Trabajo de impresión cargado e iniciado.');
       setShowPrepModal(false);
       setPrepJob(null);
@@ -1234,7 +1306,7 @@ export const ColasImpresionPage = () => {
                         <th style={{ width: '10%' }}>Responsable</th>
                         <th style={{ width: '70px' }}>Duración</th>
                         <th style={{ width: '80px' }}>Estado</th>
-                        <th style={{ width: '50px', textAlign: 'center' }}>Ver</th>
+                        <th style={{ width: '90px', textAlign: 'center' }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1292,21 +1364,52 @@ export const ColasImpresionPage = () => {
                             </span>
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <button 
-                              type="button" 
-                              className="btn-action" 
-                              title="Ver Ficha Técnica"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedJobDetails(job);
-                                setShowDetailsModal(true);
-                              }}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                <circle cx="12" cy="12" r="3" />
-                              </svg>
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                              {job.status === 'Cancelado' ? (
+                                <button 
+                                  type="button" 
+                                  className="btn-action" 
+                                  title="Re-imprimir trabajo (Re-enviar a la cola)"
+                                  disabled={reimprimiendoId === job.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReimprimir(job);
+                                  }}
+                                  style={{ color: '#6366f1' }}
+                                >
+                                  {reimprimiendoId === job.id ? (
+                                    <RefreshCw size={14} className="animate-spin" />
+                                  ) : (
+                                    <RotateCcw size={14} />
+                                  )}
+                                </button>
+                              ) : (
+                                <button 
+                                  type="button" 
+                                  className="btn-action" 
+                                  title="Trabajo completado (re-impresión deshabilitada)"
+                                  disabled
+                                  style={{ color: '#cbd5e1', cursor: 'not-allowed', opacity: 0.4 }}
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                              )}
+                              <button 
+                                type="button" 
+                                className="btn-action" 
+                                title="Ver Ficha Técnica"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedJobDetails(job);
+                                  setShowDetailsModal(true);
+                                }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="action-icon">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1367,6 +1470,37 @@ export const ColasImpresionPage = () => {
                           </div>
                         </div>
                         <div className="colas-card-actions">
+                          {job.status === 'Cancelado' ? (
+                            <button 
+                              type="button"
+                              disabled={reimprimiendoId === job.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReimprimir(job);
+                              }}
+                              className="btn-action-mobile" 
+                              style={{ backgroundColor: '#e0e7ff', color: '#4338ca' }}
+                              title="Re-imprimir trabajo"
+                            >
+                              {reimprimiendoId === job.id ? (
+                                <RefreshCw size={14} className="animate-spin" />
+                              ) : (
+                                <RotateCcw size={14} />
+                              )}
+                              <span>{reimprimiendoId === job.id ? 'Enviando...' : 'Re-imprimir'}</span>
+                            </button>
+                          ) : (
+                            <button 
+                              type="button"
+                              disabled
+                              className="btn-action-mobile" 
+                              style={{ backgroundColor: '#f1f5f9', color: '#cbd5e1', cursor: 'not-allowed', opacity: 0.6 }}
+                              title="Trabajo completado"
+                            >
+                              <RotateCcw size={14} />
+                              <span>Re-imprimir</span>
+                            </button>
+                          )}
                           <button 
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setDownloadJob(job); }}
@@ -1444,7 +1578,7 @@ export const ColasImpresionPage = () => {
             <p className="colas-modal-desc">
               Por favor, especifica el motivo por el cual estás cancelando la impresión de <strong>{cancelTargetJob ? cancelTargetJob.name : (activeJob ? activeJob.name : "")}</strong>. Esta información quedará registrada en el historial del trabajo.
             </p>
-            <form onSubmit={handleConfirmCancel} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleCancelFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <textarea 
                 className="colas-modal-textarea" 
                 placeholder="Escribe aquí el motivo (ej: Papel atascado, error de sustrato, archivo incorrecto...)"
@@ -1452,6 +1586,42 @@ export const ColasImpresionPage = () => {
                 onChange={e => setCancelReasonText(e.target.value)}
                 required
               />
+
+              {/* Opciones de Cuadratura de Inventario */}
+              {cancelTargetJob?.notes?.includes('INSUS:') && (
+                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '0.85rem 1rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '0.5rem' }}>
+                    📦 Cuadratura de Inventario
+                  </span>
+                  <label style={{ display: 'flex', itemsCenter: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.8rem', color: '#475569', marginBottom: '0.4rem' }}>
+                    <input
+                      type="radio"
+                      name="reintegroInventario"
+                      checked={reintegrarStock}
+                      onChange={() => setReintegrarStock(true)}
+                      style={{ marginTop: '2px' }}
+                    />
+                    <div>
+                      <strong style={{ color: '#16a34a', display: 'block' }}>Reintegrar insumos al inventario (Devolución)</strong>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>El material no sufrió daños o fue un error de archivo. Devuelve el stock descontado.</span>
+                    </div>
+                  </label>
+                  <label style={{ display: 'flex', itemsCenter: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.8rem', color: '#475569' }}>
+                    <input
+                      type="radio"
+                      name="reintegroInventario"
+                      checked={!reintegrarStock}
+                      onChange={() => setReintegrarStock(false)}
+                      style={{ marginTop: '2px' }}
+                    />
+                    <div>
+                      <strong style={{ color: '#dc2626', display: 'block' }}>Marcar como Merma / Material dañado</strong>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>El material se atascó o se echó a perder en la máquina. Registra la salida como pérdida.</span>
+                    </div>
+                  </label>
+                </div>
+              )}
+
               <div className="colas-modal-actions">
                 <button type="button" onClick={handleCloseCancelModal} className="btn-modal-back">
                   Volver
