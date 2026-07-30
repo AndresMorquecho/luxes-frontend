@@ -127,7 +127,7 @@ function BatchCard({ batch, proyectoId, onBatchUpdated, isNew }) {
   };
 
   // Un lote se considera "cerrado" si tiene un job activo o completado (NO cancelado)
-  const yaEnviado = !!batch.jobImpresionId && !jobCancelado;
+  const yaEnviado = (!!batch.jobImpresionId || batch.estado === 'printed' || batch.estado === 'pending_print') && !jobCancelado;
   // Solo se puede editar/subir si el lote NO está enviado activo
   const canEdit = !yaEnviado;
   // Solo se puede enviar si hay archivos y no está enviado activo
@@ -237,9 +237,14 @@ function BatchCard({ batch, proyectoId, onBatchUpdated, isNew }) {
         )}
 
         {yaEnviado && (
-          <div className="flex items-center gap-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2.5 rounded-xl">
-            <CheckCircle size={13} className="shrink-0" />
-            <span className="font-semibold">Enviado a cola de impresión — Job #{batch.jobImpresionId}</span>
+          <div className="flex flex-col gap-1 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2.5 rounded-xl">
+            <div className="flex items-center gap-2 font-semibold">
+              <CheckCircle size={13} className="shrink-0 text-emerald-600" />
+              <span>Enviado a cola de impresión {batch.jobImpresionId ? `— Job #${batch.jobImpresionId}` : ''}</span>
+            </div>
+            <p className="text-[10px] text-emerald-600 ml-5">
+              Este lote está cerrado. Si necesitas enviar diseños adicionales a impresión, haz clic en <strong>"+ Agregar diseño complementario"</strong> abajo.
+            </p>
           </div>
         )}
       </div>
