@@ -85,7 +85,13 @@ export default function ProyectoDetallePage() {
     }
     return null;
   });
-  const [subTab, setSubTab] = useState('fases'); // 'fases' | 'gastos'
+  const [isPendingTab, startTabTransition] = React.useTransition();
+  const handleSetSubTab = (val) => {
+    startTabTransition(() => setSubTab(val));
+  };
+  const handleSetFaseVista = (val) => {
+    startTabTransition(() => setFaseVista(val));
+  };
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
   const [confirmRetroceder, setConfirmRetroceder] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -324,7 +330,7 @@ export default function ProyectoDetallePage() {
         {/* Selector de sub-pestañas principales */}
         <div className="flex gap-1 sm:gap-2 border-b border-slate-200 pb-px overflow-x-auto">
           <button
-            onClick={() => setSubTab('fases')}
+            onClick={() => handleSetSubTab('fases')}
             className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
               ${subTab === 'fases'
                 ? 'border-indigo-500 text-indigo-600'
@@ -334,7 +340,7 @@ export default function ProyectoDetallePage() {
           </button>
           {canViewGastos && (
             <button
-              onClick={() => setSubTab('gastos')}
+              onClick={() => handleSetSubTab('gastos')}
               className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
                 ${subTab === 'gastos'
                   ? 'border-indigo-500 text-indigo-600'
@@ -353,7 +359,7 @@ export default function ProyectoDetallePage() {
                 faseActual={proyecto.faseActual} 
                 fases={proyecto.fases} 
                 faseVista={faseActiva}
-                onFaseClick={(fId) => setFaseVista(fId)}
+                onFaseClick={handleSetFaseVista}
                 requiereInstalacion={proyecto.requiereInstalacion}
               />
           <div className="mt-3 sm:mt-5">
@@ -911,7 +917,7 @@ export default function ProyectoDetallePage() {
 }
 
 // ── Componente de Gastos y Compras del Proyecto ──────────────────────────────
-function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }) {
+const GastosComprasTab = React.memo(function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }) {
   const [showForm, setShowForm] = useState(false);
   const [concepto, setConcepto] = useState('');
   const [monto, setMonto] = useState('');
@@ -1992,4 +1998,4 @@ function GastosComprasTab({ proyecto, isAdmin, updateProyecto, reloadProyectos }
 
     </div>
   );
-}
+});

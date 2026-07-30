@@ -339,7 +339,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
                     </div>
                     
                     <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-semibold border border-emerald-100">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                       Vinculada
                     </div>
                   </div>

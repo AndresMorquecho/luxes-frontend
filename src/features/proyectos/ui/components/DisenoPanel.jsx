@@ -254,7 +254,7 @@ function BatchCard({ batch, proyectoId, onBatchUpdated, isNew }) {
 
 // ── Componente Principal ───────────────────────────────────────────────────
 
-export function DisenoPanel({ proyectoId, soloLectura }) {
+export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos, reloadProyecto } = useProyecto(proyectoId);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -611,4 +611,4 @@ export function DisenoPanel({ proyectoId, soloLectura }) {
       </div>
     </div>
   );
-}
+});

@@ -10,7 +10,7 @@ import { getMateriales } from '../../../inventario/application/inventarioService
 import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
 import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 
-export function ProduccionPanel({ proyectoId, soloLectura = false }) {
+export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const formatDateTime = (dateStr) => {
     if (!dateStr) return '—';
     try {
@@ -328,7 +328,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
   return (
     <div className="space-y-6">
       {showSuccess && (
-        <div className="fixed top-4 right-4 z-50 bg-white border-l-4 border-emerald-500 rounded-xl shadow-lg p-4 max-w-sm flex items-center gap-3 animate-bounce">
+        <div className="fixed top-4 right-4 z-50 bg-white border-l-4 border-emerald-500 rounded-xl shadow-lg p-4 max-w-sm flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
             <CheckCircle size={18} />
           </div>
@@ -889,4 +889,4 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
       )}
     </div>
   );
-}
+});

@@ -11,9 +11,7 @@
   position: fixed;
   left: 0;
   top: 0;
-  box-shadow: 6px 0 24px rgba(15, 23, 42, 0.15);
   z-index: 100;
-  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
   border-right: 1px solid #cbd5e1;
   transform: translateZ(0);
   contain: layout paint style;
@@ -21,7 +19,6 @@
 
 .sidebar.collapsed {
   width: 80px;
-  box-shadow: 1px 0 8px rgba(0, 0, 0, 0.04);
 }
 
 .sidebar.collapsed .chevron-icon,
