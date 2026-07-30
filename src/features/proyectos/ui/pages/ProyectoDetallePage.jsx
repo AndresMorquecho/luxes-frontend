@@ -85,6 +85,7 @@ export default function ProyectoDetallePage() {
     }
     return null;
   });
+  const [subTab, setSubTab] = useState('fases'); // 'fases' | 'gastos'
   const [isPendingTab, startTabTransition] = React.useTransition();
   const handleSetSubTab = (val) => {
     startTabTransition(() => setSubTab(val));
