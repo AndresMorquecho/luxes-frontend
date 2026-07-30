@@ -1,46 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { usePushNotifications } from '../shared/hooks/usePushNotifications';
 import { Login } from '../features/auth/infrastructure/ui/Login';
 import { LandingPage } from '../features/auth/infrastructure/ui/LandingPage';
 import { CategoryDetailPage } from '../features/auth/infrastructure/ui/CategoryDetailPage';
 import { Layout } from '../shared/ui/components/Layout';
-import NominaFeature from '../features/nomina/ui';
-import { RegistrosPage } from '../features/asistencia/ui/pages/RegistrosPage';
-import { ColasImpresionPage } from '../features/colas-impresion/ui/ColasImpresionPage';
-import { ImpresionesPage } from '../features/impresiones/ui/ImpresionesPage';
 import { PrintQueueProvider } from '../features/colas-impresion/context/PrintQueueContext';
-import ProyectosFeature from '../features/proyectos/ui/index.jsx';
 import { ProyectosProvider } from '../features/proyectos/application/context/ProyectosContext.jsx';
-import ProformasFeature from '../features/proformas/ui';
-import ClientesFeature from '../features/clientes/ui';
-import ProveedoresFeature from '../features/proveedores/ui';
-import UsuariosFeature from '../features/usuarios/ui';
-import ComprasFeature from '../features/compras/ui';
-import VentasFeature from '../features/ventas/ui';
-import GastosFeature from '../features/gastos/ui';
-import InventarioFeature from '../features/inventario/ui';
-import TareasFeature from '../features/tareas/ui';
-import { EncuestaPage } from '../features/proyectos/ui/pages/EncuestaPage.jsx';
-import { InstalacionesPage } from '../features/instalaciones/ui/InstalacionesPage.jsx';
-import { MaterialesRequestPage } from '../features/instalaciones/ui/MaterialesRequestPage.jsx';
-import DashboardPage from '../features/dashboard/ui/pages/DashboardPage.jsx';
-import { NotificacionesPage } from '../features/notificaciones/ui/pages/NotificacionesPage';
-import { FormOrdenCompraPage } from '../features/compras/ui/pages/FormOrdenCompraPage';
-import ConfiguracionFeature from '../features/configuracion/ui';
-import { MovimientosPage } from '../features/gastos/ui/pages/MovimientosPage';
-import { BalancesPage } from '../features/gastos/ui/pages/BalancesPage';
 import { ToastContainer } from '../shared/ui/components/Toast';
 import { isAsistenciaUser, isTallerUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
 import { ErrorBoundary } from '../shared/ui/components/ErrorBoundary';
-import { TallerControlPage } from '../features/gastos/ui/pages/TallerControlPage';
-
-function LegacyRecepcionRedirect() {
-  const { ordenId } = useParams();
-  return <Navigate to={ordenId ? `/compras/recepcion/${ordenId}` : '/compras/recepcion'} replace />;
-}
 import './index.css';
+
+// Dynamic lazy-loaded route features
+const NominaFeature = lazy(() => import('../features/nomina/ui'));
+const RegistrosPage = lazy(() => import('../features/asistencia/ui/pages/RegistrosPage').then(m => ({ default: m.RegistrosPage })));
+const ColasImpresionPage = lazy(() => import('../features/colas-impresion/ui/ColasImpresionPage').then(m => ({ default: m.ColasImpresionPage })));
+const ImpresionesPage = lazy(() => import('../features/impresiones/ui/ImpresionesPage').then(m => ({ default: m.ImpresionesPage })));
+const ProyectosFeature = lazy(() => import('../features/proyectos/ui/index.jsx'));
+const ProformasFeature = lazy(() => import('../features/proformas/ui'));
+const ClientesFeature = lazy(() => import('../features/clientes/ui'));
+const ProveedoresFeature = lazy(() => import('../features/proveedores/ui'));
+const UsuariosFeature = lazy(() => import('../features/usuarios/ui'));
+const ComprasFeature = lazy(() => import('../features/compras/ui'));
+const VentasFeature = lazy(() => import('../features/ventas/ui'));
+const GastosFeature = lazy(() => import('../features/gastos/ui'));
+const InventarioFeature = lazy(() => import('../features/inventario/ui'));
+const TareasFeature = lazy(() => import('../features/tareas/ui'));
+const EncuestaPage = lazy(() => import('../features/proyectos/ui/pages/EncuestaPage.jsx').then(m => ({ default: m.EncuestaPage })));
+const InstalacionesPage = lazy(() => import('../features/instalaciones/ui/InstalacionesPage.jsx').then(m => ({ default: m.InstalacionesPage })));
+const MaterialesRequestPage = lazy(() => import('../features/instalaciones/ui/MaterialesRequestPage.jsx').then(m => ({ default: m.MaterialesRequestPage })));
+const DashboardPage = lazy(() => import('../features/dashboard/ui/pages/DashboardPage.jsx'));
+const NotificacionesPage = lazy(() => import('../features/notificaciones/ui/pages/NotificacionesPage').then(m => ({ default: m.NotificacionesPage })));
+const ConfiguracionFeature = lazy(() => import('../features/configuracion/ui'));
+const MovimientosPage = lazy(() => import('../features/gastos/ui/pages/MovimientosPage').then(m => ({ default: m.MovimientosPage })));
+const BalancesPage = lazy(() => import('../features/gastos/ui/pages/BalancesPage').then(m => ({ default: m.BalancesPage })));
+const TallerControlPage = lazy(() => import('../features/gastos/ui/pages/TallerControlPage').then(m => ({ default: m.TallerControlPage })));
+
+const RouteLoading = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+    <div style={{ width: '32px', height: '32px', border: '3px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+  </div>
+);
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -247,57 +249,59 @@ function App() {
       <PrintQueueProvider>
       <ProyectosProvider>
         <Layout user={user} onLogout={handleLogout}>
-          {isTallerMode ? (
-            <Routes>
-              <Route path="/notificaciones" element={<NotificacionesPage />} />
-              <Route path="/instalaciones" element={<InstalacionesPage />} />
-              <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
-              <Route path="/tareas/*" element={<TareasFeature />} />
-              <Route path="/compras/*" element={<ComprasFeature />} />
-              <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
-              <Route path="/inventario/*" element={<InventarioFeature />} />
-              <Route path="/inventario/recepcion" element={<Navigate to="/compras/recepcion" replace />} />
-              <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
-              <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
-              <Route path="/taller/control" element={<TallerControlPage />} />
-              <Route path="*" element={<Navigate to="/taller/control" replace />} />
-            </Routes>
-          ) : (
-            <Routes>
-              <Route path="/" element={
-                isImpresion ? <Navigate to="/colas-impresion" replace /> :
-                (isVentas || isDisenador) ? <Navigate to="/proformas" replace /> :
-                <DashboardPage />
-              } />
-              <Route path="/catalogo/:categorySlug" element={<CategoryDetailPage />} />
-              <Route path="/notificaciones" element={<NotificacionesPage />} />
-              {!isImpresion && <Route path="/nomina/*" element={<NominaFeature />} />}
-              {!isImpresion && <Route path="/impresiones" element={<ImpresionesPage />} />}
-              <Route path="/colas-impresion" element={<ColasImpresionPage />} />
-              <Route path="/instalaciones" element={<InstalacionesPage />} />
-              <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
-              <Route path="/inventario/*" element={<InventarioFeature />} />
-              {!isImpresion && <Route path="/proyectos/*" element={<ProyectosFeature />} />}
-              {!isImpresion && <Route path="/proformas/*" element={<ProformasFeature />} />}
-              {!isImpresion && <Route path="/clientes/*" element={<ClientesFeature />} />}
-              {!isImpresion && <Route path="/proveedores/*" element={<ProveedoresFeature />} />}
-              {!isImpresion && !isVentas && !isDisenador && <Route path="/usuarios/*" element={<UsuariosFeature />} />}
-              {!isImpresion && !isVentas && !isDisenador && <Route path="/configuracion/*" element={<ConfiguracionFeature />} />}
-              <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
-              <Route path="/compras/*" element={<ComprasFeature />} />
-              {!isImpresion && <Route path="/ventas/*" element={<VentasFeature />} />}
-              {!isImpresion && !isVentas && !isDisenador && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
-              {!isImpresion && !isVentas && !isDisenador && <Route path="/flota/*" element={<GastosFeature defaultTab="vehiculos" />} />}
-              {!isImpresion && !isVentas && !isDisenador && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
-              {!isImpresion && !isVentas && !isDisenador && <Route path="/movimientos/*" element={<MovimientosPage />} />}
-              {!isImpresion && !isVentas && !isDisenador && <Route path="/balances" element={<BalancesPage />} />}
-              <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
-              <Route path="/tareas/*" element={<TareasFeature />} />
-              <Route path="/taller/control" element={<TallerControlPage />} />
-              {/* Redirección por defecto */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          )}
+          <Suspense fallback={<RouteLoading />}>
+            {isTallerMode ? (
+              <Routes>
+                <Route path="/notificaciones" element={<NotificacionesPage />} />
+                <Route path="/instalaciones" element={<InstalacionesPage />} />
+                <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
+                <Route path="/tareas/*" element={<TareasFeature />} />
+                <Route path="/compras/*" element={<ComprasFeature />} />
+                <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
+                <Route path="/inventario/*" element={<InventarioFeature />} />
+                <Route path="/inventario/recepcion" element={<Navigate to="/compras/recepcion" replace />} />
+                <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
+                <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
+                <Route path="/taller/control" element={<TallerControlPage />} />
+                <Route path="*" element={<Navigate to="/taller/control" replace />} />
+              </Routes>
+            ) : (
+              <Routes>
+                <Route path="/" element={
+                  isImpresion ? <Navigate to="/colas-impresion" replace /> :
+                  (isVentas || isDisenador) ? <Navigate to="/proformas" replace /> :
+                  <DashboardPage />
+                } />
+                <Route path="/catalogo/:categorySlug" element={<CategoryDetailPage />} />
+                <Route path="/notificaciones" element={<NotificacionesPage />} />
+                {!isImpresion && <Route path="/nomina/*" element={<NominaFeature />} />}
+                {!isImpresion && <Route path="/impresiones" element={<ImpresionesPage />} />}
+                <Route path="/colas-impresion" element={<ColasImpresionPage />} />
+                <Route path="/instalaciones" element={<InstalacionesPage />} />
+                <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
+                <Route path="/inventario/*" element={<InventarioFeature />} />
+                {!isImpresion && <Route path="/proyectos/*" element={<ProyectosFeature />} />}
+                {!isImpresion && <Route path="/proformas/*" element={<ProformasFeature />} />}
+                {!isImpresion && <Route path="/clientes/*" element={<ClientesFeature />} />}
+                {!isImpresion && <Route path="/proveedores/*" element={<ProveedoresFeature />} />}
+                {!isImpresion && !isVentas && !isDisenador && <Route path="/usuarios/*" element={<UsuariosFeature />} />}
+                {!isImpresion && !isVentas && !isDisenador && <Route path="/configuracion/*" element={<ConfiguracionFeature />} />}
+                <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
+                <Route path="/compras/*" element={<ComprasFeature />} />
+                {!isImpresion && <Route path="/ventas/*" element={<VentasFeature />} />}
+                {!isImpresion && !isVentas && !isDisenador && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
+                {!isImpresion && !isVentas && !isDisenador && <Route path="/flota/*" element={<GastosFeature defaultTab="vehiculos" />} />}
+                {!isImpresion && !isVentas && !isDisenador && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
+                {!isImpresion && !isVentas && !isDisenador && <Route path="/movimientos/*" element={<MovimientosPage />} />}
+                {!isImpresion && !isVentas && !isDisenador && <Route path="/balances" element={<BalancesPage />} />}
+                <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
+                <Route path="/tareas/*" element={<TareasFeature />} />
+                <Route path="/taller/control" element={<TallerControlPage />} />
+                {/* Redirección por defecto */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            )}
+          </Suspense>
         </Layout>
       </ProyectosProvider>
       </PrintQueueProvider>

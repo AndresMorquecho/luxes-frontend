@@ -781,7 +781,7 @@ export const ImpresionesPage = () => {
                       >
                         <div style={{ width: '40px', height: '40px', borderRadius: '4px', backgroundColor: 'white', display: 'flex', alignItems: 'center', justify: 'center', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
                           {art.type && art.type.includes('image') && art.url ? (
-                            <img src={art.url} alt="art preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={art.url} alt="art preview" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '18px', height: '18px', color: '#7c3aed' }}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -1137,7 +1137,7 @@ export const ImpresionesPage = () => {
                                 <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.1rem 0.3rem', borderRadius: '4px', maxWidth: '140px' }} title={f.name}>
                                   <div style={{ width: '16px', height: '16px', borderRadius: '2px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                     {isImageFile(f.name, f.url) ? (
-                                      <img src={f.url} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      <img src={f.url} alt="thumb" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
                                       <span style={{ fontSize: '7px' }}>📄</span>
                                     )}
@@ -1278,7 +1278,7 @@ export const ImpresionesPage = () => {
                         <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.5rem 0.75rem', backgroundColor: '#f8fafc', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                           <div style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ede9fe', display: 'flex', alignItems: 'center', justify: 'center', border: '1px solid #ddd6fe', flexShrink: 0 }}>
                             {isImageFile(f.name, f.url) ? (
-                              <img src={f.url} alt="Mini Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '5px' }} />
+                              <img src={f.url} alt="Mini Preview" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '5px' }} />
                             ) : (
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '16px', height: '16px', color: '#7c3aed' }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -1385,7 +1385,7 @@ export const ImpresionesPage = () => {
                           <div key={art.url || idx} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', backgroundColor: '#f8fafc', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                             <div style={{ width: '40px', height: '40px', borderRadius: '6px', backgroundColor: '#ede9fe', display: 'flex', alignItems: 'center', justify: 'center', border: '1px solid #ddd6fe', flexShrink: 0 }}>
                               {art.type && art.type.includes('image') && art.url ? (
-                                <img src={art.url} alt="Mini Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '5px' }} />
+                                <img src={art.url} alt="Mini Preview" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '5px' }} />
                               ) : (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ width: '20px', height: '20px', color: '#7c3aed' }}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />

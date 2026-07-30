@@ -52,6 +52,8 @@ export function ProjectMediaImage({
       alt={alt}
       className={className}
       onError={handleError}
+      loading="lazy"
+      decoding="async"
       {...props}
     />
   );
