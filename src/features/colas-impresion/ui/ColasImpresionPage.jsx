@@ -161,6 +161,19 @@ const parseJobFiles = (job) => {
   }];
 };
 
+const getCleanNotes = (notes) => {
+  if (!notes) return '';
+  const index = notes.indexOf('INSUS:');
+  if (index !== -1) {
+    let clean = notes.substring(0, index).trim();
+    if (clean.endsWith('|')) {
+      clean = clean.slice(0, -1).trim();
+    }
+    return clean;
+  }
+  return notes.trim();
+};
+
 const getJobMaterialDisplay = (job) => {
   if (!job) return 'Sin material';
   if (job.format && job.format !== 'Sin material' && job.format !== 'Sin formato') {
@@ -168,11 +181,16 @@ const getJobMaterialDisplay = (job) => {
   }
   if (job.notes && job.notes.includes('INSUS:')) {
     try {
-      const jsonStr = job.notes.split('INSUS:')[1]?.split('|')[0]?.trim();
-      if (jsonStr) {
-        const ins = JSON.parse(jsonStr);
-        if (Array.isArray(ins) && ins.length > 0) {
-          return ins.map(i => i.nombre).join(', ');
+      const parts = job.notes.split('INSUS:');
+      for (let i = parts.length - 1; i >= 1; i--) {
+        const jsonStr = parts[i]?.split('|')[0]?.trim();
+        if (jsonStr) {
+          try {
+            const ins = JSON.parse(jsonStr);
+            if (Array.isArray(ins) && ins.length > 0) {
+              return ins.map(item => item.nombre).join(', ');
+            }
+          } catch (e) {}
         }
       }
     } catch (e) {
@@ -289,20 +307,30 @@ export const ColasImpresionPage = () => {
     if (targetJob.notes && targetJob.notes.includes('INSUS:')) {
       if (reintegrarStock) {
         try {
-          const jsonStr = targetJob.notes.split('INSUS:')[1]?.split('|')[0]?.trim();
-          if (jsonStr) {
-            const insumosToReturn = JSON.parse(jsonStr);
-            if (Array.isArray(insumosToReturn) && insumosToReturn.length > 0) {
-              await Promise.all(insumosToReturn.map(item => 
-                registrarMovimiento(item.materialId, {
-                  tipo: 'entrada',
-                  cantidad: Number(item.cantidad),
-                  motivo: `Devolución por cancelación de impresión - Trabajo: ${targetJob.name}`,
-                })
-              ));
-              toast.success('Insumos devueltos al inventario exitosamente 📦');
-              invNota = ' [Inventario: Insumos devueltos al stock]';
+          const parts = targetJob.notes.split('INSUS:');
+          let insumosToReturn = [];
+          for (let i = parts.length - 1; i >= 1; i--) {
+            const jsonStr = parts[i]?.split('|')[0]?.trim();
+            if (jsonStr) {
+              try {
+                const parsed = JSON.parse(jsonStr);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  insumosToReturn = parsed;
+                  break;
+                }
+              } catch (e) {}
             }
+          }
+          if (insumosToReturn.length > 0) {
+            await Promise.all(insumosToReturn.map(item => 
+              registrarMovimiento(item.materialId, {
+                tipo: 'entrada',
+                cantidad: Number(item.cantidad),
+                motivo: `Devolución por cancelación de impresión - Trabajo: ${targetJob.name}`,
+              })
+            ));
+            toast.success('Insumos devueltos al inventario exitosamente 📦');
+            invNota = ' [Inventario: Insumos devueltos al stock]';
           }
         } catch (errInsumos) {
           console.error('Error al reintegrar insumos al inventario:', errInsumos);
@@ -638,8 +666,9 @@ export const ColasImpresionPage = () => {
         unidad: i.unidad
       }));
 
-      const notesConInsumos = prepJob.notes
-        ? `${prepJob.notes} | INSUS:${JSON.stringify(insumosGuardar)}`
+      const cleanNotes = getCleanNotes(prepJob.notes);
+      const notesConInsumos = cleanNotes
+        ? `${cleanNotes} | INSUS:${JSON.stringify(insumosGuardar)}`
         : `INSUS:${JSON.stringify(insumosGuardar)}`;
 
       const nombresMateriales = deductables.map(i => i.nombre).join(', ');
@@ -1392,9 +1421,9 @@ export const ColasImpresionPage = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                               <span style={{ fontWeight: 600 }}>{job.format}</span>
                               <span style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 500 }}>Medidas: {job.width || 1.0}m x {job.height || 1.0}m</span>
-                              {job.notes && (
-                                <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={job.notes}>
-                                  Obs: {job.notes}
+                              {getCleanNotes(job.notes) && (
+                                <span style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '0.1rem 0.25rem', borderRadius: '4px', display: 'inline-block', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={getCleanNotes(job.notes)}>
+                                  Obs: {getCleanNotes(job.notes)}
                                 </span>
                               )}
                             </div>
@@ -1783,10 +1812,10 @@ export const ColasImpresionPage = () => {
                 </div>
               </div>
 
-              {selectedJobDetails.notes && (
+              {getCleanNotes(selectedJobDetails.notes) && (
                 <div style={{ marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderLeft: '4px solid var(--color-primary-blue)', borderRadius: '6px' }}>
                   <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Indicaciones Especiales</span>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: 1.45 }}>{selectedJobDetails.notes}</p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: 1.45 }}>{getCleanNotes(selectedJobDetails.notes)}</p>
                 </div>
               )}
 
@@ -1911,9 +1940,9 @@ export const ColasImpresionPage = () => {
                       </div>
                     </div>
 
-                    {prepJob.notes && (
+                    {getCleanNotes(prepJob.notes) && (
                       <div className="prep-notes-box">
-                        <strong>Obs:</strong> {prepJob.notes}
+                        <strong>Obs:</strong> {getCleanNotes(prepJob.notes)}
                       </div>
                     )}
                   </div>

@@ -1,7 +1,7 @@
 /* c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/navigation/infrastructure/ui/Sidebar.css */
 
 .sidebar {
-  width: var(--sidebar-width);
+  width: 280px;
   height: 100vh;
   /* Fondo clarito tipo azulado premium */
   background-color: #f0f4f8;
@@ -11,11 +11,22 @@
   position: fixed;
   left: 0;
   top: 0;
-  box-shadow: 1px 0 10px rgba(0, 0, 0, 0.02);
+  box-shadow: 6px 0 24px rgba(15, 23, 42, 0.15);
   z-index: 100;
-  /* Transición suave de anchura para cuando se colapse */
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-right: 1px solid #cbd5e1; /* Borde derecho un poco más definido */
+  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
+  border-right: 1px solid #cbd5e1;
+  will-change: width;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+  box-shadow: 1px 0 8px rgba(0, 0, 0, 0.04);
+}
+
+.sidebar.collapsed .chevron-icon,
+.sidebar.collapsed .submenu-chevron,
+.sidebar.collapsed .sidebar-submenu {
+  display: none !important;
 }
 
 /* Cabecera del Sidebar con el Logo */
@@ -38,7 +49,14 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+}
+
+.sidebar-logo-collapsed {
+  display: none;
+}
+.sidebar-logo-expanded {
+  display: block;
 }
 
 .sidebar.collapsed .sidebar-logo-box {
@@ -48,12 +66,17 @@
   min-height: 64px;
 }
 
-.sidebar.collapsed .sidebar-logo-img {
+.sidebar.collapsed .sidebar-logo-collapsed {
+  display: block !important;
   width: 36px;
   height: 36px;
   max-height: 36px;
   max-width: 36px;
   object-fit: contain;
+}
+
+.sidebar.collapsed .sidebar-logo-expanded {
+  display: none !important;
 }
 
 /* Navegación */

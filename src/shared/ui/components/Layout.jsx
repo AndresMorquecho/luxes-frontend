@@ -157,6 +157,30 @@ export const Layout = ({ children, user, onLogout }) => {
 
   const mobileUserLabel = user?.nombre || mobileBrandLabel;
 
+  const hoverTimeoutRef = React.useRef(null);
+
+  const handleMouseEnterSidebar = () => {
+    if (isMobile) return;
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsCollapsed(false);
+    }, 120);
+  };
+
+  const handleMouseLeaveSidebar = () => {
+    if (isMobile) return;
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsCollapsed(true);
+    }, 180);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
+
   return (
     <div className={`layout-container ${isMobile ? 'mobile' : ''} ${isMobileOpen ? 'mobile-open' : ''} ${(!isMobile && isCollapsed) ? 'collapsed' : ''} ${isAsistenciaMode ? 'kiosk-layout' : ''} ${isBottomNavMobile ? 'mobile-taller-layout' : ''}`}>
       {/* Backdrop overlay for mobile drawer */}
@@ -170,12 +194,8 @@ export const Layout = ({ children, user, onLogout }) => {
       {!isAsistenciaMode && (!isBottomNavMobile || (isMobile && isMobileOpen)) && (
         <Sidebar 
           isCollapsed={isMobile ? false : isCollapsed} 
-          onMouseEnter={() => {
-            if (!isMobile) setIsCollapsed(false);
-          }}
-          onMouseLeave={() => {
-            if (!isMobile) setIsCollapsed(true);
-          }}
+          onMouseEnter={handleMouseEnterSidebar}
+          onMouseLeave={handleMouseLeaveSidebar}
           user={user}
           onLogout={onLogout}
         />

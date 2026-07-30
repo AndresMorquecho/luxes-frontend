@@ -13,12 +13,11 @@
 
 .layout-body {
   flex: 1;
-  margin-left: var(--sidebar-width);
+  margin-left: 80px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   min-width: 0;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .layout-top-bar {
