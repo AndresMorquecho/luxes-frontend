@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   getArchivoMediaSrc,
   getArchivoPreviewFallback,
@@ -8,12 +8,19 @@ import {
 
 /**
  * Imagen de proyecto: thumbnail/url primero; base64 solo como último fallback.
+ * 
+ * Optimizaciones de rendimiento:
+ * - Anti-loop: si el src que fallió es el mismo que intentamos, no re-intentar
+ * - Dimensiones explícitas para evitar reflow/CLS
+ * - React.memo para evitar re-renders innecesarios
  */
-export function ProjectMediaImage({
+export const ProjectMediaImage = React.memo(function ProjectMediaImage({
   archivo,
   evidencia,
   alt = '',
   className = '',
+  width,
+  height,
   ...props
 }) {
   const primary = evidencia != null
@@ -28,10 +35,14 @@ export function ProjectMediaImage({
 
   const [src, setSrc] = useState(primary);
   const [fetchAttempted, setFetchAttempted] = useState(false);
-  const isMountedRef = React.useRef(true);
+  const isMountedRef = useRef(true);
+  // Rastrear qué srcs ya fallaron para evitar loops infinitos
+  const failedSrcsRef = useRef(new Set());
 
   useEffect(() => {
     isMountedRef.current = true;
+    // Al cambiar de archivo, resetear el estado
+    failedSrcsRef.current = new Set();
     setSrc(primary);
     setFetchAttempted(false);
     return () => {
@@ -41,24 +52,33 @@ export function ProjectMediaImage({
 
   const handleError = async () => {
     if (!isMountedRef.current) return;
-    // Fallback a original (no thumb) antes de base64
+
+    // Si ya fallamos con este src, no re-intentar (anti-loop)
+    if (failedSrcsRef.current.has(src)) return;
+    failedSrcsRef.current.add(src);
+
+    // Fallback 1: original (no thumb)
     if (rawUrl) {
       const full = typeof evidencia === 'object'
         ? resolveEvidenciaSrc(evidencia, { thumbnail: false })
         : getArchivoMediaSrc(archivo, false);
-      if (full && src !== full) {
-        setSrc(full);
+      if (full && !failedSrcsRef.current.has(full)) {
+        if (isMountedRef.current) setSrc(full);
         return;
       }
     }
-    if (embeddedPreview && src !== embeddedPreview) {
+
+    // Fallback 2: base64 embebido (legado)
+    if (embeddedPreview && !failedSrcsRef.current.has(embeddedPreview)) {
       if (isMountedRef.current) setSrc(embeddedPreview);
       return;
     }
+
+    // Fallback 3: fetch blob con JWT (solo una vez)
     if (!fetchAttempted) {
       if (isMountedRef.current) setFetchAttempted(true);
       const blobUrl = await fetchMediaBlobUrl(rawUrl || primary);
-      if (blobUrl && isMountedRef.current) {
+      if (blobUrl && isMountedRef.current && !failedSrcsRef.current.has(blobUrl)) {
         setSrc(blobUrl);
       }
     }
@@ -74,7 +94,9 @@ export function ProjectMediaImage({
       onError={handleError}
       loading="lazy"
       decoding="async"
+      width={width}
+      height={height}
       {...props}
     />
   );
-}
+});

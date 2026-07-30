@@ -94,8 +94,27 @@ export function getArchivoPreviewFallback(archivo) {
   return archivo.previewDataUrl || '';
 }
 
-/** Descarga con JWT (fallback si /uploads no está disponible). */
+/** Caché global en memoria: cacheKey → blobUrl */
+const _blobUrlCache = new Map();
+/** Deduplicación de fetches concurrentes para la misma URL */
+const _blobFetchInFlight = new Map();
+
+/** Descarga con JWT (fallback si /uploads no está disponible).
+ *  Usa caché en memoria para evitar múltiples descargas del mismo archivo. */
 export async function fetchMediaBlobUrl(url) {
+  if (!url) return null;
+
+  // Retornar desde caché si ya fue descargado
+  const cacheKey = String(url);
+  if (_blobUrlCache.has(cacheKey)) {
+    return _blobUrlCache.get(cacheKey);
+  }
+
+  // Deduplicar: si ya hay un fetch en vuelo para esta URL, esperar al mismo promise
+  if (_blobFetchInFlight.has(cacheKey)) {
+    return _blobFetchInFlight.get(cacheKey);
+  }
+
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
   const uploadsUrl = resolveMediaUrl(url);
   const candidates = [];
@@ -108,17 +127,29 @@ export async function fetchMediaBlobUrl(url) {
   }
   if (url?.startsWith('/api/')) candidates.push(url);
 
-  for (const candidate of candidates) {
-    try {
-      const res = await fetch(candidate, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) continue;
-      const blob = await res.blob();
-      return URL.createObjectURL(blob);
-    } catch {
-      /* siguiente candidato */
+  const fetchPromise = (async () => {
+    for (const candidate of candidates) {
+      try {
+        const res = await fetch(candidate, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        _blobUrlCache.set(cacheKey, blobUrl);
+        return blobUrl;
+      } catch {
+        /* siguiente candidato */
+      }
     }
+    return null;
+  })();
+
+  _blobFetchInFlight.set(cacheKey, fetchPromise);
+  try {
+    const result = await fetchPromise;
+    return result;
+  } finally {
+    _blobFetchInFlight.delete(cacheKey);
   }
-  return null;
 }

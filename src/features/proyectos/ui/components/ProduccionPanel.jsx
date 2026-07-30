@@ -32,6 +32,8 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
   const { proyecto } = useProyecto(proyectoId);
   const { getJobsByProyectoId, addJobToQueue } = usePrintQueue();
   const [activeSubTab, setActiveSubTab] = useState('timeline'); // 'timeline' or 'enviar'
+  const [showAllArtFiles, setShowAllArtFiles] = useState(false);
+  const MAX_VISIBLE_ART_FILES = 4;
   const [loadedProyectoId, setLoadedProyectoId] = useState(null);
 
   const parseJobFiles = (job) => {
@@ -421,9 +423,9 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
                                 <div className="flex flex-wrap gap-2 mt-2 min-w-0">
                                   {files.map((f, i) => (
                                     <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-1.5 pr-2.5 py-1 rounded-xl shadow-sm hover:shadow-md transition-shadow max-w-full min-w-0">
-                                      <div className="w-8 h-8 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 flex items-center justify-center">
+                                      <div className="w-8 h-8 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 flex items-center justify-center" style={{ minWidth: '32px', minHeight: '32px' }}>
                                         {isImageFile(f.name, f.url) ? (
-                                          <ProjectMediaImage archivo={f} alt="preview" className="w-full h-full object-cover" />
+                                          <ProjectMediaImage archivo={f} alt="preview" className="w-full h-full object-cover" width={32} height={32} />
                                         ) : (
                                           <FileText size={14} className="text-slate-400" />
                                         )}
@@ -598,15 +600,15 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
                     </span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-1">
-                    {archivosArte.map((art, idx) => (
+                    {(showAllArtFiles ? archivosArte : archivosArte.slice(0, MAX_VISIBLE_ART_FILES)).map((art, idx) => (
                       <div
                         key={art.url || idx}
                         className="flex flex-col items-center justify-center p-3 border border-purple-200 bg-purple-50/30 rounded-xl gap-1.5 relative shadow-sm"
                         title={art.name}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-purple-100 shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-purple-100 shrink-0" style={{ minWidth: '40px', minHeight: '40px' }}>
                           {art.type && art.type.includes('image') && art.url ? (
-                            <ProjectMediaImage archivo={art} alt="art preview" className="w-full h-full object-cover" />
+                            <ProjectMediaImage archivo={art} alt="art preview" className="w-full h-full object-cover" width={40} height={40} />
                           ) : (
                             <FileText size={16} className="text-purple-400" />
                           )}
@@ -619,6 +621,16 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
                         </span>
                       </div>
                     ))}
+                    {!showAllArtFiles && archivosArte.length > MAX_VISIBLE_ART_FILES && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllArtFiles(true)}
+                        className="flex flex-col items-center justify-center p-3 border border-dashed border-purple-300 bg-purple-50/50 rounded-xl gap-1.5 text-purple-600 hover:bg-purple-100 transition-colors cursor-pointer"
+                      >
+                        <span className="text-lg font-bold">+{archivosArte.length - MAX_VISIBLE_ART_FILES}</span>
+                        <span className="text-[10px] font-semibold">Ver todos</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );

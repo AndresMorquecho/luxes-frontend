@@ -20,7 +20,7 @@ const ESTADO_BATCH = {
   cancelled:     { label: 'Cancelado',              color: 'text-slate-400 bg-slate-50 border-slate-200' },
 };
 
-function ArchivoCard({ file, onRemove }) {
+const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-1 overflow-hidden">
       <div className="flex gap-4 p-4">
@@ -29,9 +29,16 @@ function ArchivoCard({ file, onRemove }) {
           target="_blank"
           rel="noopener noreferrer"
           className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shrink-0 relative group"
+          style={{ minWidth: '80px', minHeight: '80px' }}
         >
           {file.type && file.type.includes('image') ? (
-            <ProjectMediaImage archivo={file} alt="Preview" className="w-full h-full object-cover" />
+            <ProjectMediaImage
+              archivo={file}
+              alt="Preview"
+              className="w-full h-full object-cover"
+              width={80}
+              height={80}
+            />
           ) : (
             <File size={28} className="text-slate-400" />
           )}
@@ -62,7 +69,8 @@ function ArchivoCard({ file, onRemove }) {
       </div>
     </div>
   );
-}
+});
+
 
 // ── Sub-componente: Lote Individual ────────────────────────────────────────
 
@@ -409,7 +417,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
             Lotes de Diseño
           </h3>
 
-          <div className="space-y-4">
+          <div className="space-y-4" style={{ contain: 'content' }}>
             {/* Lote inicial legado (cuando no hay batches aún pero hay archivos) */}
             {!hasBatches && archivosIniciales.length > 0 && (
               <div className="border border-emerald-200 rounded-2xl overflow-hidden">
