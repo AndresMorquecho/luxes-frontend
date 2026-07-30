@@ -63,11 +63,6 @@ export default function ProyectoDetallePage() {
   const [searchParams] = useSearchParams();
   const { reloadProyectos } = useProyectosContext();
 
-  React.useEffect(() => {
-    if (reloadProyectos) {
-      reloadProyectos();
-    }
-  }, [location.pathname, location.search, reloadProyectos]);
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const isAdmin = isAdminUser(user);

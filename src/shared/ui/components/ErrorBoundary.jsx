@@ -46,7 +46,11 @@ export class ErrorBoundary extends React.Component {
       error?.name === 'NotFoundError' ||
       (typeof error?.message === 'string' && error.message.includes('removeChild'));
     if (isDomRace) {
-      return null;
+      return (
+        <div className="flex items-center justify-center p-12 min-h-[300px]">
+          <div className="w-6 h-6 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
     }
 
     return (

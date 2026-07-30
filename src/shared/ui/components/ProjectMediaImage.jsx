@@ -24,21 +24,27 @@ export function ProjectMediaImage({
 
   const [src, setSrc] = useState(primary);
   const [fetchAttempted, setFetchAttempted] = useState(false);
+  const isMountedRef = React.useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     setSrc(primary);
     setFetchAttempted(false);
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [primary]);
 
   const handleError = async () => {
+    if (!isMountedRef.current) return;
     if (embeddedPreview && src !== embeddedPreview) {
-      setSrc(embeddedPreview);
+      if (isMountedRef.current) setSrc(embeddedPreview);
       return;
     }
     if (!fetchAttempted) {
-      setFetchAttempted(true);
+      if (isMountedRef.current) setFetchAttempted(true);
       const blobUrl = await fetchMediaBlobUrl(rawUrl || primary);
-      if (blobUrl) {
+      if (blobUrl && isMountedRef.current) {
         setSrc(blobUrl);
       }
     }
