@@ -30,6 +30,7 @@
   background-color: var(--color-bg);
   min-width: 0;
   transform: translateZ(0);
+  contain: layout paint;
 }
 
 .layout-main:has(.co-compras-page),
