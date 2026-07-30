@@ -381,7 +381,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
           {linkedJobs.length === 0 ? (
             <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-6 flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                <Clock size={22} className="text-blue-600 animate-pulse" />
+                <Clock size={22} className="text-blue-600" />
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-800">Diseño aprobado, esperando producción</p>
@@ -536,7 +536,7 @@ export function ProduccionPanel({ proyectoId, soloLectura = false }) {
                         {/* Pending state for jobs still in queue or printing */}
                         {!job.completedAt && job.trackingStatus !== 'Cancelado' && (
                           <div className="relative flex items-start gap-3">
-                            <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full bg-slate-300 border-2 border-white shadow-sm z-10 animate-pulse" />
+                            <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full bg-slate-400 border-2 border-white shadow-sm z-10" />
                             <div className="flex-1 min-w-0">
                               <span className="text-xs font-medium text-slate-400 italic">
                                 {job.trackingStatus === 'Imprimiendo' ? 'Imprimiendo ahora...' : 'En espera de impresión...'}

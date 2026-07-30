@@ -77,7 +77,7 @@ function DesktopTimeline({ filteredFases, faseActual, fases, faseVista, onFaseCl
                     {fase.label}
                   </span>
                   {esVista && !esActual && (
-                    <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest mt-0.5 animate-pulse bg-blue-50 px-1.5 py-0.5 rounded">
+                    <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest mt-0.5 bg-blue-50 px-1.5 py-0.5 rounded">
                       Viendo
                     </span>
                   )}
