@@ -161,6 +161,27 @@ const parseJobFiles = (job) => {
   }];
 };
 
+const getJobMaterialDisplay = (job) => {
+  if (!job) return 'Sin material';
+  if (job.format && job.format !== 'Sin material' && job.format !== 'Sin formato') {
+    return job.format;
+  }
+  if (job.notes && job.notes.includes('INSUS:')) {
+    try {
+      const jsonStr = job.notes.split('INSUS:')[1]?.split('|')[0]?.trim();
+      if (jsonStr) {
+        const ins = JSON.parse(jsonStr);
+        if (Array.isArray(ins) && ins.length > 0) {
+          return ins.map(i => i.nombre).join(', ');
+        }
+      }
+    } catch (e) {
+      // fallback
+    }
+  }
+  return job.format || 'Sin material';
+};
+
 const isImageFile = (name, url) => {
   const n = (name || '').toLowerCase();
   const u = (url || '').toLowerCase();
@@ -622,15 +643,13 @@ export const ColasImpresionPage = () => {
         : `INSUS:${JSON.stringify(insumosGuardar)}`;
 
       const nombresMateriales = deductables.map(i => i.nombre).join(', ');
-      const formatActualizado = (prepJob.format && prepJob.format !== 'Sin formato' && prepJob.format !== 'Sin material')
-        ? prepJob.format
-        : nombresMateriales;
+      const formatActualizado = nombresMateriales || prepJob.format || 'Material Asignado';
 
       // Start the print job directly in 'Imprimiendo' status
       await handleStartQueueJob(prepJob.id, 'Imprimiendo', {
         consumoDetalle,
         notes: notesConInsumos,
-        format: formatActualizado || 'Material Asignado'
+        format: formatActualizado
       });
       toast.success('Trabajo de impresión cargado e iniciado.');
       setShowPrepModal(false);
@@ -929,7 +948,7 @@ export const ColasImpresionPage = () => {
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Material</span>
-                                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{currentActiveJob.format || 'Sin material'}</span>
+                                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>{getJobMaterialDisplay(currentActiveJob)}</span>
                               </div>
                             </div>
 
@@ -2582,7 +2601,7 @@ export const ColasImpresionPage = () => {
                           const details = [
                             { label: 'Cliente', value: currentTvJob.client || 'Sin cliente', Icon: User },
                             { label: 'Proyecto', value: currentTvJob.proyectoNombre || (currentTvJob.createdAt ? new Date(currentTvJob.createdAt).toLocaleDateString('es-EC') : '—'), Icon: Folder },
-                            { label: 'Material', value: currentTvJob.format || 'Sin material', Icon: Package },
+                            { label: 'Material', value: getJobMaterialDisplay(currentTvJob), Icon: Package },
                             { label: 'Medidas', value: `${currentTvJob.width || 1.0}m x ${currentTvJob.height || 1.0}m`, Icon: Crop },
                             { label: 'Cantidad', value: `${currentTvJob.copies} ${currentTvJob.copies === 1 ? 'copia' : 'copias'}`, Icon: FileText },
                           ];
