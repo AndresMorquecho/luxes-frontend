@@ -1,6 +1,6 @@
 /**
  * Rutas de medios de proyecto.
- * Las etiquetas <img> no envían JWT: usar /uploads (público) o previewDataUrl embebido.
+ * Preferir /uploads o thumbnails; previewDataUrl (base64) solo como fallback legado.
  */
 
 export function uploadsProyectoUrl(proyectoId, filename) {
@@ -48,13 +48,22 @@ export function getArchivoMediaSrc(archivo, isThumbnail = true) {
   else if (archivo.previewDataUrl) return archivo.previewDataUrl;
 
   const resolved = resolveMediaUrl(rawUrl);
-  if (!resolved) return '';
+  if (!resolved) {
+    if (typeof archivo === 'object' && archivo.previewDataUrl) return archivo.previewDataUrl;
+    return '';
+  }
   if (isThumbnail) return getThumbnailMediaUrl(resolved);
   return resolved;
 }
 
-/** URL o data-URI para evidencia de instalación (base64 legado, objeto o ruta). */
-export function resolveEvidenciaSrc(item) {
+/**
+ * URL para evidencia de instalación.
+ * Prioriza url/uploads; previewDataUrl solo si no hay url (legado).
+ * @param {object|string} item
+ * @param {{ thumbnail?: boolean }} [opts]
+ */
+export function resolveEvidenciaSrc(item, opts = {}) {
+  const { thumbnail = false } = opts;
   if (!item) return '';
   if (typeof item === 'string') {
     if (
@@ -65,12 +74,18 @@ export function resolveEvidenciaSrc(item) {
     ) {
       return item;
     }
-    if (item.startsWith('/')) return resolveMediaUrl(item);
+    if (item.startsWith('/')) {
+      const resolved = resolveMediaUrl(item);
+      return thumbnail ? getThumbnailMediaUrl(resolved) : resolved;
+    }
     if (item.length > 80) return `data:image/jpeg;base64,${item}`;
     return item;
   }
+  if (item.url) {
+    const resolved = resolveMediaUrl(item.url);
+    return thumbnail ? getThumbnailMediaUrl(resolved) : resolved;
+  }
   if (item.previewDataUrl) return item.previewDataUrl;
-  if (item.url) return resolveMediaUrl(item.url);
   return '';
 }
 

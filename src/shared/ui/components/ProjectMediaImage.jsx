@@ -7,7 +7,7 @@ import {
 } from '../../utils/mediaUrl.js';
 
 /**
- * Imagen de proyecto con fallback: preview embebido → /uploads → fetch autenticado.
+ * Imagen de proyecto: thumbnail/url primero; base64 solo como último fallback.
  */
 export function ProjectMediaImage({
   archivo,
@@ -16,11 +16,15 @@ export function ProjectMediaImage({
   className = '',
   ...props
 }) {
-  const primary = evidencia != null ? resolveEvidenciaSrc(evidencia) : getArchivoMediaSrc(archivo);
+  const primary = evidencia != null
+    ? resolveEvidenciaSrc(evidencia, { thumbnail: true })
+    : getArchivoMediaSrc(archivo);
   const embeddedPreview = evidencia != null
     ? (typeof evidencia === 'object' ? evidencia.previewDataUrl : '')
     : getArchivoPreviewFallback(archivo);
-  const rawUrl = typeof archivo === 'object' ? archivo?.url : (typeof archivo === 'string' ? archivo : '');
+  const rawUrl = typeof archivo === 'object'
+    ? archivo?.url
+    : (typeof evidencia === 'object' ? evidencia?.url : (typeof archivo === 'string' ? archivo : ''));
 
   const [src, setSrc] = useState(primary);
   const [fetchAttempted, setFetchAttempted] = useState(false);
@@ -37,6 +41,16 @@ export function ProjectMediaImage({
 
   const handleError = async () => {
     if (!isMountedRef.current) return;
+    // Fallback a original (no thumb) antes de base64
+    if (rawUrl) {
+      const full = typeof evidencia === 'object'
+        ? resolveEvidenciaSrc(evidencia, { thumbnail: false })
+        : getArchivoMediaSrc(archivo, false);
+      if (full && src !== full) {
+        setSrc(full);
+        return;
+      }
+    }
     if (embeddedPreview && src !== embeddedPreview) {
       if (isMountedRef.current) setSrc(embeddedPreview);
       return;
