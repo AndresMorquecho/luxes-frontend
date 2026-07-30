@@ -1,5 +1,6 @@
 // src/features/proyectos/application/hooks/useProyecto.js
 
+import { useRef, useCallback, useMemo } from 'react';
 import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
 import { validarCamposFase, avanzarFase as avanzarFaseUseCase, retrocederFase as retrocederFaseUseCase } from '../../domain/use-cases/avanzarFase.js';
@@ -40,29 +41,30 @@ export function enrichValidacionConImpresion(validacion, jobs = []) {
 export function useProyecto(id) {
   const { state, dispatch, adapter } = useProyectosContext();
 
-  const proyecto = state.proyectos.find((p) => p.id === id) ?? null;
+  // Referencia estable: solo devuelve un nuevo objeto si los datos del proyecto cambiaron
+  // Esto evita re-renders en DisenoPanel/ProduccionPanel cuando otros proyectos cambian
+  const proyectoFromState = state.proyectos.find((p) => p.id === id) ?? null;
+  const lastProyectoRef = useRef(proyectoFromState);
+  if (proyectoFromState !== lastProyectoRef.current) {
+    lastProyectoRef.current = proyectoFromState;
+  }
+  const proyecto = lastProyectoRef.current;
 
-  async function avanzar() {
+  const avanzar = useCallback(async () => {
     if (!proyecto) return;
-
     const proyectoActualizado = avanzarFaseUseCase(proyecto);
-
     dispatch({ type: ACTIONS.AVANZAR_FASE, payload: { id } });
-
     try {
       await adapter.avanzarFase(id, proyectoActualizado.faseActual, proyectoActualizado.fases[proyectoActualizado.faseActual]?.datos || {});
     } catch (error) {
       console.error('Error al guardar avance de fase:', error);
     }
-  }
+  }, [proyecto, id, dispatch, adapter]);
 
-  async function retroceder() {
+  const retroceder = useCallback(async () => {
     if (!proyecto) return;
-
     const proyectoActualizado = retrocederFaseUseCase(proyecto);
-
     dispatch({ type: ACTIONS.RETROCEDER_FASE, payload: { id } });
-
     try {
       await adapter.update(id, {
         faseActual: proyectoActualizado.faseActual,
@@ -71,11 +73,10 @@ export function useProyecto(id) {
     } catch (error) {
       console.error('Error al guardar retroceso de fase:', error);
     }
-  }
+  }, [proyecto, id, dispatch, adapter]);
 
-  async function updateFaseDatos(faseId, nuevosDatos) {
+  const updateFaseDatos = useCallback(async (faseId, nuevosDatos) => {
     if (!proyecto) return;
-
     const cambios = {
       fases: {
         ...proyecto.fases,
@@ -88,9 +89,7 @@ export function useProyecto(id) {
         },
       },
     };
-
     dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios } });
-
     try {
       const datosCompletos = {
         ...(proyecto.fases?.[faseId]?.datos || {}),
@@ -104,30 +103,29 @@ export function useProyecto(id) {
       console.error('Error al guardar datos de fase:', error);
       throw error;
     }
-  }
+  }, [proyecto, id, dispatch, adapter]);
 
-  async function updateProyecto(cambios) {
+  const updateProyecto = useCallback(async (cambios) => {
     if (!proyecto) return;
-
     dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios } });
-
     try {
       await adapter.update(id, cambios);
     } catch (error) {
       console.error('Error al guardar proyecto:', error);
     }
-  }
+  }, [proyecto, id, dispatch, adapter]);
 
-  const validacionFaseActual = proyecto
+  const validacionFaseActual = useMemo(() => proyecto
     ? validarCamposFase(
         getFaseConfig(proyecto.faseActual) || {},
         proyecto.faseActual === 'INSTALACION'
           ? { datos: getDatosInstalacionMerged(proyecto) }
           : (proyecto.fases?.[proyecto.faseActual] || {})
       )
-    : { valido: false, faltantes: [] };
+    : { valido: false, faltantes: [] },
+  [proyecto]);
 
-  async function reloadProyecto() {
+  const reloadProyecto = useCallback(async () => {
     try {
       const actualizado = await adapter.getById(id);
       if (actualizado) {
@@ -136,7 +134,7 @@ export function useProyecto(id) {
     } catch (error) {
       console.error('[useProyecto] Error al recargar proyecto:', error);
     }
-  }
+  }, [id, adapter, dispatch]);
 
   return {
     proyecto,
