@@ -29,6 +29,7 @@
   padding: 2rem 2.5rem 2.5rem;
   background-color: var(--color-bg);
   min-width: 0;
+  transform: translateZ(0);
 }
 
 .layout-main:has(.co-compras-page),

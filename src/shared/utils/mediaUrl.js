@@ -32,13 +32,25 @@ export function resolveMediaUrl(url) {
   return trimmed;
 }
 
-/** URL o data-URI para un archivo de diseño guardado en fase DISEÑO. */
-export function getArchivoMediaSrc(archivo) {
+export function getThumbnailMediaUrl(url) {
+  const resolved = resolveMediaUrl(url);
+  if (!resolved || resolved.startsWith('data:') || resolved.startsWith('blob:')) return resolved;
+  if (resolved.startsWith('http://') || resolved.startsWith('https://')) return resolved;
+  return `/api/media/thumbnail?url=${encodeURIComponent(resolved)}`;
+}
+
+/** URL o miniatura optimizada para un archivo de diseño en tableros. */
+export function getArchivoMediaSrc(archivo, isThumbnail = true) {
   if (!archivo) return '';
-  if (typeof archivo === 'string') return resolveMediaUrl(archivo);
-  if (archivo.previewDataUrl) return archivo.previewDataUrl;
-  if (archivo.url) return resolveMediaUrl(archivo.url);
-  return '';
+  let rawUrl = '';
+  if (typeof archivo === 'string') rawUrl = archivo;
+  else if (archivo.url) rawUrl = archivo.url;
+  else if (archivo.previewDataUrl) return archivo.previewDataUrl;
+
+  const resolved = resolveMediaUrl(rawUrl);
+  if (!resolved) return '';
+  if (isThumbnail) return getThumbnailMediaUrl(resolved);
+  return resolved;
 }
 
 /** URL o data-URI para evidencia de instalación (base64 legado, objeto o ruta). */
