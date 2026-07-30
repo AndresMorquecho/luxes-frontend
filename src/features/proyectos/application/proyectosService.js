@@ -1,3 +1,4 @@
+// Servicio de proyectos - Versión local principal
 const getHeaders = () => {
   const token = localStorage.getItem('token');
   return {
