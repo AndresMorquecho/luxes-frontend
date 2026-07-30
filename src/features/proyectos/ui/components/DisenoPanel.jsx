@@ -22,7 +22,10 @@ const ESTADO_BATCH = {
 
 const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-1 overflow-hidden">
+    <div
+      className="bg-white border border-slate-200 rounded-2xl p-1 overflow-hidden"
+      style={{ contain: 'content' }}
+    >
       <div className="flex gap-4 p-4">
         <a
           href={file.url}
@@ -42,8 +45,9 @@ const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
           ) : (
             <File size={28} className="text-slate-400" />
           )}
+          {/* Sin backdrop-blur: creaba capas de compositing por cada tarjeta */}
           <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <span className="text-white text-[10px] font-bold bg-slate-800/80 px-2 py-1 rounded backdrop-blur-sm">Ver</span>
+            <span className="text-white text-[10px] font-bold bg-slate-800/80 px-2 py-1 rounded">Ver</span>
           </div>
         </a>
         <div className="flex-1 flex flex-col justify-between min-w-0">
@@ -141,7 +145,10 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
   const canSend = !yaEnviado && archivos.length > 0;
 
   return (
-    <div className={`border rounded-2xl overflow-hidden transition-all ${isNew && !yaEnviado ? 'border-blue-200 shadow-blue-50 shadow-md' : jobCancelado ? 'border-red-200' : 'border-slate-200'}`}>
+    <div
+      className={`border rounded-2xl overflow-hidden transition-all ${isNew && !yaEnviado ? 'border-blue-200 shadow-blue-50 shadow-md' : jobCancelado ? 'border-red-200' : 'border-slate-200'}`}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '0 260px' }}
+    >
       {/* Header del batch */}
       <div className={`px-4 py-3 flex items-center justify-between gap-3 ${isNew && !yaEnviado ? 'bg-blue-50' : jobCancelado ? 'bg-red-50' : 'bg-slate-50'}`}>
         <div className="flex items-center gap-2 min-w-0">

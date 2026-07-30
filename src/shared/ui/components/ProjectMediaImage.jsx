@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useCallback, useTransition, useRef, useEffect } from 'react';
 import {
   getArchivoMediaSrc,
   getArchivoPreviewFallback,
@@ -7,14 +7,14 @@ import {
 } from '../../utils/mediaUrl.js';
 
 /**
- * Imagen de proyecto optimizada para máximo rendimiento.
+ * Imagen de proyecto — muestra thumbnail optimizado con cadena de fallbacks.
  *
- * OPTIMIZACIONES CLAVE:
- * - Usa useRef + DOM directo en vez de useState para cambios de src.
- *   Esto ELIMINA los React Commits por carga de imagen (antes: 1 Commit/imagen).
- * - Anti-loop: Set de srcs fallidos por instancia.
- * - loading="lazy" + decoding="async" para no bloquear el main thread.
- * - width/height obligatorios para evitar reflow/CLS.
+ * OPTIMIZACIONES:
+ * - useState para src (confiable, funciona con loading="lazy")
+ * - startTransition para updates de fallback (no bloquea scroll ni interacciones)
+ * - React.memo para no re-renderizar si las props no cambian
+ * - Anti-loop: Set de srcs ya intentados
+ * - loading="lazy" + decoding="async" para no bloquear el main thread
  */
 export const ProjectMediaImage = React.memo(function ProjectMediaImage({
   archivo,
@@ -35,77 +35,64 @@ export const ProjectMediaImage = React.memo(function ProjectMediaImage({
     ? archivo?.url
     : (typeof evidencia === 'object' ? evidencia?.url : (typeof archivo === 'string' ? archivo : ''));
 
-  const imgRef = useRef(null);
+  const [src, setSrc] = useState(primary);
+  const [, startTransition] = useTransition();
   const isMountedRef = useRef(true);
   const failedSrcsRef = useRef(new Set());
   const fetchAttemptedRef = useRef(false);
-  // Guardar primary para detectar cambios de archivo
-  const primaryRef = useRef(primary);
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
+    return () => { isMountedRef.current = false; };
   }, []);
 
+  // Si cambia el archivo (navegación entre proyectos), resetear estado
   useEffect(() => {
-    if (!imgRef.current) return;
-    // Si cambió el archivo, resetear estado y actualizar src
-    if (primary !== primaryRef.current) {
-      primaryRef.current = primary;
+    if (primary !== src && !failedSrcsRef.current.has(primary)) {
       failedSrcsRef.current = new Set();
       fetchAttemptedRef.current = false;
+      setSrc(primary);
     }
-    // Actualizar src directamente en el DOM — sin setState, sin React Commit
-    if (primary) {
-      imgRef.current.src = primary;
-    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [primary]);
 
-  const handleError = async () => {
-    const img = imgRef.current;
-    if (!img || !isMountedRef.current) return;
+  const handleError = useCallback(async () => {
+    if (!isMountedRef.current) return;
 
-    const currentSrc = img.src;
+    // Anti-loop: no reintentar el mismo src
+    failedSrcsRef.current.add(src);
 
-    // Anti-loop: no reintentar src que ya falló
-    if (failedSrcsRef.current.has(currentSrc)) return;
-    failedSrcsRef.current.add(currentSrc);
+    // Fallback 1: URL sin thumbnail (archivo original)
+    const fullUrl = typeof evidencia === 'object'
+      ? resolveEvidenciaSrc(evidencia, { thumbnail: false })
+      : getArchivoMediaSrc(archivo, false);
 
-    // Fallback 1: URL original (sin thumbnail)
-    if (rawUrl) {
-      const full = typeof evidencia === 'object'
-        ? resolveEvidenciaSrc(evidencia, { thumbnail: false })
-        : getArchivoMediaSrc(archivo, false);
-      if (full && !failedSrcsRef.current.has(full)) {
-        img.src = full; // DOM directo
-        return;
-      }
-    }
-
-    // Fallback 2: base64 embebido (legado)
-    if (embeddedPreview && !failedSrcsRef.current.has(embeddedPreview)) {
-      img.src = embeddedPreview; // DOM directo
+    if (fullUrl && !failedSrcsRef.current.has(fullUrl)) {
+      startTransition(() => setSrc(fullUrl));
       return;
     }
 
-    // Fallback 3: blob fetch con JWT (solo una vez, usa caché)
+    // Fallback 2: base64 embebido (datos legacy)
+    if (embeddedPreview && !failedSrcsRef.current.has(embeddedPreview)) {
+      startTransition(() => setSrc(embeddedPreview));
+      return;
+    }
+
+    // Fallback 3: fetch con JWT (una sola vez, usa caché global)
     if (!fetchAttemptedRef.current) {
       fetchAttemptedRef.current = true;
       const blobUrl = await fetchMediaBlobUrl(rawUrl || primary);
-      if (blobUrl && isMountedRef.current && imgRef.current && !failedSrcsRef.current.has(blobUrl)) {
-        imgRef.current.src = blobUrl; // DOM directo
+      if (blobUrl && isMountedRef.current && !failedSrcsRef.current.has(blobUrl)) {
+        startTransition(() => setSrc(blobUrl));
       }
     }
-  };
+  }, [src, archivo, evidencia, embeddedPreview, rawUrl, primary]);
 
-  if (!primary) return null;
+  if (!src) return null;
 
   return (
     <img
-      ref={imgRef}
-      src={primary}
+      src={src}
       alt={alt}
       className={className}
       onError={handleError}
