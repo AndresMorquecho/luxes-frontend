@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Printer, PlayCircle, CheckCircle, Clock, AlertTriangle, Send, XCircle, User, 
   UploadCloud, Plus, Minus, FileText, Lock, Image as ImageIcon
@@ -10,25 +10,194 @@ import { getMateriales } from '../../../inventario/application/inventarioService
 import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
 import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 
-export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId, soloLectura = false }) {
-  const formatDateTime = (dateStr) => {
-    if (!dateStr) return '—';
+// ── Funciones puras (fuera del componente para no recrear en cada render) ─────
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString('es-EC', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+const parseJobFiles = (job) => {
+  if (!job || !job.fileUrl) return [];
+  const trimmed = job.fileUrl.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
-    } catch {
-      return dateStr;
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {
+      console.error('Error parsing job files JSON:', e);
     }
-  };
+  }
+  return [{ name: job.name, url: job.fileUrl }];
+};
+
+const isImageFile = (name, url) => {
+  const n = (name || '').toLowerCase();
+  const u = (url || '').toLowerCase();
+  return n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg') ||
+    n.endsWith('.gif') || n.endsWith('.webp') ||
+    u.startsWith('data:image') || u.includes('image') || u.startsWith('blob:');
+};
+
+const formatDuration = (seconds) => {
+  if (!seconds) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+};
+
+const getStatusConfig = (estado) => {
+  switch(estado) {
+    case 'Completado': return { color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: CheckCircle, bar: 'bg-emerald-500', dotColor: '#10b981' };
+    case 'Imprimiendo': return { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', icon: PlayCircle, bar: 'bg-blue-500', dotColor: '#3b82f6' };
+    case 'En espera': return { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', icon: Clock, bar: 'bg-slate-200', dotColor: '#f59e0b' };
+    case 'Pausado': return { color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', icon: Clock, bar: 'bg-slate-200', dotColor: '#64748b' };
+    case 'Cancelado': return { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', icon: XCircle, bar: 'bg-red-400', dotColor: '#ef4444' };
+    default: return { color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', icon: AlertTriangle, bar: 'bg-slate-200', dotColor: '#94a3b8' };
+  }
+};
+
+// ── Componente memoizado para cada job del timeline ───────────────────────────
+// Evita re-renderizar TODOS los jobs cuando solo cambia 1 (o el timer de 5s)
+const PrintJobCard = React.memo(function PrintJobCard({ job }) {
+  const config = getStatusConfig(job.trackingStatus);
+  const StatusIcon = config.icon;
+  const files = parseJobFiles(job);
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      {/* Job Header */}
+      <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className={`p-2 rounded-lg shrink-0 ${config.bg} ${config.color}`}>
+            <StatusIcon size={18} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-slate-800 truncate" title={job.name}>{job.name}</h4>
+            <p className="text-xs text-slate-500 truncate" title={`${job.copies} cop. • ${job.format} • ${job.width}m x ${job.height}m`}>
+              {job.copies} cop. • {job.format} • {job.width}m x {job.height}m
+            </p>
+            {files.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2 min-w-0">
+                {files.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-1.5 pr-2.5 py-1 rounded-xl shadow-sm hover:shadow-md transition-shadow max-w-full min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 flex items-center justify-center" style={{ minWidth: '32px', minHeight: '32px' }}>
+                      {isImageFile(f.name, f.url) ? (
+                        <ProjectMediaImage archivo={f} alt="preview" className="w-full h-full object-cover" width={32} height={32} />
+                      ) : (
+                        <FileText size={14} className="text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[10px] text-slate-700 font-bold truncate max-w-[140px]" title={f.name}>{f.name}</span>
+                      <span className="text-[8px] text-slate-400">{f.sizeDisplay || 'Archivo'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md ${config.bg} ${config.color} border ${config.border} shrink-0`}>
+          {job.trackingStatus}
+        </span>
+      </div>
+      {/* Timeline Events */}
+      <div className="px-5 py-4">
+        <div className="relative pl-6 space-y-4">
+          <div className="absolute left-[9px] top-1 bottom-1 w-0.5 bg-slate-200 rounded-full" />
+          {job.sentToQueueAt && (
+            <div className="relative flex items-start gap-3">
+              <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full bg-amber-400 border-2 border-white shadow-sm z-10" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Send size={12} className="text-amber-500 shrink-0" />
+                  <span className="text-xs font-bold text-slate-700">Enviado a cola de impresión</span>
+                </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <span className="text-[11px] text-slate-500">{formatDateTime(job.sentToQueueAt)}</span>
+                  {job.sentBy && (
+                    <span className="text-[11px] text-slate-400 flex items-center gap-1"><User size={10} /> {job.sentBy}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {job.startedPrintingAt && (
+            <div className="relative flex items-start gap-3">
+              <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow-sm z-10" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <PlayCircle size={12} className="text-blue-500 shrink-0" />
+                  <span className="text-xs font-bold text-slate-700">Impresión iniciada</span>
+                </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <span className="text-[11px] text-slate-500">{formatDateTime(job.startedPrintingAt)}</span>
+                  {job.responsible && (
+                    <span className="text-[11px] text-slate-400 flex items-center gap-1"><User size={10} /> {job.responsible}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {job.completedAt && (
+            <div className="relative flex items-start gap-3">
+              <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm z-10" style={{ backgroundColor: config.dotColor }} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  {job.trackingStatus === 'Cancelado'
+                    ? <XCircle size={12} className="text-red-500 shrink-0" />
+                    : <CheckCircle size={12} className="text-emerald-500 shrink-0" />
+                  }
+                  <span className="text-xs font-bold text-slate-700">
+                    {job.trackingStatus === 'Cancelado' ? 'Cancelado' : 'Impresión finalizada'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <span className="text-[11px] text-slate-500">{formatDateTime(job.completedAt)}</span>
+                  {job.elapsedSeconds > 0 && (
+                    <span className="text-[11px] text-slate-400">Duración: {formatDuration(job.elapsedSeconds)}</span>
+                  )}
+                </div>
+                {job.trackingStatus === 'Cancelado' && job.cancelReason && (
+                  <div className="mt-1.5 px-2.5 py-1.5 bg-red-50 border-l-3 border-red-400 rounded text-[11px] text-red-600" style={{ borderLeft: '3px solid #f87171' }}>
+                    <strong>Motivo:</strong> {job.cancelReason}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {!job.completedAt && job.trackingStatus !== 'Cancelado' && (
+            <div className="relative flex items-start gap-3">
+              <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full bg-slate-400 border-2 border-white shadow-sm z-10" />
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium text-slate-400 italic">
+                  {job.trackingStatus === 'Imprimiendo' ? 'Imprimiendo ahora...' : 'En espera de impresión...'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const { proyecto } = useProyecto(proyectoId);
   const { getJobsByProyectoId, addJobToQueue } = usePrintQueue();
   const [activeSubTab, setActiveSubTab] = useState('timeline'); // 'timeline' or 'enviar'
@@ -171,24 +340,6 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
       }
     }
   }, [proyecto, loadedProyectoId]);
-
-  const getStatusConfig = (estado) => {
-    switch(estado) {
-      case 'Completado': return { color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: CheckCircle, bar: 'bg-emerald-500', dotColor: '#10b981' };
-      case 'Imprimiendo': return { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', icon: PlayCircle, bar: 'bg-blue-500', dotColor: '#3b82f6' };
-      case 'En espera': return { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', icon: Clock, bar: 'bg-slate-200', dotColor: '#f59e0b' };
-      case 'Pausado': return { color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', icon: Clock, bar: 'bg-slate-200', dotColor: '#64748b' };
-      case 'Cancelado': return { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', icon: XCircle, bar: 'bg-red-400', dotColor: '#ef4444' };
-      default: return { color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', icon: AlertTriangle, bar: 'bg-slate-200', dotColor: '#94a3b8' };
-    }
-  };
-
-  const formatDuration = (seconds) => {
-    if (!seconds) return '—';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}m ${s}s`;
-  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -394,165 +545,13 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
             </div>
           ) : (
             <div className="space-y-5">
-              {linkedJobs.map((job) => {
-                const config = getStatusConfig(job.trackingStatus);
-                const StatusIcon = config.icon;
-
-                return (
-                  <div key={job.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                    {/* Job Header */}
-                    <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className={`p-2 rounded-lg shrink-0 ${config.bg} ${config.color}`}>
-                          <StatusIcon size={18} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-bold text-slate-800 truncate" title={job.name}>{job.name}</h4>
-                          <p className="text-xs text-slate-500 truncate" title={`${job.copies} cop. • ${job.format} • ${job.width}m x ${job.height}m`}>{job.copies} cop. • {job.format} • {job.width}m x {job.height}m</p>
-                          {(() => {
-                            const files = parseJobFiles(job);
-                            if (files.length > 0) {
-                              const isImageFile = (name, url) => {
-                                const n = (name || '').toLowerCase();
-                                const u = (url || '').toLowerCase();
-                                return n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg') || n.endsWith('.gif') || n.endsWith('.webp') ||
-                                       u.startsWith('data:image') || u.includes('image') || u.startsWith('blob:');
-                              };
-
-                              return (
-                                <div className="flex flex-wrap gap-2 mt-2 min-w-0">
-                                  {files.map((f, i) => (
-                                    <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-1.5 pr-2.5 py-1 rounded-xl shadow-sm hover:shadow-md transition-shadow max-w-full min-w-0">
-                                      <div className="w-8 h-8 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-100 flex items-center justify-center" style={{ minWidth: '32px', minHeight: '32px' }}>
-                                        {isImageFile(f.name, f.url) ? (
-                                          <ProjectMediaImage archivo={f} alt="preview" className="w-full h-full object-cover" width={32} height={32} />
-                                        ) : (
-                                          <FileText size={14} className="text-slate-400" />
-                                        )}
-                                      </div>
-                                      <div className="flex flex-col min-w-0">
-                                        <span className="text-[10px] text-slate-700 font-bold truncate max-w-[140px]" title={f.name}>
-                                          {f.name}
-                                        </span>
-                                        <span className="text-[8px] text-slate-400">
-                                          {f.sizeDisplay || 'Archivo'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-                      </div>
-                      <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md ${config.bg} ${config.color} border ${config.border} shrink-0 align-self-start sm:align-self-auto`}>
-                        {job.trackingStatus}
-                      </span>
-                    </div>
-
-                    {/* Timeline Events */}
-                    <div className="px-5 py-4">
-                      <div className="relative pl-6 space-y-4">
-                        {/* Vertical line */}
-                        <div className="absolute left-[9px] top-1 bottom-1 w-0.5 bg-slate-200 rounded-full" />
-
-                        {/* Event: Enviado a Cola */}
-                        {job.sentToQueueAt && (
-                          <div className="relative flex items-start gap-3">
-                            <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full bg-amber-400 border-2 border-white shadow-sm z-10" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <Send size={12} className="text-amber-500 shrink-0" />
-                                <span className="text-xs font-bold text-slate-700">Enviado a cola de impresión</span>
-                              </div>
-                              <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{formatDateTime(job.sentToQueueAt)}</span>
-                                {job.sentBy && (
-                                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                    <User size={10} /> {job.sentBy}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Event: Impresión Iniciada */}
-                        {job.startedPrintingAt && (
-                          <div className="relative flex items-start gap-3">
-                            <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow-sm z-10" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <PlayCircle size={12} className="text-blue-500 shrink-0" />
-                                <span className="text-xs font-bold text-slate-700">Impresión iniciada</span>
-                              </div>
-                              <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{formatDateTime(job.startedPrintingAt)}</span>
-                                {job.responsible && (
-                                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                    <User size={10} /> {job.responsible}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Event: Completado / Cancelado */}
-                        {job.completedAt && (
-                          <div className="relative flex items-start gap-3">
-                            <div 
-                              className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm z-10"
-                              style={{ backgroundColor: config.dotColor }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                {job.trackingStatus === 'Cancelado' ? (
-                                  <XCircle size={12} className="text-red-500 shrink-0" />
-                                ) : (
-                                  <CheckCircle size={12} className="text-emerald-500 shrink-0" />
-                                )}
-                                <span className="text-xs font-bold text-slate-700">
-                                  {job.trackingStatus === 'Cancelado' ? 'Cancelado' : 'Impresión finalizada'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{formatDateTime(job.completedAt)}</span>
-                                {job.elapsedSeconds > 0 && (
-                                  <span className="text-[11px] text-slate-400">
-                                    Duración: {formatDuration(job.elapsedSeconds)}
-                                  </span>
-                                )}
-                              </div>
-                              {job.trackingStatus === 'Cancelado' && job.cancelReason && (
-                                <div className="mt-1.5 px-2.5 py-1.5 bg-red-50 border-l-3 border-red-400 rounded text-[11px] text-red-600" style={{ borderLeft: '3px solid #f87171' }}>
-                                  <strong>Motivo:</strong> {job.cancelReason}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Pending state for jobs still in queue or printing */}
-                        {!job.completedAt && job.trackingStatus !== 'Cancelado' && (
-                          <div className="relative flex items-start gap-3">
-                            <div className="absolute left-[-15px] top-0.5 w-3 h-3 rounded-full bg-slate-400 border-2 border-white shadow-sm z-10" />
-                            <div className="flex-1 min-w-0">
-                              <span className="text-xs font-medium text-slate-400 italic">
-                                {job.trackingStatus === 'Imprimiendo' ? 'Imprimiendo ahora...' : 'En espera de impresión...'}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Usar PrintJobCard memoizado: solo re-renderiza el job que cambió */}
+              {linkedJobs.map((job) => (
+                <PrintJobCard key={job.id} job={job} />
+              ))}
             </div>
           )}
+
         </div>
       ) : (
         /* Enviar a Impresión Form */

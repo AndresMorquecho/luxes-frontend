@@ -1,6 +1,6 @@
 /* c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/colas-impresion/context/PrintQueueContext.jsx */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
 const PrintQueueContext = createContext();
 
@@ -365,22 +365,24 @@ export const PrintQueueProvider = ({ children }) => {
   };
 
   // Get all jobs (active + queue + completed) linked to a specific project
+  // Evita crear nuevas referencias si los datos no cambiaron
   const getJobsByProyectoId = useCallback((proyectoId) => {
     if (!proyectoId) return [];
     const allJobs = [];
     activeJobs.forEach(job => {
       if (job.proyectoId === proyectoId) {
-        allJobs.push({ ...job, trackingStatus: job.status });
+        // Solo añadir trackingStatus si no existe, evitando spread innecesario
+        allJobs.push(job.trackingStatus ? job : { ...job, trackingStatus: job.status });
       }
     });
     queue.forEach(job => {
       if (job.proyectoId === proyectoId) {
-        allJobs.push({ ...job, trackingStatus: 'En espera' });
+        allJobs.push(job.trackingStatus === 'En espera' ? job : { ...job, trackingStatus: 'En espera' });
       }
     });
     completedJobs.forEach(job => {
       if (job.proyectoId === proyectoId) {
-        allJobs.push({ ...job, trackingStatus: job.status });
+        allJobs.push(job.trackingStatus ? job : { ...job, trackingStatus: job.status });
       }
     });
     return allJobs;
@@ -421,30 +423,39 @@ export const PrintQueueProvider = ({ children }) => {
     }
   };
 
+  // Memoizar el value del context para evitar re-renders en consumidores
+  // cuando el timer interno dispara pero los datos no cambiaron
+  const contextValue = useMemo(() => ({
+    activeJobs,
+    activeJob,
+    queue,
+    completedJobs,
+    showCancelModal,
+    cancelTargetJob,
+    cancelReasonText,
+    setCancelReasonText,
+    handleStartActiveJob,
+    handleTogglePause,
+    handleCompleteActiveJob,
+    handleOpenCancelModal,
+    handleConfirmCancel,
+    handleCloseCancelModal,
+    handleCancelQueueJob,
+    handleStartQueueJob,
+    handleMoveUp,
+    handleReturnToQueue,
+    addJobToQueue,
+    reimprimirJob,
+    getJobsByProyectoId
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [
+    activeJobs, activeJob, queue, completedJobs,
+    showCancelModal, cancelTargetJob, cancelReasonText,
+    getJobsByProyectoId
+  ]);
+
   return (
-    <PrintQueueContext.Provider value={{
-      activeJobs,
-      activeJob,
-      queue,
-      completedJobs,
-      showCancelModal,
-      cancelTargetJob,
-      cancelReasonText,
-      setCancelReasonText,
-      handleStartActiveJob,
-      handleTogglePause,
-      handleCompleteActiveJob,
-      handleOpenCancelModal,
-      handleConfirmCancel,
-      handleCloseCancelModal,
-      handleCancelQueueJob,
-      handleStartQueueJob,
-      handleMoveUp,
-      handleReturnToQueue,
-      addJobToQueue,
-      reimprimirJob,
-      getJobsByProyectoId
-    }}>
+    <PrintQueueContext.Provider value={contextValue}>
       {children}
     </PrintQueueContext.Provider>
   );
