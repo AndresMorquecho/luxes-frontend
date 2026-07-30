@@ -49,6 +49,8 @@ const INITIAL_COMPLETED_JOBS = [
 ];
 
 export const PrintQueueProvider = ({ children }) => {
+  // Empieza vacío — la API llena esto en el primer fetch
+  // Los datos mock ya no se usan como estado inicial (causaban render extra)
   const [activeJobs, setActiveJobs] = useState([]);
   const [activeJob, setActiveJob] = useState(null);
   const [queue, setQueue] = useState([]);
