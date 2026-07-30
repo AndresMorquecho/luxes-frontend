@@ -243,7 +243,13 @@ export const ColasImpresionPage = () => {
     setReimprimiendoId(job.id);
     try {
       await reimprimirJob(job);
-      toast.success(`Trabajo "${job.name}" re-enviado a la cola exitosamente. Revisa la pestaña "Cola de Impresión" para iniciar su impresión. 🖨️`, 4500);
+
+      const teniaInsumos = job.notes && job.notes.includes('INSUS:');
+      const mensajeInventario = teniaInsumos
+        ? ' (Los insumos anteriores fueron devueltos/gestionados al cancelar. Se descontarán insumos nuevos al iniciar esta impresión).'
+        : '';
+
+      toast.success(`Trabajo "${job.name}" re-enviado a la cola exitosamente.${mensajeInventario} 🖨️`, 6000);
       setActiveTab('cola');
     } catch (err) {
       toast.error('Error al re-enviar el trabajo: ' + err.message);
@@ -257,28 +263,38 @@ export const ColasImpresionPage = () => {
     if (!cancelTargetJob || !cancelReasonText.trim()) return;
 
     const targetJob = cancelTargetJob;
+    let invNota = '';
 
-    if (reintegrarStock && targetJob.notes && targetJob.notes.includes('INSUS:')) {
-      try {
-        const jsonStr = targetJob.notes.split('INSUS:')[1]?.split('|')[0]?.trim();
-        if (jsonStr) {
-          const insumosToReturn = JSON.parse(jsonStr);
-          if (Array.isArray(insumosToReturn) && insumosToReturn.length > 0) {
-            await Promise.all(insumosToReturn.map(item => 
-              registrarMovimiento(item.materialId, {
-                tipo: 'entrada',
-                cantidad: Number(item.cantidad),
-                motivo: `Devolución por cancelación de impresión - Trabajo: ${targetJob.name}`,
-              })
-            ));
-            toast.success('Insumos devueltos al inventario exitosamente 📦');
+    if (targetJob.notes && targetJob.notes.includes('INSUS:')) {
+      if (reintegrarStock) {
+        try {
+          const jsonStr = targetJob.notes.split('INSUS:')[1]?.split('|')[0]?.trim();
+          if (jsonStr) {
+            const insumosToReturn = JSON.parse(jsonStr);
+            if (Array.isArray(insumosToReturn) && insumosToReturn.length > 0) {
+              await Promise.all(insumosToReturn.map(item => 
+                registrarMovimiento(item.materialId, {
+                  tipo: 'entrada',
+                  cantidad: Number(item.cantidad),
+                  motivo: `Devolución por cancelación de impresión - Trabajo: ${targetJob.name}`,
+                })
+              ));
+              toast.success('Insumos devueltos al inventario exitosamente 📦');
+              invNota = ' [Inventario: Insumos devueltos al stock]';
+            }
           }
+        } catch (errInsumos) {
+          console.error('Error al reintegrar insumos al inventario:', errInsumos);
         }
-      } catch (errInsumos) {
-        console.error('Error al reintegrar insumos al inventario:', errInsumos);
+      } else {
+        invNota = ' [Inventario: Registrado como merma/daño]';
       }
+    } else {
+      invNota = ' [Inventario: Sin insumos previamente descontados]';
     }
 
+    // Agregar la nota explícita de inventario al motivo de cancelación
+    setCancelReasonText(prev => `${prev.trim()}${invNota}`);
     await handleConfirmCancel(e);
   };
 
@@ -605,8 +621,17 @@ export const ColasImpresionPage = () => {
         ? `${prepJob.notes} | INSUS:${JSON.stringify(insumosGuardar)}`
         : `INSUS:${JSON.stringify(insumosGuardar)}`;
 
+      const nombresMateriales = deductables.map(i => i.nombre).join(', ');
+      const formatActualizado = (prepJob.format && prepJob.format !== 'Sin formato' && prepJob.format !== 'Sin material')
+        ? prepJob.format
+        : nombresMateriales;
+
       // Start the print job directly in 'Imprimiendo' status
-      await handleStartQueueJob(prepJob.id, 'Imprimiendo', { consumoDetalle, notes: notesConInsumos });
+      await handleStartQueueJob(prepJob.id, 'Imprimiendo', {
+        consumoDetalle,
+        notes: notesConInsumos,
+        format: formatActualizado || 'Material Asignado'
+      });
       toast.success('Trabajo de impresión cargado e iniciado.');
       setShowPrepModal(false);
       setPrepJob(null);
@@ -1858,8 +1883,12 @@ export const ColasImpresionPage = () => {
                       </div>
                       <div className="prep-meta-item" style={{gridColumn:'span 2'}}>
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px',color:'#6366f1',flexShrink:0}}><path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3" /></svg>
-                        <span className="prep-meta-label">Sustrato requerido:</span>
-                        <span className="prep-meta-value" style={{color:'#6366f1',fontWeight:700}}>{prepJob.format}</span>
+                        <span className="prep-meta-label">Sustrato asignado / requerido:</span>
+                        <span className="prep-meta-value" style={{color:'#6366f1',fontWeight:700}}>
+                          {cartItems.length > 0 
+                            ? cartItems.map(i => i.nombre).join(', ') 
+                            : (prepJob.format || 'Por asignar de inventario...')}
+                        </span>
                       </div>
                     </div>
 
