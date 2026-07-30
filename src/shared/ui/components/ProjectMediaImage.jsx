@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   getArchivoMediaSrc,
   getArchivoPreviewFallback,
@@ -7,12 +7,14 @@ import {
 } from '../../utils/mediaUrl.js';
 
 /**
- * Imagen de proyecto: thumbnail/url primero; base64 solo como último fallback.
- * 
- * Optimizaciones de rendimiento:
- * - Anti-loop: si el src que fallió es el mismo que intentamos, no re-intentar
- * - Dimensiones explícitas para evitar reflow/CLS
- * - React.memo para evitar re-renders innecesarios
+ * Imagen de proyecto optimizada para máximo rendimiento.
+ *
+ * OPTIMIZACIONES CLAVE:
+ * - Usa useRef + DOM directo en vez de useState para cambios de src.
+ *   Esto ELIMINA los React Commits por carga de imagen (antes: 1 Commit/imagen).
+ * - Anti-loop: Set de srcs fallidos por instancia.
+ * - loading="lazy" + decoding="async" para no bloquear el main thread.
+ * - width/height obligatorios para evitar reflow/CLS.
  */
 export const ProjectMediaImage = React.memo(function ProjectMediaImage({
   archivo,
@@ -33,62 +35,77 @@ export const ProjectMediaImage = React.memo(function ProjectMediaImage({
     ? archivo?.url
     : (typeof evidencia === 'object' ? evidencia?.url : (typeof archivo === 'string' ? archivo : ''));
 
-  const [src, setSrc] = useState(primary);
-  const [fetchAttempted, setFetchAttempted] = useState(false);
+  const imgRef = useRef(null);
   const isMountedRef = useRef(true);
-  // Rastrear qué srcs ya fallaron para evitar loops infinitos
   const failedSrcsRef = useRef(new Set());
+  const fetchAttemptedRef = useRef(false);
+  // Guardar primary para detectar cambios de archivo
+  const primaryRef = useRef(primary);
 
   useEffect(() => {
     isMountedRef.current = true;
-    // Al cambiar de archivo, resetear el estado
-    failedSrcsRef.current = new Set();
-    setSrc(primary);
-    setFetchAttempted(false);
     return () => {
       isMountedRef.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!imgRef.current) return;
+    // Si cambió el archivo, resetear estado y actualizar src
+    if (primary !== primaryRef.current) {
+      primaryRef.current = primary;
+      failedSrcsRef.current = new Set();
+      fetchAttemptedRef.current = false;
+    }
+    // Actualizar src directamente en el DOM — sin setState, sin React Commit
+    if (primary) {
+      imgRef.current.src = primary;
+    }
   }, [primary]);
 
   const handleError = async () => {
-    if (!isMountedRef.current) return;
+    const img = imgRef.current;
+    if (!img || !isMountedRef.current) return;
 
-    // Si ya fallamos con este src, no re-intentar (anti-loop)
-    if (failedSrcsRef.current.has(src)) return;
-    failedSrcsRef.current.add(src);
+    const currentSrc = img.src;
 
-    // Fallback 1: original (no thumb)
+    // Anti-loop: no reintentar src que ya falló
+    if (failedSrcsRef.current.has(currentSrc)) return;
+    failedSrcsRef.current.add(currentSrc);
+
+    // Fallback 1: URL original (sin thumbnail)
     if (rawUrl) {
       const full = typeof evidencia === 'object'
         ? resolveEvidenciaSrc(evidencia, { thumbnail: false })
         : getArchivoMediaSrc(archivo, false);
       if (full && !failedSrcsRef.current.has(full)) {
-        if (isMountedRef.current) setSrc(full);
+        img.src = full; // DOM directo
         return;
       }
     }
 
     // Fallback 2: base64 embebido (legado)
     if (embeddedPreview && !failedSrcsRef.current.has(embeddedPreview)) {
-      if (isMountedRef.current) setSrc(embeddedPreview);
+      img.src = embeddedPreview; // DOM directo
       return;
     }
 
-    // Fallback 3: fetch blob con JWT (solo una vez)
-    if (!fetchAttempted) {
-      if (isMountedRef.current) setFetchAttempted(true);
+    // Fallback 3: blob fetch con JWT (solo una vez, usa caché)
+    if (!fetchAttemptedRef.current) {
+      fetchAttemptedRef.current = true;
       const blobUrl = await fetchMediaBlobUrl(rawUrl || primary);
-      if (blobUrl && isMountedRef.current && !failedSrcsRef.current.has(blobUrl)) {
-        setSrc(blobUrl);
+      if (blobUrl && isMountedRef.current && imgRef.current && !failedSrcsRef.current.has(blobUrl)) {
+        imgRef.current.src = blobUrl; // DOM directo
       }
     }
   };
 
-  if (!src) return null;
+  if (!primary) return null;
 
   return (
     <img
-      src={src}
+      ref={imgRef}
+      src={primary}
       alt={alt}
       className={className}
       onError={handleError}

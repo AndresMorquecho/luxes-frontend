@@ -74,18 +74,17 @@ const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
 
 // ── Sub-componente: Lote Individual ────────────────────────────────────────
 
-function BatchCard({ batch, proyectoId, onBatchUpdated, isNew }) {
+// React.memo: solo re-renderiza si sus propios datos cambiaron
+// jobsDelProyecto viene del padre (una sola llamada a getJobsByProyectoId)
+const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpdated, isNew, jobsDelProyecto }) {
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  const { getJobsByProyectoId } = usePrintQueue();
-  const jobsDelProyecto = getJobsByProyectoId(proyectoId);
-
   // Buscar si el job asociado existe y cuál es su estado en la cola
   const associatedJob = batch.jobImpresionId 
-    ? jobsDelProyecto.find(j => String(j.id) === String(batch.jobImpresionId))
+    ? (jobsDelProyecto || []).find(j => String(j.id) === String(batch.jobImpresionId))
     : null;
 
   const jobCancelado = associatedJob?.trackingStatus === 'Cancelado';
@@ -258,12 +257,15 @@ function BatchCard({ batch, proyectoId, onBatchUpdated, isNew }) {
       </div>
     </div>
   );
-}
+});
 
 // ── Componente Principal ───────────────────────────────────────────────────
 
 export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos, reloadProyecto } = useProyecto(proyectoId);
+  // Una sola llamada para todos los BatchCards (en vez de N llamadas, una por card)
+  const { getJobsByProyectoId } = usePrintQueue();
+  const jobsDelProyecto = getJobsByProyectoId(proyectoId);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [addingBatch, setAddingBatch] = useState(false);
@@ -451,6 +453,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
                 proyectoId={proyectoId}
                 onBatchUpdated={handleBatchUpdated}
                 isNew={idx === todosLosBatches.length - 1 && batch.estado === 'pending_print' && showNuevoBatch}
+                jobsDelProyecto={jobsDelProyecto}
               />
             ))}
 
