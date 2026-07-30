@@ -32,7 +32,7 @@ export const AppHeader = ({ user, onLogout, showMenuToggle, onMenuToggle }) => {
   useEffect(() => {
     fetchUnreadCount();
     window.addEventListener('notifications-updated', fetchUnreadCount);
-    const interval = setInterval(fetchUnreadCount, 15000);
+    const interval = setInterval(fetchUnreadCount, 60000);
     return () => {
       window.removeEventListener('notifications-updated', fetchUnreadCount);
       clearInterval(interval);

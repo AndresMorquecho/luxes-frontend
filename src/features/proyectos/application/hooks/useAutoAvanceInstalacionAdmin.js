@@ -115,7 +115,6 @@ export function useAutoAvanceInstalacionAdmin({
     };
 
     const refrescar = () => {
-      reloadProyectos?.();
       revisarNotificaciones();
     };
 

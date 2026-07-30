@@ -89,7 +89,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   }, [proyecto]);
 
   useEffect(() => {
-    getProyectos({ limit: 1000 }).then(response => {
+    getProyectos({ limit: 100 }).then(response => {
       const projectsData = response?.data || response || [];
       setAllProjects(Array.isArray(projectsData) ? projectsData : []);
     }).catch(err => {
