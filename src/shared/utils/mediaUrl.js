@@ -36,6 +36,20 @@ export function getThumbnailMediaUrl(url) {
   const resolved = resolveMediaUrl(url);
   if (!resolved || resolved.startsWith('data:') || resolved.startsWith('blob:')) return resolved;
   if (resolved.startsWith('http://') || resolved.startsWith('https://')) return resolved;
+
+  if (resolved.startsWith('/uploads/proyectos/')) {
+    const parts = resolved.split('/');
+    if (parts.length >= 5) {
+      const id = parts[3];
+      const filename = parts.slice(4).join('/');
+      return `/api/proyectos/${id}/archivos/${encodeURIComponent(filename)}?thumb=1`;
+    }
+  }
+
+  if (resolved.startsWith('/api/proyectos/') && resolved.includes('/archivos/')) {
+    return `${resolved}${resolved.includes('?') ? '&' : '?'}thumb=1`;
+  }
+
   return `/api/proyectos/media/thumbnail?url=${encodeURIComponent(resolved)}`;
 }
 
