@@ -200,3 +200,60 @@ export const enviarBatchImpresion = async (proyectoId, batchId, jobData = {}) =>
   }
   return data.data;
 };
+
+/**
+ * Elimina un lote de diseño específico.
+ */
+export const deleteBatchDiseno = async (proyectoId, batchId) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/proyectos/${proyectoId}/diseno/batches/${batchId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al eliminar lote de diseño');
+  }
+  return data.data;
+};
+
+/**
+ * Elimina de golpe todos los lotes de diseño vacíos de un proyecto.
+ */
+export const deleteEmptyBatchesDiseno = async (proyectoId) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/proyectos/${proyectoId}/diseno/batches-vacios`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al eliminar lotes vacíos');
+  }
+  return data.data;
+};
+
+/**
+ * Elimina un archivo individual de un batch.
+ */
+export const removeArchivoFromBatch = async (proyectoId, batchId, fileUrl) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/proyectos/${proyectoId}/diseno/batches/${batchId}/archivos`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: JSON.stringify({ url: fileUrl }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error?.message || 'Error al eliminar archivo del lote');
+  }
+  return data.data;
+};
+

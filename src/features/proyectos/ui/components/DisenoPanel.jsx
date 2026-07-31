@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, Image as ImageIcon, CheckCircle, File, Trash2, Calendar, ShieldCheck, X, Plus, Printer, Package, Clock, AlertCircle, Send, RotateCcw, XCircle } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, CheckCircle, File, Trash2, Calendar, ShieldCheck, X, Plus, Printer, Package, Clock, AlertCircle, Send, RotateCcw, XCircle, Sparkles } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { usePrintQueueStable } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 import { toast } from '../../../../shared/ui/components/toastStore.js';
@@ -8,6 +8,9 @@ import {
   createBatchDiseno,
   addArchivoToBatch,
   enviarBatchImpresion,
+  deleteBatchDiseno,
+  deleteEmptyBatchesDiseno,
+  removeArchivoFromBatch,
 } from '../../application/proyectosService.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
@@ -16,7 +19,8 @@ import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const ESTADO_BATCH = {
-  pending_print: { label: 'Pendiente de impresión', color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  draft:          { label: 'Borrador / Sin enviar',  color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  pending_print: { label: 'Enviado a impresión',    color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
   printed:       { label: 'Enviado a impresión',    color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
   cancelled:     { label: 'Cancelado',              color: 'text-slate-400 bg-slate-50 border-slate-200' },
 };
@@ -58,7 +62,6 @@ const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
           ) : (
             <File size={28} className="text-slate-400" />
           )}
-          {/* Sin backdrop-blur: creaba capas de compositing por cada tarjeta */}
           <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <span className="text-white text-[10px] font-bold bg-slate-800/80 px-2 py-1 rounded">Ver</span>
           </div>
@@ -91,11 +94,10 @@ const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
 
 // ── Sub-componente: Lote Individual ────────────────────────────────────────
 
-// React.memo: solo re-renderiza si sus propios datos cambiaron
-// jobsDelProyecto viene del padre (una sola llamada a getJobsByProyectoId)
 const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpdated, isNew, jobsDelProyecto }) {
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -106,7 +108,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
 
   const jobCancelado = associatedJob?.trackingStatus === 'Cancelado';
 
-  const estadoConfig = ESTADO_BATCH[batch.estado] || ESTADO_BATCH.pending_print;
+  const estadoConfig = ESTADO_BATCH[batch.estado] || ESTADO_BATCH.draft;
   const archivos = Array.isArray(batch.archivos) ? batch.archivos : [];
 
   const handleFilesSelect = async (files) => {
@@ -119,12 +121,23 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
         // 2. Asociar el archivo al batch
         await addArchivoToBatch(proyectoId, batch.id, fileData);
       }
+      toast.success('Archivo(s) agregado(s) al lote');
       onBatchUpdated?.();
     } catch (err) {
       console.error('Error al subir archivos al lote:', err);
       await alertDialog('Error', 'Error al subir archivos: ' + err.message, { type: 'warning' });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleRemoveFileFromBatch = async (fileUrl) => {
+    try {
+      await removeArchivoFromBatch(proyectoId, batch.id, fileUrl);
+      toast.success('Archivo eliminado del lote');
+      onBatchUpdated?.();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -150,8 +163,37 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
     }
   };
 
-  // Un lote se considera "cerrado" si tiene un job activo o completado (NO cancelado)
-  const yaEnviado = (!!batch.jobImpresionId || batch.estado === 'printed' || batch.estado === 'pending_print') && !jobCancelado;
+  const handleDeleteBatch = async () => {
+    if (yaEnviado) {
+      const confirm = await alertDialog(
+        'Eliminar Lote Enviado',
+        `El lote "${batch.label}" ya fue enviado a impresión. ¿Deseas eliminarlo del proyecto de todos modos?`,
+        { type: 'danger', confirmText: 'Sí, eliminar lote' }
+      );
+      if (!confirm) return;
+    } else {
+      const confirm = await alertDialog(
+        'Eliminar Lote',
+        `¿Deseas eliminar el lote "${batch.label}"?`,
+        { type: 'warning', confirmText: 'Eliminar' }
+      );
+      if (!confirm) return;
+    }
+
+    setDeleting(true);
+    try {
+      await deleteBatchDiseno(proyectoId, batch.id);
+      toast.success('Lote eliminado con éxito');
+      onBatchUpdated?.();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Un lote se considera "cerrado" si tiene un job asociado activo o completado (NO cancelado)
+  const yaEnviado = (!!batch.jobImpresionId || batch.estado === 'printed') && !jobCancelado;
   // Solo se puede editar/subir si el lote NO está enviado activo
   const canEdit = !yaEnviado;
   // Solo se puede enviar si hay archivos y no está enviado activo
@@ -170,16 +212,29 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
             )}
           </div>
         </div>
-        {/* Badge de estado */}
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
-          jobCancelado
-            ? 'text-red-600 bg-red-100 border-red-200'
-            : yaEnviado
-              ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
-              : estadoConfig.color
-        }`}>
-          {jobCancelado ? 'Impresión Cancelada' : yaEnviado ? 'Enviado a impresión' : estadoConfig.label}
-        </span>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Badge de estado */}
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+            jobCancelado
+              ? 'text-red-600 bg-red-100 border-red-200'
+              : yaEnviado
+                ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+                : estadoConfig.color
+          }`}>
+            {jobCancelado ? 'Impresión Cancelada' : yaEnviado ? 'Enviado a impresión' : estadoConfig.label}
+          </span>
+
+          {/* Botón eliminar lote */}
+          <button
+            onClick={handleDeleteBatch}
+            disabled={deleting}
+            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Eliminar lote"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Archivos del batch */}
@@ -191,12 +246,16 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
         {archivos.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {archivos.map((file, idx) => (
-              <ArchivoCard key={file.url || idx} file={file} onRemove={canEdit ? undefined : undefined} />
+              <ArchivoCard
+                key={file.url || idx}
+                file={file}
+                onRemove={canEdit ? handleRemoveFileFromBatch : undefined}
+              />
             ))}
           </div>
         )}
 
-        {/* Zona de upload (solo si el lote aún no fue enviado) */}
+        {/* Zona de upload (disponible mientras el lote sea editable/borrador) */}
         {canEdit && (
           <div
             className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
@@ -220,7 +279,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
             />
             <UploadCloud size={18} className={isDragging ? 'text-blue-500' : 'text-slate-400'} />
             <p className="text-xs font-semibold text-slate-600 mt-1.5">
-              {uploading ? 'Subiendo...' : 'Arrastra o haz clic para subir'}
+              {uploading ? 'Subiendo...' : 'Arrastra o haz clic para subir imágenes/archivos a este lote'}
             </p>
             <p className="text-[10px] text-slate-400">PDF, AI, PSD, JPG, PNG</p>
           </div>
@@ -280,12 +339,12 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
 
 export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos, reloadProyecto } = useProyecto(proyectoId);
-  // Una sola llamada para todos los BatchCards (en vez de N llamadas, una por card)
   const { getJobsByProyectoId } = usePrintQueueStable();
   const jobsDelProyecto = getJobsByProyectoId(proyectoId);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [addingBatch, setAddingBatch] = useState(false);
+  const [cleaningEmpty, setCleaningEmpty] = useState(false);
   const [showNuevoBatch, setShowNuevoBatch] = useState(false);
 
   const disenoFase = proyecto?.fases?.['DISEÑO'] || {};
@@ -378,12 +437,11 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
   const handleAgregarBatch = async () => {
     setAddingBatch(true);
     try {
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
       await createBatchDiseno(proyectoId, {
         label: `Ítem complementario`,
       });
       setShowNuevoBatch(true);
-      // Recargar datos del proyecto para obtener el nuevo batch
+      toast.success('Nuevo lote de diseño creado en borrador');
       if (reloadProyecto) await reloadProyecto();
     } catch (err) {
       console.error('Error al agregar batch:', err);
@@ -393,26 +451,50 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
     }
   };
 
+  const handleCleanEmptyBatches = async () => {
+    const emptyCount = (batches || []).filter(
+      (b) => (!b.archivos || b.archivos.length === 0) && !b.jobImpresionId
+    ).length;
+
+    if (emptyCount === 0) return;
+
+    const confirm = await alertDialog(
+      'Limpiar Lotes Vacíos',
+      `Se eliminarán ${emptyCount} lote(s) que no contienen archivos adjuntos ni trabajos de impresión. ¿Deseas continuar?`,
+      { type: 'warning', confirmText: 'Sí, limpiar lotes vacíos' }
+    );
+    if (!confirm) return;
+
+    setCleaningEmpty(true);
+    try {
+      const result = await deleteEmptyBatchesDiseno(proyectoId);
+      toast.success(`Se eliminaron ${result.eliminados} lote(s) vacíos con éxito ✨`);
+      if (reloadProyecto) await reloadProyecto();
+    } catch (err) {
+      console.error('Error al limpiar lotes vacíos:', err);
+      await alertDialog('Error', err.message, { type: 'warning' });
+    } finally {
+      setCleaningEmpty(false);
+    }
+  };
+
   const handleBatchUpdated = async () => {
     if (reloadProyecto) await reloadProyecto();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  // Si el proyecto ya pasó la fase de diseño (soloLectura=true) y hay batches
-  // O si soloLectura y queremos ofrecer agregar ítems complementarios
   const mostrarBatches = soloLectura || hasBatches;
-
-  // Determinar si la sección de "agregar complementario" debe estar disponible
-  // (disponible cuando el proyecto ya no está en DISEÑO como fase actual)
   const faseActual = proyecto?.faseActual || '';
   const fasesPostDiseno = ['PRODUCCION', 'INSTALACION', 'ENTREGA', 'COMPLETADO'];
   const puedeAgregarComplementario = fasesPostDiseno.includes(faseActual);
 
   if (mostrarBatches) {
-    // ── Vista con batches (proyecto ya avanzó o ya tiene batches) ─────────
     const todosLosBatches = batches || [];
     const archivosIniciales = !hasBatches ? archivosLegado : [];
+    const lotesVaciosCount = todosLosBatches.filter(
+      (b) => (!b.archivos || b.archivos.length === 0) && !b.jobImpresionId
+    ).length;
 
     return (
       <div className="space-y-6">
@@ -431,10 +513,23 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
 
         {/* Lotes existentes */}
         <div>
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
-            <Package size={18} className="text-indigo-500" />
-            Lotes de Diseño
-          </h3>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Package size={18} className="text-indigo-500" />
+              Lotes de Diseño
+            </h3>
+            {lotesVaciosCount > 0 && (
+              <button
+                onClick={handleCleanEmptyBatches}
+                disabled={cleaningEmpty}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-colors shrink-0 shadow-sm"
+                title="Eliminar todos los lotes vacíos creados por error"
+              >
+                <Trash2 size={13} className="text-amber-600" />
+                {cleaningEmpty ? 'Limpiando...' : `Limpiar ${lotesVaciosCount} lote(s) vacíos`}
+              </button>
+            )}
+          </div>
 
           <div className="space-y-4">
             {/* Lote inicial legado (cuando no hay batches aún pero hay archivos) */}
@@ -469,7 +564,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
                 batch={batch}
                 proyectoId={proyectoId}
                 onBatchUpdated={handleBatchUpdated}
-                isNew={idx === todosLosBatches.length - 1 && batch.estado === 'pending_print' && showNuevoBatch}
+                isNew={idx === todosLosBatches.length - 1 && batch.estado === 'draft' && showNuevoBatch}
                 jobsDelProyecto={jobsDelProyecto}
               />
             ))}
@@ -491,7 +586,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
             className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50 text-blue-600 font-bold text-sm rounded-2xl transition-all disabled:opacity-50"
           >
             {addingBatch ? (
-              <><Clock size={16} className="animate-spin" /> Creando lote...</>
+              <><Clock size={16} className="animate-spin" /> Creando lote en borrador...</>
             ) : (
               <><Plus size={16} /> Agregar diseño complementario</>
             )}
@@ -518,6 +613,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
   // ── Vista editable original (proyecto aún en fase DISEÑO, sin batches) ──
 
   const archivos = archivosLegado;
+
 
   return (
     <div className="space-y-8">
