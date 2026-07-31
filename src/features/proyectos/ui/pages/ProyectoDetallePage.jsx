@@ -130,7 +130,6 @@ export default function ProyectoDetallePage() {
         fechaEntregaEstimada: data.fechaEntregaEstimada || null,
         prioridad: data.prioridad,
         responsable: data.responsable,
-        medio: data.medio,
         etiquetas: data.etiquetas,
         descripcion: data.descripcion,
         notas: data.notas,

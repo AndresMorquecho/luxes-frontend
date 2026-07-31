@@ -14,7 +14,6 @@ export const ProyectoEditModal = React.memo(function ProyectoEditModal({
     fechaEntregaEstimada: '',
     prioridad: 'MEDIA',
     responsable: '',
-    medio: 'LUXES',
     etiquetas: [],
     etiquetaInput: '',
     descripcion: '',
@@ -28,7 +27,6 @@ export const ProyectoEditModal = React.memo(function ProyectoEditModal({
         fechaEntregaEstimada: proyecto.fechaEntregaEstimada || '',
         prioridad: proyecto.prioridad || 'MEDIA',
         responsable: proyecto.responsable || '',
-        medio: proyecto.medio || 'LUXES',
         etiquetas: proyecto.etiquetas || [],
         etiquetaInput: '',
         descripcion: proyecto.descripcion || '',
@@ -159,22 +157,6 @@ export const ProyectoEditModal = React.memo(function ProyectoEditModal({
                     <option value="MEDIA">MEDIA</option>
                     <option value="ALTA">ALTA</option>
                     <option value="URGENTE">URGENTE</option>
-                  </select>
-                </div>
-
-                {/* Medio de consecución */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                    Medio de consecución *
-                  </label>
-                  <select
-                    className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                    value={editForm.medio}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, medio: e.target.value }))}
-                  >
-                    <option value="LUXES">LUXES</option>
-                    <option value="REDES">REDES</option>
-                    <option value="VENDEDORES">VENDEDORES</option>
                   </select>
                 </div>
               </div>

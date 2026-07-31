@@ -7,7 +7,7 @@ import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProformaPDF } from '../components/ProformaPDF';
 import { getConfiguracion } from '../../../configuracion/application/configuracionService';
 import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
-import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft, Image as ImageIcon, Share2 } from 'lucide-react';
 import { AbonoModal } from '../components/AbonoModal';
 import { ComprobanteViewerModal } from '../components/ComprobanteViewerModal';
 
@@ -440,7 +440,7 @@ export const ProformaDetallePage = () => {
             <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-4">
               Ejecutivo y validez
             </h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
                   <User size={16} />
@@ -458,6 +458,16 @@ export const ProformaDetallePage = () => {
                 <div>
                   <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Días de validez</span>
                   <span className="block text-xs text-slate-700 font-bold mt-0.5">{proforma.diasValidez || 3} días</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
+                  <Share2 size={16} />
+                </div>
+                <div>
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Medio de consecución</span>
+                  <span className="block text-xs text-slate-700 font-bold uppercase mt-0.5">{proforma.medio || 'LUXES'}</span>
                 </div>
               </div>
             </div>

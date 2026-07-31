@@ -15,6 +15,7 @@ const EMPTY_PROFORMA = {
   fecha: new Date().toISOString().split('T')[0],
   vencimiento: '',
   diasValidez: 3,
+  medio: 'LUXES',
   atiende: '',
   condiciones: '',
   iva: 0.12,
@@ -69,6 +70,7 @@ export const NuevaProformaPage = () => {
             setForm({
               ...existing,
               clienteId: related?.id || existing.clienteId || '',
+              medio: existing.medio || 'LUXES',
               items: existing.items.map(i => ({ ...i })),
             });
             setClienteSearch(existing.cliente);
@@ -300,7 +302,7 @@ export const NuevaProformaPage = () => {
               Informacion de la Proforma
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
               
               <div className="relative md:col-span-2 lg:col-span-2">
                 <label className="co-label">Cliente *</label>
@@ -382,6 +384,20 @@ export const NuevaProformaPage = () => {
                   required
                   className="co-input"
                 />
+              </div>
+
+              <div>
+                <label className="co-label">Medio de consecución *</label>
+                <select
+                  name="medio"
+                  value={form.medio || 'LUXES'}
+                  onChange={handleChange}
+                  className="co-input cursor-pointer font-medium"
+                >
+                  <option value="LUXES">LUXES</option>
+                  <option value="REDES">REDES</option>
+                  <option value="VENDEDORES">VENDEDORES</option>
+                </select>
               </div>
 
             </div>

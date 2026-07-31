@@ -89,13 +89,6 @@ export const ProyectoDetallesModal = React.memo(function ProyectoDetallesModal({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Info size={16} className="text-slate-400 shrink-0" />
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Medio de consecución</p>
-                      <p className="text-sm font-semibold text-slate-700">{proyecto.medio || 'LUXES'}</p>
-                    </div>
-                  </div>
                   {proyecto.etiquetas?.length > 0 && (
                     <div className="flex items-start gap-3">
                       <Tag size={16} className="text-slate-400 mt-0.5 shrink-0" />

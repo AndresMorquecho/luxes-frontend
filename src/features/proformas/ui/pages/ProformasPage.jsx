@@ -691,7 +691,10 @@ export const ProformasPage = () => {
 
                           {/* EJECUTIVO */}
                           <td className="px-6 py-4.5 text-slate-600 font-medium text-sm">
-                            {p.atiende || '—'}
+                            <span className="block">{p.atiende || '—'}</span>
+                            <span className="inline-block text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 mt-1">
+                              {p.medio || 'LUXES'}
+                            </span>
                           </td>
 
                           {/* TOTAL */}
