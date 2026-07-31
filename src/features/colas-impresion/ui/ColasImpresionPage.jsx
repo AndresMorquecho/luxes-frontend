@@ -1,9 +1,8 @@
-/* c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/colas-impresion/ui/ColasImpresionPage.jsx */
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resolveMediaUrl } from '../../../shared/utils/mediaUrl.js';
 import { ProjectMediaImage } from '../../../shared/ui/components/ProjectMediaImage.jsx';
+import { MediaPreviewModal } from '../../../shared/ui/components/MediaPreviewModal.jsx';
 import './ColasImpresionPage.css';
 import { usePrintQueue } from '../context/PrintQueueContext';
 import { getMateriales, registrarMovimiento, buildMaterialesQuery } from '../../inventario/application/inventarioService';
@@ -11,7 +10,7 @@ import { createOrden } from '../../compras/application/comprasService';
 import { toast } from '../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../shared/ui/components/ConfirmModal';
 import { isAdminUser } from '../../../shared/utils/userRoleHelpers.js';
-import { User, Folder, Package, Crop, FileText, Clock, List, Printer, Monitor, Play, Pause, ArrowUp, Download, Trash2, XCircle, Tag, Check, ChevronLeft, ChevronRight, RotateCcw, RefreshCw } from 'lucide-react';
+import { User, Folder, Package, Crop, FileText, Clock, List, Printer, Monitor, Play, Pause, ArrowUp, Download, Trash2, XCircle, Tag, Check, ChevronLeft, ChevronRight, RotateCcw, RefreshCw, AlertTriangle, Ban, CheckCircle2, Eye, FileImage } from 'lucide-react';
 
 const renderPriorityBadge = (urgency) => {
   let bgColor = '#f1f5f9';
@@ -141,12 +140,14 @@ function TvElapsedTimer({ activeJob }) {
 
 const parseJobFiles = (job) => {
   if (!job || !job.fileUrl) return [];
+  if (job._parsedFiles) return job._parsedFiles;
   const trimmed = job.fileUrl.trim();
+  let files = [];
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) {
-        return parsed.map((f) => ({
+        files = parsed.map((f) => ({
           ...f,
           url: resolveMediaUrl(f.url),
         }));
@@ -155,10 +156,14 @@ const parseJobFiles = (job) => {
       console.error('Error parsing job files JSON:', e);
     }
   }
-  return [{
-    name: job.name,
-    url: resolveMediaUrl(job.fileUrl)
-  }];
+  if (files.length === 0) {
+    files = [{
+      name: job.name,
+      url: resolveMediaUrl(job.fileUrl)
+    }];
+  }
+  job._parsedFiles = files;
+  return files;
 };
 
 const getCleanNotes = (notes) => {
@@ -264,6 +269,19 @@ export const ColasImpresionPage = () => {
 
   const [reintegrarStock, setReintegrarStock] = useState(true);
   const [reimprimiendoId, setReimprimiendoId] = useState(null);
+  const [previewModal, setPreviewModal] = useState({ isOpen: false, files: [], index: 0 });
+
+  const handleOpenPreview = useCallback((files, index = 0) => {
+    setPreviewModal({
+      isOpen: true,
+      files: Array.isArray(files) ? files : [files],
+      index: index >= 0 ? index : 0,
+    });
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewModal({ isOpen: false, files: [], index: 0 });
+  }, []);
 
   const handleReimprimir = async (job) => {
     if (reimprimiendoId) return;
@@ -288,7 +306,7 @@ export const ColasImpresionPage = () => {
         ? ' (Los insumos anteriores fueron devueltos/gestionados al cancelar. Se descontarán insumos nuevos al iniciar esta impresión).'
         : '';
 
-      toast.success(`Trabajo "${job.name}" re-enviado a la cola exitosamente.${mensajeInventario} 🖨️`, 6000);
+      toast.success(`Trabajo "${job.name}" re-enviado a la cola exitosamente.${mensajeInventario}`, 6000);
       setActiveTab('cola');
     } catch (err) {
       toast.error('Error al re-enviar el trabajo: ' + err.message);
@@ -299,52 +317,56 @@ export const ColasImpresionPage = () => {
 
   const handleCancelFormSubmit = async (e) => {
     e.preventDefault();
-    if (!cancelTargetJob || !cancelReasonText.trim()) return;
+    if (!cancelTargetJob || !cancelReasonText.trim() || submittingAction) return;
 
-    const targetJob = cancelTargetJob;
-    let invNota = '';
+    setSubmittingAction(true);
+    try {
+      const targetJob = cancelTargetJob;
+      let invNota = '';
 
-    if (targetJob.notes && targetJob.notes.includes('INSUS:')) {
-      if (reintegrarStock) {
-        try {
-          const parts = targetJob.notes.split('INSUS:');
-          let insumosToReturn = [];
-          for (let i = parts.length - 1; i >= 1; i--) {
-            const jsonStr = parts[i]?.split('|')[0]?.trim();
-            if (jsonStr) {
-              try {
-                const parsed = JSON.parse(jsonStr);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  insumosToReturn = parsed;
-                  break;
-                }
-              } catch (e) {}
+      if (targetJob.notes && targetJob.notes.includes('INSUS:')) {
+        if (reintegrarStock) {
+          try {
+            const parts = targetJob.notes.split('INSUS:');
+            let insumosToReturn = [];
+            for (let i = parts.length - 1; i >= 1; i--) {
+              const jsonStr = parts[i]?.split('|')[0]?.trim();
+              if (jsonStr) {
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    insumosToReturn = parsed;
+                    break;
+                  }
+                } catch (e) {}
+              }
             }
+            if (insumosToReturn.length > 0) {
+              await Promise.all(insumosToReturn.map(item => 
+                registrarMovimiento(item.materialId, {
+                  tipo: 'entrada',
+                  cantidad: Number(item.cantidad),
+                  motivo: `Devolución por cancelación de impresión - Trabajo: ${targetJob.name}`,
+                })
+              ));
+              toast.success('Insumos devueltos al inventario exitosamente.');
+              invNota = ' (Inventario: Insumos devueltos al stock)';
+            }
+          } catch (errInsumos) {
+            console.error('Error al reintegrar insumos al inventario:', errInsumos);
           }
-          if (insumosToReturn.length > 0) {
-            await Promise.all(insumosToReturn.map(item => 
-              registrarMovimiento(item.materialId, {
-                tipo: 'entrada',
-                cantidad: Number(item.cantidad),
-                motivo: `Devolución por cancelación de impresión - Trabajo: ${targetJob.name}`,
-              })
-            ));
-            toast.success('Insumos devueltos al inventario exitosamente 📦');
-            invNota = ' [Inventario: Insumos devueltos al stock]';
-          }
-        } catch (errInsumos) {
-          console.error('Error al reintegrar insumos al inventario:', errInsumos);
+        } else {
+          invNota = ' (Inventario: Registrado como merma/daño)';
         }
-      } else {
-        invNota = ' [Inventario: Registrado como merma/daño]';
       }
-    } else {
-      invNota = ' [Inventario: Sin insumos previamente descontados]';
-    }
 
-    // Agregar la nota explícita de inventario al motivo de cancelación
-    setCancelReasonText(prev => `${prev.trim()}${invNota}`);
-    await handleConfirmCancel(e);
+      const finalReason = `${cancelReasonText.trim()}${invNota}`;
+      await handleConfirmCancel(e, finalReason);
+    } catch (err) {
+      toast.error('Error al cancelar el trabajo: ' + err.message);
+    } finally {
+      setSubmittingAction(false);
+    }
   };
 
   const [activeTab, setActiveTab] = useState('cola'); // 'cola' or 'historial'
@@ -753,44 +775,101 @@ export const ColasImpresionPage = () => {
     return job.fileUrl || `data:text/plain;charset=utf-8,Este%20es%20el%20documento%20de%20prueba%20${encodeURIComponent(job.name)}%20en%20cola.`;
   };
 
-  // Filter history jobs
-  const filteredHistory = completedJobs.filter(job => {
-    let matchesDate = true;
-    if (filterDate) {
-      const [y, m, d] = filterDate.split('-');
-      const formattedFilterDate = `${d}/${m}/${y}`;
-      const isoFilterDate = `${y}-${m}-${d}`;
-      const checkMatch = (dateStr) => {
-        if (!dateStr) return false;
-        if (dateStr.includes(formattedFilterDate)) return true;
-        if (dateStr.includes(isoFilterDate)) return true;
-        try {
-          const dt = new Date(dateStr);
-          if (!isNaN(dt.getTime())) {
-            const lY = dt.getFullYear();
-            const lM = String(dt.getMonth() + 1).padStart(2, '0');
-            const lD = String(dt.getDate()).padStart(2, '0');
-            return `${lY}-${lM}-${lD}` === isoFilterDate;
+  // Filter and consolidate history jobs (1 entry per batch/file, hides items currently in active queue)
+  const filteredHistory = useMemo(() => {
+    // 1. Recopilar identificadores de trabajos que están actualmente ACTIVOS o EN COLA
+    const activeBatchIds = new Set();
+
+    const currentActiveList = [...(activeJobs || []), activeJob, ...(queue || [])].filter(Boolean);
+    currentActiveList.forEach(j => {
+      if (j.batchId) activeBatchIds.add(String(j.batchId));
+      if (j.proyectoId && j.name) activeBatchIds.add(`${j.proyectoId}_${j.name}`);
+      if (j.name) activeBatchIds.add(j.name);
+    });
+
+    // 2. Agrupar completedJobs por lote/archivo (1 solo registro por lote)
+    const groupedMap = new Map();
+
+    (completedJobs || []).forEach(job => {
+      if (!job) return;
+
+      // Si el trabajo está actualmente re-enviado a la cola de impresión, DEBE DESAPARECER DEL HISTORIAL
+      const isCurrentlyInQueue =
+        (job.batchId && activeBatchIds.has(String(job.batchId))) ||
+        (job.proyectoId && job.name && activeBatchIds.has(`${job.proyectoId}_${job.name}`)) ||
+        (job.name && activeBatchIds.has(job.name));
+
+      if (isCurrentlyInQueue) return;
+
+      // Determinar clave única de agrupación para el historial (prioridad: batchId > proyectoId+nombre > id)
+      const groupKey = job.batchId
+        ? `batch:${job.batchId}`
+        : (job.proyectoId && job.name ? `proj:${job.proyectoId}:${job.name}` : `name:${job.name || job.id}`);
+
+      const existing = groupedMap.get(groupKey);
+
+      if (!existing) {
+        groupedMap.set(groupKey, { ...job });
+      } else {
+        // Prioridad: si alguno fue "Completado", el estado final en el historial es "Completado"
+        if (job.status === 'Completado' && existing.status !== 'Completado') {
+          groupedMap.set(groupKey, { ...job });
+        } else if (job.status === existing.status) {
+          // Si ambos tienen el mismo estado, mantener el evento más reciente
+          const timeExisting = new Date(existing.completedAt || existing.sentAt || 0).getTime();
+          const timeJob = new Date(job.completedAt || job.sentAt || 0).getTime();
+          if (timeJob >= timeExisting) {
+            groupedMap.set(groupKey, { ...job });
           }
-        } catch {}
-        return false;
-      };
-      matchesDate = checkMatch(job.sentAt) || checkMatch(job.completedAt);
-    }
+        }
+      }
+    });
 
-    const matchesUser = filterUser ? (job.sentBy && job.sentBy.toLowerCase().includes(filterUser.toLowerCase())) : true;
-    const matchesStatus = filterStatus === 'Todos' ? true : job.status === filterStatus;
+    // 3. Convertir mapa agrupado a lista y aplicar filtros de usuario/fecha/estado
+    const consolidatedList = Array.from(groupedMap.values());
 
-    return matchesDate && matchesUser && matchesStatus;
-  });
+    return consolidatedList.filter(job => {
+      let matchesDate = true;
+      if (filterDate) {
+        const [y, m, d] = filterDate.split('-');
+        const formattedFilterDate = `${d}/${m}/${y}`;
+        const isoFilterDate = `${y}-${m}-${d}`;
+        const checkMatch = (dateStr) => {
+          if (!dateStr) return false;
+          if (dateStr.includes(formattedFilterDate)) return true;
+          if (dateStr.includes(isoFilterDate)) return true;
+          try {
+            const dt = new Date(dateStr);
+            if (!isNaN(dt.getTime())) {
+              const lY = dt.getFullYear();
+              const lM = String(dt.getMonth() + 1).padStart(2, '0');
+              const lD = String(dt.getDate()).padStart(2, '0');
+              return `${lY}-${lM}-${lD}` === isoFilterDate;
+            }
+          } catch {}
+          return false;
+        };
+        matchesDate = checkMatch(job.sentAt) || checkMatch(job.completedAt);
+      }
+
+      const matchesUser = filterUser ? (job.sentBy && job.sentBy.toLowerCase().includes(filterUser.toLowerCase())) : true;
+      const matchesStatus = filterStatus === 'Todos' ? true : job.status === filterStatus;
+
+      return matchesDate && matchesUser && matchesStatus;
+    });
+  }, [completedJobs, activeJobs, activeJob, queue, filterDate, filterUser, filterStatus]);
 
   // Paginate history jobs
-  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
-  const paginatedHistory = filteredHistory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = useMemo(() => Math.ceil(filteredHistory.length / itemsPerPage), [filteredHistory.length, itemsPerPage]);
+  const paginatedHistory = useMemo(() => {
+    return filteredHistory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filteredHistory, currentPage, itemsPerPage]);
 
   // Paginate queue jobs
-  const queueTotalPages = Math.ceil(queue.length / queueItemsPerPage);
-  const paginatedQueue = queue.slice((queuePage - 1) * queueItemsPerPage, queuePage * queueItemsPerPage);
+  const queueTotalPages = useMemo(() => Math.ceil(queue.length / queueItemsPerPage), [queue.length, queueItemsPerPage]);
+  const paginatedQueue = useMemo(() => {
+    return queue.slice((queuePage - 1) * queueItemsPerPage, queuePage * queueItemsPerPage);
+  }, [queue, queuePage, queueItemsPerPage]);
 
   return (
     <div className="colas-impresion-container">
@@ -924,27 +1003,21 @@ export const ColasImpresionPage = () => {
 
                       {/* Body contents */}
                       <div style={{ display: 'flex', gap: '2.5rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
-                        {/* Left side: Preview Image */}
-                        <div style={{ width: '260px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {(() => {
-                            const files = parseJobFiles(currentActiveJob);
-                            const firstImage = files.find(f => isImageFile(f.name, f.url));
-                            if (firstImage) {
-                              return (
-                                <ProjectMediaImage 
-                                  archivo={firstImage} 
-                                  alt={currentActiveJob.name} 
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover', aspectRatio: '4/3' }} 
-                                />
-                              );
-                            }
-                            return (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '0.5rem', padding: '2rem 0' }}>
-                                <Package size={48} strokeWidth={1.5} />
-                                <span style={{ fontSize: '0.85rem' }}>Sin vista previa</span>
-                              </div>
-                            );
-                          })()}
+                        {/* Left side: Action Box & Preview Trigger */}
+                        <div style={{ width: '260px', minHeight: '140px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '1rem', gap: '0.6rem' }}>
+                          <div style={{ padding: '0.6rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
+                            <FileImage size={32} />
+                          </div>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
+                            {parseJobFiles(currentActiveJob).length} {parseJobFiles(currentActiveJob).length === 1 ? 'archivo de diseño' : 'archivos de diseño'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPreview(parseJobFiles(currentActiveJob), 0)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.4rem 0.85rem', fontSize: '0.75rem', fontWeight: 700, color: '#1e293b', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                          >
+                            <Eye size={13} /> Previsualizar imágenes
+                          </button>
                         </div>
 
                         {/* Center side: Details Grid */}
@@ -1189,20 +1262,12 @@ export const ColasImpresionPage = () => {
                                 <tr key={job.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                   <td style={{ padding: '1rem 0.75rem', fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{posIndex}</td>
                                   <td style={{ padding: '1rem 0.75rem', fontWeight: 700, color: '#0f172a' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                      <span>{job.name}</span>
-                                      {files.map((f, i) => (
-                                        <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.25rem 0.5rem', borderRadius: '6px', width: 'max-content', maxWidth: '220px' }}>
-                                          <div style={{ width: '20px', height: '20px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                            {isImageFile(f.name, f.url) ? (
-                                              <ProjectMediaImage archivo={f} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            ) : (
-                                              <span style={{ fontSize: '9px' }}>📄</span>
-                                            )}
-                                          </div>
-                                          <span style={{ fontSize: '0.7rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{f.name}</span>
-                                        </div>
-                                      ))}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>{job.name}</span>
+                                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                        <FileText size={12} style={{ color: '#94a3b8' }} />
+                                        {files.length} {files.length === 1 ? 'archivo de diseño' : 'archivos de diseño'}
+                                      </span>
                                     </div>
                                   </td>
                                   <td style={{ padding: '1rem 0.75rem', color: '#334155', fontWeight: 500 }}>
@@ -1224,7 +1289,10 @@ export const ColasImpresionPage = () => {
                                   <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{job.sentBy || 'Usuario'}</td>
                                   <td style={{ padding: '1rem 0.75rem', color: '#64748b', fontSize: '0.85rem' }}>{formatLocalDateTime(job.sentAt)}</td>
                                   <td style={{ padding: '1rem 0.75rem' }}>
-                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+                                      <button onClick={() => handleOpenPreview(files, 0)} style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Previsualizar imágenes">
+                                        <Eye size={14} />
+                                      </button>
                                       <button onClick={() => handleOpenPrepModal(job)} style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cargar e Imprimir">
                                         <Play size={14} />
                                       </button>
@@ -1470,6 +1538,17 @@ export const ColasImpresionPage = () => {
                               <button 
                                 type="button" 
                                 className="btn-action" 
+                                title="Previsualizar imágenes de arte"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenPreview(parseJobFiles(job), 0);
+                                }}
+                              >
+                                <Eye size={14} />
+                              </button>
+                              <button 
+                                type="button" 
+                                className="btn-action" 
                                 title="Ver Ficha Técnica"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1647,7 +1726,12 @@ export const ColasImpresionPage = () => {
       {showCancelModal && (
         <div className="colas-modal-overlay">
           <div className="colas-modal-card">
-            <span className="colas-modal-title">Cancelar Trabajo de Impresión</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+              <div style={{ padding: '0.4rem', borderRadius: '8px', backgroundColor: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Ban size={20} />
+              </div>
+              <span className="colas-modal-title" style={{ margin: 0 }}>Cancelar Trabajo de Impresión</span>
+            </div>
             <p className="colas-modal-desc">
               Por favor, especifica el motivo por el cual estás cancelando la impresión de <strong>{cancelTargetJob ? cancelTargetJob.name : (activeJob ? activeJob.name : "")}</strong>. Esta información quedará registrada en el historial del trabajo.
             </p>
@@ -1663,33 +1747,48 @@ export const ColasImpresionPage = () => {
               {/* Opciones de Cuadratura de Inventario */}
               {cancelTargetJob?.notes?.includes('INSUS:') && (
                 <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '0.85rem 1rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '0.5rem' }}>
-                    📦 Cuadratura de Inventario
-                  </span>
-                  <label style={{ display: 'flex', itemsCenter: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.8rem', color: '#475569', marginBottom: '0.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
+                    <Package size={16} style={{ color: '#1d4ed8' }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
+                      Cuadratura de Inventario
+                    </span>
+                  </div>
+                  
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.8rem', color: '#475569', marginBottom: '0.5rem' }}>
                     <input
                       type="radio"
                       name="reintegroInventario"
                       checked={reintegrarStock}
                       onChange={() => setReintegrarStock(true)}
-                      style={{ marginTop: '2px' }}
+                      style={{ marginTop: '3px' }}
                     />
                     <div>
-                      <strong style={{ color: '#16a34a', display: 'block' }}>Reintegrar insumos al inventario (Devolución)</strong>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>El material no sufrió daños o fue un error de archivo. Devuelve el stock descontado.</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <RotateCcw size={14} style={{ color: '#16a34a' }} />
+                        <strong style={{ color: '#16a34a' }}>Reintegrar insumos al inventario (Devolución)</strong>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '0.1rem' }}>
+                        El material no sufrió daños o fue un error de archivo. Devuelve el stock descontado.
+                      </span>
                     </div>
                   </label>
-                  <label style={{ display: 'flex', itemsCenter: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.8rem', color: '#475569' }}>
+
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.8rem', color: '#475569' }}>
                     <input
                       type="radio"
                       name="reintegroInventario"
                       checked={!reintegrarStock}
                       onChange={() => setReintegrarStock(false)}
-                      style={{ marginTop: '2px' }}
+                      style={{ marginTop: '3px' }}
                     />
                     <div>
-                      <strong style={{ color: '#dc2626', display: 'block' }}>Marcar como Merma / Material dañado</strong>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>El material se atascó o se echó a perder en la máquina. Registra la salida como pérdida.</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <AlertTriangle size={14} style={{ color: '#dc2626' }} />
+                        <strong style={{ color: '#dc2626' }}>Marcar como Merma / Material dañado</strong>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '0.1rem' }}>
+                        El material se atascó o se echó a perder en la máquina. Registra la salida como pérdida.
+                      </span>
                     </div>
                   </label>
                 </div>
@@ -1699,8 +1798,8 @@ export const ColasImpresionPage = () => {
                 <button type="button" onClick={handleCloseCancelModal} className="btn-modal-back">
                   Volver
                 </button>
-                <button type="submit" className="btn-modal-cancel">
-                  Confirmar Cancelación
+                <button type="submit" className="btn-modal-cancel" disabled={submittingAction}>
+                  {submittingAction ? 'Cancelando...' : 'Confirmar Cancelación'}
                 </button>
               </div>
             </form>
@@ -1957,21 +2056,27 @@ export const ColasImpresionPage = () => {
                   <div className="prep-files-list">
                     {parseJobFiles(prepJob).map((f, idx) => (
                       <div key={idx} className="prep-file-row">
-                        <div className="prep-file-icon">
-                          {isImageFile(f.name, f.url) ? (
-                            <ProjectMediaImage archivo={f} alt="mini" style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                          ) : (
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'14px',height:'14px',color:'#6366f1'}}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-                          )}
+                        <div className="prep-file-icon flex items-center justify-center bg-slate-100 border border-slate-200 rounded" style={{ width: '28px', height: '28px', flexShrink: 0 }}>
+                          <FileImage size={14} className="text-slate-500" />
                         </div>
                         <div className="prep-file-info">
                           <span className="prep-file-name" title={f.name}>{f.name}</span>
                           {f.size && <span className="prep-file-size">{f.type?.toUpperCase?.() || 'FILE'} • {(f.size / 1024 / 1024).toFixed(1)} MB</span>}
                         </div>
-                        <a href={f.url || '#'} download={f.name} className="prep-download-btn">
-                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                          Descargar
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPreview(parseJobFiles(prepJob), idx)}
+                            className="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                            title="Previsualizar en modal"
+                          >
+                            <Eye size={12} /> Ver
+                          </button>
+                          <a href={f.url || '#'} download={f.name} className="prep-download-btn">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{width:'13px',height:'13px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                            Descargar
+                          </a>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2736,6 +2841,13 @@ export const ColasImpresionPage = () => {
           </div>
         </div>
       )}
+
+      <MediaPreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={handleClosePreview}
+        files={previewModal.files}
+        initialIndex={previewModal.index}
+      />
     </div>
   );
 };

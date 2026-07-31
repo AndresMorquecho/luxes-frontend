@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { UploadCloud, Image as ImageIcon, CheckCircle, File, Trash2, Calendar, ShieldCheck, X, Plus, Printer, Package, Clock, AlertCircle, Send, RotateCcw, XCircle, Sparkles } from 'lucide-react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { UploadCloud, Image as ImageIcon, CheckCircle, File, Trash2, Calendar, ShieldCheck, X, Plus, Printer, Package, Clock, AlertCircle, Send, RotateCcw, XCircle, Sparkles, Eye, FileImage, FileText, ExternalLink } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { usePrintQueueStable } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 import { toast } from '../../../../shared/ui/components/toastStore.js';
@@ -13,8 +13,8 @@ import {
   removeArchivoFromBatch,
 } from '../../application/proyectosService.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
-import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
 import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
+import { MediaPreviewModal } from '../../../../shared/ui/components/MediaPreviewModal.jsx';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -40,52 +40,67 @@ const isImageFile = (file) => {
   );
 };
 
-const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
+const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove, onPreview }) {
+  const isImage = isImageFile(file);
+
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-1 overflow-hidden">
-      <div className="flex gap-4 p-4">
+    <div className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-sm hover:border-slate-300 transition-all">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div
+          onClick={() => onPreview?.(file)}
+          className="w-10 h-10 bg-slate-100 border border-slate-200 text-slate-600 rounded-xl flex items-center justify-center shrink-0 cursor-pointer hover:bg-slate-200/70 transition-colors"
+          title="Previsualizar"
+        >
+          {isImage ? <FileImage size={18} /> : <FileText size={18} />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4
+            onClick={() => onPreview?.(file)}
+            className="text-xs font-bold text-slate-800 truncate cursor-pointer hover:text-slate-900 transition-colors"
+            title={file.name}
+          >
+            {file.name}
+          </h4>
+          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
+            <span>{file.size || 'Archivo'}</span>
+            <span>•</span>
+            <span className="font-semibold text-emerald-600 flex items-center gap-1">
+              <CheckCircle size={10} /> Listo para impresión
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        {isImage && (
+          <button
+            type="button"
+            onClick={() => onPreview?.(file)}
+            className="px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+            title="Previsualizar imagen en modal"
+          >
+            <Eye size={13} />
+            <span className="hidden sm:inline">Ver</span>
+          </button>
+        )}
         <a
           href={resolveMediaUrl(file.url)}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shrink-0 relative group"
-          style={{ minWidth: '80px', minHeight: '80px' }}
+          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          title="Descargar/Abrir original"
         >
-          {isImageFile(file) ? (
-            <ProjectMediaImage
-              archivo={file}
-              alt="Preview"
-              className="w-full h-full object-cover"
-              width={80}
-              height={80}
-            />
-          ) : (
-            <File size={28} className="text-slate-400" />
-          )}
-          <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <span className="text-white text-[10px] font-bold bg-slate-800/80 px-2 py-1 rounded">Ver</span>
-          </div>
+          <ExternalLink size={14} />
         </a>
-        <div className="flex-1 flex flex-col justify-between min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h4 className="text-xs font-bold text-slate-800 truncate" title={file.name}>{file.name}</h4>
-              <p className="text-[10px] text-slate-500 mt-0.5">{file.size} • {file.type?.split('/')[1]?.toUpperCase() || 'Archivo'}</p>
-            </div>
-            {onRemove && (
-              <button
-                onClick={() => onRemove(file.url)}
-                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                title="Eliminar archivo"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md w-fit mt-2">
-            <CheckCircle size={12} /> Listo para impresión
-          </div>
-        </div>
+        {onRemove && (
+          <button
+            onClick={() => onRemove(file.url)}
+            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            title="Eliminar archivo"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -94,19 +109,12 @@ const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
 
 // ── Sub-componente: Lote Individual ────────────────────────────────────────
 
-const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpdated, isNew, jobsDelProyecto }) {
+const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpdated, isNew, onPreview }) {
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
-
-  // Buscar si el job asociado existe y cuál es su estado en la cola
-  const associatedJob = batch.jobImpresionId 
-    ? (jobsDelProyecto || []).find(j => String(j.id) === String(batch.jobImpresionId))
-    : null;
-
-  const jobCancelado = associatedJob?.trackingStatus === 'Cancelado';
 
   const estadoConfig = ESTADO_BATCH[batch.estado] || ESTADO_BATCH.draft;
   const archivos = Array.isArray(batch.archivos) ? batch.archivos : [];
@@ -116,9 +124,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
     setUploading(true);
     try {
       for (const file of files) {
-        // 1. Subir al endpoint genérico de diseño (guarda en disco)
         const fileData = await uploadArchivoDiseno(proyectoId, file);
-        // 2. Asociar el archivo al batch
         await addArchivoToBatch(proyectoId, batch.id, fileData);
       }
       toast.success('Archivo(s) agregado(s) al lote');
@@ -131,7 +137,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
     }
   };
 
-  const handleRemoveFileFromBatch = async (fileUrl) => {
+  const handleRemoveFileFromBatch = useCallback(async (fileUrl) => {
     try {
       await removeArchivoFromBatch(proyectoId, batch.id, fileUrl);
       toast.success('Archivo eliminado del lote');
@@ -139,7 +145,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
     } catch (err) {
       toast.error(err.message);
     }
-  };
+  }, [proyectoId, batch.id, onBatchUpdated]);
 
   const handleEnviarImpresion = async () => {
     if (archivos.length === 0) {
@@ -192,19 +198,17 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
     }
   };
 
-  // Un lote se considera "cerrado" si tiene un job asociado activo o completado (NO cancelado)
-  const yaEnviado = (!!batch.jobImpresionId || batch.estado === 'printed') && !jobCancelado;
-  // Solo se puede editar/subir si el lote NO está enviado activo
+  // Un lote enviado a impresión permanece cerrado
+  const yaEnviado = Boolean(batch.enviadoImpresion || batch.jobImpresionId || batch.estado === 'printed');
   const canEdit = !yaEnviado;
-  // Solo se puede enviar si hay archivos y no está enviado activo
   const canSend = !yaEnviado && archivos.length > 0;
 
   return (
-    <div className={`border rounded-2xl overflow-hidden transition-all ${isNew && !yaEnviado ? 'border-blue-200 shadow-blue-50 shadow-md' : jobCancelado ? 'border-red-200' : 'border-slate-200'}`}>
+    <div className={`border rounded-2xl overflow-hidden transition-all ${isNew && !yaEnviado ? 'border-blue-200 shadow-blue-50 shadow-md' : 'border-slate-200'}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 200px' }}>
       {/* Header del batch */}
-      <div className={`px-4 py-3 flex items-center justify-between gap-3 ${isNew && !yaEnviado ? 'bg-blue-50' : jobCancelado ? 'bg-red-50' : 'bg-slate-50'}`}>
+      <div className={`px-4 py-3 flex items-center justify-between gap-3 ${isNew && !yaEnviado ? 'bg-blue-50' : 'bg-slate-50'}`}>
         <div className="flex items-center gap-2 min-w-0">
-          <Package size={15} className={isNew && !yaEnviado ? 'text-blue-500' : jobCancelado ? 'text-red-500' : 'text-slate-400'} />
+          <Package size={15} className={isNew && !yaEnviado ? 'text-blue-500' : 'text-slate-400'} />
           <div className="min-w-0">
             <p className="text-xs font-bold text-slate-800 truncate">{batch.label}</p>
             {batch.creadoEn && (
@@ -216,13 +220,11 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
         <div className="flex items-center gap-2 shrink-0">
           {/* Badge de estado */}
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
-            jobCancelado
-              ? 'text-red-600 bg-red-100 border-red-200'
-              : yaEnviado
-                ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
-                : estadoConfig.color
+            yaEnviado
+              ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+              : estadoConfig.color
           }`}>
-            {jobCancelado ? 'Impresión Cancelada' : yaEnviado ? 'Enviado a impresión' : estadoConfig.label}
+            {yaEnviado ? 'Enviado a impresión' : estadoConfig.label}
           </span>
 
           {/* Botón eliminar lote */}
@@ -250,6 +252,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
                 key={file.url || idx}
                 file={file}
                 onRemove={canEdit ? handleRemoveFileFromBatch : undefined}
+                onPreview={onPreview}
               />
             ))}
           </div>
@@ -285,19 +288,6 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
           </div>
         )}
 
-        {jobCancelado && (
-          <div className="flex flex-col gap-1 p-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl">
-            <div className="flex items-center gap-1.5 font-bold">
-              <XCircle size={14} className="text-red-500 shrink-0" />
-              <span>Impresión Anterior Cancelada (Job #{batch.jobImpresionId})</span>
-            </div>
-            {associatedJob?.cancelReason && (
-              <p className="text-[11px] text-red-600 ml-5 font-medium">Motivo: {associatedJob.cancelReason}</p>
-            )}
-            <p className="text-[10px] text-slate-500 ml-5 mt-0.5">Puedes agregar/modificar archivos si lo deseas y presionar "Enviar lote a cola de impresión" para re-intentar.</p>
-          </div>
-        )}
-
         {/* Botón enviar a impresión */}
         {canSend && (
           <button
@@ -312,8 +302,8 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
               </>
             ) : (
               <>
-                {jobCancelado ? <RotateCcw size={15} /> : <Send size={15} />}
-                {jobCancelado ? 'Re-enviar lote a cola de impresión' : 'Enviar lote a cola de impresión'}
+                <Send size={15} />
+                Enviar lote a cola de impresión
               </>
             )}
           </button>
@@ -340,12 +330,36 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
 export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos, reloadProyecto } = useProyecto(proyectoId);
   const { getJobsByProyectoId } = usePrintQueueStable();
-  const jobsDelProyecto = getJobsByProyectoId(proyectoId);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [addingBatch, setAddingBatch] = useState(false);
   const [cleaningEmpty, setCleaningEmpty] = useState(false);
   const [showNuevoBatch, setShowNuevoBatch] = useState(false);
+  const [previewModal, setPreviewModal] = useState({ isOpen: false, files: [], index: 0 });
+
+  const handleOpenPreview = useCallback((files, index = 0) => {
+    setPreviewModal({
+      isOpen: true,
+      files: Array.isArray(files) ? files : [files],
+      index: index >= 0 ? index : 0,
+    });
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewModal({ isOpen: false, files: [], index: 0 });
+  }, []);
+
+  const jobsMap = useMemo(() => {
+    const list = getJobsByProyectoId(proyectoId) || [];
+    const map = {};
+    for (let i = 0; i < list.length; i++) {
+      const j = list[i];
+      if (j && j.id != null) {
+        map[String(j.id)] = j;
+      }
+    }
+    return map;
+  }, [getJobsByProyectoId, proyectoId, proyecto?.fases?.['DISEÑO']?.datos?.batches]);
 
   const disenoFase = proyecto?.fases?.['DISEÑO'] || {};
   const datosFase = disenoFase.datos || {};
@@ -478,9 +492,9 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
     }
   };
 
-  const handleBatchUpdated = async () => {
+  const handleBatchUpdated = useCallback(async () => {
     if (reloadProyecto) await reloadProyecto();
-  };
+  }, [reloadProyecto]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -550,7 +564,11 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
                 <div className="p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {archivosIniciales.map((file, idx) => (
-                      <ArchivoCard key={file.url || idx} file={file} />
+                      <ArchivoCard
+                        key={file.url || idx}
+                        file={file}
+                        onPreview={(f) => handleOpenPreview(archivosIniciales, idx)}
+                      />
                     ))}
                   </div>
                 </div>
@@ -565,7 +583,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
                 proyectoId={proyectoId}
                 onBatchUpdated={handleBatchUpdated}
                 isNew={idx === todosLosBatches.length - 1 && batch.estado === 'draft' && showNuevoBatch}
-                jobsDelProyecto={jobsDelProyecto}
+                onPreview={(file) => handleOpenPreview(batch.archivos || [file], (batch.archivos || []).findIndex(f => f.url === file.url))}
               />
             ))}
 
@@ -606,6 +624,13 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
             </div>
           </div>
         )}
+
+        <MediaPreviewModal
+          isOpen={previewModal.isOpen}
+          onClose={handleClosePreview}
+          files={previewModal.files}
+          initialIndex={previewModal.index}
+        />
       </div>
     );
   }
@@ -666,6 +691,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
                 key={file.url || idx}
                 file={file}
                 onRemove={!soloLectura ? handleRemoveFile : undefined}
+                onPreview={(f) => handleOpenPreview(archivos, idx)}
               />
             ))}
           </div>
@@ -733,6 +759,13 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
           </div>
         </div>
       </div>
+
+      <MediaPreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={handleClosePreview}
+        files={previewModal.files}
+        initialIndex={previewModal.index}
+      />
     </div>
   );
 });

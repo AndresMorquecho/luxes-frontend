@@ -2,9 +2,33 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
-const PrintQueueContext = createContext();
+const DEFAULT_PRINT_QUEUE_CONTEXT = {
+  activeJobs: [],
+  activeJob: null,
+  queue: [],
+  completedJobs: [],
+  showCancelModal: false,
+  cancelTargetJob: null,
+  cancelReasonText: '',
+  setCancelReasonText: () => {},
+  handleStartActiveJob: async () => {},
+  handleTogglePause: async () => {},
+  handleCompleteActiveJob: async () => {},
+  handleOpenCancelModal: () => {},
+  handleConfirmCancel: async () => {},
+  handleCloseCancelModal: () => {},
+  handleCancelQueueJob: async () => {},
+  handleStartQueueJob: async () => {},
+  handleMoveUp: async () => {},
+  handleReturnToQueue: async () => {},
+  addJobToQueue: async () => {},
+  reimprimirJob: async () => {},
+  getJobsByProyectoId: () => ({ activeJobs: [], queue: [], completedJobs: [] }),
+};
+
+const PrintQueueContext = createContext(DEFAULT_PRINT_QUEUE_CONTEXT);
 /** Contexto estable: funciones que nunca cambian. Evita re-renders del timer. */
-const PrintQueueStableContext = createContext();
+const PrintQueueStableContext = createContext(DEFAULT_PRINT_QUEUE_CONTEXT);
 
 // Initial Mock Data
 const INITIAL_ACTIVE_JOB = {
@@ -76,9 +100,25 @@ export const PrintQueueProvider = ({ children }) => {
 
   // Modal states
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelTargetJob, setCancelTargetJob] = useState(null);
-  const [cancelReasonText, setCancelReasonText] = useState('');
+  const [cancelTargetJob, setCancelTargetJobState] = useState(null);
+  const [cancelReasonText, setCancelReasonTextState] = useState('');
   const [prevStatus, setPrevStatus] = useState('Listo'); // To resume correct state if modal is closed
+
+  const cancelTargetJobRef = useRef(null);
+  const cancelReasonTextRef = useRef('');
+
+  const setCancelTargetJob = useCallback((job) => {
+    cancelTargetJobRef.current = job;
+    setCancelTargetJobState(job);
+  }, []);
+
+  const setCancelReasonText = useCallback((val) => {
+    setCancelReasonTextState(prev => {
+      const nextVal = typeof val === 'function' ? val(prev) : val;
+      cancelReasonTextRef.current = nextVal;
+      return nextVal;
+    });
+  }, []);
 
   const getHeaders = () => {
     const token = localStorage.getItem('token');
@@ -250,27 +290,40 @@ export const PrintQueueProvider = ({ children }) => {
   };
 
   // Confirm cancel and archive with reason
-  const handleConfirmCancel = async (e) => {
-    e.preventDefault();
-    if (!cancelTargetJob || !cancelReasonText.trim()) return;
+  const handleConfirmCancel = async (e, reasonOverride) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const targetJob = cancelTargetJobRef.current || cancelTargetJob;
+    const finalReason = (reasonOverride !== undefined ? reasonOverride : (cancelReasonTextRef.current || cancelReasonText)).trim();
+    
+    if (!targetJob || !finalReason) {
+      console.warn('[handleConfirmCancel] Faltan datos:', { targetJob, finalReason });
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/impresiones/${cancelTargetJob.id}`, {
+      const res = await fetch(`/api/impresiones/${targetJob.id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
           status: 'Cancelado',
-          cancelReason: cancelReasonText,
+          cancelReason: finalReason,
           responsible: getActiveUser(),
         }),
       });
+
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
         setShowCancelModal(false);
         setCancelReasonText('');
         setCancelTargetJob(null);
         notifyUpdate();
+      } else {
+        throw new Error(data.error?.message || 'Error al actualizar el estado de la impresión');
       }
     } catch (err) {
-      console.error(err);
+      console.error('[handleConfirmCancel] Error:', err);
+      throw err;
     }
   };
 
@@ -278,8 +331,9 @@ export const PrintQueueProvider = ({ children }) => {
   const handleCloseCancelModal = () => {
     setShowCancelModal(false);
     setCancelReasonText('');
-    if (cancelTargetJob && prevStatus === "Imprimiendo") {
-      setActiveJobs(prev => prev.map(j => j.id === cancelTargetJob.id ? { ...j, status: "Imprimiendo" } : j));
+    const targetJob = cancelTargetJobRef.current || cancelTargetJob;
+    if (targetJob && prevStatus === "Imprimiendo") {
+      setActiveJobs(prev => prev.map(j => j.id === targetJob.id ? { ...j, status: "Imprimiendo" } : j));
     }
     setCancelTargetJob(null);
   };
@@ -492,10 +546,7 @@ export const PrintQueueProvider = ({ children }) => {
 /** Hook completo — contiene datos que cambian con el timer (5s). */
 export const usePrintQueue = () => {
   const context = useContext(PrintQueueContext);
-  if (!context) {
-    throw new Error('usePrintQueue must be used within a PrintQueueProvider');
-  }
-  return context;
+  return context || DEFAULT_PRINT_QUEUE_CONTEXT;
 };
 
 /**
@@ -506,8 +557,5 @@ export const usePrintQueue = () => {
  */
 export const usePrintQueueStable = () => {
   const context = useContext(PrintQueueStableContext);
-  if (!context) {
-    throw new Error('usePrintQueueStable must be used within a PrintQueueProvider');
-  }
-  return context;
+  return context || DEFAULT_PRINT_QUEUE_CONTEXT;
 };

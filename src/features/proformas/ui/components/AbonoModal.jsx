@@ -162,7 +162,7 @@ export const AbonoModal = ({
                   {/* Monto */}
                   <div>
                     <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider mb-1.5 sm:mb-2 block">
-                      MONTO DEL ABONO / COBRO *
+                      MONTO DEL ABONO / COBRO {isApproval ? '(OPCIONAL / $0.00)' : '*'}
                     </label>
                     <div className="flex rounded-xl border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 shadow-sm">
                       <div className="bg-[#f8fafc] border-r border-slate-200 px-3 sm:px-3.5 flex items-center justify-center text-slate-500 font-bold text-sm shrink-0">
@@ -177,10 +177,19 @@ export const AbonoModal = ({
                         onChange={(e) => setMonto(e.target.value)}
                         className="w-full px-3 py-2 sm:py-2.5 text-sm bg-white font-mono font-bold text-[#0f172a] focus:outline-none placeholder-slate-400"
                         placeholder="0.00"
-                        required
+                        required={!isApproval}
                       />
                     </div>
-                    <div className="flex items-center gap-3 mt-1.5">
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      {isApproval && (
+                        <button
+                          type="button"
+                          onClick={() => setMonto('0.00')}
+                          className="text-[11px] sm:text-[12px] font-bold text-slate-500 hover:text-slate-700 hover:underline"
+                        >
+                          Sin Abono ($0)
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setMonto(pending.toFixed(2))}
@@ -203,10 +212,10 @@ export const AbonoModal = ({
                   {/* Método de Pago */}
                   <div>
                     <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider mb-1.5 sm:mb-2 block">
-                      CAJA / MÉTODO DE PAGO *
+                      CAJA / MÉTODO DE PAGO {isApproval && (!monto || parseFloat(monto || '0') === 0) ? '(OPCIONAL)' : '*'}
                     </label>
                     <select
-                      required
+                      required={!isApproval || (parseFloat(monto || '0') > 0)}
                       value={metodoPagoId}
                       onChange={(e) => setMetodoPagoId(e.target.value)}
                       className="w-full px-3 py-2 sm:py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-[#1e293b] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm cursor-pointer"

@@ -73,10 +73,11 @@ export default function ProyectoDetallePage() {
 
   const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual: validacionBase } = useProyecto(id);
   const { getJobsByProyectoId } = usePrintQueueStable();
-  const validacionFaseActual =
-    proyecto?.faseActual === 'PRODUCCION'
+  const validacionFaseActual = React.useMemo(() => {
+    return proyecto?.faseActual === 'PRODUCCION'
       ? enrichValidacionConImpresion(validacionBase, getJobsByProyectoId(id))
       : validacionBase;
+  }, [proyecto?.faseActual, validacionBase, getJobsByProyectoId, id]);
 
   useAutoAvanceInstalacionAdmin({
     proyectoId: id,
@@ -470,8 +471,8 @@ export default function ProyectoDetallePage() {
         </div>
       </div>
 
-      {canViewGastos && (
-        <div className={subTab === 'gastos' ? 'block' : 'hidden'}>
+      {canViewGastos && subTab === 'gastos' && (
+        <div>
           <GastosComprasTab 
             proyecto={proyecto} 
             isAdmin={isAdmin} 

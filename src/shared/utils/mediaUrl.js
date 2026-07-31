@@ -84,7 +84,9 @@ export function resolveMediaUrl(url, proyectoIdHint = '') {
  * En el futuro se puede añadir ?thumb=1 cuando el backend lo soporte correctamente.
  */
 export function getThumbnailMediaUrl(url, proyectoIdHint = '') {
-  return resolveMediaUrl(url, proyectoIdHint);
+  const full = resolveMediaUrl(url, proyectoIdHint);
+  if (!full || full.startsWith('data:') || full.startsWith('blob:')) return full;
+  return `/api/media/thumbnail?url=${encodeURIComponent(full)}`;
 }
 
 export function getArchivoMediaSrc(archivo, isThumbnail = true) {
@@ -103,8 +105,9 @@ export function getArchivoMediaSrc(archivo, isThumbnail = true) {
   if (!rawUrl) return '';
   if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return rawUrl;
 
-  // thumbnail y full usan la misma URL — el browser ya las tiene cacheadas
-  return toApiUrl(rawUrl, proyectoId) || rawUrl;
+  const full = toApiUrl(rawUrl, proyectoId) || rawUrl;
+  if (!isThumbnail || !full) return full;
+  return `/api/media/thumbnail?url=${encodeURIComponent(full)}`;
 }
 
 export function resolveEvidenciaSrc(item, opts = {}) {
@@ -122,7 +125,11 @@ export function resolveEvidenciaSrc(item, opts = {}) {
   if (!rawUrl) return '';
   if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return rawUrl;
 
-  return toApiUrl(rawUrl, proyectoId) || rawUrl;
+  const full = toApiUrl(rawUrl, proyectoId) || rawUrl;
+  if (opts.thumbnail && full) {
+    return `/api/media/thumbnail?url=${encodeURIComponent(full)}`;
+  }
+  return full;
 }
 
 export function getArchivoPreviewFallback(archivo) {

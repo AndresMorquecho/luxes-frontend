@@ -40,14 +40,14 @@ export const ProjectMediaImage = React.memo(function ProjectMediaImage({
     if (!img) return;
 
     // Intento 1: Probar URL completa original (sin miniatura)
-    if (fullUrl && img.src !== fullUrl && !img.dataset.triedFull) {
+    if (!img.dataset.triedFull && fullUrl) {
       img.dataset.triedFull = 'true';
       img.src = fullUrl;
       return;
     }
 
     // Intento 2: Probar preview embebido (base64)
-    if (embeddedPreview && img.src !== embeddedPreview && !img.dataset.triedEmbedded) {
+    if (!img.dataset.triedEmbedded && embeddedPreview) {
       img.dataset.triedEmbedded = 'true';
       img.src = embeddedPreview;
       return;

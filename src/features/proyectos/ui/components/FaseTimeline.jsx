@@ -140,7 +140,7 @@ function MobileTimeline({ filteredFases, faseActual, fases, faseVista, onFaseCli
  * Timeline horizontal con las fases del proyecto.
  * Solo monta una variante (desktop o móvil) para evitar errores de reconciliación de React.
  */
-export function FaseTimeline({
+export const FaseTimeline = React.memo(function FaseTimeline({
   faseActual,
   fases = {},
   onFaseClick,
@@ -156,4 +156,4 @@ export function FaseTimeline({
   const props = { filteredFases, faseActual, fases, faseVista, onFaseClick };
 
   return isMobile ? <MobileTimeline {...props} /> : <DesktopTimeline {...props} />;
-}
+});
