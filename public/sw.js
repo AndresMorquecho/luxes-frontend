@@ -1,6 +1,6 @@
 // Service Worker for Luxes PWA
 
-const CACHE_NAME = 'luxes-static-cache-v6';
+const CACHE_NAME = 'luxes-static-cache-v7';
 
 function isAssetResponse(url, response) {
   if (!response || !response.ok) return false;
@@ -86,9 +86,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // APIs: solo red
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(event.request).catch(() => offlineJson()));
+  // APIs y subidas de archivos (/uploads, /api): dejar que el navegador los maneje de forma nativa sin pasar por el SW.
+  // Al no llamar a event.respondWith, el navegador usa su pipeline de red nativo + aceleración GPU.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) {
     return;
   }
 
