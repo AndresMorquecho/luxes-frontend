@@ -1,180 +1,150 @@
 /**
- * Rutas de medios de proyecto.
- * Preferir /uploads o thumbnails; previewDataUrl (base64) solo como fallback legado.
+ * Rutas de medios de proyecto ultra-robustas.
+ * Mapea cualquier variante de URL (relativa, absoluta, /uploads, /api/proyectos)
+ * al endpoint proxied de la API: /api/proyectos/:id/archivos/:filename (?thumb=1)
  */
+
+function pathBasename(pathStr) {
+  if (!pathStr || typeof pathStr !== 'string') return '';
+  const parts = pathStr.split(/[/\\]/);
+  return parts[parts.length - 1].split('?')[0].split('#')[0];
+}
+
+function extractProyectoAndFilename(str, fallbackProyectoId = '') {
+  if (!str || typeof str !== 'string') return { proyectoId: fallbackProyectoId, filename: '' };
+  let cleaned = str.trim();
+
+  if (cleaned.startsWith('data:') || cleaned.startsWith('blob:')) {
+    return { proyectoId: '', filename: '', isDataOrBlob: true, raw: cleaned };
+  }
+
+  if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+    try {
+      cleaned = new URL(cleaned).pathname;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  cleaned = cleaned.replace(/^\/+/, '');
+
+  if (cleaned.startsWith('uploads/proyectos/')) {
+    const parts = cleaned.split('/');
+    if (parts.length >= 4) {
+      return { proyectoId: parts[2], filename: parts.slice(3).join('/') };
+    }
+  }
+
+  if (cleaned.startsWith('api/proyectos/') && cleaned.includes('/archivos/')) {
+    const match = cleaned.match(/^api\/proyectos\/([^/]+)\/archivos\/([^/?#]+)/);
+    if (match) {
+      return { proyectoId: match[1], filename: decodeURIComponent(match[2]) };
+    }
+  }
+
+  const parts = cleaned.split('/');
+  if (parts.length === 2 && (parts[0].startsWith('PROY-') || parts[0].length > 3)) {
+    return { proyectoId: parts[0], filename: parts[1] };
+  }
+
+  const base = pathBasename(cleaned);
+  return { proyectoId: fallbackProyectoId, filename: base };
+}
 
 export function uploadsProyectoUrl(proyectoId, filename) {
   if (!proyectoId || !filename) return '';
-  return `/uploads/proyectos/${proyectoId}/${filename}`;
+  return `/api/proyectos/${proyectoId}/archivos/${encodeURIComponent(filename)}`;
 }
 
-/** Convierte /api/proyectos/.../archivos/... → /uploads/proyectos/... */
 export function apiArchivoToUploadsUrl(url) {
   if (!url || typeof url !== 'string') return '';
-  const match = url.trim().match(/^\/api\/proyectos\/([^/]+)\/archivos\/([^/?#]+)/);
-  if (!match) return '';
-  return uploadsProyectoUrl(match[1], decodeURIComponent(match[2]));
+  const { proyectoId, filename, isDataOrBlob, raw } = extractProyectoAndFilename(url);
+  if (isDataOrBlob) return raw;
+  if (proyectoId && filename) {
+    return `/api/proyectos/${proyectoId}/archivos/${encodeURIComponent(filename)}`;
+  }
+  return url;
 }
 
 export function resolveMediaUrl(url) {
   if (!url || typeof url !== 'string') return '';
-  const trimmed = url.trim();
-  if (
-    trimmed.startsWith('data:') ||
-    trimmed.startsWith('blob:') ||
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://')
-  ) {
-    return trimmed;
+  const { proyectoId, filename, isDataOrBlob, raw } = extractProyectoAndFilename(url);
+  if (isDataOrBlob) return raw;
+  if (proyectoId && filename) {
+    return `/api/proyectos/${proyectoId}/archivos/${encodeURIComponent(filename)}`;
   }
-  const fromApi = apiArchivoToUploadsUrl(trimmed);
-  if (fromApi) return fromApi;
-  return trimmed;
+  return url.trim();
 }
 
-export function getThumbnailMediaUrl(url) {
-  let resolved = resolveMediaUrl(url);
-  if (!resolved || resolved.startsWith('data:') || resolved.startsWith('blob:')) return resolved;
+export function getThumbnailMediaUrl(url, proyectoIdHint = '') {
+  if (!url || typeof url !== 'string') return '';
+  const { proyectoId, filename, isDataOrBlob, raw } = extractProyectoAndFilename(url, proyectoIdHint);
+  if (isDataOrBlob) return raw;
 
-  let pathname = resolved;
-  if (resolved.startsWith('http://') || resolved.startsWith('https://')) {
-    try {
-      const parsed = new URL(resolved);
-      pathname = parsed.pathname;
-    } catch {
-      return resolved;
-    }
+  const targetPid = proyectoId || proyectoIdHint;
+  if (targetPid && filename) {
+    return `/api/proyectos/${targetPid}/archivos/${encodeURIComponent(filename)}?thumb=1`;
   }
 
-  if (pathname.startsWith('/uploads/proyectos/')) {
-    const parts = pathname.split('/');
-    if (parts.length >= 5) {
-      const id = parts[3];
-      const filename = parts.slice(4).join('/');
-      return `/api/proyectos/${id}/archivos/${encodeURIComponent(filename)}?thumb=1`;
-    }
-  }
-
-  if (pathname.startsWith('/api/proyectos/') && pathname.includes('/archivos/')) {
-    return `${pathname}${pathname.includes('?') ? '&' : '?'}thumb=1`;
-  }
-
-  return `/api/proyectos/media/thumbnail?url=${encodeURIComponent(pathname)}`;
+  return `/api/proyectos/media/thumbnail?url=${encodeURIComponent(url)}`;
 }
 
-/** URL o miniatura optimizada para un archivo de diseño en tableros. */
 export function getArchivoMediaSrc(archivo, isThumbnail = true) {
   if (!archivo) return '';
   let rawUrl = '';
-  if (typeof archivo === 'string') rawUrl = archivo;
-  else if (archivo.url) rawUrl = archivo.url;
-  else if (archivo.previewDataUrl) return archivo.previewDataUrl;
+  let proyectoId = '';
 
-  const resolved = resolveMediaUrl(rawUrl);
-  if (!resolved) {
-    if (typeof archivo === 'object' && archivo.previewDataUrl) return archivo.previewDataUrl;
-    return '';
+  if (typeof archivo === 'string') {
+    rawUrl = archivo;
+  } else if (typeof archivo === 'object') {
+    rawUrl = archivo.url || archivo.path || archivo.nombre || archivo.name || '';
+    proyectoId = archivo.proyectoId || archivo.idProyecto || '';
+    if (!rawUrl && archivo.previewDataUrl) return archivo.previewDataUrl;
   }
-  if (isThumbnail) return getThumbnailMediaUrl(resolved);
-  return resolved;
+
+  if (!rawUrl) return '';
+
+  const { isDataOrBlob, raw } = extractProyectoAndFilename(rawUrl, proyectoId);
+  if (isDataOrBlob) return raw;
+
+  if (isThumbnail) {
+    return getThumbnailMediaUrl(rawUrl, proyectoId);
+  }
+
+  const { proyectoId: pId, filename } = extractProyectoAndFilename(rawUrl, proyectoId);
+  const targetPid = pId || proyectoId;
+  if (targetPid && filename) {
+    return `/api/proyectos/${targetPid}/archivos/${encodeURIComponent(filename)}`;
+  }
+
+  return resolveMediaUrl(rawUrl);
 }
 
-/**
- * URL para evidencia de instalación.
- * Prioriza url/uploads; previewDataUrl solo si no hay url (legado).
- * @param {object|string} item
- * @param {{ thumbnail?: boolean }} [opts]
- */
 export function resolveEvidenciaSrc(item, opts = {}) {
   const { thumbnail = false } = opts;
   if (!item) return '';
+  let rawUrl = '';
+  let proyectoId = '';
+
   if (typeof item === 'string') {
-    if (
-      item.startsWith('data:') ||
-      item.startsWith('blob:') ||
-      item.startsWith('http://') ||
-      item.startsWith('https://')
-    ) {
-      return item;
-    }
-    if (item.startsWith('/')) {
-      const resolved = resolveMediaUrl(item);
-      return thumbnail ? getThumbnailMediaUrl(resolved) : resolved;
-    }
-    if (item.length > 80) return `data:image/jpeg;base64,${item}`;
-    return item;
+    rawUrl = item;
+  } else if (typeof item === 'object') {
+    rawUrl = item.url || item.path || item.previewDataUrl || '';
+    proyectoId = item.proyectoId || item.idProyecto || '';
   }
-  if (item.url) {
-    const resolved = resolveMediaUrl(item.url);
-    return thumbnail ? getThumbnailMediaUrl(resolved) : resolved;
+
+  if (!rawUrl) return '';
+
+  if (thumbnail) {
+    return getThumbnailMediaUrl(rawUrl, proyectoId);
   }
-  if (item.previewDataUrl) return item.previewDataUrl;
-  return '';
+  return getArchivoMediaSrc(item, false);
 }
 
 export function getArchivoPreviewFallback(archivo) {
-  if (!archivo || typeof archivo === 'string') return '';
-  return archivo.previewDataUrl || '';
-}
-
-/** Caché global en memoria: cacheKey → blobUrl */
-const _blobUrlCache = new Map();
-/** Deduplicación de fetches concurrentes para la misma URL */
-const _blobFetchInFlight = new Map();
-
-/** Descarga con JWT (fallback si /uploads no está disponible).
- *  Usa caché en memoria para evitar múltiples descargas del mismo archivo. */
-export async function fetchMediaBlobUrl(url) {
-  if (!url) return null;
-
-  // Retornar desde caché si ya fue descargado
-  const cacheKey = String(url);
-  if (_blobUrlCache.has(cacheKey)) {
-    return _blobUrlCache.get(cacheKey);
+  if (!archivo) return '';
+  if (typeof archivo === 'object' && archivo.previewDataUrl) {
+    return archivo.previewDataUrl;
   }
-
-  // Deduplicar: si ya hay un fetch en vuelo para esta URL, esperar al mismo promise
-  if (_blobFetchInFlight.has(cacheKey)) {
-    return _blobFetchInFlight.get(cacheKey);
-  }
-
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-  const uploadsUrl = resolveMediaUrl(url);
-  const candidates = [];
-  if (uploadsUrl) candidates.push(uploadsUrl);
-  const apiFromUploads = uploadsUrl?.match(/^\/uploads\/proyectos\/([^/]+)\/([^/?#]+)/);
-  if (apiFromUploads) {
-    candidates.push(
-      `/api/proyectos/${apiFromUploads[1]}/archivos/${encodeURIComponent(apiFromUploads[2])}`,
-    );
-  }
-  if (url?.startsWith('/api/')) candidates.push(url);
-
-  const fetchPromise = (async () => {
-    for (const candidate of candidates) {
-      try {
-        const res = await fetch(candidate, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!res.ok) continue;
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        _blobUrlCache.set(cacheKey, blobUrl);
-        return blobUrl;
-      } catch {
-        /* siguiente candidato */
-      }
-    }
-    // Guardar null en caché para evitar reintentar descargas de URLs inexistentes (404)
-    _blobUrlCache.set(cacheKey, null);
-    return null;
-  })();
-
-  _blobFetchInFlight.set(cacheKey, fetchPromise);
-  try {
-    const result = await fetchPromise;
-    return result;
-  } finally {
-    _blobFetchInFlight.delete(cacheKey);
-  }
+  return '';
 }

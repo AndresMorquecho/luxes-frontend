@@ -11,6 +11,7 @@ import {
 } from '../../application/proyectosService.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
+import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
     <div className="bg-white border border-slate-200 rounded-2xl p-1 overflow-hidden">
       <div className="flex gap-4 p-4">
         <a
-          href={file.url}
+          href={resolveMediaUrl(file.url)}
           target="_blank"
           rel="noopener noreferrer"
           className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shrink-0 relative group"
