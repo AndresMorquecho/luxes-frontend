@@ -1,8 +1,10 @@
 /* c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/colas-impresion/context/PrintQueueContext.jsx */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 const PrintQueueContext = createContext();
+/** Contexto estable: funciones que nunca cambian. Evita re-renders del timer. */
+const PrintQueueStableContext = createContext();
 
 // Initial Mock Data
 const INITIAL_ACTIVE_JOB = {
@@ -56,6 +58,11 @@ export const PrintQueueProvider = ({ children }) => {
   const [queue, setQueue] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
 
+  // Ref paralela: permite a getJobsByProyectoId leer datos actuales
+  // sin crear una nueva referencia de función cada vez que el estado cambia.
+  // Esto evita que ProyectoDetallePage se re-renderice cada 5s por el timer.
+  const jobsRef = useRef({ activeJobs: [], queue: [], completedJobs: [] });
+
   const getActiveUser = () => {
     try {
       const userStr = localStorage.getItem('user');
@@ -87,10 +94,14 @@ export const PrintQueueProvider = ({ children }) => {
       const data = await res.json();
       if (res.ok && data.success) {
         const list = data.data.activeJobs || (data.data.activeJob ? [data.data.activeJob] : []);
+        const q = data.data.queue;
+        const completed = data.data.completedJobs;
         setActiveJobs(list);
         setActiveJob(list[0] || null);
-        setQueue(data.data.queue);
-        setCompletedJobs(data.data.completedJobs);
+        setQueue(q);
+        setCompletedJobs(completed);
+        // Actualizar ref paralela — esto NO dispara re-renders
+        jobsRef.current = { activeJobs: list, queue: q, completedJobs: completed };
       }
     } catch (err) {
       console.error('[PrintQueueContext] Error fetching jobs:', err);
@@ -145,8 +156,11 @@ export const PrintQueueProvider = ({ children }) => {
           return job;
         });
         if (hasChanges) {
-          setActiveJob(nextJobs[0] || null);
-          return nextJobs;
+          const updated = nextJobs;
+          // Actualizar ref paralela — NO dispara re-renders extra
+          jobsRef.current = { ...jobsRef.current, activeJobs: updated };
+          setActiveJob(updated[0] || null);
+          return updated;
         }
         return prevJobs;
       });
@@ -366,29 +380,32 @@ export const PrintQueueProvider = ({ children }) => {
     return data.data;
   };
 
-  // Get all jobs (active + queue + completed) linked to a specific project
-  // Evita crear nuevas referencias si los datos no cambiaron
+  // Get all jobs (active + queue + completed) linked to a specific project.
+  // USA jobsRef en vez de state — referencia ESTABLE que nunca cambia.
+  // Esto evita que ProyectoDetallePage se re-renderice cada 5s cuando el timer dispara.
   const getJobsByProyectoId = useCallback((proyectoId) => {
     if (!proyectoId) return [];
+    const { activeJobs: aj, queue: q, completedJobs: cj } = jobsRef.current;
     const allJobs = [];
-    activeJobs.forEach(job => {
+    aj.forEach(job => {
       if (job.proyectoId === proyectoId) {
-        // Solo añadir trackingStatus si no existe, evitando spread innecesario
         allJobs.push(job.trackingStatus ? job : { ...job, trackingStatus: job.status });
       }
     });
-    queue.forEach(job => {
+    q.forEach(job => {
       if (job.proyectoId === proyectoId) {
         allJobs.push(job.trackingStatus === 'En espera' ? job : { ...job, trackingStatus: 'En espera' });
       }
     });
-    completedJobs.forEach(job => {
+    cj.forEach(job => {
       if (job.proyectoId === proyectoId) {
         allJobs.push(job.trackingStatus ? job : { ...job, trackingStatus: job.status });
       }
     });
     return allJobs;
-  }, [activeJobs, queue, completedJobs]);
+  // Sin dependencias de estado — usa ref. Referencia NUNCA cambia.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Reimprimir un trabajo cancelado (duplica el trabajo y lo pone en la cola "En espera")
   const reimprimirJob = async (job) => {
@@ -425,17 +442,10 @@ export const PrintQueueProvider = ({ children }) => {
     }
   };
 
-  // Memoizar el value del context para evitar re-renders en consumidores
-  // cuando el timer interno dispara pero los datos no cambiaron
-  const contextValue = useMemo(() => ({
-    activeJobs,
-    activeJob,
-    queue,
-    completedJobs,
-    showCancelModal,
-    cancelTargetJob,
-    cancelReasonText,
-    setCancelReasonText,
+  // ── Contexto ESTABLE: funciones que nunca cambian de identidad ──────────────
+  // ProyectoDetallePage usa este hook para getJobsByProyectoId
+  // sin re-renderizarse cuando el timer de 5s dispara.
+  const stableValue = useMemo(() => ({
     handleStartActiveJob,
     handleTogglePause,
     handleCompleteActiveJob,
@@ -448,21 +458,38 @@ export const PrintQueueProvider = ({ children }) => {
     handleReturnToQueue,
     addJobToQueue,
     reimprimirJob,
-    getJobsByProyectoId
+    getJobsByProyectoId,
+    setCancelReasonText,
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [getJobsByProyectoId]);
+
+  // ── Contexto de DATOS: cambia con el timer y fetchJobs ───────────────────
+  // Solo componentes que muestran la cola en tiempo real deben usar esto.
+  const dataValue = useMemo(() => ({
+    activeJobs,
+    activeJob,
+    queue,
+    completedJobs,
+    showCancelModal,
+    cancelTargetJob,
+    cancelReasonText,
+    ...stableValue,
   }), [
     activeJobs, activeJob, queue, completedJobs,
     showCancelModal, cancelTargetJob, cancelReasonText,
-    getJobsByProyectoId
+    stableValue,
   ]);
 
   return (
-    <PrintQueueContext.Provider value={contextValue}>
-      {children}
-    </PrintQueueContext.Provider>
+    <PrintQueueStableContext.Provider value={stableValue}>
+      <PrintQueueContext.Provider value={dataValue}>
+        {children}
+      </PrintQueueContext.Provider>
+    </PrintQueueStableContext.Provider>
   );
 };
 
+/** Hook completo — contiene datos que cambian con el timer (5s). */
 export const usePrintQueue = () => {
   const context = useContext(PrintQueueContext);
   if (!context) {
@@ -471,3 +498,16 @@ export const usePrintQueue = () => {
   return context;
 };
 
+/**
+ * Hook ESTABLE — solo funciones (getJobsByProyectoId, actions).
+ * NO causa re-renders cuando activeJobs/queue/completedJobs cambian.
+ * Usar en ProyectoDetallePage y cualquier componente que solo necesite
+ * getJobsByProyectoId sin importar el estado en tiempo real de la cola.
+ */
+export const usePrintQueueStable = () => {
+  const context = useContext(PrintQueueStableContext);
+  if (!context) {
+    throw new Error('usePrintQueueStable must be used within a PrintQueueProvider');
+  }
+  return context;
+};

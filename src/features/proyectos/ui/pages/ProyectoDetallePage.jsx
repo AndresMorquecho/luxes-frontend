@@ -10,7 +10,7 @@ import {
 import { useProyecto, enrichValidacionConImpresion } from '../../application/hooks/useProyecto.js';
 import { useAutoAvanceInstalacionAdmin } from '../../application/hooks/useAutoAvanceInstalacionAdmin.js';
 import { useProyectosContext } from '../../application/context/ProyectosContext.jsx';
-import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
+import { usePrintQueueStable } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 import { updateOrden } from '../../../compras/application/comprasService.js';
 import { getMetodosPago } from '../../../gastos/application/gastosService.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
@@ -70,7 +70,7 @@ export default function ProyectoDetallePage() {
   const userRole = (user?.rol || '').toLowerCase();
 
   const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual: validacionBase } = useProyecto(id);
-  const { getJobsByProyectoId } = usePrintQueue();
+  const { getJobsByProyectoId } = usePrintQueueStable();
   const validacionFaseActual =
     proyecto?.faseActual === 'PRODUCCION'
       ? enrichValidacionConImpresion(validacionBase, getJobsByProyectoId(id))
