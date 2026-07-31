@@ -33,12 +33,21 @@ export function resolveMediaUrl(url) {
 }
 
 export function getThumbnailMediaUrl(url) {
-  const resolved = resolveMediaUrl(url);
+  let resolved = resolveMediaUrl(url);
   if (!resolved || resolved.startsWith('data:') || resolved.startsWith('blob:')) return resolved;
-  if (resolved.startsWith('http://') || resolved.startsWith('https://')) return resolved;
 
-  if (resolved.startsWith('/uploads/proyectos/')) {
-    const parts = resolved.split('/');
+  let pathname = resolved;
+  if (resolved.startsWith('http://') || resolved.startsWith('https://')) {
+    try {
+      const parsed = new URL(resolved);
+      pathname = parsed.pathname;
+    } catch {
+      return resolved;
+    }
+  }
+
+  if (pathname.startsWith('/uploads/proyectos/')) {
+    const parts = pathname.split('/');
     if (parts.length >= 5) {
       const id = parts[3];
       const filename = parts.slice(4).join('/');
@@ -46,11 +55,11 @@ export function getThumbnailMediaUrl(url) {
     }
   }
 
-  if (resolved.startsWith('/api/proyectos/') && resolved.includes('/archivos/')) {
-    return `${resolved}${resolved.includes('?') ? '&' : '?'}thumb=1`;
+  if (pathname.startsWith('/api/proyectos/') && pathname.includes('/archivos/')) {
+    return `${pathname}${pathname.includes('?') ? '&' : '?'}thumb=1`;
   }
 
-  return `/api/proyectos/media/thumbnail?url=${encodeURIComponent(resolved)}`;
+  return `/api/proyectos/media/thumbnail?url=${encodeURIComponent(pathname)}`;
 }
 
 /** URL o miniatura optimizada para un archivo de diseño en tableros. */
