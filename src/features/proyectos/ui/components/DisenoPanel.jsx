@@ -20,6 +20,21 @@ const ESTADO_BATCH = {
   cancelled:     { label: 'Cancelado',              color: 'text-slate-400 bg-slate-50 border-slate-200' },
 };
 
+const isImageFile = (file) => {
+  if (!file) return false;
+  const type = (file.type || '').toLowerCase();
+  if (type.includes('image')) return true;
+  const name = (file.name || '').toLowerCase();
+  const url = (file.url || '').toLowerCase();
+  return (
+    name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') ||
+    name.endsWith('.gif') || name.endsWith('.webp') ||
+    url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg') ||
+    url.endsWith('.gif') || url.endsWith('.webp') ||
+    url.startsWith('data:image')
+  );
+};
+
 const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-1 overflow-hidden">
@@ -31,7 +46,7 @@ const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
           className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shrink-0 relative group"
           style={{ minWidth: '80px', minHeight: '80px' }}
         >
-          {file.type && file.type.includes('image') ? (
+          {isImageFile(file) ? (
             <ProjectMediaImage
               archivo={file}
               alt="Preview"
