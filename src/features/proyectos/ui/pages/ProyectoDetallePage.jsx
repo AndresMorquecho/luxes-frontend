@@ -358,25 +358,25 @@ export default function ProyectoDetallePage() {
           )}
         </div>
 
-        {subTab === 'fases' ? (
-          <>
-            {/* Timeline + Progreso */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 relative">
-              <FaseTimeline 
-                faseActual={proyecto.faseActual} 
-                fases={proyecto.fases} 
-                faseVista={faseActiva}
-                onFaseClick={handleSetFaseVista}
-                requiereInstalacion={proyecto.requiereInstalacion}
-              />
-          <div className="mt-3 sm:mt-5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
-              <span className="text-sm font-bold" style={{ color: faseConfig?.color }}>
-                {proyecto.progreso}% — {faseConfig?.label}
-              </span>
+        <div className={subTab === 'fases' ? 'block space-y-6' : 'hidden'}>
+          {/* Timeline + Progreso */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 relative">
+            <FaseTimeline 
+              faseActual={proyecto.faseActual} 
+              fases={proyecto.fases} 
+              faseVista={faseActiva}
+              onFaseClick={handleSetFaseVista}
+              requiereInstalacion={proyecto.requiereInstalacion}
+            />
+            <div className="mt-3 sm:mt-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
+                <span className="text-sm font-bold" style={{ color: faseConfig?.color }}>
+                  {proyecto.progreso}% — {faseConfig?.label}
+                </span>
+              </div>
+              <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} height="h-4" />
             </div>
-            <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} height="h-4" />
           </div>
         </div>
 
@@ -519,16 +519,18 @@ export default function ProyectoDetallePage() {
           </div>
           )}
         </div>
-      </>
-      ) : (
-        <GastosComprasTab 
-          proyecto={proyecto} 
-          isAdmin={isAdmin} 
-          updateProyecto={updateProyecto} 
-          reloadProyectos={reloadProyectos} 
-        />
-      )}
       </div>
+
+      {canViewGastos && (
+        <div className={subTab === 'gastos' ? 'block' : 'hidden'}>
+          <GastosComprasTab 
+            proyecto={proyecto} 
+            isAdmin={isAdmin} 
+            updateProyecto={updateProyecto} 
+            reloadProyectos={reloadProyectos} 
+          />
+        </div>
+      )}
 
       {/* Modal de Detalles del Proyecto */}
       {isDetailsModalOpen && (

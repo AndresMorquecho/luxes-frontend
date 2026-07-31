@@ -36,7 +36,7 @@ export function getThumbnailMediaUrl(url) {
   const resolved = resolveMediaUrl(url);
   if (!resolved || resolved.startsWith('data:') || resolved.startsWith('blob:')) return resolved;
   if (resolved.startsWith('http://') || resolved.startsWith('https://')) return resolved;
-  return `/api/media/thumbnail?url=${encodeURIComponent(resolved)}`;
+  return `/api/proyectos/media/thumbnail?url=${encodeURIComponent(resolved)}`;
 }
 
 /** URL o miniatura optimizada para un archivo de diseño en tableros. */
