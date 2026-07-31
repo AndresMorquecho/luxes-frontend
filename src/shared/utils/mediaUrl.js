@@ -142,6 +142,8 @@ export async function fetchMediaBlobUrl(url) {
         /* siguiente candidato */
       }
     }
+    // Guardar null en caché para evitar reintentar descargas de URLs inexistentes (404)
+    _blobUrlCache.set(cacheKey, null);
     return null;
   })();
 

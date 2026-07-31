@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useTransition, useRef, useEffect } from 'react';
+import { ImageOff } from 'lucide-react';
 import {
   getArchivoMediaSrc,
   getArchivoPreviewFallback,
@@ -11,10 +12,10 @@ import {
  *
  * OPTIMIZACIONES:
  * - useState para src (confiable, funciona con loading="lazy")
- * - startTransition para updates de fallback (no bloquea scroll ni interacciones)
+ * - startTransition para updates de fallback
  * - React.memo para no re-renderizar si las props no cambian
- * - Anti-loop: Set de srcs ya intentados
- * - loading="lazy" + decoding="async" para no bloquear el main thread
+ * - Anti-loop: Set de srcs ya intentados + hasFailedAll para cortar la cadena
+ * - Renderiza placeholder si todos los intentos dan 404 (cero reintentos extra)
  */
 export const ProjectMediaImage = React.memo(function ProjectMediaImage({
   archivo,
@@ -36,6 +37,7 @@ export const ProjectMediaImage = React.memo(function ProjectMediaImage({
     : (typeof evidencia === 'object' ? evidencia?.url : (typeof archivo === 'string' ? archivo : ''));
 
   const [src, setSrc] = useState(primary);
+  const [hasFailedAll, setHasFailedAll] = useState(false);
   const [, startTransition] = useTransition();
   const isMountedRef = useRef(true);
   const failedSrcsRef = useRef(new Set());
@@ -51,13 +53,14 @@ export const ProjectMediaImage = React.memo(function ProjectMediaImage({
     if (primary !== src && !failedSrcsRef.current.has(primary)) {
       failedSrcsRef.current = new Set();
       fetchAttemptedRef.current = false;
+      setHasFailedAll(false);
       setSrc(primary);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [primary]);
 
   const handleError = useCallback(async () => {
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current || hasFailedAll) return;
 
     // Anti-loop: no reintentar el mismo src
     failedSrcsRef.current.add(src);
@@ -78,17 +81,33 @@ export const ProjectMediaImage = React.memo(function ProjectMediaImage({
       return;
     }
 
-    // Fallback 3: fetch con JWT (una sola vez, usa caché global)
+    // Fallback 3: fetch con JWT (una sola vez)
     if (!fetchAttemptedRef.current) {
       fetchAttemptedRef.current = true;
       const blobUrl = await fetchMediaBlobUrl(rawUrl || primary);
       if (blobUrl && isMountedRef.current && !failedSrcsRef.current.has(blobUrl)) {
         startTransition(() => setSrc(blobUrl));
+        return;
       }
     }
-  }, [src, archivo, evidencia, embeddedPreview, rawUrl, primary]);
 
-  if (!src) return null;
+    // Si todos los fallbacks dieron 404, marcar como fallido definitivo para no seguir reintentando
+    if (isMountedRef.current) {
+      startTransition(() => setHasFailedAll(true));
+    }
+  }, [src, archivo, evidencia, embeddedPreview, rawUrl, primary, hasFailedAll]);
+
+  if (hasFailedAll || !src) {
+    return (
+      <div
+        className={`flex items-center justify-center bg-slate-100 text-slate-400 rounded-lg ${className}`}
+        style={{ width, height }}
+        title="Vista previa no disponible"
+      >
+        <ImageOff size={18} className="text-slate-400 opacity-60" />
+      </div>
+    );
+  }
 
   return (
     <img
