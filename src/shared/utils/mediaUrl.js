@@ -1,14 +1,11 @@
 /**
  * mediaUrl.js — Rutas de medios de proyecto.
  *
- * ESTRATEGIA FINAL:
- * Las imágenes de proyecto viven en /uploads/proyectos/:id/:filename en el backend.
- * Nginx ya proxia /uploads/ al backend Express.
- * Para miniaturas, añadimos ?thumb=1 a esa misma URL /uploads/...
- * El backend intercepta ?thumb=1 antes de express.static y sirve WebP de 15 KB.
- *
- * Esto NO depende de ninguna ruta /api/... especial, usa el canal /uploads/ que
- * ya funciona 100% en producción.
+ * ESTRATEGIA FINAL SIMPLIFICADA:
+ * - Todas las imágenes van por /api/proyectos/:id/archivos/:filename
+ * - Esta ruta está garantizada en el backend Express y proxiada por Nginx/Dockploy
+ * - SIN intentos de thumbnail por ahora (los archivos están cacheados en el browser)
+ * - onError en ProjectMediaImage maneja el fallback sin re-renders de React
  */
 
 function pathBasename(str) {
@@ -17,78 +14,77 @@ function pathBasename(str) {
 }
 
 /**
- * Extrae la ruta /uploads/... de cualquier variante de URL:
- * - /uploads/proyectos/PROY-003/file.jpg
- * - https://luxespublicidad.tech/uploads/proyectos/PROY-003/file.jpg
- * - /api/proyectos/PROY-003/archivos/file.jpg
- * - file.jpg  (solo nombre, necesita proyectoId hint)
+ * Extrae proyectoId y filename desde cualquier variante de URL.
  */
-function toUploadsPath(url, proyectoIdHint = '') {
-  if (!url || typeof url !== 'string') return '';
+function extractProyectoAndFilename(url) {
+  if (!url || typeof url !== 'string') return null;
   let s = url.trim();
+
+  // /uploads/proyectos/:id/:filename
+  const uploadsMatch = s.match(/\/uploads\/proyectos\/([^/]+)\/([^/?#]+)/);
+  if (uploadsMatch) {
+    return { proyectoId: uploadsMatch[1], filename: uploadsMatch[2] };
+  }
+
+  // /api/proyectos/:id/archivos/:filename
+  const apiMatch = s.match(/\/api\/proyectos\/([^/]+)\/archivos\/([^/?#]+)/);
+  if (apiMatch) {
+    return { proyectoId: apiMatch[1], filename: decodeURIComponent(apiMatch[2]) };
+  }
+
+  // uploads/proyectos/:id/:filename (sin slash inicial)
+  const noSlashMatch = s.match(/^uploads\/proyectos\/([^/]+)\/([^/?#]+)/);
+  if (noSlashMatch) {
+    return { proyectoId: noSlashMatch[1], filename: noSlashMatch[2] };
+  }
+
+  return null;
+}
+
+/**
+ * Convierte cualquier URL de archivo de proyecto a la ruta /api/ canónica.
+ * Esta ruta está garantizada por el backend Express.
+ */
+function toApiUrl(url, proyectoIdHint = '') {
+  if (!url || typeof url !== 'string') return '';
+  const s = url.trim();
 
   if (s.startsWith('data:') || s.startsWith('blob:')) return s;
 
   // URL absoluta — extraer pathname
+  let pathname = s;
   if (s.startsWith('http://') || s.startsWith('https://')) {
-    try { s = new URL(s).pathname; } catch { return s; }
+    try { pathname = new URL(s).pathname; } catch { return s; }
   }
 
-  // Ya es /uploads/...
-  if (s.startsWith('/uploads/')) return s;
-
-  // /api/proyectos/:id/archivos/:filename → /uploads/proyectos/:id/:filename
-  const apiMatch = s.match(/^\/api\/proyectos\/([^/]+)\/archivos\/([^/?#]+)/);
-  if (apiMatch) {
-    return `/uploads/proyectos/${apiMatch[1]}/${decodeURIComponent(apiMatch[2])}`;
+  const extracted = extractProyectoAndFilename(pathname);
+  if (extracted) {
+    return `/api/proyectos/${extracted.proyectoId}/archivos/${encodeURIComponent(extracted.filename)}`;
   }
 
-  // uploads/proyectos/... (sin slash inicial)
-  if (s.startsWith('uploads/proyectos/')) return '/' + s;
-
-  // :id/:filename
-  const parts = s.replace(/^\//, '').split('/');
-  if (parts.length === 2 && parts[0].length > 3) {
-    return `/uploads/proyectos/${parts[0]}/${parts[1]}`;
-  }
-
-  // Solo filename — necesita proyectoIdHint
-  const base = pathBasename(s);
+  // Solo filename con proyectoIdHint
+  const base = pathBasename(pathname);
   if (base && proyectoIdHint) {
-    return `/uploads/proyectos/${proyectoIdHint}/${base}`;
+    return `/api/proyectos/${proyectoIdHint}/archivos/${encodeURIComponent(base)}`;
   }
 
-  return s;
-}
-
-export function uploadsProyectoUrl(proyectoId, filename) {
-  if (!proyectoId || !filename) return '';
-  return `/uploads/proyectos/${proyectoId}/${filename}`;
-}
-
-export function apiArchivoToUploadsUrl(url) {
-  return toUploadsPath(url);
+  return pathname;
 }
 
 export function resolveMediaUrl(url, proyectoIdHint = '') {
   if (!url || typeof url !== 'string') return '';
   const s = url.trim();
   if (s.startsWith('data:') || s.startsWith('blob:')) return s;
-  return toUploadsPath(s, proyectoIdHint) || s;
+  return toApiUrl(s, proyectoIdHint) || s;
 }
 
+/**
+ * URL de miniatura — por ahora igual a la URL completa.
+ * Las imágenes ya están cacheadas en el browser, así que no hay penalización de red.
+ * En el futuro se puede añadir ?thumb=1 cuando el backend lo soporte correctamente.
+ */
 export function getThumbnailMediaUrl(url, proyectoIdHint = '') {
-  if (!url || typeof url !== 'string') return '';
-  const s = url.trim();
-  if (s.startsWith('data:') || s.startsWith('blob:')) return s;
-
-  const uploadsPath = toUploadsPath(s, proyectoIdHint);
-  if (!uploadsPath || uploadsPath.startsWith('data:') || uploadsPath.startsWith('blob:')) {
-    return uploadsPath || s;
-  }
-
-  // Añadir ?thumb=1 a la URL /uploads/... que YA está proxied por Nginx
-  return `${uploadsPath}?thumb=1`;
+  return resolveMediaUrl(url, proyectoIdHint);
 }
 
 export function getArchivoMediaSrc(archivo, isThumbnail = true) {
@@ -105,16 +101,13 @@ export function getArchivoMediaSrc(archivo, isThumbnail = true) {
   }
 
   if (!rawUrl) return '';
-
   if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return rawUrl;
 
-  if (isThumbnail) return getThumbnailMediaUrl(rawUrl, proyectoId);
-
-  return resolveMediaUrl(rawUrl, proyectoId);
+  // thumbnail y full usan la misma URL — el browser ya las tiene cacheadas
+  return toApiUrl(rawUrl, proyectoId) || rawUrl;
 }
 
 export function resolveEvidenciaSrc(item, opts = {}) {
-  const { thumbnail = false } = opts;
   if (!item) return '';
   let rawUrl = '';
   let proyectoId = '';
@@ -129,11 +122,19 @@ export function resolveEvidenciaSrc(item, opts = {}) {
   if (!rawUrl) return '';
   if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return rawUrl;
 
-  if (thumbnail) return getThumbnailMediaUrl(rawUrl, proyectoId);
-  return resolveMediaUrl(rawUrl, proyectoId);
+  return toApiUrl(rawUrl, proyectoId) || rawUrl;
 }
 
 export function getArchivoPreviewFallback(archivo) {
   if (!archivo || typeof archivo !== 'object') return '';
   return archivo.previewDataUrl || '';
+}
+
+export function uploadsProyectoUrl(proyectoId, filename) {
+  if (!proyectoId || !filename) return '';
+  return `/api/proyectos/${proyectoId}/archivos/${encodeURIComponent(filename)}`;
+}
+
+export function apiArchivoToUploadsUrl(url) {
+  return resolveMediaUrl(url);
 }

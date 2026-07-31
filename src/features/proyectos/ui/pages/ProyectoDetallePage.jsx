@@ -1,6 +1,6 @@
 // src/features/proyectos/ui/pages/ProyectoDetallePage.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
@@ -103,6 +103,8 @@ export default function ProyectoDetallePage() {
   };
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
   const [confirmRetroceder, setConfirmRetroceder] = useState(false);
+  // Lazy-mount: registra qué paneles de fase ya se mostraron al menos una vez
+  const mountedFasesRef = useRef(new Set());
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [empleados, setEmpleados] = useState([]);
@@ -335,8 +337,8 @@ export default function ProyectoDetallePage() {
           </div>
         </div>
 
-        {/* Panel de fase actual / vista */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
+        {/* Panel de fase actual / vista — SOLO visible en el tab Flujo de Trabajo */}
+        <div style={{ display: subTab === 'fases' ? 'block' : 'none' }} className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
           <div
             className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50 rounded-t-2xl gap-2 sm:gap-3"
             style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
@@ -361,25 +363,26 @@ export default function ProyectoDetallePage() {
           </div>
 
           <div className="p-3 sm:p-6 proyecto-panel-section">
-            <div style={{ display: faseActiva === 'INSTALACION' ? 'block' : 'none' }}>
-              <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            </div>
-            <div style={{ display: faseActiva === 'COTIZACION' ? 'block' : 'none' }}>
-              <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            </div>
-            <div style={{ display: faseActiva === 'DISEÑO' ? 'block' : 'none' }}>
-              <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            </div>
-            <div style={{ display: faseActiva === 'PRODUCCION' ? 'block' : 'none' }}>
-              <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            </div>
-            <div style={{ display: faseActiva === 'ENTREGA' ? 'block' : 'none' }}>
-              <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            </div>
-            <div style={{ display: faseActiva === 'COMPLETADO' ? 'block' : 'none' }}>
-              <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            </div>
-            <div style={{ display: !['INSTALACION','COTIZACION','DISEÑO','PRODUCCION','ENTREGA','COMPLETADO'].includes(faseActiva) ? 'block' : 'none' }}>
+            {/* Patrón lazy-mount: cada panel solo se monta la PRIMERA vez que es la fase activa.
+                Luego se mantiene montado y usa CSS display:none para ocultarse sin re-montar.
+                Esto evita 6 API calls simultáneas al cargar la página. */}
+            {['INSTALACION', 'COTIZACION', 'DISEÑO', 'PRODUCCION', 'ENTREGA', 'COMPLETADO'].map((fase) => {
+              // Lazy-mount: monta el panel SOLO la primera vez que es la fase activa
+              if (faseActiva === fase) mountedFasesRef.current.add(fase);
+              if (!mountedFasesRef.current.has(fase)) return null;
+              const isVisible = faseActiva === fase;
+              return (
+                <div key={fase} style={{ display: isVisible ? 'block' : 'none' }}>
+                  {fase === 'INSTALACION' && <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                  {fase === 'COTIZACION' && <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                  {fase === 'DISEÑO' && <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                  {fase === 'PRODUCCION' && <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                  {fase === 'ENTREGA' && <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                  {fase === 'COMPLETADO' && <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                </div>
+              );
+            })}
+            {!['INSTALACION','COTIZACION','DISEÑO','PRODUCCION','ENTREGA','COMPLETADO'].includes(faseActiva) && (
               <div
                 className="rounded-xl p-4 text-sm"
                 style={{ backgroundColor: faseConfig?.bgColor, color: faseConfig?.color }}
@@ -396,7 +399,7 @@ export default function ProyectoDetallePage() {
                   </ul>
                 )}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Acciones de fase (Footer como en EditarFasePage) */}
