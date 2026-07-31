@@ -13,7 +13,7 @@ import {
   removeArchivoFromBatch,
 } from '../../application/proyectosService.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
-import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
+import { resolveMediaUrl, getArchivoMediaSrc } from '../../../../shared/utils/mediaUrl.js';
 import { MediaPreviewModal } from '../../../../shared/ui/components/MediaPreviewModal.jsx';
 
 // ── Helpers ────────────────────────────────────────────────────────────────

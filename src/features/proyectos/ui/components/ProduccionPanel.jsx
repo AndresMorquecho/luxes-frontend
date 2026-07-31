@@ -8,7 +8,7 @@ import { usePrintQueueStable } from '../../../colas-impresion/context/PrintQueue
 import { toast } from '../../../../shared/ui/components/Toast';
 import { getMateriales } from '../../../inventario/application/inventarioService.js';
 import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
-import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
+import { resolveMediaUrl, getArchivoMediaSrc } from '../../../../shared/utils/mediaUrl.js';
 import { MediaPreviewModal } from '../../../../shared/ui/components/MediaPreviewModal.jsx';
 
 // ── Funciones puras (fuera del componente para no recrear en cada render) ─────
@@ -670,13 +670,6 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
           )}
 
         </div>
-
-        <MediaPreviewModal
-          isOpen={previewModal.isOpen}
-          onClose={handleClosePreview}
-          files={previewModal.files}
-          initialIndex={previewModal.index}
-        />
       </div>
       <div style={{ display: activeSubTab === 'enviar' ? 'block' : 'none' }}>
         {/* Enviar a Impresión Form */}
@@ -709,7 +702,15 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
             {proyecto && (() => {
               const disenoFase = proyecto.fases?.['DISEÑO'] || proyecto.fases?.DISEÑO;
               const datosD = disenoFase?.datos || {};
-              const archivosArte = datosD.archivosArte || (datosD.archivoArte ? [datosD.archivoArte] : []);
+              const rawArte = datosD.archivosArte || (datosD.archivoArte ? [datosD.archivoArte] : []);
+              const archivosArte = rawArte.map(f => {
+                if (typeof f === 'string') {
+                  const cleanName = f.split('?')[0].split('#')[0].split('/').pop() || 'Archivo de Diseño';
+                  return { name: cleanName, url: f };
+                }
+                return f;
+              });
+
               if (archivosArte.length === 0) return null;
 
               return (
@@ -727,19 +728,23 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
                     {(showAllArtFiles ? archivosArte : archivosArte.slice(0, MAX_VISIBLE_ART_FILES)).map((art, idx) => (
                       <div
                         key={art.url || idx}
-                        className="flex flex-col items-center justify-center p-3 border border-purple-200 bg-purple-50/30 rounded-xl gap-1.5 relative shadow-sm"
-                        title={art.name}
+                        onClick={() => handleOpenPreview(archivosArte, idx)}
+                        className="flex flex-col items-center justify-center p-3 border border-purple-200 bg-purple-50/40 hover:bg-purple-100/60 rounded-xl gap-1.5 relative shadow-sm cursor-pointer transition-all hover:scale-[1.02]"
+                        title={`Previsualizar ${art.name}`}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-purple-100 shrink-0" style={{ minWidth: '40px', minHeight: '40px' }}>
-                          {art.type && art.type.includes('image') && art.url ? (
-                            <ProjectMediaImage archivo={art} alt="art preview" className="w-full h-full object-cover" width={40} height={40} />
-                          ) : (
-                            <FileText size={16} className="text-purple-400" />
-                          )}
+                        <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center border border-purple-200 text-purple-600 shrink-0 shadow-xs">
+                          <FileImage size={18} />
                         </div>
                         <span className="text-[10px] font-semibold text-slate-700 truncate w-full text-center">
                           {art.name}
                         </span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleOpenPreview(archivosArte, idx); }}
+                          className="text-[9px] font-bold text-purple-700 bg-purple-100 hover:bg-purple-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors"
+                        >
+                          <Eye size={10} /> Ver
+                        </button>
                         <span className="absolute -top-1.5 -right-1.5 bg-purple-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold border border-white">
                           ✓
                         </span>
@@ -748,11 +753,13 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
                     {!showAllArtFiles && archivosArte.length > MAX_VISIBLE_ART_FILES && (
                       <button
                         type="button"
-                        onClick={() => setShowAllArtFiles(true)}
-                        className="flex flex-col items-center justify-center p-3 border border-dashed border-purple-300 bg-purple-50/50 rounded-xl gap-1.5 text-purple-600 hover:bg-purple-100 transition-colors cursor-pointer"
+                        onClick={() => handleOpenPreview(archivosArte, MAX_VISIBLE_ART_FILES)}
+                        className="flex flex-col items-center justify-center p-3 border border-dashed border-purple-300 bg-purple-50/50 rounded-xl gap-1 text-purple-600 hover:bg-purple-100 transition-colors cursor-pointer"
                       >
-                        <span className="text-lg font-bold">+{archivosArte.length - MAX_VISIBLE_ART_FILES}</span>
-                        <span className="text-[10px] font-semibold">Ver todos</span>
+                        <span className="text-base font-bold">+{archivosArte.length - MAX_VISIBLE_ART_FILES}</span>
+                        <span className="text-[10px] font-semibold flex items-center gap-1">
+                          <Eye size={11} /> Ver todos
+                        </span>
                       </button>
                     )}
                   </div>
@@ -829,13 +836,26 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
                   </div>
                   {/* If multiple, display the list of files */}
                   {(file.isMultiple || file.files) && (
-                    <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                    <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                       {file.files.map((f, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs text-slate-700 bg-white/60 px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
-                          <span className="truncate max-w-[70%] font-medium" title={f.name}>{f.name}</span>
-                          <span className="text-[10px] text-slate-500 shrink-0">
-                            {f.fromProject ? f.sizeDisplay || 'Diseño' : `${(f.size / 1024 / 1024).toFixed(2)} MB`}
-                          </span>
+                        <div key={idx} className="flex items-center justify-between text-xs text-slate-700 bg-white/80 px-3 py-1.5 rounded-lg border border-slate-100 shadow-xs hover:border-slate-200 transition-all">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <FileImage size={14} className="text-purple-500 shrink-0" />
+                            <span className="truncate font-medium text-slate-800 cursor-pointer hover:text-purple-700" onClick={() => handleOpenPreview(file.files, idx)} title={f.name}>{f.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] text-slate-500">
+                              {f.fromProject ? f.sizeDisplay || 'Diseño' : `${(f.size / 1024 / 1024).toFixed(2)} MB`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPreview(file.files, idx)}
+                              className="p-1 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors cursor-pointer"
+                              title="Previsualizar imagen"
+                            >
+                              <Eye size={13} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1023,6 +1043,13 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
           </form>
         </div>
       </div>
+
+      <MediaPreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={handleClosePreview}
+        files={previewModal.files}
+        initialIndex={previewModal.index}
+      />
     </div>
   );
 });

@@ -176,33 +176,20 @@ export const PrintQueueProvider = ({ children }) => {
   // La UI de TV/cronómetro usa timers locales (TvElapsedTimer).
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveJobs(prevJobs => {
-        if (!prevJobs || prevJobs.length === 0) return prevJobs;
-        const hasPrinting = prevJobs.some(j => j.status === 'Imprimiendo');
-        if (!hasPrinting) return prevJobs;
+      const currentActive = jobsRef.current?.activeJobs;
+      if (!currentActive || currentActive.length === 0) return;
+      const hasPrinting = currentActive.some(j => j.status === 'Imprimiendo');
+      if (!hasPrinting) return;
 
-        let hasChanges = false;
-        const nextJobs = prevJobs.map(job => {
-          if (job.status === "Imprimiendo") {
-            hasChanges = true;
-            const nextSeconds = (job.elapsedSeconds || 0) + 5;
-            fetch(`/api/impresiones/${job.id}`, {
-              method: 'PUT',
-              headers: getHeaders(),
-              body: JSON.stringify({ elapsedSeconds: nextSeconds }),
-            }).catch(e => console.error('Error saving elapsed seconds:', e));
-            return { ...job, elapsedSeconds: nextSeconds };
-          }
-          return job;
-        });
-        if (hasChanges) {
-          const updated = nextJobs;
-          // Actualizar ref paralela — NO dispara re-renders extra
-          jobsRef.current = { ...jobsRef.current, activeJobs: updated };
-          setActiveJob(updated[0] || null);
-          return updated;
+      currentActive.forEach(job => {
+        if (job.status === "Imprimiendo") {
+          job.elapsedSeconds = (job.elapsedSeconds || 0) + 5;
+          fetch(`/api/impresiones/${job.id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify({ elapsedSeconds: job.elapsedSeconds }),
+          }).catch(e => console.error('Error saving elapsed seconds:', e));
         }
-        return prevJobs;
       });
     }, 5000);
 

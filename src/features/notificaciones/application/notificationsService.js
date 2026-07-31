@@ -127,7 +127,11 @@ async function fetchUnreadCountCached(force = false) {
   return unreadInflight;
 }
 
+let lastBroadcastedCount = null;
+
 function broadcastUnreadCount(count) {
+  if (lastBroadcastedCount === count) return;
+  lastBroadcastedCount = count;
   subscribers.forEach((cb) => {
     try {
       cb(count);

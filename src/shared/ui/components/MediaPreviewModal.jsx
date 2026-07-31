@@ -1,32 +1,54 @@
+/* c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/shared/ui/components/MediaPreviewModal.jsx */
+
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, ExternalLink, Download, FileText, FileImage } from 'lucide-react';
-import { ProjectMediaImage } from './ProjectMediaImage.jsx';
 import { resolveMediaUrl } from '../../utils/mediaUrl.js';
 
 export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 0 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
   useEffect(() => {
-    setCurrentIndex(initialIndex);
-  }, [initialIndex, isOpen]);
+    if (isOpen) {
+      console.log(`[MediaPreviewModal] Modal abierto con índice inicial: ${initialIndex}, Total archivos: ${files.length}`);
+      setCurrentIndex(initialIndex);
+    }
+  }, [initialIndex, isOpen, files.length]);
 
   if (!isOpen || !files || files.length === 0) return null;
 
   const currentFile = files[currentIndex] || files[0];
-  const fileUrl = resolveMediaUrl(typeof currentFile === 'string' ? currentFile : (currentFile.url || currentFile.path || ''));
-  const fileName = (typeof currentFile === 'object' ? currentFile.name : '') || 'Archivo de Diseño';
-  const isImage = (typeof currentFile === 'object' && (currentFile.type || '').includes('image')) ||
-                  /\.(png|jpg|jpeg|gif|webp)$/i.test(fileName) ||
-                  /\.(png|jpg|jpeg|gif|webp)$/i.test(fileUrl);
+  const rawTarget = typeof currentFile === 'string'
+    ? currentFile
+    : (currentFile?.url || currentFile?.path || currentFile?.fileUrl || '');
+
+  const fullUrl = resolveMediaUrl(rawTarget);
+
+  let fileName = typeof currentFile === 'object' && currentFile?.name ? currentFile.name : '';
+  if (!fileName && rawTarget) {
+    const cleanPath = rawTarget.split('?')[0].split('#')[0];
+    fileName = cleanPath.split('/').pop() || 'Archivo de Diseño';
+  }
+  if (!fileName) fileName = 'Archivo de Diseño';
+
+  const checkString = `${fileName} ${rawTarget} ${fullUrl}`.toLowerCase();
+  const isImage =
+    (typeof currentFile === 'object' && (currentFile?.type || '').includes('image')) ||
+    /\.(png|jpg|jpeg|gif|webp|bmp|svg)/i.test(checkString) ||
+    checkString.includes('data:image') ||
+    checkString.includes('/api/media/thumbnail');
 
   const handlePrev = (e) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : files.length - 1));
+    const prevIdx = currentIndex > 0 ? currentIndex - 1 : files.length - 1;
+    console.log(`[MediaPreviewModal] Cambio a imagen anterior (índice: ${prevIdx})`);
+    setCurrentIndex(prevIdx);
   };
 
   const handleNext = (e) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev < files.length - 1 ? prev + 1 : 0));
+    const nextIdx = currentIndex < files.length - 1 ? currentIndex + 1 : 0;
+    console.log(`[MediaPreviewModal] Cambio a imagen siguiente (índice: ${nextIdx})`);
+    setCurrentIndex(nextIdx);
   };
 
   return (
@@ -34,12 +56,11 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm animate-fadeIn"
       onClick={onClose}
     >
-      {/* Modal contenedor con dimensión fija limpia: 900px ancho, 640px alto */}
       <div
         className="relative w-[900px] h-[640px] max-w-[95vw] max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header con paleta de colores limpia del sistema */}
+        {/* Header */}
         <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="p-2 bg-slate-100 text-slate-600 rounded-xl shrink-0 border border-slate-200">
@@ -59,7 +80,7 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
 
           <div className="flex items-center gap-2 shrink-0">
             <a
-              href={fileUrl}
+              href={fullUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="px-3 py-1.5 text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors flex items-center gap-1.5 text-xs font-bold shadow-sm"
@@ -78,14 +99,16 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
           </div>
         </div>
 
-        {/* Viewport de Imagen (Permite ver la imagen COMPLETA incluso en 9:16 vertical) */}
+        {/* Viewport con 1 sola imagen activa en el DOM para evitar saturación de GPU/RAM */}
         <div className="relative flex-1 min-h-0 bg-slate-950 flex items-center justify-center p-4 overflow-hidden">
           {isImage ? (
-            <div className="w-full h-full flex items-center justify-center overflow-hidden">
-              <ProjectMediaImage
-                archivo={currentFile}
+            <div className="w-full h-full flex items-center justify-center overflow-hidden relative">
+              <img
+                key={currentIndex}
+                src={fullUrl}
                 alt={fileName}
-                className="max-w-full max-h-full object-contain block m-auto rounded shadow-lg"
+                decoding="async"
+                className="max-w-full max-h-full object-contain block m-auto rounded shadow-lg transition-opacity duration-150 pointer-events-none select-none"
                 style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }}
               />
             </div>
@@ -95,7 +118,7 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
               <p className="text-sm font-bold">{fileName}</p>
               <p className="text-xs text-slate-400 mt-1">Este archivo no es una imagen directamente previsualizable.</p>
               <a
-                href={fileUrl}
+                href={fullUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 border border-slate-700"
@@ -109,6 +132,7 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
           {files.length > 1 && (
             <>
               <button
+                type="button"
                 onClick={handlePrev}
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white flex items-center justify-center border border-slate-700 shadow-md transition-colors cursor-pointer"
                 title="Anterior"
@@ -116,6 +140,7 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
                 <ChevronLeft size={20} />
               </button>
               <button
+                type="button"
                 onClick={handleNext}
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white flex items-center justify-center border border-slate-700 shadow-md transition-colors cursor-pointer"
                 title="Siguiente"
@@ -126,22 +151,30 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
           )}
         </div>
 
-        {/* Footer con carrusel de miniaturas (Altura fija 64px) */}
+        {/* Footer Carrusel con insignias de navegación numeradas (0 sobrecarga de red/GPU) */}
         {files.length > 1 && (
           <div className="h-[64px] bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-center gap-2 shrink-0 overflow-x-auto">
-            {files.map((f, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentIndex(idx)}
-                className={`w-10 h-10 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
-                  idx === currentIndex
-                    ? 'border-white opacity-100 ring-2 ring-white/20 scale-105'
-                    : 'border-slate-700 opacity-50 hover:opacity-90'
-                }`}
-              >
-                <ProjectMediaImage archivo={f} alt="thumb" className="w-full h-full object-cover" width={40} height={40} />
-              </button>
-            ))}
+            {files.map((f, idx) => {
+              const isSelected = idx === currentIndex;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    console.log(`[MediaPreviewModal] Seleccionada imagen #${idx + 1}`);
+                    setCurrentIndex(idx);
+                  }}
+                  title={`Ver archivo #${idx + 1}`}
+                  className={`w-10 h-10 rounded-lg border-2 transition-all shrink-0 cursor-pointer flex items-center justify-center font-mono font-bold text-xs ${
+                    isSelected
+                      ? 'border-white bg-blue-600 text-white ring-2 ring-white/20 scale-105 shadow-md'
+                      : 'border-slate-700 bg-slate-800 text-slate-400 hover:text-white hover:border-slate-500'
+                  }`}
+                >
+                  #{idx + 1}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
