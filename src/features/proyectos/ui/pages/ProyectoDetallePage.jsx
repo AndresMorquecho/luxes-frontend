@@ -360,20 +360,26 @@ export default function ProyectoDetallePage() {
             <FaseBadge faseId={faseActiva} />
           </div>
 
-          <div className="p-3 sm:p-6">
-            {faseActiva === 'INSTALACION' ? (
+          <div className="p-3 sm:p-6 proyecto-panel-section">
+            <div style={{ display: faseActiva === 'INSTALACION' ? 'block' : 'none' }}>
               <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'COTIZACION' ? (
+            </div>
+            <div style={{ display: faseActiva === 'COTIZACION' ? 'block' : 'none' }}>
               <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'DISEÑO' ? (
+            </div>
+            <div style={{ display: faseActiva === 'DISEÑO' ? 'block' : 'none' }}>
               <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'PRODUCCION' ? (
+            </div>
+            <div style={{ display: faseActiva === 'PRODUCCION' ? 'block' : 'none' }}>
               <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'ENTREGA' ? (
+            </div>
+            <div style={{ display: faseActiva === 'ENTREGA' ? 'block' : 'none' }}>
               <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : faseActiva === 'COMPLETADO' ? (
+            </div>
+            <div style={{ display: faseActiva === 'COMPLETADO' ? 'block' : 'none' }}>
               <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />
-            ) : (
+            </div>
+            <div style={{ display: !['INSTALACION','COTIZACION','DISEÑO','PRODUCCION','ENTREGA','COMPLETADO'].includes(faseActiva) ? 'block' : 'none' }}>
               <div
                 className="rounded-xl p-4 text-sm"
                 style={{ backgroundColor: faseConfig?.bgColor, color: faseConfig?.color }}
@@ -390,7 +396,7 @@ export default function ProyectoDetallePage() {
                   </ul>
                 )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Acciones de fase (Footer como en EditarFasePage) */}

@@ -518,8 +518,8 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
         </button>
       </div>
 
-      {activeSubTab === 'timeline' ? (
-        /* Timeline de Impresiones Vinculadas */
+      <div style={{ display: activeSubTab === 'timeline' ? 'block' : 'none' }}>
+        {/* Timeline de Impresiones Vinculadas */}
         <div>
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -553,8 +553,9 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
           )}
 
         </div>
-      ) : (
-        /* Enviar a Impresión Form */
+      </div>
+      <div style={{ display: activeSubTab === 'enviar' ? 'block' : 'none' }}>
+        {/* Enviar a Impresión Form */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="border-b border-slate-100 pb-4 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="min-w-0">
@@ -897,7 +898,7 @@ export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId,
             </div>
           </form>
         </div>
-      )}
+      </div>
     </div>
   );
 });
