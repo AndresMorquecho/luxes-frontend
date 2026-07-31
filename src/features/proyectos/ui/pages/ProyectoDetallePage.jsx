@@ -251,7 +251,7 @@ export default function ProyectoDetallePage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-6 sm:pb-12">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20 shadow-sm" style={{ transform: 'translateZ(0)', contain: 'layout paint' }}>
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20 shadow-sm">
         <div className="w-full mx-auto space-y-3">
           {/* Fila 1: navegación + título */}
           <div className="flex items-start gap-2 sm:gap-3 min-w-0">

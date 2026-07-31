@@ -22,10 +22,7 @@ const ESTADO_BATCH = {
 
 const ArchivoCard = React.memo(function ArchivoCard({ file, onRemove }) {
   return (
-    <div
-      className="bg-white border border-slate-200 rounded-2xl p-1 overflow-hidden"
-      style={{ contain: 'content' }}
-    >
+    <div className="bg-white border border-slate-200 rounded-2xl p-1 overflow-hidden">
       <div className="flex gap-4 p-4">
         <a
           href={file.url}
@@ -145,10 +142,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
   const canSend = !yaEnviado && archivos.length > 0;
 
   return (
-    <div
-      className={`border rounded-2xl overflow-hidden transition-all ${isNew && !yaEnviado ? 'border-blue-200 shadow-blue-50 shadow-md' : jobCancelado ? 'border-red-200' : 'border-slate-200'}`}
-      style={{ contentVisibility: 'auto', containIntrinsicSize: '0 260px' }}
-    >
+    <div className={`border rounded-2xl overflow-hidden transition-all ${isNew && !yaEnviado ? 'border-blue-200 shadow-blue-50 shadow-md' : jobCancelado ? 'border-red-200' : 'border-slate-200'}`}>
       {/* Header del batch */}
       <div className={`px-4 py-3 flex items-center justify-between gap-3 ${isNew && !yaEnviado ? 'bg-blue-50' : jobCancelado ? 'bg-red-50' : 'bg-slate-50'}`}>
         <div className="flex items-center gap-2 min-w-0">
@@ -426,7 +420,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
             Lotes de Diseño
           </h3>
 
-          <div className="space-y-4" style={{ contain: 'content' }}>
+          <div className="space-y-4">
             {/* Lote inicial legado (cuando no hay batches aún pero hay archivos) */}
             {!hasBatches && archivosIniciales.length > 0 && (
               <div className="border border-emerald-200 rounded-2xl overflow-hidden">
