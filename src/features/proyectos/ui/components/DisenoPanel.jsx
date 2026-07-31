@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, Image as ImageIcon, CheckCircle, File, Trash2, Calendar, ShieldCheck, X, Plus, Printer, Package, Clock, AlertCircle, Send, RotateCcw, XCircle } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
-import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
+import { usePrintQueueStable } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 import { toast } from '../../../../shared/ui/components/toastStore.js';
 import {
   uploadArchivoDiseno,
@@ -265,7 +265,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
 export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos, reloadProyecto } = useProyecto(proyectoId);
   // Una sola llamada para todos los BatchCards (en vez de N llamadas, una por card)
-  const { getJobsByProyectoId } = usePrintQueue();
+  const { getJobsByProyectoId } = usePrintQueueStable();
   const jobsDelProyecto = getJobsByProyectoId(proyectoId);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);

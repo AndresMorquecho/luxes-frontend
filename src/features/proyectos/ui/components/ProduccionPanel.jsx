@@ -4,7 +4,7 @@ import {
   UploadCloud, Plus, Minus, FileText, Lock, Image as ImageIcon
 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
-import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
+import { usePrintQueueStable } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { getMateriales } from '../../../inventario/application/inventarioService.js';
 import { ProjectMediaImage } from '../../../../shared/ui/components/ProjectMediaImage.jsx';
@@ -199,7 +199,7 @@ const PrintJobCard = React.memo(function PrintJobCard({ job }) {
 
 export const ProduccionPanel = React.memo(function ProduccionPanel({ proyectoId, soloLectura = false }) {
   const { proyecto } = useProyecto(proyectoId);
-  const { getJobsByProyectoId, addJobToQueue } = usePrintQueue();
+  const { getJobsByProyectoId, addJobToQueue } = usePrintQueueStable();
   const [activeSubTab, setActiveSubTab] = useState('timeline'); // 'timeline' or 'enviar'
   const [showAllArtFiles, setShowAllArtFiles] = useState(false);
   const MAX_VISIBLE_ART_FILES = 4;

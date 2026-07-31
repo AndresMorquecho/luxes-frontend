@@ -27,7 +27,7 @@ const SECCIONES = ['datos', 'personal', 'materiales', 'estado'];
  *
  * @param {{ proyectoId: string }} props
  */
-export function InstalacionPanel({ proyectoId }) {
+export const InstalacionPanel = React.memo(function InstalacionPanel({ proyectoId }) {
   const {
     proyecto,
     datosInstalacion,
@@ -611,4 +611,4 @@ export function InstalacionPanel({ proyectoId }) {
       )}
     </div>
   );
-}
+});

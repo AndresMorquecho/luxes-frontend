@@ -7,7 +7,7 @@ import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { FaseBadge } from '../components/FaseBadge.jsx';
 import { InstalacionPanel } from '../components/InstalacionPanel.jsx';
 import { useProyecto, enrichValidacionConImpresion } from '../../application/hooks/useProyecto.js';
-import { usePrintQueue } from '../../../colas-impresion/context/PrintQueueContext.jsx';
+import { usePrintQueueStable } from '../../../colas-impresion/context/PrintQueueContext.jsx';
 
 export default function EditarFasePage() {
   const { id } = useParams();
@@ -15,7 +15,7 @@ export default function EditarFasePage() {
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
 
   const { proyecto, avanzar, validacionFaseActual: validacionBase } = useProyecto(id);
-  const { getJobsByProyectoId } = usePrintQueue();
+  const { getJobsByProyectoId } = usePrintQueueStable();
   const validacionFaseActual =
     proyecto?.faseActual === 'PRODUCCION'
       ? enrichValidacionConImpresion(validacionBase, getJobsByProyectoId(id))
