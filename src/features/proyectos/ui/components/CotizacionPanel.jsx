@@ -89,7 +89,7 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
   }, [proyecto]);
 
   useEffect(() => {
-    getProyectos({ limit: 100 }).then(response => {
+    getProyectos({ limit: 1000 }).then(response => {
       const projectsData = response?.data || response || [];
       setAllProjects(Array.isArray(projectsData) ? projectsData : []);
     }).catch(err => {
@@ -126,18 +126,21 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
 
   const isRelatedToClient = (c) => {
     if (!proyecto) return false;
-    if (c.clienteId && proyecto.clienteId) {
-      return c.clienteId === proyecto.clienteId;
+    if (c.clienteId && proyecto.clienteId && c.clienteId === proyecto.clienteId) {
+      return true;
     }
-    const profName = normalizeClientName(c.cliente);
+    const cleanClientStr = (c.cliente || '').replace(/^\d+\s*-\s*/, '');
+    const profName = normalizeClientName(cleanClientStr || c.cliente);
     if (!profName) return false;
     return projectClientNames.some((name) => name === profName || name.includes(profName) || profName.includes(name));
   };
 
   const isLinkedToOtherProject = (proformaId) => {
+    const pIdStr = String(proformaId);
     return allProjects.some(proj => 
       proj.id !== proyectoId &&
-      proj.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas?.some(sc => sc.id === proformaId)
+      proj.estado !== 'CANCELADO' && proj.estado !== 'Cancelado' &&
+      proj.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas?.some(sc => String(sc.id) === pIdStr)
     );
   };
 
