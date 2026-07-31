@@ -103,8 +103,6 @@ export default function ProyectoDetallePage() {
   };
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
   const [confirmRetroceder, setConfirmRetroceder] = useState(false);
-  // Lazy-mount: registra qué paneles de fase ya se mostraron al menos una vez
-  const mountedFasesRef = useRef(new Set());
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [empleados, setEmpleados] = useState([]);
@@ -362,26 +360,13 @@ export default function ProyectoDetallePage() {
             <FaseBadge faseId={faseActiva} />
           </div>
 
-          <div className="p-3 sm:p-6 proyecto-panel-section">
-            {/* Patrón lazy-mount: cada panel solo se monta la PRIMERA vez que es la fase activa.
-                Luego se mantiene montado y usa CSS display:none para ocultarse sin re-montar.
-                Esto evita 6 API calls simultáneas al cargar la página. */}
-            {['INSTALACION', 'COTIZACION', 'DISEÑO', 'PRODUCCION', 'ENTREGA', 'COMPLETADO'].map((fase) => {
-              // Lazy-mount: monta el panel SOLO la primera vez que es la fase activa
-              if (faseActiva === fase) mountedFasesRef.current.add(fase);
-              if (!mountedFasesRef.current.has(fase)) return null;
-              const isVisible = faseActiva === fase;
-              return (
-                <div key={fase} style={{ display: isVisible ? 'block' : 'none' }}>
-                  {fase === 'INSTALACION' && <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                  {fase === 'COTIZACION' && <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                  {fase === 'DISEÑO' && <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                  {fase === 'PRODUCCION' && <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                  {fase === 'ENTREGA' && <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                  {fase === 'COMPLETADO' && <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                </div>
-              );
-            })}
+          <div className="p-3 sm:p-6">
+            {faseActiva === 'INSTALACION' && <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+            {faseActiva === 'COTIZACION' && <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+            {faseActiva === 'DISEÑO' && <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+            {faseActiva === 'PRODUCCION' && <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+            {faseActiva === 'ENTREGA' && <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+            {faseActiva === 'COMPLETADO' && <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
             {!['INSTALACION','COTIZACION','DISEÑO','PRODUCCION','ENTREGA','COMPLETADO'].includes(faseActiva) && (
               <div
                 className="rounded-xl p-4 text-sm"

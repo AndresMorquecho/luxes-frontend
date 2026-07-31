@@ -600,30 +600,8 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   OPTIMIZACIONES DE RENDIMIENTO — REDUCEN INP 70% Y ELIMINAN PARTES EN BLANCO
+   OPTIMIZACIONES DE RENDIMIENTO DE INTERACCIÓN
    ═══════════════════════════════════════════════════════════════════════════ */
-
-/*
-  content-visibility: auto — el navegador OMITE el layout y paint de contenido
-  que está fuera del viewport. Reduce el tiempo de commit de React de 13,700ms
-  a ~500ms porque el browser no procesa nodos DOM invisibles.
-*/
-.proyecto-panel-section {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 400px;
-}
-
-/*
-  contain: content — aísla el layout y paint de cada tarjeta.
-  Un cambio dentro de una tarjeta NO dispara relayout en el resto de la página.
-  Esto elimina el efecto cascada que causa los 4,840ms de INP.
-*/
-.fase-card,
-.gasto-card,
-.batch-card,
-.archivo-card {
-  contain: content;
-}
 
 /*
   Deshabilitar transition-all en elementos con muchos hijos.
