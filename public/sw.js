@@ -1,6 +1,6 @@
 // Service Worker for Luxes PWA
 
-const CACHE_NAME = 'luxes-static-cache-v7';
+const CACHE_NAME = 'luxes-static-cache-v8';
 
 function isAssetResponse(url, response) {
   if (!response || !response.ok) return false;
@@ -20,47 +20,6 @@ const STATIC_ASSETS = [
   '/favicon.svg',
   '/LogoBanner.png',
 ];
-
-function offlineJson() {
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: { message: 'Sin conexión con el servidor' },
-    }),
-    { status: 503, headers: { 'Content-Type': 'application/json' } }
-  );
-}
-
-function offlineHtml() {
-  return caches.match('/index.html').then(
-    (cached) => cached || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })
-  );
-}
-
-/** Network first; guarda en caché si la respuesta es OK. */
-function networkFirst(request) {
-  return fetch(request)
-    .then((response) => {
-      if (response.ok) {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-      }
-      return response;
-    })
-    .catch(() => caches.match(request));
-}
-
-/** Sirve caché al instante y actualiza en segundo plano. */
-function staleWhileRevalidate(request) {
-  return caches.match(request).then((cached) => {
-    const networkPromise = networkFirst(request).catch(() => undefined);
-    if (cached) {
-      networkPromise.catch(() => {});
-      return cached;
-    }
-    return networkPromise.then((response) => response || caches.match('/index.html'));
-  });
-}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -87,18 +46,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   // APIs y subidas de archivos (/uploads, /api): dejar que el navegador los maneje de forma nativa sin pasar por el SW.
-  // Al no llamar a event.respondWith, el navegador usa su pipeline de red nativo + aceleración GPU.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) {
-    return;
-  }
-
-  // Navegación SPA
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => (response.ok ? response : offlineHtml()))
-        .catch(() => offlineHtml())
-    );
     return;
   }
 
@@ -108,25 +56,30 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/src/') ||
     url.pathname.startsWith('/node_modules/')
   ) {
-    event.respondWith(fetch(event.request));
     return;
   }
 
-  // Rutas SPA sin extensión (/clientes, /usuarios, etc.)
-  const isSpaRoute =
-    !url.pathname.includes('.') &&
-    url.pathname !== '/';
-
-  if (isSpaRoute) {
+  // Navegación SPA y rutas dinámicas (/proyectos/PROY-003, /clientes, etc.):
+  // Servir SIEMPRE /index.html para evitar 404 del servidor y net::ERR_CACHE_MISS
+  const isSpaRoute = !url.pathname.includes('.') && url.pathname !== '/';
+  if (event.request.mode === 'navigate' || isSpaRoute) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => (response.ok ? response : offlineHtml()))
-        .catch(() => offlineHtml())
+      fetch('/index.html')
+        .then((res) => {
+          if (res && res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+            return res;
+          }
+          return caches.match('/index.html');
+        })
+        .catch(() => caches.match('/index.html'))
+        .then((res) => res || fetch(event.request))
     );
     return;
   }
 
-  // JS/CSS con hash de Vite: red primero; rechazar HTML disfrazado de bundle
+  // JS/CSS con hash de Vite: red primero
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
       fetch(event.request)
@@ -149,9 +102,16 @@ self.addEventListener('fetch', (event) => {
 
   // Resto de estáticos (favicon, manifest, imágenes)
   event.respondWith(
-    staleWhileRevalidate(event.request).then(
-      (response) => response || offlineHtml()
-    )
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      });
+    })
   );
 });
 

@@ -534,7 +534,7 @@ export default function ProyectoDetallePage() {
       {isDetailsModalOpen && (
         <ModalPortal>
           <div
-            className="fixed inset-0 z-[200] flex flex-col sm:items-center sm:justify-center sm:p-4 bg-slate-900/55 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex flex-col sm:items-center sm:justify-center sm:p-4 bg-slate-900/60"
             onClick={() => setIsDetailsModalOpen(false)}
             role="presentation"
           >
