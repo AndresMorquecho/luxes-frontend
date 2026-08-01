@@ -20,7 +20,7 @@ import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
 const DIAS_LABEL = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
 const DIAS_NOMBRE = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 function getWeekRange(date) {
   const d = new Date(date);
@@ -39,7 +39,7 @@ function getWeekDaysForDate(dateStr) {
   const day = d.getDay();
   const lunes = new Date(d);
   lunes.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-  
+
   const days = [];
   for (let i = 0; i < 7; i++) {
     const x = new Date(lunes);
@@ -50,7 +50,7 @@ function getWeekDaysForDate(dateStr) {
 }
 
 function toISODate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function formatFecha(fecha) {
@@ -63,13 +63,13 @@ const formatTime = (iso) =>
 
 
 const calcTotalHours = (marks) => {
-  const e = marks.find(a=>a.tipo==='ENTRADA'); const s = marks.find(a=>a.tipo==='SALIDA');
-  const ia = marks.find(a=>a.tipo==='INICIO_ALMUERZO'); const fa = marks.find(a=>a.tipo==='FIN_ALMUERZO');
-  if (!e||!s) return null;
+  const e = marks.find(a => a.tipo === 'ENTRADA'); const s = marks.find(a => a.tipo === 'SALIDA');
+  const ia = marks.find(a => a.tipo === 'INICIO_ALMUERZO'); const fa = marks.find(a => a.tipo === 'FIN_ALMUERZO');
+  if (!e || !s) return null;
   let ms = 0;
-  if (ia&&fa) { ms+=new Date(ia.fechaHora)-new Date(e.fechaHora); ms+=new Date(s.fechaHora)-new Date(fa.fechaHora); }
-  else ms+=new Date(s.fechaHora)-new Date(e.fechaHora);
-  return `${Math.floor(ms/3600000)}h ${String(Math.floor((ms%3600000)/60000)).padStart(2,'0')}m`;
+  if (ia && fa) { ms += new Date(ia.fechaHora) - new Date(e.fechaHora); ms += new Date(s.fechaHora) - new Date(fa.fechaHora); }
+  else ms += new Date(s.fechaHora) - new Date(e.fechaHora);
+  return `${Math.floor(ms / 3600000)}h ${String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0')}m`;
 };
 
 const calculateLapses = (marcaciones) => {
@@ -124,7 +124,7 @@ function seedMockData() {
   const data = [];
   const pushMarcacion = (empId, empName, tipo, fecha, hora, min) => {
     const d = new Date(fecha); d.setHours(hora, min, 0, 0);
-    data.push({ id: crypto.randomUUID(), empleadoId: empId, nombreEmpleado: empName, tipo, label: tipo, fechaHora: d.toISOString(), ubicacion: {lat:-2.19616,lng:-79.88621} });
+    data.push({ id: crypto.randomUUID(), empleadoId: empId, nombreEmpleado: empName, tipo, label: tipo, fechaHora: d.toISOString(), ubicacion: { lat: -2.19616, lng: -79.88621 } });
   };
   for (let d = -14; d <= 0; d++) {
     const dia = new Date(hoy); dia.setDate(dia.getDate() + d);
@@ -133,10 +133,10 @@ function seedMockData() {
     empleados.forEach((emp, idx) => {
       const skip = idx === 2 && d === -3; // EMP-003 misses a day
       const partial = idx === 4 && (d === -5 || d === -2); // EMP-005 partial days
-      pushMarcacion(emp.id, emp.nombre, 'ENTRADA', fechaStr, d === 0 ? 8 : 7 + Math.floor(Math.random()*2), Math.floor(Math.random()*30));
-      if (!partial) pushMarcacion(emp.id, emp.nombre, 'INICIO_ALMUERZO', fechaStr, 12, Math.floor(Math.random()*15));
-      if (!partial) pushMarcacion(emp.id, emp.nombre, 'FIN_ALMUERZO', fechaStr, 13, Math.floor(Math.random()*10));
-      if (!skip && !partial) pushMarcacion(emp.id, emp.nombre, 'SALIDA', fechaStr, 17, Math.floor(Math.random()*30));
+      pushMarcacion(emp.id, emp.nombre, 'ENTRADA', fechaStr, d === 0 ? 8 : 7 + Math.floor(Math.random() * 2), Math.floor(Math.random() * 30));
+      if (!partial) pushMarcacion(emp.id, emp.nombre, 'INICIO_ALMUERZO', fechaStr, 12, Math.floor(Math.random() * 15));
+      if (!partial) pushMarcacion(emp.id, emp.nombre, 'FIN_ALMUERZO', fechaStr, 13, Math.floor(Math.random() * 10));
+      if (!skip && !partial) pushMarcacion(emp.id, emp.nombre, 'SALIDA', fechaStr, 17, Math.floor(Math.random() * 30));
     });
   }
   localStorage.setItem('asistencias_mock', JSON.stringify(data));
@@ -418,15 +418,15 @@ const KioskView = () => {
       const horaSalidaConfig = horarioHoy?.diaConfig?.salida ?? null;
       const opciones = proxima.opciones?.length
         ? proxima.opciones.filter(op => {
-            if (op.tipo === 'SALIDA_PERMISO') {
-              const now = new Date();
-              if (horaSalidaConfig) {
-                const [sh, sm] = horaSalidaConfig.split(':').map(Number);
-                if (now.getHours() * 60 + now.getMinutes() >= sh * 60 + sm) return false;
-              }
+          if (op.tipo === 'SALIDA_PERMISO') {
+            const now = new Date();
+            if (horaSalidaConfig) {
+              const [sh, sm] = horaSalidaConfig.split(':').map(Number);
+              if (now.getHours() * 60 + now.getMinutes() >= sh * 60 + sm) return false;
             }
-            return true;
-          })
+          }
+          return true;
+        })
         : getOpcionesMarcacion(marcaciones, proxima.tipoContrato, horaSalidaConfig);
 
       setPendingScan({
@@ -456,7 +456,7 @@ const KioskView = () => {
     const [ish, ism] = horarioHoy.diaConfig.inicioAlmuerzo.split(':').map(Number);
     const [fsh, fsm] = horarioHoy.diaConfig.finAlmuerzo.split(':').map(Number);
     const durationMinutes = (fsh * 60 + fsm) - (ish * 60 + ism);
-    
+
     const d = new Date(fechaHoraStr);
     d.setMinutes(d.getMinutes() + durationMinutes);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -550,32 +550,40 @@ const KioskView = () => {
 
             <div className="space-y-4">
               {[
-                { label: 'Entrada', key: 'ENTRADA', time: '08:00', icon: 'bg-emerald-50 text-emerald-600', svg: (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
-                  </svg>
-                )},
-                { label: 'Almuerzo', key: 'INICIO_ALMUERZO', time: '13:00 - 14:00', icon: 'bg-amber-50 text-amber-600', svg: (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
-                  </svg>
-                )},
-                { label: 'Regreso almuerzo', key: 'FIN_ALMUERZO', time: '14:00', icon: 'bg-blue-50 text-blue-600', svg: (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
-                  </svg>
-                )},
-                { label: 'Salida', key: 'SALIDA', time: '17:30', icon: 'bg-purple-50 text-purple-600', svg: (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-                  </svg>
-                )}
+                {
+                  label: 'Entrada', key: 'ENTRADA', time: '08:00', icon: 'bg-emerald-50 text-emerald-600', svg: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                    </svg>
+                  )
+                },
+                {
+                  label: 'Almuerzo', key: 'INICIO_ALMUERZO', time: '13:00 - 14:00', icon: 'bg-amber-50 text-amber-600', svg: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                    </svg>
+                  )
+                },
+                {
+                  label: 'Regreso almuerzo', key: 'FIN_ALMUERZO', time: '14:00', icon: 'bg-blue-50 text-blue-600', svg: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                    </svg>
+                  )
+                },
+                {
+                  label: 'Salida', key: 'SALIDA', time: '17:30', icon: 'bg-purple-50 text-purple-600', svg: (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                    </svg>
+                  )
+                }
               ].map((slot) => {
                 const valorEsperado = horarioHoy?.esperado?.[slot.key];
                 const timeText = slot.key === 'INICIO_ALMUERZO' && horarioHoy?.esperado?.INICIO_ALMUERZO && horarioHoy?.esperado?.FIN_ALMUERZO
                   ? `${horarioHoy.esperado.INICIO_ALMUERZO.label} - ${horarioHoy.esperado.FIN_ALMUERZO.label}`
                   : valorEsperado?.label || slot.time;
-                
+
                 return (
                   <div key={slot.key} className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-none">
                     <div className="flex items-center gap-3">
@@ -595,7 +603,7 @@ const KioskView = () => {
               })}
             </div>
           </div>
-          
+
           <div className="mt-4 pt-4 border-t border-slate-100/80">
             <p className="text-xs font-medium text-slate-400">
               Tu jornada laboral: <span className="font-extrabold text-blue-900">8h 30m</span>
@@ -627,11 +635,10 @@ const KioskView = () => {
                     setIsCameraActive(true);
                   }
                 }}
-                className={`w-40 h-40 border-2 rounded-full flex flex-col items-center justify-center gap-1.5 transition-all duration-300 transform hover:scale-[1.03] cursor-pointer ${
-                  gpsBadge.tone === 'amber'
+                className={`w-40 h-40 border-2 rounded-full flex flex-col items-center justify-center gap-1.5 transition-all duration-300 transform hover:scale-[1.03] cursor-pointer ${gpsBadge.tone === 'amber'
                     ? 'border-dashed border-rose-300 bg-rose-50/10'
                     : 'border-dashed border-emerald-400 hover:border-emerald-500 bg-emerald-50/20 hover:bg-emerald-50/40'
-                }`}
+                  }`}
               >
                 <svg className={`w-8 h-8 ${gpsBadge.tone === 'amber' ? 'text-rose-400' : 'text-emerald-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
@@ -640,7 +647,7 @@ const KioskView = () => {
                 <span className={`text-xs font-black ${gpsBadge.tone === 'amber' ? 'text-rose-700' : 'text-emerald-800'}`}>Escanear QR</span>
                 <span className={`text-[9px] font-semibold ${gpsBadge.tone === 'amber' ? 'text-rose-500/80' : 'text-emerald-600/70'}`}>para registrar</span>
               </button>
-              
+
               <button
                 onClick={() => {
                   if (gpsBadge.tone === 'amber') {
@@ -649,11 +656,10 @@ const KioskView = () => {
                     setIsCameraActive(true);
                   }
                 }}
-                className={`w-full max-w-xs py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer border ${
-                  gpsBadge.tone === 'amber'
+                className={`w-full max-w-xs py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer border ${gpsBadge.tone === 'amber'
                     ? 'bg-rose-50/50 border-rose-100 text-rose-400 cursor-not-allowed'
                     : 'bg-blue-950 hover:bg-blue-900 text-white border-blue-900/40 shadow-sm shadow-blue-900/20'
-                }`}
+                  }`}
               >
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
@@ -661,7 +667,7 @@ const KioskView = () => {
                 </svg>
                 Abrir cámara
               </button>
-              
+
               {gpsBadge.tone === 'amber' && (
                 <p className="text-[10px] text-rose-600 font-bold bg-rose-50 border border-rose-100 rounded-lg p-2.5 mt-2 leading-relaxed">
                   ⚠️ Ubicación GPS obligatoria desactivada. Activa los permisos de ubicación en tu navegador para poder registrar asistencia.
@@ -721,10 +727,10 @@ const KioskView = () => {
               ].map((slot) => {
                 const mark = kioskSession?.marcaciones?.find(m => m.tipo === slot.type);
                 const isRegistered = !!mark;
-                const timeVal = mark?.fechaHora 
+                const timeVal = mark?.fechaHora
                   ? new Date(mark.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   : '--:--';
-                
+
                 return (
                   <div key={slot.type} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-none">
                     <div className="flex items-center gap-2 min-w-0">
@@ -788,12 +794,11 @@ const KioskView = () => {
                       {new Date(reg.fechaHora).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="py-2.5 px-3 text-center">
-                      <span className={`inline-block font-extrabold px-2 py-0.5 rounded text-[9px] uppercase ${
-                        reg.tipo === 'ENTRADA' ? 'text-emerald-700 bg-emerald-50' :
-                        reg.tipo === 'INICIO_ALMUERZO' ? 'text-amber-700 bg-amber-50' :
-                        reg.tipo === 'FIN_ALMUERZO' ? 'text-blue-700 bg-blue-50' :
-                        'text-purple-700 bg-purple-50'
-                      }`}>
+                      <span className={`inline-block font-extrabold px-2 py-0.5 rounded text-[9px] uppercase ${reg.tipo === 'ENTRADA' ? 'text-emerald-700 bg-emerald-50' :
+                          reg.tipo === 'INICIO_ALMUERZO' ? 'text-amber-700 bg-amber-50' :
+                            reg.tipo === 'FIN_ALMUERZO' ? 'text-blue-700 bg-blue-50' :
+                              'text-purple-700 bg-purple-50'
+                        }`}>
                         {reg.tipo.replace('_', ' ')}
                       </span>
                     </td>
@@ -923,7 +928,7 @@ const KioskView = () => {
 export const RegistrosPage = () => {
   const userStr = localStorage.getItem('user');
   const userObj = userStr ? normalizeUserForSession(JSON.parse(userStr)) : null;
-  
+
   const queryParams = new URLSearchParams(window.location.search);
   const forceKiosk = queryParams.get('kiosk') === 'true' || queryParams.get('vista') === 'kiosk';
   const isKioskMode = isAsistenciaUser(userObj) || forceKiosk;
@@ -985,13 +990,12 @@ const AlmuerzoStatusBadge = ({ almuerzo }) => {
     return <span className="text-slate-300 text-xs">—</span>;
   }
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border ${
-      almuerzo.cls === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-      almuerzo.cls === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-      almuerzo.cls === 'orange' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-      almuerzo.cls === 'indigo' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-      'bg-slate-50 text-slate-500 border-slate-200'
-    }`}>
+    <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold border ${almuerzo.cls === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+        almuerzo.cls === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+          almuerzo.cls === 'orange' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+            almuerzo.cls === 'indigo' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+              'bg-slate-50 text-slate-500 border-slate-200'
+      }`}>
       {almuerzo.label}
     </span>
   );
@@ -1199,8 +1203,8 @@ const AdminView = () => {
   const rows = useMemo(() => {
     return empleados.map(emp => {
       const marcaciones = asistencias.filter(a => a.empleadoId === emp.id);
-      
-      let estado = 'FALTO'; 
+
+      let estado = 'FALTO';
       const tienePermiso = marcaciones.some(m => m.tipo === 'PERMISO');
       if (tienePermiso) {
         estado = 'PERMISO';
@@ -1219,15 +1223,15 @@ const AdminView = () => {
 
   const rowsFiltrados = useMemo(() => {
     return rows.filter(r => {
-      const matchBusqueda = busqueda.trim() === '' || 
+      const matchBusqueda = busqueda.trim() === '' ||
         r.emp.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         r.emp.id.toLowerCase().includes(busqueda.toLowerCase()) ||
         (r.emp.cargo && r.emp.cargo.toLowerCase().includes(busqueda.toLowerCase()));
-      
+
       const matchEstado = filtroEstado === 'TODOS'
         || r.estado === filtroEstado
         || (filtroEstado === 'SIN_ALMUERZO' && r.almuerzo?.status === 'OMITIDO');
-      
+
       return matchBusqueda && matchEstado;
     });
   }, [rows, busqueda, filtroEstado]);
@@ -1255,7 +1259,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 </style>
 </head><body><table>`;
 
-    const cell = (content, cls = '') => `<td${cls?' class="'+cls+'"':''}>${String(content ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>`;
+    const cell = (content, cls = '') => `<td${cls ? ' class="' + cls + '"' : ''}>${String(content ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>`;
 
     html += `<tr><td colspan="10" class="title">REPORTE DIARIO DE ASISTENCIA - ${fechaFiltro}</td></tr>`;
     html += `<tr><td colspan="10">${horarioLabel}</td></tr>`;
@@ -1263,10 +1267,10 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
     html += '<tr><th>Empleado</th><th>ID</th><th>Cargo</th><th>Estado</th><th>Entrada</th><th>Sal. Almuerzo</th><th>Reg. Almuerzo</th><th>Salida</th><th>Almuerzo</th><th>Total Horas</th></tr>';
 
     rows.forEach(r => {
-      const e = r.marcaciones.find(a=>a.tipo==='ENTRADA');
-      const ia = r.marcaciones.find(a=>a.tipo==='INICIO_ALMUERZO');
-      const fa = r.marcaciones.find(a=>a.tipo==='FIN_ALMUERZO');
-      const s = r.marcaciones.find(a=>a.tipo==='SALIDA');
+      const e = r.marcaciones.find(a => a.tipo === 'ENTRADA');
+      const ia = r.marcaciones.find(a => a.tipo === 'INICIO_ALMUERZO');
+      const fa = r.marcaciones.find(a => a.tipo === 'FIN_ALMUERZO');
+      const s = r.marcaciones.find(a => a.tipo === 'SALIDA');
       const lapsos = r.estado === 'ASISTIO' ? calculateLapses(r.marcaciones) : { trabajo: '', almuerzo: '' };
       let statusText = 'Faltó';
       let statusCls = 'falta';
@@ -1424,13 +1428,12 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                 <button
                   key={i}
                   onClick={() => setFechaFiltro(iso)}
-                  className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-lg text-[9px] font-bold transition-all min-w-[44px] shrink-0 border cursor-pointer ${
-                    isSelected
+                  className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-lg text-[9px] font-bold transition-all min-w-[44px] shrink-0 border cursor-pointer ${isSelected
                       ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
                       : isToday
-                      ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
-                      : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100'
-                  }`}
+                        ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                        : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100'
+                    }`}
                 >
                   <span className={`uppercase tracking-wide leading-none ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
                     {DIAS_LABEL[d.getDay() === 0 ? 6 : d.getDay() - 1]}
@@ -1469,10 +1472,10 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input type="text" placeholder="Buscar empleado por nombre, ID o cargo..."
-            value={busqueda} onChange={e=>setBusqueda(e.target.value)}
+            value={busqueda} onChange={e => setBusqueda(e.target.value)}
             className="w-full border border-gray-200 bg-white rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-gray-400 shadow-sm" />
           {busqueda && (
-            <button onClick={()=>setBusqueda('')}
+            <button onClick={() => setBusqueda('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
             </button>
@@ -1488,9 +1491,8 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             { key: 'SIN_ALMUERZO', label: 'Sin almuerzo' },
           ].map(t => (
             <button key={t.key} onClick={() => setFiltroEstado(t.key)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
-                filtroEstado === t.key ? 'bg-blue-900 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}>{t.label}</button>
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${filtroEstado === t.key ? 'bg-blue-900 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}>{t.label}</button>
           ))}
         </div>
       </div>
