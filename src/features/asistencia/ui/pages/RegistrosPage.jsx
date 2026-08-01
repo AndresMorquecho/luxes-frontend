@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, eliminarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig } from '../../application/asistenciaService';
 import { getOpcionesMarcacion, puedeRegistrarMarcacion } from '../../helpers/asistenciaHelpers';
 import { MarcacionPickerModal } from '../components/MarcacionPickerModal';
@@ -210,20 +210,98 @@ const KioskView = () => {
   const [recentRegistros, setRecentRegistros] = useState([]);
 
 
-  const loadRecentRegistros = async () => {
+  // Usuario actualmente logueado en la sesión
+  const currentUser = useMemo(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      return userStr ? normalizeUserForSession(JSON.parse(userStr)) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const [userEmpleadoId, setUserEmpleadoId] = useState(currentUser?.empleadoId || null);
+
+  // Buscar el empleado asociado al usuario logueado
+  useEffect(() => {
+    let isMounted = true;
+    getEmpleados()
+      .then((empleados) => {
+        if (!isMounted || !empleados || !empleados.length) return;
+        let found = null;
+        if (currentUser?.empleadoId) {
+          found = empleados.find((e) => String(e.id).trim() === String(currentUser.empleadoId).trim());
+        }
+        if (!found && currentUser?.nombre) {
+          found = empleados.find(
+            (e) => e.nombre?.toLowerCase().trim() === currentUser.nombre?.toLowerCase().trim()
+          );
+        }
+        if (!found && currentUser?.username) {
+          found = empleados.find(
+            (e) => e.codigo?.toLowerCase().trim() === currentUser.username?.toLowerCase().trim()
+          );
+        }
+        if (found) {
+          setUserEmpleadoId(found.id);
+        }
+      })
+      .catch((err) => console.error('Error identificando empleado de usuario', err));
+    return () => { isMounted = false; };
+  }, [currentUser]);
+
+  // Cargar marcaciones diarias del usuario logueado en el panel de control
+  const loadUserTodaySession = useCallback(async (empId) => {
+    const targetId = empId || userEmpleadoId;
+    if (!targetId) return;
+    try {
+      const marcaciones = await getTodayMarcaciones(targetId);
+      if (marcaciones) {
+        const lapsos = calculateLapses(marcaciones);
+        setKioskSession({
+          empleadoId: targetId,
+          nombreEmpleado: marcaciones[0]?.nombreEmpleado || currentUser?.nombre || targetId,
+          marcaciones,
+          lapsos,
+        });
+      }
+    } catch (err) {
+      console.error('Error cargando marcaciones del usuario logueado', err);
+    }
+  }, [userEmpleadoId, currentUser]);
+
+  useEffect(() => {
+    if (userEmpleadoId) {
+      loadUserTodaySession(userEmpleadoId);
+    }
+  }, [userEmpleadoId, loadUserTodaySession]);
+
+  // Cargar solo los registros recientes del usuario logueado
+  const loadRecentRegistros = useCallback(async () => {
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const data = await getAsistencias(todayStr, todayStr);
       data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
-      setRecentRegistros(data.slice(0, 5));
+
+      if (userEmpleadoId || currentUser) {
+        const filtered = data.filter((reg) => {
+          if (userEmpleadoId && String(reg.empleadoId).trim() === String(userEmpleadoId).trim()) return true;
+          if (currentUser?.nombre && reg.nombreEmpleado?.toLowerCase().trim() === currentUser.nombre?.toLowerCase().trim()) return true;
+          return false;
+        });
+        setRecentRegistros(filtered.slice(0, 10));
+      } else {
+        setRecentRegistros(data.slice(0, 5));
+      }
     } catch (err) {
       console.error('Error loading recent registrations:', err);
     }
-  };
+  }, [userEmpleadoId, currentUser]);
 
   useEffect(() => {
     loadRecentRegistros();
-  }, []);
+  }, [loadRecentRegistros]);
+
   const [isKioskDesktop, setIsKioskDesktop] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
   );
@@ -268,6 +346,7 @@ const KioskView = () => {
       const marcaciones = await getTodayMarcaciones(empleadoId.trim());
       const lapsos = calculateLapses(marcaciones);
 
+      // Mostrar overlay de confirmación para quien escaneó su QR
       setLastScan({
         empleadoId: empleadoId.trim(),
         nombreEmpleado: registro.nombreEmpleado || empleadoId,
@@ -279,13 +358,19 @@ const KioskView = () => {
         horasExtra: registro.horasExtra,
       });
 
-      setKioskSession({
-        empleadoId: empleadoId.trim(),
-        nombreEmpleado: registro.nombreEmpleado || empleadoId,
-        marcaciones,
-        lapsos,
-        horasExtra: registro.horasExtra,
-      });
+      // Si quien escaneó es el usuario logueado, actualizar el panel principal
+      if (userEmpleadoId && String(empleadoId).trim() === String(userEmpleadoId).trim()) {
+        setKioskSession({
+          empleadoId: empleadoId.trim(),
+          nombreEmpleado: registro.nombreEmpleado || empleadoId,
+          marcaciones,
+          lapsos,
+          horasExtra: registro.horasExtra,
+        });
+      } else if (userEmpleadoId) {
+        // Mantener la sesión del usuario logueado en la pantalla
+        loadUserTodaySession(userEmpleadoId);
+      }
 
       setIsCameraActive(false);
       loadRecentRegistros();
@@ -676,9 +761,13 @@ const KioskView = () => {
 
       {/* Recent Logs Table */}
       <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-slate-800 mb-4">Registros recientes (Hoy)</h2>
+        <h2 className="text-sm font-bold text-slate-800 mb-4">
+          {currentUser?.nombre ? `Mis registros recientes (${currentUser.nombre.split(' ')[0]})` : 'Registros recientes (Hoy)'}
+        </h2>
         {recentRegistros.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-6">No hay marcaciones registradas el día de hoy.</p>
+          <p className="text-xs text-slate-400 text-center py-6">
+            {currentUser?.nombre ? 'No tienes marcaciones registradas el día de hoy.' : 'No hay marcaciones registradas el día de hoy.'}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs text-left border-collapse">
