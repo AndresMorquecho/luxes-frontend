@@ -44,6 +44,12 @@ const RouteLoading = () => (
   </div>
 );
 
+function LegacyRecepcionRedirect() {
+  const { ordenId } = useParams();
+  return <Navigate to={`/compras/recepcion/${ordenId}`} replace />;
+}
+
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return !!localStorage.getItem('token');
