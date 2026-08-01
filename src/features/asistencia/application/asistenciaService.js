@@ -105,3 +105,21 @@ export const saveHorarioConfig = async (config) => {
   );
 };
 
+export const getAutoAsistenciaStatus = async (empleadoId) => {
+  return parseResponse(
+    await fetch(`/api/asistencias/empleado/${empleadoId}/auto-asistencia`, {
+      headers: getHeaders(),
+    })
+  );
+};
+
+export const toggleAutoAsistenciaStatus = async (empleadoId, autoAsistencia) => {
+  return parseResponse(
+    await fetch(`/api/asistencias/empleado/${empleadoId}/auto-asistencia`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ autoAsistencia }),
+    })
+  );
+};
+

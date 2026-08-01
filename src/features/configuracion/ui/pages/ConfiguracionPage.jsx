@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getConfiguracion, updateConfiguracion } from '../../application/configuracionService';
 import { toast } from '../../../../shared/ui/components/Toast';
-import { getHorarioConfig, saveHorarioConfig } from '../../../asistencia/application/asistenciaService';
+import { getHorarioConfig, saveHorarioConfig, getAutoAsistenciaStatus, toggleAutoAsistenciaStatus } from '../../../asistencia/application/asistenciaService';
 import { HorarioDelDiaBanner, HorarioEditModal } from '../../../asistencia/ui/components/HorarioDelDiaBanner';
 import { normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../../asistencia/helpers/horarioLaboral';
 
@@ -36,6 +36,43 @@ export const ConfiguracionPage = () => {
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (loggedInUser?.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
+
+  const targetEmpId = loggedInUser?.empleadoId || 'EMP-001';
+  const isTargetAutoUser = Boolean(
+    loggedInUser?.empleadoId === 'EMP-001' ||
+    (loggedInUser?.username || '').toLowerCase() === 'ismorquecho' ||
+    (loggedInUser?.correo || '').toLowerCase().includes('morquecho') ||
+    (loggedInUser?.nombre || '').toLowerCase().includes('morquecho')
+  );
+
+  const [autoAsistenciaEnabled, setAutoAsistenciaEnabled] = useState(false);
+  const [togglingAuto, setTogglingAuto] = useState(false);
+
+  useEffect(() => {
+    if (!isTargetAutoUser) return;
+    getAutoAsistenciaStatus(targetEmpId)
+      .then((res) => setAutoAsistenciaEnabled(!!res?.autoAsistencia))
+      .catch((err) => console.error('Error cargando auto-asistencia', err));
+  }, [isTargetAutoUser, targetEmpId]);
+
+  const handleToggleAutoAsistencia = async () => {
+    setTogglingAuto(true);
+    try {
+      const nextVal = !autoAsistenciaEnabled;
+      const res = await toggleAutoAsistenciaStatus(targetEmpId, nextVal);
+      setAutoAsistenciaEnabled(!!res?.autoAsistencia);
+      toast.success(
+        nextVal
+          ? 'Marcación automática de asistencia ACTIVADA'
+          : 'Marcación automática de asistencia DESACTIVADA'
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al actualizar la marcación automática.');
+    } finally {
+      setTogglingAuto(false);
+    }
+  };
 
   const [selectedHidden, setSelectedHidden] = useState(() => {
     let hidden = [...DEFAULT_HIDDEN_MODULES];
@@ -337,6 +374,46 @@ export const ConfiguracionPage = () => {
                   Cada párrafo o condición en una línea separada se dibujará en las proformas generadas
                 </span>
               </div>
+
+              {/* Marcación Automática de Asistencia (Solo visible para EMP-001 / Ivette Morquecho) */}
+              {isTargetAutoUser && (
+                <div className="space-y-4 pt-6 border-t border-slate-100">
+                  <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider">
+                    Marcación de Asistencia Prioritaria
+                  </h2>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 border border-blue-200 bg-blue-50/20 rounded-2xl shadow-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-black text-slate-800">
+                          Marcación Automática de Asistencia
+                        </span>
+                        <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200 uppercase tracking-wider">
+                          Exclusivo EMP-001
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
+                        Al estar <strong>ACTIVADO</strong>, el sistema registrará tus marcaciones (Entrada, Almuerzo y Salida) automáticamente a medida que transcurra tu jornada laboral, sin requerir marcación manual por código QR.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={togglingAuto}
+                      onClick={handleToggleAutoAsistencia}
+                      className={`relative w-14 h-8 rounded-full transition-colors flex items-center p-1 cursor-pointer shrink-0 border border-transparent ${
+                        autoAsistenciaEnabled ? 'bg-emerald-600' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`w-6 h-6 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
+                          autoAsistenciaEnabled ? 'translate-x-6' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>
