@@ -1299,6 +1299,9 @@ export const ColasImpresionPage = () => {
                                       <button onClick={() => handleMoveUp(posIndex - 1)} disabled={posIndex - 1 === 0} style={{ padding: '0.4rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#475569', cursor: posIndex - 1 === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: posIndex - 1 === 0 ? 0.4 : 1 }} title="Subir prioridad">
                                         <ArrowUp size={14} />
                                       </button>
+                                      <button onClick={() => handleOpenCancelModal(job)} style={{ padding: '0.4rem', border: '1px solid #fee2e2', borderRadius: '6px', backgroundColor: '#fff', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cancelar trabajo de impresión">
+                                        <XCircle size={14} />
+                                      </button>
                                     </div>
                                   </td>
                                 </tr>
@@ -1331,6 +1334,9 @@ export const ColasImpresionPage = () => {
                                 <div style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
                                   <button onClick={() => handleOpenPrepModal(job)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.5rem', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
                                     <Play size={12} /> Cargar
+                                  </button>
+                                  <button onClick={() => handleOpenCancelModal(job)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.5rem 0.75rem', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+                                    <XCircle size={12} /> Cancelar
                                   </button>
                                 </div>
                               </div>

@@ -139,6 +139,13 @@ export const ProformasPage = () => {
     return () => document.removeEventListener('click', handleOutsideClick);
   }, []);
 
+  // Fetch company config once on mount
+  useEffect(() => {
+    getConfiguracion()
+      .then(config => setConfiguracion(config))
+      .catch(() => null);
+  }, []);
+
   // Fetch unique payment methods
   useEffect(() => {
     getMetodosPago()
@@ -151,12 +158,15 @@ export const ProformasPage = () => {
       .catch(err => console.error('Error cargando métodos de pago:', err));
   }, []);
 
+  const allProformasRef = useRef([]);
+
   // Fetch un-paginated full list to calculate stats and populate executive & client dropdowns
   const loadAllForStats = useCallback(async () => {
     try {
       const response = await getProformas({ page: 1, limit: 1000 });
       const list = response.data || [];
       setAllProformas(list);
+      allProformasRef.current = list;
       
       const total = list.length;
       const now = new Date();
@@ -194,7 +204,7 @@ export const ProformasPage = () => {
     try {
       let activeClienteId = '';
       if (clienteFilter) {
-        const found = allProformas.find(p => p.cliente === clienteFilter);
+        const found = allProformasRef.current.find(p => p.cliente === clienteFilter);
         if (found) {
           activeClienteId = found.clienteId || '';
         }
@@ -211,21 +221,17 @@ export const ProformasPage = () => {
         clienteId: activeClienteId,
       };
 
-      const [response, config] = await Promise.all([
-        getProformas(filters),
-        getConfiguracion().catch(() => null)
-      ]);
+      const response = await getProformas(filters);
       
       setProformas(response.data || []);
       setPagination(response.pagination || { total: 0, totalPages: 1 });
-      setConfiguracion(config);
     } catch (e) {
       console.error(e);
       setProformas([]);
     } finally {
       setLoading(false);
     }
-  }, [page, limit, search, clienteFilter, usuarioFilter, estado, dateRange, allProformas]);
+  }, [page, limit, search, clienteFilter, usuarioFilter, estado, dateRange]);
 
   useEffect(() => {
     load();

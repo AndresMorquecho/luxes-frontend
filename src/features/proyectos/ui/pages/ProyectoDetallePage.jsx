@@ -127,6 +127,7 @@ export default function ProyectoDetallePage() {
     try {
       await updateProyecto({
         nombre: data.nombre,
+        requiereInstalacion: data.requiereInstalacion,
         fechaEntregaEstimada: data.fechaEntregaEstimada || null,
         prioridad: data.prioridad,
         responsable: data.responsable,

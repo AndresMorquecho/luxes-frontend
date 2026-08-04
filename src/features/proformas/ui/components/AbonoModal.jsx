@@ -91,7 +91,7 @@ export const AbonoModal = ({
 
         {/* Modal Container */}
         <div
-          className="bg-white rounded-[20px] sm:rounded-[24px] border border-slate-100 shadow-2xl w-full max-w-[620px] max-h-[90dvh] sm:max-h-[85vh] flex flex-col overflow-hidden relative z-[201] animate-slide-up my-auto"
+          className="bg-white rounded-[20px] sm:rounded-[24px] border border-slate-100 shadow-2xl w-full max-w-[740px] max-h-[90dvh] sm:max-h-[85vh] flex flex-col overflow-hidden relative z-[201] animate-slide-up my-auto"
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
           {/* Header (Fixed) */}
@@ -123,7 +123,7 @@ export const AbonoModal = ({
             {/* Scrollable Content Body */}
             <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-5">
               {/* Top Cards: Proforma ID, Total & Saldo Pendiente (3 cols in single row) */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3.5 mb-2 sm:mb-4">
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 mb-2 sm:mb-4">
                 {/* Card 1: PROFORMA */}
                 <div className="bg-[#f8fafc] border border-slate-100 rounded-[12px] sm:rounded-[14px] p-2.5 sm:p-4 flex flex-col justify-center min-w-0">
                   <span className="text-[#64748b] font-bold text-[8px] sm:text-[10px] uppercase tracking-wider truncate">
@@ -158,14 +158,16 @@ export const AbonoModal = ({
               {/* Form Inputs Grid */}
               <div className="space-y-4 sm:space-y-5">
                 {/* Row 1: Monto & Método de Pago */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 items-start">
                   {/* Monto */}
-                  <div>
-                    <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider mb-1.5 sm:mb-2 block">
-                      MONTO DEL ABONO / COBRO {isApproval ? '(OPCIONAL / $0.00)' : '*'}
-                    </label>
-                    <div className="flex rounded-xl border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 shadow-sm">
-                      <div className="bg-[#f8fafc] border-r border-slate-200 px-3 sm:px-3.5 flex items-center justify-center text-slate-500 font-bold text-sm shrink-0">
+                  <div className="flex flex-col">
+                    <div className="flex items-center justify-between h-5 mb-1.5">
+                      <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider truncate">
+                        MONTO DEL ABONO / COBRO {isApproval ? '(OPCIONAL)' : '*'}
+                      </label>
+                    </div>
+                    <div className="flex rounded-xl border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 shadow-sm h-11 bg-white">
+                      <div className="bg-[#f8fafc] border-r border-slate-200 px-3.5 flex items-center justify-center text-slate-500 font-bold text-sm shrink-0">
                         $
                       </div>
                       <input
@@ -175,17 +177,17 @@ export const AbonoModal = ({
                         max={pending || undefined}
                         value={monto}
                         onChange={(e) => setMonto(e.target.value)}
-                        className="w-full px-3 py-2 sm:py-2.5 text-sm bg-white font-mono font-bold text-[#0f172a] focus:outline-none placeholder-slate-400"
+                        className="w-full px-3 text-sm bg-white font-mono font-bold text-[#0f172a] focus:outline-none placeholder-slate-400 h-full"
                         placeholder="0.00"
                         required={!isApproval}
                       />
                     </div>
-                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                       {isApproval && (
                         <button
                           type="button"
                           onClick={() => setMonto('0.00')}
-                          className="text-[11px] sm:text-[12px] font-bold text-slate-500 hover:text-slate-700 hover:underline"
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-600 transition-colors"
                         >
                           Sin Abono ($0)
                         </button>
@@ -193,7 +195,7 @@ export const AbonoModal = ({
                       <button
                         type="button"
                         onClick={() => setMonto(pending.toFixed(2))}
-                        className="text-[11px] sm:text-[12px] font-bold text-[#2563eb] hover:underline"
+                        className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[11px] font-bold text-[#2563eb] transition-colors"
                       >
                         Abono Total (100%)
                       </button>
@@ -201,7 +203,7 @@ export const AbonoModal = ({
                         <button
                           type="button"
                           onClick={() => setMonto((total / 2).toFixed(2))}
-                          className="text-[11px] sm:text-[12px] font-bold text-[#2563eb] hover:underline"
+                          className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[11px] font-bold text-[#2563eb] transition-colors"
                         >
                           Abono 50%
                         </button>
@@ -210,15 +212,17 @@ export const AbonoModal = ({
                   </div>
 
                   {/* Método de Pago */}
-                  <div>
-                    <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider mb-1.5 sm:mb-2 block">
-                      CAJA / MÉTODO DE PAGO {isApproval && (!monto || parseFloat(monto || '0') === 0) ? '(OPCIONAL)' : '*'}
-                    </label>
+                  <div className="flex flex-col">
+                    <div className="flex items-center justify-between h-5 mb-1.5">
+                      <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider truncate">
+                        CAJA / MÉTODO DE PAGO {isApproval && (!monto || parseFloat(monto || '0') === 0) ? '(OPCIONAL)' : '*'}
+                      </label>
+                    </div>
                     <select
                       required={!isApproval || (parseFloat(monto || '0') > 0)}
                       value={metodoPagoId}
                       onChange={(e) => setMetodoPagoId(e.target.value)}
-                      className="w-full px-3 py-2 sm:py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-[#1e293b] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm cursor-pointer"
+                      className="w-full px-3.5 h-11 border border-slate-200 rounded-xl text-sm font-semibold text-[#1e293b] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm cursor-pointer"
                     >
                       <option value="">Seleccione una caja...</option>
                       {metodosPago.map((m) => (

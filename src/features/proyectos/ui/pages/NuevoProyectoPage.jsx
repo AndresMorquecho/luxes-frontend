@@ -5,8 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Check, Search, ChevronDown, Info, ClipboardList } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
 import { getClientes } from '../../../clientes/application/clientesService.js';
-import { getProformas } from '../../../proformas/application/proformasService.js';
-import { getProyectos } from '../../application/proyectosService.js';
 import { getTodayDateISO } from '../../domain/utils/proyectoDates.js';
 
 const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'URGENTE'];
@@ -75,72 +73,6 @@ export default function NuevoProyectoPage() {
       });
   }, []);
 
-  const [proformas, setProformas] = useState([]);
-  const [selectedProformaIds, setSelectedProformaIds] = useState([]);
-  const [proformasLoading, setProformasLoading] = useState(false);
-  const [allProjects, setAllProjects] = useState([]);
-
-  useEffect(() => {
-    getProyectos({ limit: 1000 }).then(res => {
-      const pData = res?.data || res || [];
-      setAllProjects(Array.isArray(pData) ? pData : []);
-    }).catch(err => console.error('Error al cargar proyectos:', err));
-  }, []);
-
-  useEffect(() => {
-    if (!form.clienteId) {
-      setProformas([]);
-      setSelectedProformaIds([]);
-      return;
-    }
-
-    setProformasLoading(true);
-    const clienteObj = clientes.find(c => c.id === form.clienteId);
-    const filters = { limit: 1000, estado: 'Aprobada', clienteId: form.clienteId };
-
-    getProformas(filters).then(res => {
-      const list = res?.data || res || [];
-      const norm = (Array.isArray(list) ? list : []).map(p => ({
-        id: p.id,
-        clienteId: p.clienteId,
-        cliente: p.cliente || p.clienteNombre || '',
-        atiende: p.atiende || '—',
-        fecha: p.fecha,
-        total: (p.items || []).reduce((s, i) => s + i.cantidad * i.precioUnitario, 0),
-        estado: p.estado,
-        items: p.items || [],
-        iva: p.iva,
-        abonos: p.abonos || [],
-      })).filter(p => p.estado === 'Aprobada' || p.estado === 'Pagada');
-
-      const clientNameNorm = (clienteObj?.nombre || '').toLowerCase().trim();
-      const available = norm.filter(p => {
-        if (p.clienteId && form.clienteId && p.clienteId === form.clienteId) {
-          // Coincide por clienteId
-        } else {
-          const cleanPName = (p.cliente || '').replace(/^\d+\s*-\s*/, '').toLowerCase();
-          if (clientNameNorm && !cleanPName.includes(clientNameNorm) && !clientNameNorm.includes(cleanPName)) {
-            return false;
-          }
-        }
-
-        const pIdStr = String(p.id);
-        const isLinked = allProjects.some(proj => 
-          proj.estado !== 'CANCELADO' && proj.estado !== 'Cancelado' &&
-          proj.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas?.some(sc => String(sc.id) === pIdStr)
-        );
-        return !isLinked;
-      });
-
-      setProformas(available);
-      setProformasLoading(false);
-    }).catch(err => {
-      console.error('Error al cargar proformas del cliente:', err);
-      setProformas([]);
-      setProformasLoading(false);
-    });
-  }, [form.clienteId, clientes, allProjects]);
-
   // Estados para buscadores
   const [clientSearch, setClientSearch] = useState('');
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -176,13 +108,6 @@ export default function NuevoProyectoPage() {
     try {
       const clienteObj = clientes.find(c => c.id === form.clienteId) || clientes[0];
 
-      const selectedProformasObjs = proformas
-        .filter(p => selectedProformaIds.includes(p.id))
-        .map(p => ({
-          ...p,
-          fechaVinculacion: new Date().toISOString(),
-        }));
-
       const proyecto = await addProyecto({
         nombre: form.nombre,
         descripcion: form.descripcion,
@@ -203,22 +128,6 @@ export default function NuevoProyectoPage() {
         },
         notasCotizacion: form.notasCotizacion,
       });
-
-      if (selectedProformasObjs.length > 0) {
-        const token = localStorage.getItem('token');
-        await fetch(`/api/proyectos/${proyecto.id}/fases/COTIZACION`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : '',
-          },
-          body: JSON.stringify({
-            datos: {
-              cotizacionesSeleccionadas: selectedProformasObjs,
-            },
-          }),
-        });
-      }
 
       navigate(`/proyectos/${proyecto.id}`);
     } catch (err) {
@@ -348,53 +257,7 @@ export default function NuevoProyectoPage() {
             )}
           </div>
 
-          {form.clienteId && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-700">Proformas Aprobadas Disponibles</span>
-                {proformasLoading && <span className="text-xs text-slate-400">Cargando…</span>}
-              </div>
-              {!proformasLoading && proformas.length === 0 && (
-                <p className="text-xs text-slate-400 italic">No hay proformas aprobadas disponibles para vincular a este cliente.</p>
-              )}
-              {!proformasLoading && proformas.length > 0 && (
-                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-                  {proformas.map((pf) => {
-                    const isSelected = selectedProformaIds.includes(pf.id);
-                    return (
-                      <div
-                        key={pf.id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedProformaIds(selectedProformaIds.filter((id) => id !== pf.id));
-                          } else {
-                            setSelectedProformaIds([...selectedProformaIds, pf.id]);
-                          }
-                        }}
-                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                          isSelected ? 'bg-blue-50 border-blue-400 shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="w-4 h-4 text-blue-600 rounded cursor-pointer"
-                          />
-                          <div>
-                            <p className="text-xs font-bold text-slate-800">{pf.id}</p>
-                            <p className="text-[11px] text-slate-500">{pf.cliente}</p>
-                          </div>
-                        </div>
-                        <span className="text-xs font-extrabold text-emerald-600">${pf.total.toFixed(2)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+
 
           <div className="flex-1 flex flex-col">
             <label className="block text-sm font-semibold text-slate-700 mb-2">Descripción del trabajo</label>

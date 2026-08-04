@@ -566,3 +566,6 @@ export function ReclamosPage() {
     </div>
   );
 }
+
+export default ReclamosPage;
+
