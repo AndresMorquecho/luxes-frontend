@@ -107,6 +107,17 @@ export const TallerControlPage = () => {
 
   const hayFiltroActivo = dateRange.start || dateRange.end;
 
+  const getLocalDateTimeString = () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const mm = pad(now.getMonth() + 1);
+    const dd = pad(now.getDate());
+    const hh = pad(now.getHours());
+    const min = pad(now.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  };
+
   const openNewControl = () => {
     if (!selectedVeh) {
       toast.error('Selecciona un vehículo primero');
@@ -114,7 +125,7 @@ export const TallerControlPage = () => {
     }
     setForm({
       ...INITIAL_FORM,
-      fecha: new Date().toISOString().slice(0, 16),
+      fecha: getLocalDateTimeString(),
       kilometraje: selectedVeh.kilometraje || '',
     });
     setFormError('');
