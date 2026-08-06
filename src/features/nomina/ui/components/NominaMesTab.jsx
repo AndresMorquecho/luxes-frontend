@@ -2615,10 +2615,7 @@ export const NominaMesTab = () => {
         if (payTarget.quincenaOrigen === 2) {
           await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId, comprobanteUrl);
         } else {
-          await Promise.all([
-            pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, hoy, subQ1, metodoPagoId, comprobanteUrl),
-            pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, hoy, subQ2, metodoPagoId, comprobanteUrl),
-          ]);
+          await pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, hoy, subQ1, metodoPagoId, comprobanteUrl);
         }
       }
       deferClose(() => setPayTarget(null));
