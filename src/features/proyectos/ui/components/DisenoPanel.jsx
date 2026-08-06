@@ -276,7 +276,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
               type="file"
               ref={fileInputRef}
               className="hidden"
-              accept=".pdf,.ai,.psd,.jpg,.png"
+              accept=".pdf,.ai,.psd,.dxf,.dwg,.eps,.cdr,.svg,.tif,.tiff,.jpg,.jpeg,.png,.webp,.gif,.zip,.rar,.7z"
               multiple
               onChange={(e) => { if (e.target.files?.length > 0) handleFilesSelect(Array.from(e.target.files)); }}
             />
@@ -284,7 +284,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
             <p className="text-xs font-semibold text-slate-600 mt-1.5">
               {uploading ? 'Subiendo...' : 'Arrastra o haz clic para subir imágenes/archivos a este lote'}
             </p>
-            <p className="text-[10px] text-slate-400">PDF, AI, PSD, JPG, PNG</p>
+            <p className="text-[10px] text-slate-400">DXF, DWG, AI, PSD, PDF, EPS, CDR, SVG, JPG, PNG, ZIP</p>
           </div>
         )}
 
@@ -663,7 +663,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
               type="file"
               ref={fileInputRef}
               className="hidden"
-              accept=".pdf,.ai,.psd,.jpg,.png"
+              accept=".pdf,.ai,.psd,.dxf,.dwg,.eps,.cdr,.svg,.tif,.tiff,.jpg,.jpeg,.png,.webp,.gif,.zip,.rar,.7z"
               multiple
               onChange={handleFileChange}
             />
@@ -671,7 +671,7 @@ export const DisenoPanel = React.memo(function DisenoPanel({ proyectoId, soloLec
               <UploadCloud size={20} className={isDragging ? 'text-blue-600' : 'text-slate-400'} />
             </div>
             <p className="text-sm font-bold text-slate-700 mb-0.5">Arrastra y suelta los diseños aquí</p>
-            <p className="text-xs text-slate-500 mb-3">Archivos soportados: PDF, AI, PSD, JPG, PNG</p>
+            <p className="text-xs text-slate-500 mb-3">Archivos soportados: DXF, DWG, AI, PSD, PDF, EPS, CDR, SVG, JPG, PNG, ZIP</p>
             <button className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
               {uploading ? 'Subiendo...' : 'Seleccionar archivos'}
             </button>
