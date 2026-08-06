@@ -472,23 +472,27 @@ export const HorasExtrasTable = ({
   };
 
   const handleDelete = async (id) => {
-    confirmDialog(
+    const ok = await confirmDialog(
+      'Eliminar registro',
       '¿Está seguro de eliminar este registro de horas extras?',
-      async () => {
-        const updated = records.filter((row) => row.id !== id);
-        setRecords(updated);
-        try {
-          if (onDelete) {
-            await onDelete(id);
-            toast.success('Registro eliminado.');
-          } else {
-            await syncWithBackend(updated, 'Registro eliminado.');
-          }
-        } catch (err) {
-          toast.error(err.message || 'Error al eliminar');
-        }
-      }
+      { confirmLabel: 'Eliminar', type: 'danger' }
     );
+    if (!ok) return;
+
+    const previous = recordsRef.current;
+    const updated = previous.filter((row) => row.id !== id);
+    setRecords(updated);
+    try {
+      if (onDelete) {
+        await onDelete(id);
+        toast.success('Registro eliminado.');
+      } else {
+        await syncWithBackend(updated, 'Registro eliminado.');
+      }
+    } catch (err) {
+      setRecords(previous);
+      toast.error(err.message || 'Error al eliminar');
+    }
   };
 
   const handleAddSubmit = async (e) => {
