@@ -314,7 +314,7 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 70 }}>TELÉFONO:</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.telefono}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.telefono || '—'}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 78 }}>VENCE:</span>
@@ -327,6 +327,10 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                     <div style={{ display: 'flex', gap: 6 }}>
                       <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 78 }}>ATIENDE:</span>
                       <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.atiende?.toUpperCase() || '—'}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, gridColumn: 'span 2' }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 70 }}>DIRECCIÓN:</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.direccion || '—'}</span>
                     </div>
                   </div>
 

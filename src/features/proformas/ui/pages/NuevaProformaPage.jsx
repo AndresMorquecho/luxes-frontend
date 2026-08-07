@@ -12,6 +12,7 @@ const EMPTY_PROFORMA = {
   cliente: '',
   telefono: '',
   email: '',
+  direccion: '',
   fecha: new Date().toISOString().split('T')[0],
   vencimiento: '',
   diasValidez: 3,
@@ -70,6 +71,7 @@ export const NuevaProformaPage = () => {
             setForm({
               ...existing,
               clienteId: related?.id || existing.clienteId || '',
+              direccion: existing.direccion || related?.direccion || '',
               medio: existing.medio || 'LUXES',
               items: existing.items.map(i => ({ ...i })),
             });
@@ -147,6 +149,7 @@ export const NuevaProformaPage = () => {
       cliente: c.nombre,
       telefono: c.telefono || prev.telefono,
       email: c.email || prev.email,
+      direccion: c.direccion || prev.direccion || '',
     }));
     setClienteSearch(c.nombre);
     setClienteDropdownOpen(false);
@@ -423,7 +426,7 @@ export const NuevaProformaPage = () => {
             </div>
 
             {showMoreClientData && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-100/60 animate-slide-up">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-100/60 animate-slide-up">
                 <div>
                   <label className="co-label">Telefono Cliente *</label>
                   <input
@@ -444,6 +447,17 @@ export const NuevaProformaPage = () => {
                     value={form.email}
                     onChange={handleChange}
                     placeholder="Ej. cliente@correo.com"
+                    className="co-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="co-label">Direccion Cliente</label>
+                  <input
+                    name="direccion"
+                    value={form.direccion || ''}
+                    onChange={handleChange}
+                    placeholder="Ej. Av. Principal y Calle 10"
                     className="co-input"
                   />
                 </div>

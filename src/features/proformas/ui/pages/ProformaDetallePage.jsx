@@ -320,6 +320,19 @@ export const ProformaDetallePage = () => {
         </button>
       </div>
 
+      {/* Excedente Alert Banner */}
+      {proforma.excedente > 0.01 && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-3 shadow-sm">
+          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 font-black text-sm shrink-0">!</div>
+          <div>
+            <strong className="font-extrabold text-amber-950 block text-sm mb-0.5">Excedente de Cobro (${proforma.excedente.toFixed(2)})</strong>
+            <p className="text-amber-800 leading-relaxed font-medium">
+              El valor total actual de la proforma es menor al monto total cobrado previamente. Si la empresa realiza una devolución de dinero (${proforma.excedente.toFixed(2)}) al cliente, recuerde registrar el movimiento manualmente en el <strong>Módulo de Gastos</strong> para mantener sincronizada la caja del día.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Main Header Box */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5 mb-5">
@@ -348,7 +361,7 @@ export const ProformaDetallePage = () => {
               <Download size={14} className="text-slate-500" /> Ver PDF
             </button>
 
-            {(isAdmin || (isVentasODisenador && proforma.estado === 'Rechazada')) && (proforma.estado === 'Pendiente' || proforma.estado === 'Rechazada') && (
+            {(isAdmin || isVentasODisenador) && (
               <button
                 onClick={() => navigate(`/proformas/editar/${proforma.id}`)}
                 className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
@@ -428,6 +441,7 @@ export const ProformaDetallePage = () => {
                 <span className="block font-extrabold text-slate-800 text-sm">{proforma.cliente}</span>
                 <span className="block text-xs text-slate-500 font-medium mt-1">
                   {proforma.clienteCedula ? `RUC/CC: ${proforma.clienteCedula}` : proforma.telefono ? `Teléfono: ${proforma.telefono}` : '—'}
+                  {proforma.direccion ? ` | Dir: ${proforma.direccion}` : ''}
                 </span>
               </div>
             </div>

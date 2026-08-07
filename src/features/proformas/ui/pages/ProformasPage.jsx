@@ -746,7 +746,7 @@ export const ProformasPage = () => {
                               </button>
                               
                               <button 
-                                disabled={!(isAdmin || (isVentasODisenador && p.estado === 'Rechazada'))}
+                                disabled={!(isAdmin || isVentasODisenador)}
                                 onClick={() => openEdit(p)}
                                 className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
                                 title="Editar proforma"
@@ -862,7 +862,7 @@ export const ProformasPage = () => {
                         </button>
                         
                         <button 
-                          disabled={!(isAdmin || (isVentasODisenador && p.estado === 'Rechazada'))}
+                          disabled={!(isAdmin || isVentasODisenador)}
                           onClick={() => openEdit(p)}
                           className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
                           title="Editar proforma"
