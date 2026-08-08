@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, eliminarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig } from '../../application/asistenciaService';
 import { getOpcionesMarcacion, puedeRegistrarMarcacion } from '../../helpers/asistenciaHelpers';
 import { MarcacionPickerModal } from '../components/MarcacionPickerModal';
-import { getHorarioEsperado, getHorarioLabel, getEstadoAlmuerzo, normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../helpers/horarioLaboral';
+import { getHorarioEsperado, getHorarioLabel, getEstadoAlmuerzo, normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG, getTodayEcuadorStr } from '../../helpers/horarioLaboral';
 import { HorarioDelDiaBanner, HorarioEditModal } from '../components/HorarioDelDiaBanner';
 import { MarcacionHorarioCell } from '../components/MarcacionHorarioCell';
 import { MarcacionesTimeline } from '../components/MarcacionesTimeline';
@@ -279,7 +279,7 @@ const KioskView = () => {
   // Cargar solo los registros recientes del usuario logueado
   const loadRecentRegistros = useCallback(async () => {
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getTodayEcuadorStr();
       const data = await getAsistencias(todayStr, todayStr);
       data.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
 
@@ -306,7 +306,7 @@ const KioskView = () => {
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
   );
 
-  const hoyStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const hoyStr = useMemo(() => getTodayEcuadorStr(), []);
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -1101,7 +1101,7 @@ const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horario
 
 const AdminView = () => {
   const [fechaFiltro, setFechaFiltro] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    return getTodayEcuadorStr();
   });
   const [asistencias, setAsistencias] = useState([]);
   const [empleados, setEmpleados] = useState([]);
@@ -1384,7 +1384,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
               </button>
 
               <button
-                onClick={() => setFechaFiltro(new Date().toISOString().split('T')[0])}
+                onClick={() => setFechaFiltro(getTodayEcuadorStr())}
                 className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
               >
                 Hoy
@@ -1422,7 +1422,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             {weekDays.map((d, i) => {
               const iso = toISODate(d);
               const isSelected = iso === fechaFiltro;
-              const isToday = iso === new Date().toISOString().split('T')[0];
+              const isToday = iso === getTodayEcuadorStr();
 
               return (
                 <button

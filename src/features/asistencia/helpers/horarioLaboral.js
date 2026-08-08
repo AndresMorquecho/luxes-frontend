@@ -108,7 +108,13 @@ export function calcularMultaAtraso(minutosAtraso, toleranciaMinutos = DEFAULT_H
 
 export const MARCACION_TIPOS = ['ENTRADA', 'INICIO_ALMUERZO', 'FIN_ALMUERZO', 'SALIDA'];
 
+export function getTodayEcuadorStr() {
+  const ec = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  return ec.toISOString().split('T')[0];
+}
+
 export function isSabado(dateStr) {
+  if (!dateStr) return false;
   const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number);
   return new Date(y, m - 1, d).getDay() === 6;
 }

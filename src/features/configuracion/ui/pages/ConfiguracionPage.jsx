@@ -3,7 +3,7 @@ import { getConfiguracion, updateConfiguracion } from '../../application/configu
 import { toast } from '../../../../shared/ui/components/Toast';
 import { getHorarioConfig, saveHorarioConfig, getAutoAsistenciaStatus, toggleAutoAsistenciaStatus } from '../../../asistencia/application/asistenciaService';
 import { HorarioDelDiaBanner, HorarioEditModal } from '../../../asistencia/ui/components/HorarioDelDiaBanner';
-import { normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG } from '../../../asistencia/helpers/horarioLaboral';
+import { normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG, getTodayEcuadorStr } from '../../../asistencia/helpers/horarioLaboral';
 
 import { DEFAULT_HIDDEN_MODULES, normalizeHiddenModules, SIDEBAR_MODULES } from '../../../navigation/application/sidebarModules';
 
@@ -267,7 +267,7 @@ export const ConfiguracionPage = () => {
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
           <HorarioDelDiaBanner
             horariosConfig={horariosConfig}
-            fechaActiva={new Date().toISOString().split('T')[0]}
+            fechaActiva={getTodayEcuadorStr()}
             showAllHorarios
             editable
             onEdit={() => setHorarioModalOpen(true)}
