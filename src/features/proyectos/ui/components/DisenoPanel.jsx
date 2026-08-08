@@ -156,7 +156,7 @@ const BatchCard = React.memo(function BatchCard({ batch, proyectoId, onBatchUpda
     try {
       const user = JSON.parse(localStorage.getItem('user') || 'null');
       await enviarBatchImpresion(proyectoId, batch.id, {
-        sentBy: user?.nombre || 'Diseño',
+        sentBy: user?.nombre || user?.username || 'Diseño',
         urgency: 'Media',
       });
       toast.success('Lote enviado a la cola de impresión 🖨️', 3000);

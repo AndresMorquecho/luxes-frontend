@@ -92,7 +92,7 @@ export const PrintQueueProvider = ({ children }) => {
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const u = JSON.parse(userStr);
-        return u.username || u.nombre || 'Sistema';
+        return u.nombre || u.username || 'Sistema';
       }
     } catch (e) {}
     return 'Sistema';

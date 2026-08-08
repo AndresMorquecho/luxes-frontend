@@ -50,32 +50,40 @@ export class Nomina {
     this.diasLaborados = Number(diasLaborados);
     this.permisoHoras = Number(permisoHoras);
 
+    const ingresosObj = typeof ingresos === 'string'
+      ? (() => { try { return JSON.parse(ingresos); } catch { return {}; } })()
+      : (ingresos || {});
+
+    const egresosObj = typeof egresos === 'string'
+      ? (() => { try { return JSON.parse(egresos); } catch { return {}; } })()
+      : (egresos || {});
+
     // Ingresos
     this.ingresos = {
-      decimoCuarto: Number(ingresos.decimoCuarto ?? 0),
-      decimoTercero: Number(ingresos.decimoTercero ?? 0),
-      provisionDecimo3: Number(ingresos.provisionDecimo3 ?? 0),
-      provisionDecimo4: Number(ingresos.provisionDecimo4 ?? 0),
-      acumuladoDecimo3: Number(ingresos.acumuladoDecimo3 ?? 0),
-      acumuladoDecimo4: Number(ingresos.acumuladoDecimo4 ?? 0),
-      pagoDecimo3: Number(ingresos.pagoDecimo3 ?? 0),
-      pagoDecimo4: Number(ingresos.pagoDecimo4 ?? 0),
-      horasExtras: Number(ingresos.horasExtras ?? 0),
-      trabajosEnEmpresa: Number(ingresos.trabajosEnEmpresa ?? 0),
-      fondosReserva: Number(ingresos.fondosReserva ?? 0),
+      decimoCuarto: Number(ingresosObj.decimoCuarto ?? 0),
+      decimoTercero: Number(ingresosObj.decimoTercero ?? 0),
+      provisionDecimo3: Number(ingresosObj.provisionDecimo3 ?? 0),
+      provisionDecimo4: Number(ingresosObj.provisionDecimo4 ?? 0),
+      acumuladoDecimo3: Number(ingresosObj.acumuladoDecimo3 ?? 0),
+      acumuladoDecimo4: Number(ingresosObj.acumuladoDecimo4 ?? 0),
+      pagoDecimo3: Number(ingresosObj.pagoDecimo3 ?? 0),
+      pagoDecimo4: Number(ingresosObj.pagoDecimo4 ?? 0),
+      horasExtras: Number(ingresosObj.horasExtras ?? 0),
+      trabajosEnEmpresa: Number(ingresosObj.trabajosEnEmpresa ?? 0),
+      fondosReserva: Number(ingresosObj.fondosReserva ?? 0),
     };
 
     this.egresos = {
-      iess: Number(egresos.iess ?? 0),
-      extensionConyuge: Number(egresos.extensionConyuge ?? 0),
-      prestamoQuirografario: Number(egresos.prestamoQuirografario ?? 0),
-      anticipos: Number(egresos.anticipos ?? 0),
-      dctoHorasNoLaboradas: Number(egresos.dctoHorasNoLaboradas ?? 0),
-      multas: Number(egresos.multas ?? 0),
-      dctoFiesta: Number(egresos.dctoFiesta ?? 0),
-      dctoHerramientas: Number(egresos.dctoHerramientas ?? 0),
-      dctoGenerico: Number(egresos.dctoGenerico ?? 0),
-      permisosDetalle: egresos.permisosDetalle || [],
+      iess: Number(egresosObj.iess ?? 0),
+      extensionConyuge: Number(egresosObj.extensionConyuge ?? 0),
+      prestamoQuirografario: Number(egresosObj.prestamoQuirografario ?? 0),
+      anticipos: Number(egresosObj.anticipos ?? 0),
+      dctoHorasNoLaboradas: Number(egresosObj.dctoHorasNoLaboradas ?? 0),
+      multas: Number(egresosObj.multas ?? 0),
+      dctoFiesta: Number(egresosObj.dctoFiesta ?? 0),
+      dctoHerramientas: Number(egresosObj.dctoHerramientas ?? 0),
+      dctoGenerico: Number(egresosObj.dctoGenerico ?? 0),
+      permisosDetalle: Array.isArray(egresosObj.permisosDetalle) ? egresosObj.permisosDetalle : [],
     };
 
     this.abonos = abonos.map(abono => ({

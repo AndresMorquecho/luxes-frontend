@@ -195,6 +195,17 @@ export async function getCuentasPorPagar(options = {}) {
   return data.data;
 }
 
+export async function createCuentaPorPagarManual(body) {
+  const res = await fetch('/api/compras/cuentas-por-pagar/manual', {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error || 'Error al crear cuenta por pagar manual');
+  return data.data;
+}
+
 // ── Métodos de Pago ─────────────────────────────────────────────────────────
 
 export async function getMetodosPago(desde, hasta) {

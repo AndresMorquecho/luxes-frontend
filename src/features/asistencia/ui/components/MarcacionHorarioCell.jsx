@@ -7,7 +7,7 @@ const formatTime = (iso) =>
 /**
  * Celda de marcación: hora real + referencia del horario definido.
  */
-export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = false }) {
+export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = false, isAdmin = true, onClick }) {
   const horaReal = formatTime(marcacion?.fechaHora);
   const diff = marcacion && esperado ? diffMinutosVsEsperado(marcacion.fechaHora, esperado) : null;
   const tieneDesvio = diff !== null && Math.abs(diff) > 5;
@@ -17,9 +17,25 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
     ? 'border-emerald-200 bg-emerald-50/90'
     : 'border-slate-200 bg-slate-50/80';
 
+  const isInteractive = Boolean(onClick);
+
+  const adminInteractiveCls = isInteractive
+    ? 'cursor-pointer hover:border-blue-500 hover:bg-blue-50/90 hover:shadow-md hover:scale-105 active:scale-95 transition-all group relative'
+    : '';
+
+  const handleClick = (e) => {
+    if (onClick) {
+      onClick(e);
+    }
+  };
+
   if (omitidoEsperado) {
     return (
-      <div className={`inline-flex flex-col items-center rounded-lg border px-2 py-1.5 min-w-[4.5rem] ${cardCls}`}>
+      <div
+        onClick={handleClick}
+        title={isAdmin ? (registrada ? 'Clic para editar esta marcación' : 'Clic para agregar esta marcación') : undefined}
+        className={`inline-flex flex-col items-center rounded-lg border px-2 py-1.5 min-w-[4.5rem] ${cardCls} ${adminInteractiveCls}`}
+      >
         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">opcional</span>
         {horaReal ? (
           <>
@@ -33,7 +49,7 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
                 title="Ver ubicación en Google Maps"
                 onClick={(e) => e.stopPropagation()}
               >
-                📍 Mapa
+                Mapa
               </a>
             )}
           </>
@@ -46,14 +62,22 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
 
   if (!esperado) {
     return (
-      <div className="inline-flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5 min-w-[4.5rem]">
+      <div
+        onClick={handleClick}
+        title={isAdmin ? 'Clic para agregar marcación' : undefined}
+        className={`inline-flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5 min-w-[4.5rem] ${adminInteractiveCls}`}
+      >
         <span className="font-mono text-xs text-slate-300">—</span>
       </div>
     );
   }
 
   return (
-    <div className={`inline-flex flex-col items-center rounded-lg border px-2 py-1.5 min-w-[5.2rem] ${cardCls}`}>
+    <div
+      onClick={handleClick}
+      title={isAdmin ? (registrada ? 'Clic para editar esta marcación' : 'Clic para agregar esta marcación') : undefined}
+      className={`inline-flex flex-col items-center rounded-lg border px-2 py-1.5 min-w-[5.2rem] ${cardCls} ${adminInteractiveCls}`}
+    >
       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
         ref. {esperado.label}
       </span>
@@ -76,12 +100,12 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
               title="Ver ubicación en Google Maps"
               onClick={(e) => e.stopPropagation()}
             >
-              📍 Mapa
+              Mapa
             </a>
           )}
         </>
       ) : (
-        <span className="font-mono text-xs text-slate-300 mt-0.5">—</span>
+        <span className="font-mono text-xs text-slate-300 mt-0.5 font-bold group-hover:text-blue-500 transition-colors">—</span>
       )}
     </div>
   );

@@ -102,6 +102,7 @@ export const saveEmpleado = async (empleado) => {
   const payload = {
     nombre: empleado.nombre,
     cedula: empleado.cedula,
+    fechaNacimiento: empleado.fechaNacimiento || null,
     cargo: empleado.cargo ?? '',
     departamento: empleado.departamento ?? '',
     telefono: empleado.telefono ?? '',

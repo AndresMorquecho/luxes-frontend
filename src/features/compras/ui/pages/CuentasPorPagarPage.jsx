@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Eye, Trash2, X, FileText, AlertCircle, Clock, CheckCircle2, CreditCard, Calendar, Hash, Info, Pencil } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Eye, Trash2, X, FileText, AlertCircle, Clock, CheckCircle2, CreditCard, Calendar, Hash, Info, Pencil, Plus, Search, ChevronDown } from 'lucide-react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats, getAbonos, eliminarAbono,
-  getCheques, procesarChequeManual, editarCheque, eliminarCheque
+  getCheques, procesarChequeManual, editarCheque, eliminarCheque, createCuentaPorPagarManual, getProveedores
 } from '../../application/comprasService';
 import { buildOrdenParaAbono, getAbonoSaldoPendiente } from '../../helpers/ordenCompraHelpers';
 import { ComprasPageHeader } from '../components/ComprasPageHeader';
@@ -33,6 +33,88 @@ const ESTADO_FILTER_OPTIONS = [
 const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('es-EC', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+const SearchableProveedorSelect = ({ proveedores, value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  const selectedProv = proveedores.find((p) => p.id === value);
+
+  const filtered = proveedores.filter((p) => {
+    const term = search.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      (p.nombre || '').toLowerCase().includes(term) ||
+      (p.ruc || '').toLowerCase().includes(term)
+    );
+  });
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <label className="block font-bold text-slate-700 mb-1">Proveedor *</label>
+      <div
+        onClick={() => { setIsOpen(!isOpen); setSearch(''); }}
+        className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 transition-all cursor-pointer flex items-center justify-between shadow-2xs"
+      >
+        <span className={selectedProv ? "text-slate-800 font-semibold truncate text-xs sm:text-sm" : "text-slate-400 text-xs sm:text-sm"}>
+          {selectedProv ? `${selectedProv.nombre}${selectedProv.ruc ? ` (${selectedProv.ruc})` : ''}` : '-- Seleccionar Proveedor Registrado --'}
+        </span>
+        <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1" />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-2 animate-fade-in">
+          <div className="relative mb-1.5">
+            <Search size={14} className="text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre o RUC..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-9 pl-8 pr-3 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#2b41b8]/20 focus:border-[#2b41b8]"
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto space-y-0.5">
+            {filtered.length === 0 ? (
+              <p className="p-3 text-xs text-slate-400 text-center font-medium">No se encontraron proveedores registrados</p>
+            ) : (
+              filtered.map((p) => {
+                const isSelected = p.id === value;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => { onChange(p.id); setIsOpen(false); }}
+                    className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition-colors flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-blue-50 text-blue-700 font-bold'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="truncate">{p.nombre}</span>
+                    {p.ruc && <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-2">{p.ruc}</span>}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const CuentasPorPagarPage = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -77,6 +159,108 @@ export const CuentasPorPagarPage = () => {
   const [verLoading, setVerLoading] = useState(false);
   const [deletingAbonoId, setDeletingAbonoId] = useState(null);
   const [confirmDeleteAbono, setConfirmDeleteAbono] = useState(null);
+
+  // Modal Crear Cuenta por Pagar Manual
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [proveedoresList, setProveedoresList] = useState([]);
+  const [manualForm, setManualForm] = useState({
+    proveedorId: '',
+    proveedorNombreManual: '',
+    concepto: '',
+    montoTotal: '',
+    fechaEmision: new Date().toISOString().split('T')[0],
+    fechaVencimiento: '',
+    proyectoId: '',
+    notas: '',
+    registrarAbonoInicial: false,
+    abonoMetodoPagoId: '',
+    abonoMonto: '',
+    abonoReferencia: '',
+    esChequePosfechado: false,
+    numeroCheque: '',
+    fechaCobro: '',
+  });
+  const [manualSaving, setManualSaving] = useState(false);
+
+  const handleOpenManualModal = async () => {
+    try {
+      const provs = await getProveedores();
+      setProveedoresList(provs || []);
+    } catch (e) {
+      console.error('Error al cargar proveedores:', e);
+    }
+    setManualForm({
+      proveedorId: '',
+      proveedorNombreManual: '',
+      concepto: '',
+      montoTotal: '',
+      fechaEmision: new Date().toISOString().split('T')[0],
+      fechaVencimiento: '',
+      proyectoId: '',
+      notas: '',
+      registrarAbonoInicial: false,
+      abonoMetodoPagoId: '',
+      abonoMonto: '',
+      abonoReferencia: '',
+      esChequePosfechado: false,
+      numeroCheque: '',
+      fechaCobro: '',
+    });
+    setManualModalOpen(true);
+  };
+
+  const handleManualSave = async (e) => {
+    e.preventDefault();
+    if (!manualForm.concepto.trim()) {
+      toast.error('El concepto o descripción es obligatorio.');
+      return;
+    }
+    const monto = parseFloat(manualForm.montoTotal);
+    if (isNaN(monto) || monto <= 0) {
+      toast.error('Ingrese un monto total válido mayor a $0.00.');
+      return;
+    }
+    if (!manualForm.proveedorId) {
+      toast.error('Debe seleccionar un proveedor registrado de la lista.');
+      return;
+    }
+
+    setManualSaving(true);
+    try {
+      const payload = {
+        proveedorId: manualForm.proveedorId,
+        concepto: manualForm.concepto.trim(),
+        montoTotal: monto,
+        fechaEmision: manualForm.fechaEmision || undefined,
+        fechaVencimiento: manualForm.fechaVencimiento || undefined,
+        proyectoId: manualForm.proyectoId || undefined,
+        notas: manualForm.notas.trim() || undefined,
+      };
+
+      if (manualForm.registrarAbonoInicial && manualForm.abonoMetodoPagoId && parseFloat(manualForm.abonoMonto) > 0) {
+        payload.abonoInicial = {
+          metodoPagoId: manualForm.abonoMetodoPagoId,
+          monto: parseFloat(manualForm.abonoMonto),
+          referencia: manualForm.abonoReferencia.trim() || undefined,
+          esChequePosfechado: manualForm.esChequePosfechado,
+          numeroCheque: manualForm.numeroCheque.trim() || undefined,
+          fechaCobro: manualForm.fechaCobro || undefined,
+        };
+      }
+
+      await createCuentaPorPagarManual(payload);
+      toast.success('Cuenta por pagar manual registrada con éxito 🎉');
+      setManualModalOpen(false);
+      loadCxP();
+      loadStats();
+      loadMetodos();
+      loadCheques();
+    } catch (err) {
+      toast.error(err.message || 'Error al registrar la cuenta por pagar.');
+    } finally {
+      setManualSaving(false);
+    }
+  };
 
   const perPage = 25;
 
@@ -513,12 +697,21 @@ export const CuentasPorPagarPage = () => {
           {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
         </div>
 
-        <div className="mb-3">
-          {renderEstadoFilter('w-full')}
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex-1">{renderEstadoFilter('w-full')}</div>
+          <button
+            type="button"
+            onClick={handleOpenManualModal}
+            className="h-9 px-3 rounded-lg text-xs font-bold text-white flex items-center gap-1 shadow-sm shrink-0 cursor-pointer"
+            style={{ backgroundColor: CO_PRIMARY }}
+          >
+            <Plus size={14} />
+            <span>Registrar Cuenta</span>
+          </button>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
-          <div className="px-3 py-2.5 border-b border-slate-100">
+          <div className="px-3 py-2.5 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-sm font-bold" style={{ color: CO_NAVY }}>Cuentas por pagar</h2>
           </div>
           {cxpLoading && <div className="flex justify-center py-10"><div className="co-spinner" /></div>}
@@ -545,6 +738,17 @@ export const CuentasPorPagarPage = () => {
         <ComprasPageHeader
           title="Cuentas por Pagar"
           subtitle="Gestión de deudas y saldos pendientes a proveedores."
+          aside={(
+            <button
+              type="button"
+              onClick={handleOpenManualModal}
+              className="h-10 px-4 rounded-xl text-xs sm:text-sm font-bold text-white flex items-center gap-2 shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
+              style={{ backgroundColor: CO_PRIMARY }}
+            >
+              <Plus size={18} />
+              <span>Registrar Cuenta por Pagar</span>
+            </button>
+          )}
         />
 
         <div className="grid gap-4 mb-6 md:grid-cols-2 xl:grid-cols-4">
@@ -552,8 +756,8 @@ export const CuentasPorPagarPage = () => {
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div className="max-w-xs">{renderEstadoFilter('w-full')}</div>
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+            <div className="w-48">{renderEstadoFilter('w-full')}</div>
             {chequesList.filter(c => c.estado === 'PENDIENTE').length > 0 && (
               <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-xl text-amber-900 text-xs font-bold">
                 <Clock size={15} className="text-amber-600 shrink-0" />
@@ -1156,6 +1360,217 @@ export const CuentasPorPagarPage = () => {
                 Sí, eliminar y devolver dinero
               </button>
             </div>
+          </div>
+        </div>
+      </ModalPortal>
+
+      {/* Modal Registrar Cuenta por Pagar Manual */}
+      <ModalPortal open={manualModalOpen}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-fade-in">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setManualModalOpen(false)} />
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl relative z-10 overflow-hidden flex flex-col my-auto max-h-[92vh] animate-slide-up">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-xs" style={{ backgroundColor: CO_PRIMARY }}>
+                  <Plus size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold" style={{ color: CO_NAVY }}>Registrar Cuenta por Pagar Manual</h3>
+                  <p className="text-xs text-slate-500">Registrar una deuda sin orden de compra previa</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManualModalOpen(false)}
+                className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleManualSave} className="p-6 overflow-y-auto space-y-4 text-xs sm:text-sm">
+              {/* Row 1: Proveedor y Concepto */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Proveedor (Buscador Selector) */}
+                <SearchableProveedorSelect
+                  proveedores={proveedoresList}
+                  value={manualForm.proveedorId}
+                  onChange={(id) => setManualForm((f) => ({ ...f, proveedorId: id }))}
+                />
+
+                {/* Concepto / Descripción */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Concepto / N° Factura / Descripción *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Factura #1042 - Servicios de publicidad / Materiales de imprenta"
+                    value={manualForm.concepto}
+                    onChange={(e) => setManualForm(f => ({ ...f, concepto: e.target.value }))}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-xl text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Grid: Monto Total y Fechas */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Monto Total ($) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    placeholder="0.00"
+                    value={manualForm.montoTotal}
+                    onChange={(e) => setManualForm(f => ({ ...f, montoTotal: e.target.value }))}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-xl font-bold font-mono text-slate-900 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Fecha Emisión</label>
+                  <input
+                    type="date"
+                    value={manualForm.fechaEmision}
+                    onChange={(e) => setManualForm(f => ({ ...f, fechaEmision: e.target.value }))}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-xl text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Vencimiento (Opcional)</label>
+                  <input
+                    type="date"
+                    value={manualForm.fechaVencimiento}
+                    onChange={(e) => setManualForm(f => ({ ...f, fechaVencimiento: e.target.value }))}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-xl text-slate-700 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
+                  />
+                </div>
+              </div>
+
+              {/* Notas opcionales */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Notas / Observaciones</label>
+                <textarea
+                  rows={2}
+                  placeholder="Detalles adicionales sobre las condiciones de pago..."
+                  value={manualForm.notas}
+                  onChange={(e) => setManualForm(f => ({ ...f, notas: e.target.value }))}
+                  className="w-full p-2.5 border border-slate-200 rounded-xl text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15 text-xs"
+                />
+              </div>
+
+              {/* Sección Opcional de Abono Inicial */}
+              <div className="pt-3 border-t border-slate-200/80">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={manualForm.registrarAbonoInicial}
+                    onChange={(e) => setManualForm(f => ({ ...f, registrarAbonoInicial: e.target.checked }))}
+                    className="w-4 h-4 rounded text-[#2b41b8] focus:ring-[#2b41b8]"
+                  />
+                  <span className="font-bold text-slate-800">¿Registrar pago o abono inicial de inmediato?</span>
+                </label>
+
+                {manualForm.registrarAbonoInicial && (
+                  <div className="mt-3 p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 animate-fade-in">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1 text-xs">Cuenta / Método de Pago *</label>
+                        <select
+                          value={manualForm.abonoMetodoPagoId}
+                          onChange={(e) => setManualForm(f => ({ ...f, abonoMetodoPagoId: e.target.value }))}
+                          className="w-full h-9 px-2.5 border border-slate-200 rounded-lg bg-white text-xs text-slate-700"
+                        >
+                          <option value="">-- Seleccionar Cuenta --</option>
+                          {metodos.map((m) => (
+                            <option key={m.id} value={m.id}>{m.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1 text-xs">Monto Abonado ($) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Monto"
+                          value={manualForm.abonoMonto}
+                          onChange={(e) => setManualForm(f => ({ ...f, abonoMonto: e.target.value }))}
+                          className="w-full h-9 px-2.5 border border-slate-200 rounded-lg font-bold font-mono text-xs bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1 text-xs">Referencia / N° Comprobante</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Transferencia Banco Pichincha #9872"
+                        value={manualForm.abonoReferencia}
+                        onChange={(e) => setManualForm(f => ({ ...f, abonoReferencia: e.target.value }))}
+                        className="w-full h-9 px-2.5 border border-slate-200 rounded-lg text-xs bg-white"
+                      />
+                    </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
+                      <input
+                        type="checkbox"
+                        checked={manualForm.esChequePosfechado}
+                        onChange={(e) => setManualForm(f => ({ ...f, esChequePosfechado: e.target.checked }))}
+                        className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="font-semibold text-amber-900 text-xs">¿Es Cheque Posfechado?</span>
+                    </label>
+
+                    {manualForm.esChequePosfechado && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">N° Cheque</label>
+                          <input
+                            type="text"
+                            placeholder="N° de cheque"
+                            value={manualForm.numeroCheque}
+                            onChange={(e) => setManualForm(f => ({ ...f, numeroCheque: e.target.value }))}
+                            className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Fecha de Cobro</label>
+                          <input
+                            type="date"
+                            value={manualForm.fechaCobro}
+                            onChange={(e) => setManualForm(f => ({ ...f, fechaCobro: e.target.value }))}
+                            className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setManualModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 font-bold text-slate-700 text-xs transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={manualSaving}
+                  className="px-5 py-2.5 rounded-xl text-white font-bold text-xs transition-all shadow-md hover:shadow-lg inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  style={{ backgroundColor: CO_PRIMARY }}
+                >
+                  {manualSaving && <div className="co-spinner-sm" />}
+                  Guardar Cuenta por Pagar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </ModalPortal>

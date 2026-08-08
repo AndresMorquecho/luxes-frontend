@@ -123,3 +123,13 @@ export const toggleAutoAsistenciaStatus = async (empleadoId, autoAsistencia) => 
   );
 };
 
+export const adminEditarONuevaMarcacion = async ({ asistenciaId, empleadoId, tipo, fechaHora, eliminarMultaAsociada }) => {
+  return parseResponse(
+    await fetch('/api/asistencias/manual-edit', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ asistenciaId, empleadoId, tipo, fechaHora, eliminarMultaAsociada }),
+    })
+  );
+};
+

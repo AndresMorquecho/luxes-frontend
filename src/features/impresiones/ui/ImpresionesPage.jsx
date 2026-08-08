@@ -110,7 +110,7 @@ export const ImpresionesPage = () => {
   const [sentBy, setSentBy] = useState(() => {
     try {
       const u = JSON.parse(localStorage.getItem('user'));
-      return u?.username || u?.nombre || 'Sistema';
+      return u?.nombre || u?.username || 'Sistema';
     } catch {
       return 'Sistema';
     }

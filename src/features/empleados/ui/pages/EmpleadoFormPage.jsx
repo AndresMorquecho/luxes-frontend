@@ -22,6 +22,7 @@ import {
 const EMPTY_FORM = {
   nombre: '',
   cedula: '',
+  fechaNacimiento: '',
   telefono: '',
   correo: '',
   username: '',
@@ -604,6 +605,7 @@ export const EmpleadoFormPage = () => {
         ]);
         const loadedForm = {
           ...emp,
+          fechaNacimiento: emp.fechaNacimiento ? new Date(emp.fechaNacimiento).toISOString().split('T')[0] : '',
           sueldoDiario: sueldoMensualForForm(emp.sueldoDiario),
           contraseña: emp.contraseña || '123456',
           username: emp.username || emp.correo?.split('@')[0] || '',
@@ -1007,6 +1009,10 @@ export const EmpleadoFormPage = () => {
                       <div>
                         <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Cédula *</label>
                         <input name="cedula" value={form.cedula} onChange={handleChange} placeholder="0912345678" className="input-field" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Fecha de nacimiento</label>
+                        <input type="date" name="fechaNacimiento" value={form.fechaNacimiento || ''} onChange={handleChange} className="input-field" />
                       </div>
                       <div>
                         <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">Teléfono</label>

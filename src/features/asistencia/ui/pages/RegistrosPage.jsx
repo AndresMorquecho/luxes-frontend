@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, eliminarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig } from '../../application/asistenciaService';
+import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, eliminarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig, adminEditarONuevaMarcacion } from '../../application/asistenciaService';
 import { getOpcionesMarcacion, puedeRegistrarMarcacion } from '../../helpers/asistenciaHelpers';
 import { MarcacionPickerModal } from '../components/MarcacionPickerModal';
 import { getHorarioEsperado, getHorarioLabel, getEstadoAlmuerzo, normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG, getTodayEcuadorStr } from '../../helpers/horarioLaboral';
@@ -11,9 +11,9 @@ import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
-import { isAsistenciaUser, normalizeUserForSession } from '../../../../shared/utils/userRoleHelpers';
+import { isAsistenciaUser, normalizeUserForSession, isAdminUser } from '../../../../shared/utils/userRoleHelpers';
 import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
-import { OverlayPortal } from '../../../../shared/ui/components/ModalPortal';
+import { OverlayPortal, ModalPortal } from '../../../../shared/ui/components/ModalPortal';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 
 
@@ -1039,15 +1039,15 @@ const AsistenciaAcciones = ({ isPermiso, onConcederPermiso, onCancelarPermiso })
   );
 };
 
-const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horarioDia, onConcederPermiso, onCancelarPermiso }) => {
+const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horarioDia, onConcederPermiso, onCancelarPermiso, isAdmin, onCellClick, dateStr }) => {
   const { entrada, inicioAlm, finAlm, salida, isFalto, isPermiso, isAsistio, mapsUrl, lapsos } =
     buildAsistenciaRowMeta(marcaciones, estado);
 
   const marcacionFields = [
-    { label: 'Entrada', marcacion: entrada, esperado: horarioDia.ENTRADA },
-    { label: 'Sal. almuerzo', marcacion: inicioAlm, esperado: horarioDia.INICIO_ALMUERZO, omitidoEsperado: !horarioDia.INICIO_ALMUERZO },
-    { label: 'Reg. almuerzo', marcacion: finAlm, esperado: horarioDia.FIN_ALMUERZO, omitidoEsperado: !horarioDia.FIN_ALMUERZO },
-    { label: 'Salida', marcacion: salida, esperado: horarioDia.SALIDA },
+    { label: 'Entrada', marcacion: entrada, esperado: horarioDia.ENTRADA, tipo: 'ENTRADA' },
+    { label: 'Sal. almuerzo', marcacion: inicioAlm, esperado: horarioDia.INICIO_ALMUERZO, omitidoEsperado: !horarioDia.INICIO_ALMUERZO, tipo: 'INICIO_ALMUERZO' },
+    { label: 'Reg. almuerzo', marcacion: finAlm, esperado: horarioDia.FIN_ALMUERZO, omitidoEsperado: !horarioDia.FIN_ALMUERZO, tipo: 'FIN_ALMUERZO' },
+    { label: 'Salida', marcacion: salida, esperado: horarioDia.SALIDA, tipo: 'SALIDA' },
   ];
 
   return (
@@ -1064,10 +1064,16 @@ const AsistenciaColaboradorCard = ({ emp, marcaciones, estado, almuerzo, horario
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100">
-        {marcacionFields.map(({ label, marcacion, esperado, omitidoEsperado }) => (
+        {marcacionFields.map(({ label, marcacion, esperado, omitidoEsperado, tipo }) => (
           <div key={label} className="bg-slate-50/80 rounded-lg px-2 py-2 text-center min-w-0">
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1 truncate">{label}</p>
-            <MarcacionHorarioCell marcacion={marcacion} esperado={esperado} omitidoEsperado={omitidoEsperado} />
+            <MarcacionHorarioCell
+              marcacion={marcacion}
+              esperado={esperado}
+              omitidoEsperado={omitidoEsperado}
+              isAdmin={isAdmin}
+              onClick={() => onCellClick && onCellClick({ marcacion, esperado, tipo, empleado: emp, dateStr })}
+            />
           </div>
         ))}
       </div>
@@ -1112,6 +1118,77 @@ const AdminView = () => {
 
   const horarioDia = useMemo(() => getHorarioEsperado(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
   const horarioLabel = useMemo(() => getHorarioLabel(fechaFiltro, horariosConfig), [fechaFiltro, horariosConfig]);
+
+  const currentUser = useMemo(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      return userStr ? normalizeUserForSession(JSON.parse(userStr)) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const isAdmin = useMemo(() => isAdminUser(currentUser), [currentUser]);
+
+  const [adminCellModalOpen, setAdminCellModalOpen] = useState(false);
+  const [editingCellData, setEditingCellData] = useState(null);
+  const [horaFormVal, setHoraFormVal] = useState('08:00');
+  const [eliminarMultaChecked, setEliminarMultaChecked] = useState(true);
+  const [savingAdminCell, setSavingAdminCell] = useState(false);
+
+  const handleOpenAdminCellModal = useCallback(({ marcacion, esperado, tipo, empleado, dateStr }) => {
+    let existingTime = '08:00';
+    if (marcacion?.fechaHora) {
+      const d = new Date(marcacion.fechaHora);
+      existingTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    } else if (esperado?.hora) {
+      existingTime = esperado.hora;
+    }
+
+    setEditingCellData({
+      marcacion,
+      esperado,
+      tipo,
+      empleado,
+      dateStr: dateStr || fechaFiltro || getTodayEcuadorStr(),
+    });
+    setHoraFormVal(existingTime);
+    setEliminarMultaChecked(false);
+    setAdminCellModalOpen(true);
+  }, [fechaFiltro]);
+
+  const handleSaveAdminCellModal = async (e) => {
+    e.preventDefault();
+    if (!editingCellData) return;
+
+    setSavingAdminCell(true);
+    try {
+      const parts = String(horaFormVal).trim().split(':');
+      const hh = (parts[0] || '08').padStart(2, '0');
+      const mm = (parts[1] || '00').padStart(2, '0');
+      const ss = (parts[2] || '00').padStart(2, '0');
+      const timeStr = `${hh}:${mm}:${ss}`;
+      const isoDateTime = `${editingCellData.dateStr}T${timeStr}.000-05:00`;
+
+      await adminEditarONuevaMarcacion({
+        asistenciaId: editingCellData.marcacion?.id,
+        empleadoId: editingCellData.empleado.id,
+        tipo: editingCellData.tipo,
+        fechaHora: isoDateTime,
+        eliminarMultaAsociada: eliminarMultaChecked,
+      });
+
+      toast.success(editingCellData.marcacion ? 'Marcación actualizada correctamente' : 'Marcación agregada correctamente');
+      setAdminCellModalOpen(false);
+      setEditingCellData(null);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Error al guardar la marcación');
+    } finally {
+      setSavingAdminCell(false);
+    }
+  };
 
   useEffect(() => {
     getHorarioConfig()
@@ -1571,25 +1648,99 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           <EstadoAsistenciaBadge estado={estado} />
                         </td>
 
-                        <td className="px-4 py-4 whitespace-nowrap text-center border-l border-slate-100">
-                          <MarcacionHorarioCell marcacion={entrada} esperado={horarioDia.ENTRADA} />
+                        <td
+                          className="px-4 py-4 whitespace-nowrap text-center border-l border-slate-100 cursor-pointer"
+                          onClick={() => handleOpenAdminCellModal({
+                            marcacion: entrada,
+                            esperado: horarioDia.ENTRADA,
+                            tipo: 'ENTRADA',
+                            empleado: emp,
+                            dateStr: fechaFiltro,
+                          })}
+                        >
+                          <MarcacionHorarioCell
+                            marcacion={entrada}
+                            esperado={horarioDia.ENTRADA}
+                            isAdmin={isAdmin}
+                            onClick={() => handleOpenAdminCellModal({
+                              marcacion: entrada,
+                              esperado: horarioDia.ENTRADA,
+                              tipo: 'ENTRADA',
+                              empleado: emp,
+                              dateStr: fechaFiltro,
+                            })}
+                          />
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <td
+                          className="px-4 py-4 whitespace-nowrap text-center cursor-pointer"
+                          onClick={() => handleOpenAdminCellModal({
+                            marcacion: inicioAlm,
+                            esperado: horarioDia.INICIO_ALMUERZO,
+                            tipo: 'INICIO_ALMUERZO',
+                            empleado: emp,
+                            dateStr: fechaFiltro,
+                          })}
+                        >
                           <MarcacionHorarioCell
                             marcacion={inicioAlm}
                             esperado={horarioDia.INICIO_ALMUERZO}
                             omitidoEsperado={!horarioDia.INICIO_ALMUERZO}
+                            isAdmin={isAdmin}
+                            onClick={() => handleOpenAdminCellModal({
+                              marcacion: inicioAlm,
+                              esperado: horarioDia.INICIO_ALMUERZO,
+                              tipo: 'INICIO_ALMUERZO',
+                              empleado: emp,
+                              dateStr: fechaFiltro,
+                            })}
                           />
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <td
+                          className="px-4 py-4 whitespace-nowrap text-center cursor-pointer"
+                          onClick={() => handleOpenAdminCellModal({
+                            marcacion: finAlm,
+                            esperado: horarioDia.FIN_ALMUERZO,
+                            tipo: 'FIN_ALMUERZO',
+                            empleado: emp,
+                            dateStr: fechaFiltro,
+                          })}
+                        >
                           <MarcacionHorarioCell
                             marcacion={finAlm}
                             esperado={horarioDia.FIN_ALMUERZO}
                             omitidoEsperado={!horarioDia.FIN_ALMUERZO}
+                            isAdmin={isAdmin}
+                            onClick={() => handleOpenAdminCellModal({
+                              marcacion: finAlm,
+                              esperado: horarioDia.FIN_ALMUERZO,
+                              tipo: 'FIN_ALMUERZO',
+                              empleado: emp,
+                              dateStr: fechaFiltro,
+                            })}
                           />
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center">
-                          <MarcacionHorarioCell marcacion={salida} esperado={horarioDia.SALIDA} />
+                        <td
+                          className="px-4 py-4 whitespace-nowrap text-center cursor-pointer"
+                          onClick={() => handleOpenAdminCellModal({
+                            marcacion: salida,
+                            esperado: horarioDia.SALIDA,
+                            tipo: 'SALIDA',
+                            empleado: emp,
+                            dateStr: fechaFiltro,
+                          })}
+                        >
+                          <MarcacionHorarioCell
+                            marcacion={salida}
+                            esperado={horarioDia.SALIDA}
+                            isAdmin={isAdmin}
+                            onClick={() => handleOpenAdminCellModal({
+                              marcacion: salida,
+                              esperado: horarioDia.SALIDA,
+                              tipo: 'SALIDA',
+                              empleado: emp,
+                              dateStr: fechaFiltro,
+                            })}
+                          />
                         </td>
 
                         <td className="px-4 py-4 whitespace-nowrap text-center">
@@ -1625,6 +1776,9 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                 estado={estado}
                 almuerzo={almuerzo}
                 horarioDia={horarioDia}
+                isAdmin={isAdmin}
+                dateStr={fechaFiltro}
+                onCellClick={handleOpenAdminCellModal}
                 onConcederPermiso={() => requestConcederPermiso(emp.id, emp.nombre)}
                 onCancelarPermiso={() => requestCancelarPermiso(emp.id, emp.nombre)}
               />
@@ -1633,6 +1787,135 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </>
       )}
 
+      {/* Modal Admin para Editar / Agregar Marcación */}
+      <ModalPortal open={adminCellModalOpen}>
+        {editingCellData && (
+          <div className="fixed inset-0 z-[10020] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+              onClick={() => setAdminCellModalOpen(false)}
+            />
+            <div className="relative p-6 sm:p-7 max-w-lg w-full bg-white rounded-2xl shadow-2xl border border-slate-100 animate-modal-in z-10">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">
+                      {editingCellData.marcacion ? 'Editar Marcación' : 'Agregar Marcación'}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {editingCellData.empleado.nombre} • <span className="font-mono text-blue-600">{editingCellData.empleado.id}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAdminCellModalOpen(false)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveAdminCellModal} className="space-y-4">
+                <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Tipo de Marcación</span>
+                    <span className="text-xs font-bold text-slate-800">
+                      {editingCellData.tipo === 'ENTRADA' && 'Entrada'}
+                      {editingCellData.tipo === 'INICIO_ALMUERZO' && 'Salida a Almuerzo'}
+                      {editingCellData.tipo === 'FIN_ALMUERZO' && 'Regreso de Almuerzo'}
+                      {editingCellData.tipo === 'SALIDA' && 'Salida'}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Fecha</span>
+                    <span className="text-xs font-semibold text-slate-600">{editingCellData.dateStr}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                    Hora de marcación (HH:MM) *
+                  </label>
+                  <input
+                    type="time"
+                    step="1"
+                    required
+                    value={horaFormVal}
+                    onChange={(e) => setHoraFormVal(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-base font-bold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  />
+                  {editingCellData.esperado && (
+                    <p className="text-[11px] font-medium text-slate-400 mt-1">
+                      Horario de referencia: <span className="font-semibold text-slate-600">{editingCellData.esperado.label}</span>
+                    </p>
+                  )}
+                </div>
+
+                {(editingCellData.tipo === 'ENTRADA' || editingCellData.tipo === 'FIN_ALMUERZO') && (
+                  <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-start gap-2.5">
+                      <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                      <div className="text-xs text-amber-900">
+                        <p className="font-bold">Ajuste de atraso / multa en nómina</p>
+                        <p className="mt-0.5 text-amber-800/90 text-[11px]">
+                          Si colocas una hora con atraso, la multa se registrará automáticamente en nómina a menos que marques la casilla de exonerar/eliminar multa.
+                        </p>
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={eliminarMultaChecked}
+                        onChange={(e) => setEliminarMultaChecked(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-700">
+                        Exonerar / Eliminar multa por atraso en nómina (sin descuento)
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setAdminCellModalOpen(false)}
+                    disabled={savingAdminCell}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingAdminCell}
+                    className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                  >
+                    {savingAdminCell ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Guardando...</span>
+                      </>
+                    ) : (
+                      <span>Guardar Marcación</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </ModalPortal>
     </div>
   );
 };

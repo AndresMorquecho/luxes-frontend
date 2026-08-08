@@ -2405,8 +2405,11 @@ export const NominaMesTab = () => {
       // calcularNomina siempre tenga el valor correcto en la primera carga,
       // independientemente de si el campo en DB estaba desactualizado.
       const normalizeRaw = (raw) => raw.map(r => {
-        const detalle = r.egresos?.permisosDetalle;
-        if (!Array.isArray(detalle) || detalle.length === 0) return r;
+        const egresosObj = typeof r.egresos === 'string'
+          ? (() => { try { return JSON.parse(r.egresos); } catch { return {}; } })()
+          : (r.egresos || {});
+        const detalle = egresosObj?.permisosDetalle;
+        if (!Array.isArray(detalle) || detalle.length === 0) return { ...r, egresos: egresosObj };
         const total = detalle
           .filter(d => !d.eliminado)
           .reduce((s, d) => {
@@ -2414,9 +2417,7 @@ export const NominaMesTab = () => {
             const h = Number(d.horas || 0);
             return s + Math.floor(h) * 2.50 + ((h % 1) >= 0.499 ? 1.50 : 0);
           }, 0);
-        // Solo reemplaza si hay diferencia para evitar renders innecesarios
-        if (Math.abs(total - Number(r.permisoHoras)) < 0.001) return r;
-        return { ...r, permisoHoras: total };
+        return { ...r, permisoHoras: total, egresos: egresosObj };
       });
 
       setQ1Raw(normalizeRaw(p1));

@@ -41,7 +41,10 @@ export function calcularNomina(empleado, nomina, options = {}) {
   // permisoHoras now stores the accumulated fine value in USD directly (from QR atraso records).
   // Legacy records may still use the old hours * $2.50 model; we detect this via permisosDetalle.
   const permisoHoras = Number(nomina.permisoHoras || 0);
-  const permisosDetalle = nomina.egresos?.permisosDetalle;
+  const egresosObj = typeof nomina.egresos === 'string'
+    ? (() => { try { return JSON.parse(nomina.egresos); } catch { return {}; } })()
+    : (nomina.egresos || {});
+  const permisosDetalle = egresosObj?.permisosDetalle;
   let valorPermisoHoras;
   if (Array.isArray(permisosDetalle) && permisosDetalle.length > 0) {
     // If ANY record has multaDolares, treat the whole accumulation as direct USD
