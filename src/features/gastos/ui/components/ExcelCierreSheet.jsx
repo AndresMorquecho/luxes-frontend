@@ -443,14 +443,20 @@ export const ExcelCierreSheet = ({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* TABLA DE FILAS DE SALDOS CALCULADOS */}
-          <div className="lg:col-span-7 border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full text-xs text-left table-fixed">
+          <div className="lg:col-span-7 border border-slate-200 rounded-lg overflow-x-auto -webkit-overflow-scrolling-touch">
+            {/* BANNER INDICADOR PARA MÓVIL */}
+            <div className="md:hidden bg-slate-100 text-slate-600 text-[10px] font-extrabold px-3 py-1 flex items-center justify-between border-b border-slate-200 uppercase tracking-wider">
+              <span>Desliza horizontalmente para ver saldos</span>
+              <span className="font-mono text-slate-500 font-black">↔</span>
+            </div>
+
+            <table className="w-full text-xs text-left min-w-[460px]">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-black uppercase text-[10px] h-9">
-                  <th className="py-2 px-4 w-52">Cuenta / Método</th>
-                  <th className="py-2 px-3 text-right w-28">Ingresos</th>
-                  <th className="py-2 px-3 text-right w-28">Egresos</th>
-                  <th className="py-2 px-4 text-right font-black text-slate-900 w-36">Saldo Final</th>
+                  <th className="py-2 px-3 min-w-[170px]">Cuenta / Método</th>
+                  <th className="py-2 px-2 text-right min-w-[85px]">Ingresos</th>
+                  <th className="py-2 px-2 text-right min-w-[85px]">Egresos</th>
+                  <th className="py-2 px-3 text-right font-black text-slate-900 min-w-[105px]">Saldo Final</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 font-semibold text-slate-800">
