@@ -185,7 +185,13 @@ export const ExcelCierreSheet = ({
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* BANNER INDICADOR PARA MÓVIL */}
+        <div className="md:hidden bg-slate-100 text-slate-600 text-[10px] font-extrabold px-3 py-1 flex items-center justify-between border-b border-slate-200 uppercase tracking-wider">
+          <span>Desliza horizontalmente para ver cuentas</span>
+          <span className="font-mono text-slate-500 font-black">↔</span>
+        </div>
+
+        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
           <table className="w-full text-xs text-left border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-100 text-[10px] font-black text-slate-700 uppercase border-b border-slate-200 h-12">
@@ -331,7 +337,13 @@ export const ExcelCierreSheet = ({
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* BANNER INDICADOR PARA MÓVIL */}
+        <div className="md:hidden bg-slate-100 text-slate-600 text-[10px] font-extrabold px-3 py-1 flex items-center justify-between border-b border-slate-200 uppercase tracking-wider">
+          <span>Desliza horizontalmente para ver cuentas</span>
+          <span className="font-mono text-slate-500 font-black">↔</span>
+        </div>
+
+        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
           <table className="w-full text-xs text-left border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-100 text-[10px] font-black text-slate-700 uppercase border-b border-slate-200 h-12">

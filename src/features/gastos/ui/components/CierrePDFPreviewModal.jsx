@@ -56,7 +56,7 @@ const esEfectivoName = (nombre = '') => {
 };
 
 export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
-  const [zoom, setZoom] = useState(100);
+  const [zoom, setZoom] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 768) ? 50 : 100);
 
   const shouldShow = Boolean(isOpen && cierre);
   const visible = useModalVisibility(shouldShow);
@@ -76,6 +76,23 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
   const handlePrint = () => {
     window.print();
   };
+
+  // Obtención del usuario real (desde props o de la sesión guardada en localStorage)
+  const storedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch (e) {
+      return {};
+    }
+  })();
+
+  const nombreUsuario = (
+    cierre.usuario?.nombre || 
+    cierre.usuarioNom || 
+    storedUser.nombre || 
+    storedUser.name || 
+    'IVETTE STEPHANIA MORQUECHO SEVILLANO'
+  ).toUpperCase();
 
   // Desestructuración segura del objeto de cierre
   let metodosDetalle = [];
@@ -142,7 +159,6 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
   const diffCash = cashPhysicalNum - saldoFinalEfectivo;
 
   const formattedCierreDate = formatDateLong(cierre.fechaInicio || cierre.fecha);
-  const nombreUsuario = cierre.usuario?.nombre || cierre.usuarioNom || 'ADMINISTRADOR DE CAJA';
 
   return (
     <ModalPortal>
@@ -151,58 +167,61 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
         onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
       >
         <div className="pdf-modal-container max-w-[1220px]" onMouseDown={(e) => e.stopPropagation()}>
-          {/* BARRA DE HERRAMIENTAS DE IMPRESIÓN EN TONOS CLAROS */}
-          <div className="bg-white text-slate-800 px-5 py-3 flex items-center justify-between border-b border-slate-200 shrink-0 select-none print:hidden">
-            <div className="flex items-center gap-2.5">
-              <FileText size={18} className="text-slate-600" />
-              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">
-                Reporte Cierre de Caja — {formattedCierreDate}
+          {/* BARRA DE HERRAMIENTAS DE IMPRESIÓN EN TONOS CLAROS - ADAPTADA A MÓVIL */}
+          <div className="bg-white text-slate-800 px-3 md:px-5 py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 border-b border-slate-200 shrink-0 select-none print:hidden">
+            <div className="flex items-center gap-2 truncate">
+              <FileText size={16} className="text-slate-600 shrink-0" />
+              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wide truncate">
+                Cierre {formattedCierreDate}
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button 
-                type="button" 
-                onClick={() => setZoom(z => Math.max(50, z - 10))} 
-                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs flex items-center justify-center transition-colors border border-slate-200" 
-                title="Reducir zoom"
-              >
-                -
-              </button>
-              <span className="text-xs font-mono font-bold text-slate-600 min-w-[40px] text-center">{zoom}%</span>
-              <button 
-                type="button" 
-                onClick={() => setZoom(z => Math.min(150, z + 10))} 
-                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs flex items-center justify-center transition-colors border border-slate-200" 
-                title="Aumentar zoom"
-              >
-                +
-              </button>
-            </div>
+            <div className="flex items-center gap-2 ml-auto sm:ml-0">
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <button 
+                  type="button" 
+                  onClick={() => setZoom(z => Math.max(30, z - 10))} 
+                  className="w-6 h-6 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs flex items-center justify-center transition-colors" 
+                  title="Reducir zoom"
+                >
+                  -
+                </button>
+                <span className="text-[11px] font-mono font-bold text-slate-700 min-w-[36px] text-center">{zoom}%</span>
+                <button 
+                  type="button" 
+                  onClick={() => setZoom(z => Math.min(150, z + 10))} 
+                  className="w-6 h-6 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs flex items-center justify-center transition-colors" 
+                  title="Aumentar zoom"
+                >
+                  +
+                </button>
+              </div>
 
-            <div className="flex items-center gap-3">
               <button 
                 type="button" 
                 onClick={handleDownload} 
-                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs rounded-lg transition-colors flex items-center gap-2 border border-slate-300 shadow-2xs cursor-pointer"
+                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs rounded-lg transition-colors flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer"
                 title="Descargar PDF"
               >
-                <Download size={14} className="text-slate-600" />
-                <span>Descargar PDF</span>
+                <Download size={14} className="text-slate-600 shrink-0" />
+                <span className="hidden sm:inline">Descargar PDF</span>
+                <span className="sm:hidden text-[11px]">PDF</span>
               </button>
+
               <button 
                 type="button" 
                 onClick={handlePrint} 
-                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs rounded-lg transition-colors flex items-center gap-2 shadow-2xs cursor-pointer"
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 title="Imprimir documento"
               >
-                <Printer size={14} className="text-white" />
-                <span>Imprimir</span>
+                <Printer size={14} className="text-white shrink-0" />
+                <span className="hidden sm:inline">Imprimir</span>
               </button>
+
               <button 
                 type="button" 
                 onClick={handleClose} 
-                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors ml-1 cursor-pointer" 
+                className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer shrink-0" 
                 title="Cerrar"
               >
                 <X size={16} />
