@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
-import { 
+import {
   getGastos, saveGasto, deleteGasto, CATEGORIAS,
   getMetodosPago, getCierrePreview, saveCierre, getCierres,
   getVehiculos, getVehiculoDetails, saveVehiculo, deleteVehiculo,
@@ -12,14 +12,15 @@ import { getUsuarios } from '../../../usuarios/application/usuariosService';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal.jsx';
-import { 
-  Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus, 
-  ArrowLeft, AlertTriangle, CheckCircle, Clock, User, 
+import {
+  Car, Wrench, Calendar, DollarSign, Trash2, Edit, Plus,
+  ArrowLeft, AlertTriangle, CheckCircle, Clock, User,
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
   ClipboardCheck, BarChart3, Filter, ArrowUp, ArrowDown, Scale, Wallet,
   Eye, Pencil
 } from 'lucide-react';
 import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
+import { ExcelCierreSheet } from '../components/ExcelCierreSheet';
 import { getDeudasFijasCount } from '../../application/gastosFijosService';
 import { GastosFijosTab } from '../components/GastosFijosTab';
 
@@ -89,7 +90,7 @@ const getAlertStatus = (maint, currentKm, kmLimit, monthsLimit) => {
   if (!maint) {
     return { status: 'warning', message: 'Sin registros. Se recomienda programar mantenimiento.', lastInfo: 'Nunca' };
   }
-  
+
   const kmSince = currentKm - (maint.kilometraje || 0);
   const dateRealizado = new Date(maint.fechaRealizado);
   const diffTime = Math.abs(new Date() - dateRealizado);
@@ -119,15 +120,15 @@ const getAlertStatus = (maint, currentKm, kmLimit, monthsLimit) => {
 
 const computeVehicleAlerts = (vehiculo) => {
   const list = vehiculo.mantenimientos || [];
-  
+
   const oilMaint = list
     .filter(m => m.tipo === 'Cambio de Aceite' || m.tipo.toLowerCase().includes('aceite'))
     .sort((a, b) => new Date(b.fechaRealizado) - new Date(a.fechaRealizado))[0];
-  
+
   const tiresMaint = list
     .filter(m => m.tipo === 'Cambio de Llantas' || m.tipo.toLowerCase().includes('llanta'))
     .sort((a, b) => new Date(b.fechaRealizado) - new Date(a.fechaRealizado))[0];
-    
+
   const brakesMaint = list
     .filter(m => m.tipo === 'Frenos' || m.tipo.toLowerCase().includes('freno'))
     .sort((a, b) => new Date(b.fechaRealizado) - new Date(a.fechaRealizado))[0];
@@ -155,7 +156,7 @@ const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, t
           <Icon size={18} style={{ color: color }} strokeWidth={2.5} />
         </div>
       </div>
-      
+
       <div className="flex items-end justify-between mt-auto">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
@@ -166,19 +167,19 @@ const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, t
           </div>
           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{trendText}</div>
         </div>
-        
+
         {/* Sparkline */}
         <div className="w-16 h-8 opacity-80 -mr-2 -mb-1">
           <svg viewBox="0 0 100 30" className="w-full h-full overflow-visible" preserveAspectRatio="none">
-             <path 
-               d={sparklineSvg} 
-               fill="none" 
-               stroke={trendUp ? '#10b981' : '#f43f5e'} 
-               strokeWidth="2" 
-               strokeLinecap="round" 
-               strokeLinejoin="round" 
-               style={{ filter: trendUp ? 'drop-shadow(0 2px 2px rgba(16,185,129,0.2))' : 'drop-shadow(0 2px 2px rgba(244,63,94,0.2))' }}
-             />
+            <path
+              d={sparklineSvg}
+              fill="none"
+              stroke={trendUp ? '#10b981' : '#f43f5e'}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ filter: trendUp ? 'drop-shadow(0 2px 2px rgba(16,185,129,0.2))' : 'drop-shadow(0 2px 2px rgba(244,63,94,0.2))' }}
+            />
           </svg>
         </div>
       </div>
@@ -189,7 +190,7 @@ const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, t
 export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'fijos' | 'vehiculos' | 'cierre'
   const [deudasFijasCount, setDeudasFijasCount] = useState(0);
-  
+
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = loggedInUser?.rol?.toLowerCase() === 'admin' || loggedInUser?.rol?.toLowerCase() === 'administrador';
 
@@ -260,6 +261,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [maintFiltroUsuarioId, setMaintFiltroUsuarioId] = useState('');
   const [maintFiltroMetodoPagoId, setMaintFiltroMetodoPagoId] = useState('');
   const [maintDateRange, setMaintDateRange] = useState({ desde: '', hasta: '' });
+  const getTodayDateStr = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
 
   // --- ESTADOS CIERRE DE CAJA ---
   const [cierreHistory, setCierreHistory] = useState([]);
@@ -267,8 +275,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [cierrePreview, setCierrePreview] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [cierreDates, setCierreDates] = useState({
-    desde: new Date().toISOString().split('T')[0],
-    hasta: new Date().toISOString().split('T')[0]
+    desde: getTodayDateStr(),
+    hasta: getTodayDateStr()
   });
   const [cierreObservaciones, setCierreObservaciones] = useState('');
   const [savingCierre, setSavingCierre] = useState(false);
@@ -297,8 +305,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           setTotales(response.totales);
         }
         if (response.pagination) {
-          setTotalPages(response.pagination.totalPages);
-          setTotalCount(response.pagination.totalCount);
+          setTotalPages(response.pagination.totalPages || 1);
+          setTotalCount(response.pagination.totalCount || 0);
         }
       } else {
         setItems([]);
@@ -323,7 +331,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     setLoadingVehiculos(true);
     try {
       const data = await getVehiculos();
-      setVehiculos(data);
+      setVehiculos(data || []);
+      if (data && data.length > 0 && !selectedVehiculo) {
+        setSelectedVehiculo(data[0]);
+      }
     } catch (err) {
       toast.error('Error al cargar vehículos: ' + err.message);
     } finally {
@@ -331,11 +342,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     }
   };
 
-  const loadControles = async (vehId) => {
+  const loadControles = async (vehiculoId) => {
     setLoadingControles(true);
     try {
-      const data = await getVehiculoControles(vehId);
-      setControles(data);
+      const data = await getControlesByVehiculo(vehiculoId);
+      setControles(data || []);
     } catch (err) {
       toast.error('Error al cargar historial de controles: ' + err.message);
     } finally {
@@ -354,18 +365,6 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     try {
       const data = await getCierres();
       setCierreHistory(data || []);
-
-      if (data && data.length > 0) {
-        const latestCierre = data[0];
-        if (latestCierre.fechaFin) {
-          const nextDay = new Date(latestCierre.fechaFin);
-          nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-          setCierreDates(prev => ({
-            ...prev,
-            desde: nextDay.toISOString().split('T')[0]
-          }));
-        }
-      }
     } catch (err) {
       toast.error('Error al cargar historial de cierres: ' + err.message);
     } finally {
@@ -451,7 +450,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       .catch(err => {
         console.error('Error al cargar métodos de pago:', err);
       });
-      
+
     getUsuarios()
       .then(data => {
         setUsuarios(data || []);
@@ -728,7 +727,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       };
       const saved = await addVehiculoControl(selectedVehiculo.id, payload);
       toast.success('Control registrado correctamente');
-      
+
       setControles((prev) => [saved, ...prev]);
 
       setSelectedVehiculo((prev) => {
@@ -760,7 +759,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   // El filtrado y paginación ahora se hacen en el backend
   const paginated = items;
-  
+
   // Resetea a la página 1 cuando el filtro o la búsqueda cambian
   useEffect(() => { setPage(1); }, [search, filtroOrigen, filtroUsuarioId, filtroMetodoPagoId, dateRange]);
 
@@ -768,9 +767,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   // --- TOTALES KPI VEHÍCULOS ---
   const vehiculosConAlertas = vehiculos.filter(v => computeVehicleAlerts(v).hasWarning).length;
-  const totalGastosVehiculos = vehiculos.reduce((sum, v) => 
+  const totalGastosVehiculos = vehiculos.reduce((sum, v) =>
     sum + (v.mantenimientos || []).reduce((s, m) => s + Number(m.monto), 0)
-  , 0);
+    , 0);
 
   return (
     <div className="p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -984,15 +983,15 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* Tabs (Solo visibles en Gastos Operativos, Gastos Fijos y Control de Vehículos) */}
       {(activeTab === 'gastos' || activeTab === 'fijos' || activeTab === 'vehiculos') && (
         <div className="ga-tab-bar">
-          <button 
-            onClick={() => { setActiveTab('gastos'); setSelectedVehiculo(null); }} 
+          <button
+            onClick={() => { setActiveTab('gastos'); setSelectedVehiculo(null); }}
             className={`ga-tab-btn ${activeTab === 'gastos' ? 'active' : ''}`}
           >
             <DollarSign size={15} />
             Gastos Operativos
           </button>
-          <button 
-            onClick={() => { setActiveTab('fijos'); setSelectedVehiculo(null); }} 
+          <button
+            onClick={() => { setActiveTab('fijos'); setSelectedVehiculo(null); }}
             className={`ga-tab-btn ${activeTab === 'fijos' ? 'active' : ''} relative`}
           >
             <RefreshCw size={15} />
@@ -1003,8 +1002,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </span>
             )}
           </button>
-          <button 
-            onClick={() => { setActiveTab('vehiculos'); setSelectedVehiculo(null); }} 
+          <button
+            onClick={() => { setActiveTab('vehiculos'); setSelectedVehiculo(null); }}
             className={`ga-tab-btn ${activeTab === 'vehiculos' ? 'active' : ''}`}
           >
             <Car size={15} />
@@ -1018,47 +1017,47 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-            <StatCard 
-              title="Total General" 
-              amount={fmt(totales.total || 0)} 
-              icon={BarChart3} 
-              color="#3b82f6" 
+            <StatCard
+              title="Total General"
+              amount={fmt(totales.total || 0)}
+              icon={BarChart3}
+              color="#3b82f6"
               bg="rgba(59,130,246,0.1)"
               trendValue="12.5%" trendUp={false} trendText="GASTO GLOBAL"
               sparklineSvg="M0,5 C20,5 30,15 50,15 C70,15 80,25 100,25"
             />
-            <StatCard 
-              title="Otros Gastos" 
-              amount={fmt(totales.otrosGastos || 0)} 
-              icon={DollarSign} 
-              color="#10b981" 
+            <StatCard
+              title="Otros Gastos"
+              amount={fmt(totales.otrosGastos || 0)}
+              icon={DollarSign}
+              color="#10b981"
               bg="rgba(16,185,129,0.1)"
               trendValue="5.2%" trendUp={false} trendText="GASTOS MANUALES"
               sparklineSvg="M0,10 C20,10 40,20 60,15 C80,10 90,25 100,20"
             />
-            <StatCard 
-              title="Órdenes de Compra" 
-              amount={fmt(totales.ordenesCompra || 0)} 
-              icon={FileText} 
-              color="#f59e0b" 
+            <StatCard
+              title="Órdenes de Compra"
+              amount={fmt(totales.ordenesCompra || 0)}
+              icon={FileText}
+              color="#f59e0b"
               bg="rgba(245,158,11,0.1)"
               trendValue="8.1%" trendUp={true} trendText="PAGOS A PROVEEDOR"
               sparklineSvg="M0,25 C20,25 30,15 50,15 C70,15 80,5 100,5"
             />
-            <StatCard 
-              title="Nómina y Anticipos" 
-              amount={fmt(totales.nomina || 0)} 
-              icon={User} 
-              color="#8b5cf6" 
+            <StatCard
+              title="Nómina y Anticipos"
+              amount={fmt(totales.nomina || 0)}
+              icon={User}
+              color="#8b5cf6"
               bg="rgba(139,92,246,0.1)"
               trendValue="2.0%" trendUp={true} trendText="RECURSOS HUMANOS"
               sparklineSvg="M0,20 C30,20 40,10 70,10 C80,10 90,5 100,5"
             />
-            <StatCard 
-              title="Vehículos" 
-              amount={fmt(totales.vehiculos || 0)} 
-              icon={Car} 
-              color="#ec4899" 
+            <StatCard
+              title="Vehículos"
+              amount={fmt(totales.vehiculos || 0)}
+              icon={Car}
+              color="#ec4899"
               bg="rgba(236,72,153,0.1)"
               trendValue="15.3%" trendUp={false} trendText="MANTENIMIENTOS"
               sparklineSvg="M0,5 C30,5 50,20 70,15 C80,10 90,25 100,25"
@@ -1119,7 +1118,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Fechas</label>
                 <div className="h-10 w-full">
-                  <DateRangePicker 
+                  <DateRangePicker
                     value={dateRange}
                     onChange={setDateRange}
                     placeholder="Rango de fechas"
@@ -1136,11 +1135,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
-              <input 
+              <input
                 className="ga-input max-w-xs !border-0 !bg-transparent !p-0 !shadow-none !text-sm !font-medium placeholder:!text-slate-400 focus:!ring-0"
                 placeholder="Buscar por concepto, categoría o proveedor…"
-                value={search} 
-                onChange={e => setSearch(e.target.value)} 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
               />
             </div>
 
@@ -1179,8 +1178,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       const disabledTooltip = !canEdit ? (origenModulos[g.origen] || 'Este gasto no se puede editar desde aquí') : '';
 
                       return (
-                        <tr 
-                          key={`${g.origen || 'gasto'}-${g.id}`} 
+                        <tr
+                          key={`${g.origen || 'gasto'}-${g.id}`}
                           className="ga-tr transition-colors"
                         >
                           <td className="px-5 py-4">
@@ -1192,7 +1191,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            <span 
+                            <span
                               className="font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider whitespace-nowrap"
                               style={{ backgroundColor: style.bg, color: style.color }}
                             >
@@ -1217,11 +1216,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                   type="button"
                                   disabled={!canEdit}
                                   onClick={(e) => { e.stopPropagation(); if (canEdit) openEditGasto(g); }}
-                                  className={`p-1.5 rounded-lg transition-colors ${
-                                    canEdit
-                                      ? 'text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 cursor-pointer'
-                                      : 'text-slate-300 cursor-not-allowed'
-                                  }`}
+                                  className={`p-1.5 rounded-lg transition-colors ${canEdit
+                                    ? 'text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 cursor-pointer'
+                                    : 'text-slate-300 cursor-not-allowed'
+                                    }`}
                                   aria-label="Editar gasto"
                                 >
                                   <Pencil size={14} />
@@ -1239,11 +1237,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                                   type="button"
                                   disabled={!canEdit}
                                   onClick={(e) => { e.stopPropagation(); if (canEdit) handleDeleteGasto(g.id); }}
-                                  className={`p-1.5 rounded-lg transition-colors ${
-                                    canEdit
-                                      ? 'text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer'
-                                      : 'text-slate-300 cursor-not-allowed'
-                                  }`}
+                                  className={`p-1.5 rounded-lg transition-colors ${canEdit
+                                    ? 'text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer'
+                                    : 'text-slate-300 cursor-not-allowed'
+                                    }`}
                                   aria-label="Eliminar gasto"
                                 >
                                   <Trash2 size={14} />
@@ -1265,82 +1262,82 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     )}
                   </tbody>
                 </table>
-                
+
                 {/* Vista Móvil (Cards) */}
                 <div className="cc-mobile-cards">
                   <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
                     {paginated.map((g) => {
-                    const origenStyles = {
-                      otros_gastos: { label: 'Otros Gastos', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
-                      orden_compra: { label: 'Ordenes de Compra', bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
-                      nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
-                      vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
-                    };
-                    const origenModulos = {
-                      orden_compra: 'Editar en Órdenes de Compra',
-                      nomina: 'Editar en Nómina y Anticipos',
-                      vehiculo: 'Editar en módulo de Vehículos',
-                    };
-                    const style = origenStyles[g.origen] || origenStyles.otros_gastos;
-                    const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
-                    const modLabel = origenModulos[g.origen];
+                      const origenStyles = {
+                        otros_gastos: { label: 'Otros Gastos', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+                        orden_compra: { label: 'Ordenes de Compra', bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
+                        nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
+                        vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
+                      };
+                      const origenModulos = {
+                        orden_compra: 'Editar en Órdenes de Compra',
+                        nomina: 'Editar en Nómina y Anticipos',
+                        vehiculo: 'Editar en módulo de Vehículos',
+                      };
+                      const style = origenStyles[g.origen] || origenStyles.otros_gastos;
+                      const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
+                      const modLabel = origenModulos[g.origen];
 
-                    return (
-                      <div 
-                        key={`m-${g.origen || 'gasto'}-${g.id}`} 
-                        className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm"
-                      >
-                        <div className="flex justify-between items-start">
-                          <span 
-                            className="font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider"
-                            style={{ backgroundColor: style.bg, color: style.color }}
-                          >
-                            {style.label}
-                          </span>
-                          <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(g.monto))}</span>
-                        </div>
-                        <div className="text-[13px] font-semibold text-slate-800 mt-1">{g.concepto}</div>
-                        {g.notas && g.origen !== 'orden_compra' && (
-                          <div className="text-[11px] text-slate-400 -mt-1 leading-tight">{g.notas}</div>
-                        )}
-                        <div className="flex justify-between items-center text-[10px] text-slate-500 mt-2 border-t border-slate-100/80 pt-2.5">
-                          <div className="flex flex-col gap-0.5">
-                            <span>{g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
-                            <span className="font-bold uppercase tracking-wider text-slate-400">{g.registradoPor?.nombre || 'Automático'}</span>
+                      return (
+                        <div
+                          key={`m-${g.origen || 'gasto'}-${g.id}`}
+                          className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm"
+                        >
+                          <div className="flex justify-between items-start">
+                            <span
+                              className="font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider"
+                              style={{ backgroundColor: style.bg, color: style.color }}
+                            >
+                              {style.label}
+                            </span>
+                            <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(g.monto))}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-right max-w-[90px] truncate bg-slate-50 px-2 py-1 rounded-md">{g.metodoPago?.nombre || 'No especificado'}</span>
-                            {/* Acciones móvil */}
-                            {canEdit ? (
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => openEditGasto(g)}
-                                  className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
-                                  title="Editar gasto"
-                                >
-                                  <Pencil size={13} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteGasto(g.id)}
-                                  className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
-                                  title="Eliminar gasto"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            ) : modLabel ? (
-                              <span className="text-[9px] text-slate-400 italic max-w-[80px] text-right leading-tight">{modLabel}</span>
-                            ) : null}
+                          <div className="text-[13px] font-semibold text-slate-800 mt-1">{g.concepto}</div>
+                          {g.notas && g.origen !== 'orden_compra' && (
+                            <div className="text-[11px] text-slate-400 -mt-1 leading-tight">{g.notas}</div>
+                          )}
+                          <div className="flex justify-between items-center text-[10px] text-slate-500 mt-2 border-t border-slate-100/80 pt-2.5">
+                            <div className="flex flex-col gap-0.5">
+                              <span>{g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
+                              <span className="font-bold uppercase tracking-wider text-slate-400">{g.registradoPor?.nombre || 'Automático'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-right max-w-[90px] truncate bg-slate-50 px-2 py-1 rounded-md">{g.metodoPago?.nombre || 'No especificado'}</span>
+                              {/* Acciones móvil */}
+                              {canEdit ? (
+                                <div className="flex gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditGasto(g)}
+                                    className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                                    title="Editar gasto"
+                                  >
+                                    <Pencil size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteGasto(g.id)}
+                                    className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                                    title="Eliminar gasto"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              ) : modLabel ? (
+                                <span className="text-[9px] text-slate-400 italic max-w-[80px] text-right leading-tight">{modLabel}</span>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                  {paginated.length === 0 && (
-                    <div className="text-center py-8 text-slate-400 text-sm font-medium">No se encontraron gastos</div>
-                  )}
+                      );
+                    })}
+                    {paginated.length === 0 && (
+                      <div className="text-center py-8 text-slate-400 text-sm font-medium">No se encontraron gastos</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1422,7 +1419,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   {vehiculos.map((vehiculo) => {
                     const { oilAlert, tiresAlert, brakesAlert, hasWarning } = computeVehicleAlerts(vehiculo);
                     return (
-                      <div 
+                      <div
                         key={vehiculo.id}
                         onClick={() => setSelectedVehiculo(vehiculo)}
                         className="ga-card p-5 hover:border-blue-300 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
@@ -1432,11 +1429,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             <span className="bg-slate-100 text-slate-700 font-mono font-extrabold text-sm px-3 py-1 rounded-lg border border-slate-200 uppercase tracking-wider">
                               {vehiculo.placa}
                             </span>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                              vehiculo.estado === 'activo' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${vehiculo.estado === 'activo' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                               vehiculo.estado === 'taller' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                              'bg-slate-50 text-slate-500 border border-slate-100'
-                            }`}>
+                                'bg-slate-50 text-slate-500 border border-slate-100'
+                              }`}>
                               {vehiculo.estado === 'activo' ? 'Activo' : vehiculo.estado === 'taller' ? 'En Taller' : 'Inactivo'}
                             </span>
                           </div>
@@ -1491,8 +1487,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               {/* Encabezado Detalle */}
               <div className="ga-card p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => { setSelectedVehiculo(null); loadVehiculosData(); }} 
+                  <button
+                    onClick={() => { setSelectedVehiculo(null); loadVehiculosData(); }}
                     className="p-2.5 hover:bg-slate-100 text-slate-500 rounded-xl transition-colors border border-slate-200 bg-white"
                   >
                     <ArrowLeft size={16} />
@@ -1513,31 +1509,31 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 mt-2 w-full md:w-auto md:mt-0">
-                  <button 
+                  <button
                     disabled={!isAdmin}
-                    onClick={() => openEditVehiculo(selectedVehiculo)} 
+                    onClick={() => openEditVehiculo(selectedVehiculo)}
                     className="ga-btn-secondary whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit size={14} />
                     Editar Info
                   </button>
-                  <button 
+                  <button
                     disabled={!isAdmin}
-                    onClick={() => handleDeleteVehiculo(selectedVehiculo.id)} 
+                    onClick={() => handleDeleteVehiculo(selectedVehiculo.id)}
                     className="ga-btn-secondary whitespace-nowrap hover:!text-red-600 hover:!border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 size={14} />
                     Eliminar Vehículo
                   </button>
-                  <button 
-                    onClick={openNewMaint} 
+                  <button
+                    onClick={openNewMaint}
                     className="ga-btn-primary whitespace-nowrap"
                   >
                     <Plus size={16} />
                     Registrar Mantenimiento
                   </button>
-                  <button 
-                    onClick={openNewControl} 
+                  <button
+                    onClick={openNewControl}
                     className="ga-btn-secondary text-emerald-600 border-emerald-100 hover:bg-emerald-50 whitespace-nowrap inline-flex items-center gap-1"
                   >
                     <ClipboardCheck size={14} />
@@ -1548,10 +1544,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
               {/* Diseño Principal del Vehículo */}
               <div className="flex flex-col gap-6">
-                
+
                 {/* Cabecera: Ficha y Alertas apiladas para mejor distribución */}
                 <div className="flex flex-col gap-4">
-                  
+
                   {/* Tarjetas Alertas de Salud del Vehículo (Minimalista) */}
                   <div className="ga-card p-4">
                     <h3 className="font-extrabold text-slate-800 text-sm mb-3 flex items-center gap-2">
@@ -1582,36 +1578,36 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       })()}
                     </div>
                   </div>
-                  
+
                   {/* Información Ficha Técnica */}
                   <div className="ga-card p-5">
                     <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
                       <Info size={16} className="text-blue-500" />
                       Detalles del Vehículo
                     </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs text-slate-500">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-400">Marca / Modelo:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.marca} {selectedVehiculo.modelo}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-400">Año / Color:</span>
-                      <span className="font-bold text-slate-800">{selectedVehiculo.anio || 'N/D'} • {selectedVehiculo.color || 'N/D'}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-400">Kilometraje:</span>
-                      <span className="font-bold text-blue-600">{(selectedVehiculo.kilometraje || 0).toLocaleString()} km</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-400">Estado:</span>
-                      <span className="font-bold text-slate-800 capitalize">{selectedVehiculo.estado}</span>
-                    </div>
-                    <div className="col-span-full pt-2 border-t border-slate-100">
-                      <span className="font-semibold text-slate-400 block mb-1">Observaciones / Notas:</span>
-                      <p className="text-slate-600 italic leading-relaxed">{selectedVehiculo.notas || 'Sin observaciones adicionales.'}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs text-slate-500">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-400">Marca / Modelo:</span>
+                        <span className="font-bold text-slate-800">{selectedVehiculo.marca} {selectedVehiculo.modelo}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-400">Año / Color:</span>
+                        <span className="font-bold text-slate-800">{selectedVehiculo.anio || 'N/D'} • {selectedVehiculo.color || 'N/D'}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-400">Kilometraje:</span>
+                        <span className="font-bold text-blue-600">{(selectedVehiculo.kilometraje || 0).toLocaleString()} km</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-400">Estado:</span>
+                        <span className="font-bold text-slate-800 capitalize">{selectedVehiculo.estado}</span>
+                      </div>
+                      <div className="col-span-full pt-2 border-t border-slate-100">
+                        <span className="font-semibold text-slate-400 block mb-1">Observaciones / Notas:</span>
+                        <p className="text-slate-600 italic leading-relaxed">{selectedVehiculo.notas || 'Sin observaciones adicionales.'}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
                 </div>
 
                 {/* Filtros de Mantenimientos */}
@@ -1619,7 +1615,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Tipo de Mantenimiento</label>
-                      <select 
+                      <select
                         value={maintFiltroTipo}
                         onChange={(e) => setMaintFiltroTipo(e.target.value)}
                         className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
@@ -1663,7 +1659,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Fechas</label>
                       <div className="h-10 w-full">
-                        <DateRangePicker 
+                        <DateRangePicker
                           value={maintDateRange}
                           onChange={setMaintDateRange}
                           placeholder="Rango de fechas"
@@ -1676,698 +1672,419 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
                 {/* Historial de Mantenimientos Realizados */}
                 <div className="ga-card w-full mb-6">
-                    <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
-                      <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
-                        <Calendar size={16} className="text-blue-500" />
-                        Historial de Mantenimientos y Reparaciones
-                      </h3>
-                      <span className="text-xs text-slate-400 font-semibold">
-                        {(selectedVehiculo.mantenimientos || []).length} registros
-                      </span>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="cc-desktop-table hidden md:table w-full text-[13px]">
-                        <thead>
-                          <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
-                            <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Fecha / Tipo</th>
-                            <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Descripción</th>
-                            <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Kilometraje</th>
-                            <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Proveedor</th>
-                            <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Monto</th>
-                            <th className="text-center px-5 py-3 text-[10px] font-bold uppercase tracking-wider w-20">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100/40">
-                          {(() => {
-                            let allMaints = selectedVehiculo.mantenimientos || [];
-                            
-                            if (maintFiltroTipo !== 'todos') {
-                              allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
-                            }
-                            if (maintFiltroUsuarioId) {
-                              allMaints = allMaints.filter(m => {
-                                const uid = m.gasto?.registradoPor?.id;
-                                if (maintFiltroUsuarioId === 'auto') return !uid;
-                                return uid === maintFiltroUsuarioId;
-                              });
-                            }
-                            if (maintFiltroMetodoPagoId) {
-                              allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
-                            }
-                            if (maintDateRange.desde && maintDateRange.hasta) {
-                              const start = new Date(maintDateRange.desde);
-                              const end = new Date(maintDateRange.hasta);
-                              end.setHours(23, 59, 59, 999);
-                              allMaints = allMaints.filter(m => {
-                                const dStr = m.gasto?.createdAt || m.fechaRealizado;
-                                const d = new Date(dStr);
-                                return d >= start && d <= end;
-                              });
-                            }
-
-                            const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
-                            const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
-                            
-                            return (
-                              <>
-                                {paginatedMaints.map((m) => (
-                                  <tr key={m.id} className="ga-tr">
-                                    <td className="px-5 py-3.5">
-                                      <div className="font-bold text-slate-800">{m.tipo}</div>
-                                      <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                        {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
-                                      </div>
-                                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                                        {m.gasto?.registradoPor?.nombre || 'Automático'}
-                                      </div>
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                      <p className="text-slate-600">{m.descripcion || '—'}</p>
-                                      {m.notas && <p className="text-[11px] text-slate-400 mt-1 italic">Nota: {m.notas}</p>}
-                                      {(m.kmProximo || m.fechaProxima) && (
-                                        <div className="text-[10px] text-blue-500 font-semibold mt-1 flex gap-2">
-                                          {m.kmProximo && <span>Próximo: {m.kmProximo.toLocaleString()} km</span>}
-                                          {m.fechaProxima && <span>Próxima fecha: {m.fechaProxima.split('T')[0]}</span>}
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="px-5 py-3.5 text-right font-semibold text-slate-700">
-                                      {m.kilometraje ? `${m.kilometraje.toLocaleString()} km` : '—'}
-                                    </td>
-                                    <td className="px-5 py-3.5 text-slate-600">{m.proveedor || '—'}</td>
-                                    <td className="px-5 py-3.5 text-right font-bold text-slate-800">{fmt(Number(m.monto))}</td>
-                                    <td className="px-5 py-3.5">
-                                      <div className="flex items-center justify-center gap-0.5">
-                                        <button 
-                                          disabled={!isAdmin}
-                                          onClick={() => openEditMaint(m)}
-                                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
-                                          title="Editar"
-                                        >
-                                          <Edit size={13} />
-                                        </button>
-                                        <button 
-                                          disabled={!isAdmin}
-                                          onClick={() => handleDeleteMaint(m.id)}
-                                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
-                                          title="Eliminar"
-                                        >
-                                          <Trash2 size={13} />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                                {paginatedMaints.length === 0 && (
-                                  <tr>
-                                    <td colSpan={6} className="text-center py-10 text-slate-400 italic text-xs font-semibold">
-                                      Sin registros de mantenimientos previos.
-                                    </td>
-                                  </tr>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </tbody>
-                      </table>
-                      
-                      {/* Vista Móvil (Cards) */}
-                      <div className="cc-mobile-cards">
-                        <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
-                          {(() => {
-                              let allMaints = selectedVehiculo.mantenimientos || [];
-                            
-                            if (maintFiltroTipo !== 'todos') {
-                              allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
-                            }
-                            if (maintFiltroUsuarioId) {
-                              allMaints = allMaints.filter(m => {
-                                const uid = m.gasto?.registradoPor?.id;
-                                if (maintFiltroUsuarioId === 'auto') return !uid;
-                                return uid === maintFiltroUsuarioId;
-                              });
-                            }
-                            if (maintFiltroMetodoPagoId) {
-                              allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
-                            }
-                            if (maintDateRange.desde && maintDateRange.hasta) {
-                              const start = new Date(maintDateRange.desde);
-                              const end = new Date(maintDateRange.hasta);
-                              end.setHours(23, 59, 59, 999);
-                              allMaints = allMaints.filter(m => {
-                                const dStr = m.gasto?.createdAt || m.fechaRealizado;
-                                const d = new Date(dStr);
-                                return d >= start && d <= end;
-                              });
-                            }
-
-                            const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
-                            
-                            return (
-                              <>
-                                {paginatedMaints.map((m) => (
-                                  <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2.5 shadow-sm relative">
-                                    <div className="flex justify-between items-start">
-                                      <div>
-                                        <div className="font-bold text-slate-800 text-[14px]">{m.tipo}</div>
-                                        <div className="text-[11px] text-slate-600 font-medium mt-0.5">
-                                          {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
-                                        </div>
-                                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                                          {m.gasto?.registradoPor?.nombre || 'Automático'}
-                                        </div>
-                                      </div>
-                                      <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(m.monto))}</span>
-                                    </div>
-                                    
-                                    <div className="text-[13px] text-slate-600 mt-0.5">{m.descripcion || 'Sin descripción'}</div>
-                                    
-                                    <div className="flex justify-between items-end mt-2 pt-2.5 border-t border-slate-100/80 text-[11px]">
-                                      <div className="flex flex-col gap-1">
-                                        <span className="text-slate-500"><span className="font-semibold text-slate-400">KM:</span> {m.kilometraje ? `${m.kilometraje.toLocaleString()}` : '—'}</span>
-                                        <span className="text-slate-500"><span className="font-semibold text-slate-400">Prov:</span> {m.proveedor || '—'}</span>
-                                      </div>
-                                      
-                                      <div className="flex gap-1">
-                                        <button 
-                                          disabled={!isAdmin}
-                                          onClick={() => openEditMaint(m)}
-                                          className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
-                                        >
-                                          <Edit size={14} />
-                                        </button>
-                                        <button 
-                                          disabled={!isAdmin}
-                                          onClick={() => handleDeleteMaint(m.id)}
-                                          className="p-2 rounded-lg bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
-                                        >
-                                          <Trash2 size={14} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                                {paginatedMaints.length === 0 && (
-                                  <div className="text-center py-6 text-slate-400 italic text-xs font-semibold">Sin registros de mantenimientos previos.</div>
-                                )}
-                              </>
-                            );
-                        })()}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Paginación de Mantenimientos */}
-                    {(() => {
-                      let allMaints = selectedVehiculo.mantenimientos || [];
-                      
-                      if (maintFiltroTipo !== 'todos') {
-                        allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
-                      }
-                      if (maintFiltroUsuarioId) {
-                        allMaints = allMaints.filter(m => {
-                          const uid = m.gasto?.registradoPor?.id;
-                          if (maintFiltroUsuarioId === 'auto') return !uid;
-                          return uid === maintFiltroUsuarioId;
-                        });
-                      }
-                      if (maintFiltroMetodoPagoId) {
-                        allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
-                      }
-                      if (maintDateRange.desde && maintDateRange.hasta) {
-                        const start = new Date(maintDateRange.desde);
-                        const end = new Date(maintDateRange.hasta);
-                        end.setHours(23, 59, 59, 999);
-                        allMaints = allMaints.filter(m => {
-                          const dStr = m.gasto?.createdAt || m.fechaRealizado;
-                          const d = new Date(dStr);
-                          return d >= start && d <= end;
-                        });
-                      }
-
-                      const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
-                      if (totalPagesMaint <= 1) return null;
-                      return (
-                        <div className="px-5 py-3 border-t border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
-                          <span className="text-xs text-slate-500">
-                            Mostrando {(maintPage - 1) * maintLimit + 1} a {Math.min(maintPage * maintLimit, allMaints.length)} de {allMaints.length}
-                          </span>
-                          <div className="flex gap-1">
-                            <button 
-                              disabled={maintPage === 1} 
-                              onClick={() => setMaintPage(p => p - 1)}
-                              className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >Anterior</button>
-                            <button 
-                              disabled={maintPage === totalPagesMaint} 
-                              onClick={() => setMaintPage(p => p + 1)}
-                              className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >Siguiente</button>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                  <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
+                    <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                      <Calendar size={16} className="text-blue-500" />
+                      Historial de Mantenimientos y Reparaciones
+                    </h3>
+                    <span className="text-xs text-slate-400 font-semibold">
+                      {(selectedVehiculo.mantenimientos || []).length} registros
+                    </span>
                   </div>
 
-                  {/* Historial de Controles Diarios */}
-                  <div className="ga-card w-full">
-                    <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
-                      <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
-                        <Clock size={16} className="text-blue-500" />
-                        Historial de Controles Diarios
-                      </h3>
-                      <span className="text-xs text-slate-400 font-semibold">
-                        {controles.length} registros
-                      </span>
-                    </div>
+                  <div className="overflow-x-auto">
+                    <table className="cc-desktop-table hidden md:table w-full text-[13px]">
+                      <thead>
+                        <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
+                          <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Fecha / Tipo</th>
+                          <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Descripción</th>
+                          <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Kilometraje</th>
+                          <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Proveedor</th>
+                          <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-wider">Monto</th>
+                          <th className="text-center px-5 py-3 text-[10px] font-bold uppercase tracking-wider w-20">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100/40">
+                        {(() => {
+                          let allMaints = selectedVehiculo.mantenimientos || [];
 
-                    <div className="overflow-x-auto">
-                      {loadingControles ? (
-                        <div className="flex items-center justify-center py-12 gap-2 text-slate-400 text-xs">
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-blue-600" />
-                          <span>Cargando controles...</span>
-                        </div>
-                      ) : controles.length === 0 ? (
-                        <p className="text-center text-slate-400 text-xs py-12">Sin controles diarios registrados para este vehículo.</p>
-                      ) : (
-                        <table className="w-full text-xs text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
-                              <th className="px-4 py-3">Fecha y Hora</th>
-                              <th className="px-4 py-3">Operador</th>
-                              <th className="px-4 py-3">Kilometraje</th>
-                              <th className="px-4 py-3 text-center">Combustible</th>
-                              <th className="px-4 py-3">Niveles Check</th>
-                              <th className="px-4 py-3">Observación / Sugerencia</th>
-                              <th className="px-4 py-3 text-center w-16">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {controles.map((log) => {
-                              const checksCount = [
-                                log.nivelAceite, log.nivelAgua, log.aceiteHidraulico,
-                                log.liquidoFrenos, log.gataLlave, log.extintorBotiquin, log.bandas
-                              ].filter(Boolean).length;
+                          if (maintFiltroTipo !== 'todos') {
+                            allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                          }
+                          if (maintFiltroUsuarioId) {
+                            allMaints = allMaints.filter(m => {
+                              const uid = m.gasto?.registradoPor?.id;
+                              if (maintFiltroUsuarioId === 'auto') return !uid;
+                              return uid === maintFiltroUsuarioId;
+                            });
+                          }
+                          if (maintFiltroMetodoPagoId) {
+                            allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                          }
+                          if (maintDateRange.desde && maintDateRange.hasta) {
+                            const start = new Date(maintDateRange.desde);
+                            const end = new Date(maintDateRange.hasta);
+                            end.setHours(23, 59, 59, 999);
+                            allMaints = allMaints.filter(m => {
+                              const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                              const d = new Date(dStr);
+                              return d >= start && d <= end;
+                            });
+                          }
 
-                              const fechaFmt = new Date(log.fecha).toLocaleString('es-EC', {
-                                day: '2-digit', month: '2-digit', year: 'numeric',
-                                hour: '2-digit', minute: '2-digit', hour12: true
-                              });
+                          const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
+                          const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
 
-                              const fuelLabel = log.combustible === 'bajo' ? 'Bajo' : log.combustible === 'medio' ? 'Medio' : 'Bueno';
-                              const fuelColor = log.combustible === 'bajo' ? 'text-red-700 bg-red-50 border-red-200' :
-                                                log.combustible === 'medio' ? 'text-amber-700 bg-amber-50 border-amber-200' :
-                                                'text-emerald-700 bg-emerald-50 border-emerald-200';
-
-                              return (
-                                <tr key={log.id} className="hover:bg-slate-50/50">
-                                  <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">{fechaFmt}</td>
-                                  <td className="px-4 py-3 whitespace-nowrap">
-                                    <span className="flex items-center gap-1">
-                                      <User size={12} className="text-slate-400" />
-                                      {log.usuarioNom}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">{log.kilometraje.toLocaleString()} km</td>
-                                  <td className="px-4 py-3 text-center whitespace-nowrap">
-                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${fuelColor}`}>
-                                      {fuelLabel}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="space-y-0.5">
-                                      <span className="font-semibold text-slate-600 block">{checksCount} / 7 OK</span>
-                                      {log.otroCheckNombre && (
-                                        <span className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${
-                                          log.otroCheckValor ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-red-100 bg-red-50 text-red-700'
-                                        }`}>
-                                          {log.otroCheckNombre}: {log.otroCheckValor ? 'OK' : 'Novedad'}
-                                        </span>
-                                      )}
+                          return (
+                            <>
+                              {paginatedMaints.map((m) => (
+                                <tr key={m.id} className="ga-tr">
+                                  <td className="px-5 py-3.5">
+                                    <div className="font-bold text-slate-800">{m.tipo}</div>
+                                    <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                      {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                      {m.gasto?.registradoPor?.nombre || 'Automático'}
                                     </div>
                                   </td>
-                                  <td className="px-4 py-3 max-w-[200px]">
-                                    {log.observacion && <p className="line-clamp-2"><strong className="font-bold text-slate-500">Obs:</strong> {log.observacion}</p>}
-                                    {log.sugerencia && <p className="line-clamp-2 mt-0.5"><strong className="font-bold text-slate-500">Sugerencia:</strong> {log.sugerencia}</p>}
-                                    {!log.observacion && !log.sugerencia && <span className="text-slate-400">Sin novedades</span>}
+                                  <td className="px-5 py-3.5">
+                                    <p className="text-slate-600">{m.descripcion || '—'}</p>
+                                    {m.notas && <p className="text-[11px] text-slate-400 mt-1 italic">Nota: {m.notas}</p>}
+                                    {(m.kmProximo || m.fechaProxima) && (
+                                      <div className="text-[10px] text-blue-500 font-semibold mt-1 flex gap-2">
+                                        {m.kmProximo && <span>Próximo: {m.kmProximo.toLocaleString()} km</span>}
+                                        {m.fechaProxima && <span>Próxima fecha: {m.fechaProxima.split('T')[0]}</span>}
+                                      </div>
+                                    )}
                                   </td>
-                                  <td className="px-4 py-3 text-center">
-                                    <button
-                                      type="button"
-                                      onClick={() => setViewingControl(log)}
-                                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
-                                      title="Ver detalles"
-                                    >
-                                      <Eye size={13} />
-                                    </button>
+                                  <td className="px-5 py-3.5 text-right font-semibold text-slate-700">
+                                    {m.kilometraje ? `${m.kilometraje.toLocaleString()} km` : '—'}
+                                  </td>
+                                  <td className="px-5 py-3.5 text-slate-600">{m.proveedor || '—'}</td>
+                                  <td className="px-5 py-3.5 text-right font-bold text-slate-800">{fmt(Number(m.monto))}</td>
+                                  <td className="px-5 py-3.5">
+                                    <div className="flex items-center justify-center gap-0.5">
+                                      <button
+                                        disabled={!isAdmin}
+                                        onClick={() => openEditMaint(m)}
+                                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Editar"
+                                      >
+                                        <Edit size={13} />
+                                      </button>
+                                      <button
+                                        disabled={!isAdmin}
+                                        onClick={() => handleDeleteMaint(m.id)}
+                                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Eliminar"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-          )}
-        </>
-      )}
-      {/* PESTAÑA 3: CIERRE DE CAJA */}
-      {activeTab === 'cierre' && (
-        <div className="space-y-6">
-          {/* Row 1: KPI Cards (full-width) */}
-          {cierrePreview && !loadingPreview && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
-              {/* Card 1: Ingresos */}
-              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-full bg-blue-50/70 flex items-center justify-center text-blue-600 shrink-0">
-                  <ArrowUp size={18} />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Ingresos Totales</div>
-                  <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(cierrePreview.totalIngresos)}</div>
-                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">{cierrePreview.ingresosConteo} transacción{cierrePreview.ingresosConteo === 1 ? '' : 'es'}</div>
-                </div>
-              </div>
-
-              {/* Card 2: Egresos */}
-              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-full bg-rose-50/70 flex items-center justify-center text-rose-500 shrink-0">
-                  <ArrowDown size={18} />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Egresos Totales</div>
-                  <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(cierrePreview.totalEgresos)}</div>
-                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">{cierrePreview.egresosConteo} transacción{cierrePreview.egresosConteo === 1 ? '' : 'es'}</div>
-                </div>
-              </div>
-
-              {/* Card 3: Balance */}
-              <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-full bg-indigo-50/70 flex items-center justify-center text-indigo-600 shrink-0">
-                  <Scale size={18} />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Balance Neto</div>
-                  <div className={`text-xl font-extrabold mt-0.5 ${cierrePreview.balance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
-                    {cierrePreview.balance < 0 ? '-' : ''}{fmt(Math.abs(cierrePreview.balance))}
-                  </div>
-                  <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">Saldo en sistema</div>
-                </div>
-              </div>
-
-              {/* Card 4: Efectivo Esperado */}
-              {(() => {
-                const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
-                  .filter(m => esMetodoEfectivo(m.nombre))
-                  .reduce((sum, m) => sum + Number(m.balance), 0);
-                return (
-                  <div className="ga-card flex items-center gap-4 px-5 py-4 border border-slate-100 hover:shadow-md transition-shadow">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50/70 flex items-center justify-center text-emerald-600 shrink-0">
-                      <Wallet size={18} />
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">Efectivo en Sistema</div>
-                      <div className="text-xl font-extrabold text-slate-800 mt-0.5">{fmt(totalEfectivoEsperado)}</div>
-                      <div className="text-[9.5px] text-slate-400 font-semibold mt-0.5">Esperado</div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* Row 2: Columns Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-            {/* Panel Lateral: Parámetros y Arqueo (Izquierda) */}
-            <div className="lg:col-span-1 flex flex-col">
-              <div className="ga-card p-5 relative z-[60] flex flex-col h-full" style={{ overflow: 'visible' }}>
-                <div className="space-y-4 flex-1">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                      Control de Caja
-                    </h3>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Rango de Fecha</label>
-                    <DateRangePicker 
-                      value={{ start: cierreDates.desde, end: cierreDates.hasta }} 
-                      onChange={val => setCierreDates({ desde: val.start, hasta: val.end })}
-                      placeholder="Seleccionar rango"
-                    />
-                  </div>
-
-                  {cierrePreview && (() => {
-                    const totalEfectivoEsperado = (cierrePreview.metodosDetalle || [])
-                      .filter(m => esMetodoEfectivo(m.nombre))
-                      .reduce((sum, m) => sum + Number(m.balance), 0);
-                    
-                    const physicalEfectivo = efectivoFisicoContado === '' ? totalEfectivoEsperado : Number(efectivoFisicoContado);
-                    const diferenciaEfectivo = physicalEfectivo - totalEfectivoEsperado;
-
-                    return (
-                      <>
-                        <hr className="border-slate-100" />
-                        
-                        <div>
-                          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                            Arqueo de Efectivo
-                          </h3>
-                          <div className="bg-slate-50/60 p-3 rounded-xl flex justify-between items-center mb-3">
-                            <span className="text-[11px] font-semibold text-slate-500">Esperado en Sistema:</span>
-                            <span className="font-extrabold text-slate-800 text-xs font-mono">{fmt(totalEfectivoEsperado)}</span>
-                          </div>
-
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Efectivo Físico Contado</label>
-                          <div className="relative rounded-lg shadow-sm">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <span className="text-slate-450 font-bold text-xs">$</span>
-                            </div>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={efectivoFisicoContado}
-                              onChange={(e) => setEfectivoFisicoContado(e.target.value)}
-                              placeholder={totalEfectivoEsperado.toFixed(2)}
-                              className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                            />
-                          </div>
-
-                          <div className={`p-3 rounded-xl border flex justify-between items-center mt-3 ${diferenciaEfectivo === 0 ? 'bg-emerald-55/35 border-emerald-100/50 text-emerald-800' : 'bg-rose-55/35 border-rose-100/50 text-rose-800'}`}>
-                            <div className="flex flex-col">
-                              <span className="text-[9px] uppercase font-bold tracking-wider opacity-75">Diferencia</span>
-                              <span className="font-extrabold text-xs font-mono mt-0.5">
-                                {diferenciaEfectivo === 0 ? 'Caja cuadrada' : (diferenciaEfectivo < 0 ? `-${fmt(Math.abs(diferenciaEfectivo))}` : `+${fmt(diferenciaEfectivo)}`)}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {diferenciaEfectivo === 0 && (
-                                <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
+                              ))}
+                              {paginatedMaints.length === 0 && (
+                                <tr>
+                                  <td colSpan={6} className="text-center py-10 text-slate-400 italic text-xs font-semibold">
+                                    Sin registros de mantenimientos previos.
+                                  </td>
+                                </tr>
                               )}
-                              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${diferenciaEfectivo === 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-rose-100 border-rose-200 text-rose-800'}`}>
-                                {diferenciaEfectivo === 0 ? 'Cuadra' : (diferenciaEfectivo < 0 ? 'Faltante' : 'Sobrante')}
-                              </span>
-                            </div>
-                          </div>
+                            </>
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+
+                    {/* Vista Móvil (Cards) */}
+                    <div className="cc-mobile-cards">
+                      <div className="flex flex-col gap-3 p-4 bg-slate-50/30">
+                        {(() => {
+                          let allMaints = selectedVehiculo.mantenimientos || [];
+
+                          if (maintFiltroTipo !== 'todos') {
+                            allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                          }
+                          if (maintFiltroUsuarioId) {
+                            allMaints = allMaints.filter(m => {
+                              const uid = m.gasto?.registradoPor?.id;
+                              if (maintFiltroUsuarioId === 'auto') return !uid;
+                              return uid === maintFiltroUsuarioId;
+                            });
+                          }
+                          if (maintFiltroMetodoPagoId) {
+                            allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                          }
+                          if (maintDateRange.desde && maintDateRange.hasta) {
+                            const start = new Date(maintDateRange.desde);
+                            const end = new Date(maintDateRange.hasta);
+                            end.setHours(23, 59, 59, 999);
+                            allMaints = allMaints.filter(m => {
+                              const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                              const d = new Date(dStr);
+                              return d >= start && d <= end;
+                            });
+                          }
+
+                          const paginatedMaints = allMaints.slice((maintPage - 1) * maintLimit, maintPage * maintLimit);
+
+                          return (
+                            <>
+                              {paginatedMaints.map((m) => (
+                                <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-100 flex flex-col gap-2.5 shadow-sm relative">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <div className="font-bold text-slate-800 text-[14px]">{m.tipo}</div>
+                                      <div className="text-[11px] text-slate-600 font-medium mt-0.5">
+                                        {m.gasto?.createdAt ? new Date(m.gasto.createdAt).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : m.fechaRealizado.split('T')[0]}
+                                      </div>
+                                      <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                        {m.gasto?.registradoPor?.nombre || 'Automático'}
+                                      </div>
+                                    </div>
+                                    <span className="font-bold text-slate-800 text-[15px]">{fmt(Number(m.monto))}</span>
+                                  </div>
+
+                                  <div className="text-[13px] text-slate-600 mt-0.5">{m.descripcion || 'Sin descripción'}</div>
+
+                                  <div className="flex justify-between items-end mt-2 pt-2.5 border-t border-slate-100/80 text-[11px]">
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-slate-500"><span className="font-semibold text-slate-400">KM:</span> {m.kilometraje ? `${m.kilometraje.toLocaleString()}` : '—'}</span>
+                                      <span className="text-slate-500"><span className="font-semibold text-slate-400">Prov:</span> {m.proveedor || '—'}</span>
+                                    </div>
+
+                                    <div className="flex gap-1">
+                                      <button
+                                        disabled={!isAdmin}
+                                        onClick={() => openEditMaint(m)}
+                                        className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                      >
+                                        <Edit size={14} />
+                                      </button>
+                                      <button
+                                        disabled={!isAdmin}
+                                        onClick={() => handleDeleteMaint(m.id)}
+                                        className="p-2 rounded-lg bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              {paginatedMaints.length === 0 && (
+                                <div className="text-center py-6 text-slate-400 italic text-xs font-semibold">Sin registros de mantenimientos previos.</div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Paginación de Mantenimientos */}
+                  {(() => {
+                    let allMaints = selectedVehiculo.mantenimientos || [];
+
+                    if (maintFiltroTipo !== 'todos') {
+                      allMaints = allMaints.filter(m => m.tipo === maintFiltroTipo);
+                    }
+                    if (maintFiltroUsuarioId) {
+                      allMaints = allMaints.filter(m => {
+                        const uid = m.gasto?.registradoPor?.id;
+                        if (maintFiltroUsuarioId === 'auto') return !uid;
+                        return uid === maintFiltroUsuarioId;
+                      });
+                    }
+                    if (maintFiltroMetodoPagoId) {
+                      allMaints = allMaints.filter(m => m.gasto?.metodoPago?.id === maintFiltroMetodoPagoId);
+                    }
+                    if (maintDateRange.desde && maintDateRange.hasta) {
+                      const start = new Date(maintDateRange.desde);
+                      const end = new Date(maintDateRange.hasta);
+                      end.setHours(23, 59, 59, 999);
+                      allMaints = allMaints.filter(m => {
+                        const dStr = m.gasto?.createdAt || m.fechaRealizado;
+                        const d = new Date(dStr);
+                        return d >= start && d <= end;
+                      });
+                    }
+
+                    const totalPagesMaint = Math.ceil(allMaints.length / maintLimit);
+                    if (totalPagesMaint <= 1) return null;
+                    return (
+                      <div className="px-5 py-3 border-t border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
+                        <span className="text-xs text-slate-500">
+                          Mostrando {(maintPage - 1) * maintLimit + 1} a {Math.min(maintPage * maintLimit, allMaints.length)} de {allMaints.length}
+                        </span>
+                        <div className="flex gap-1">
+                          <button
+                            disabled={maintPage === 1}
+                            onClick={() => setMaintPage(p => p - 1)}
+                            className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >Anterior</button>
+                          <button
+                            disabled={maintPage === totalPagesMaint}
+                            onClick={() => setMaintPage(p => p + 1)}
+                            className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >Siguiente</button>
                         </div>
-                      </>
+                      </div>
                     );
                   })()}
+                </div>
 
-                  <hr className="border-slate-100" />
-
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Notas del Cierre</label>
-                    <textarea 
-                      value={cierreObservaciones} 
-                      onChange={e => setCierreObservaciones(e.target.value)}
-                      rows={3} 
-                      placeholder="Observaciones adicionales, billetes, etc..." 
-                      className="ga-input text-xs resize-none" 
-                    />
+                {/* Historial de Controles Diarios */}
+                <div className="ga-card w-full">
+                  <div className="px-5 py-4 border-b border-slate-100/60 flex items-center justify-between">
+                    <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                      <Clock size={16} className="text-blue-500" />
+                      Historial de Controles Diarios
+                    </h3>
+                    <span className="text-xs text-slate-400 font-semibold">
+                      {controles.length} registros
+                    </span>
                   </div>
-                </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <button 
-                    onClick={handleSaveCierre} 
-                    disabled={!cierrePreview || savingCierre}
-                    className="ga-btn-primary w-full justify-center text-xs py-2.5"
-                  >
-                    {savingCierre && (
-                      <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white mr-1.5" aria-hidden="true" />
-                    )}
-                    Guardar Cierre de Caja
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Panel Principal: Resultados (Derecha) */}
-            <div className="lg:col-span-2 space-y-6">
-              {loadingPreview ? (
-                <div className="ga-card flex items-center justify-center py-20">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
-                </div>
-              ) : cierrePreview ? (
-                <div className="space-y-6 animate-slide-up">
-                  {/* Resumen por Métodos de Pago */}
-                  <div className="ga-card p-6">
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
-                      <ClipboardCheck size={14} className="text-blue-500" />
-                      Saldos de Métodos de Pago
-                    </h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+                  <div className="overflow-x-auto">
+                    {loadingControles ? (
+                      <div className="flex items-center justify-center py-12 gap-2 text-slate-400 text-xs">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-blue-600" />
+                        <span>Cargando controles...</span>
+                      </div>
+                    ) : controles.length === 0 ? (
+                      <p className="text-center text-slate-400 text-xs py-12">Sin controles diarios registrados para este vehículo.</p>
+                    ) : (
+                      <table className="w-full text-xs text-left border-collapse">
                         <thead>
-                          <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
-                            <th className="py-2.5">Método</th>
-                            <th className="py-2.5">Tipo</th>
-                            <th className="py-2.5 text-right">Ingresos (+)</th>
-                            <th className="py-2.5 text-right">Egresos (-)</th>
-                            <th className="py-2.5 text-right">Balance Sistema</th>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
+                            <th className="px-4 py-3">Fecha y Hora</th>
+                            <th className="px-4 py-3">Operador</th>
+                            <th className="px-4 py-3">Kilometraje</th>
+                            <th className="px-4 py-3 text-center">Combustible</th>
+                            <th className="px-4 py-3">Niveles Check</th>
+                            <th className="px-4 py-3">Observación / Sugerencia</th>
+                            <th className="px-4 py-3 text-center w-16">Acciones</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-150/40">
-                          {cierrePreview.metodosDetalle?.map((m) => {
-                            const esEfectivo = esMetodoEfectivo(m.nombre);
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {controles.map((log) => {
+                            const checksCount = [
+                              log.nivelAceite, log.nivelAgua, log.aceiteHidraulico,
+                              log.liquidoFrenos, log.gataLlave, log.extintorBotiquin, log.bandas
+                            ].filter(Boolean).length;
+
+                            const fechaFmt = new Date(log.fecha).toLocaleString('es-EC', {
+                              day: '2-digit', month: '2-digit', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit', hour12: true
+                            });
+
+                            const fuelLabel = log.combustible === 'bajo' ? 'Bajo' : log.combustible === 'medio' ? 'Medio' : 'Bueno';
+                            const fuelColor = log.combustible === 'bajo' ? 'text-red-700 bg-red-50 border-red-200' :
+                              log.combustible === 'medio' ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                                'text-emerald-700 bg-emerald-50 border-emerald-200';
+
                             return (
-                              <tr key={m.metodoPagoId} className="ga-tr">
-                                <td className="py-3 font-semibold text-slate-700">{m.nombre}</td>
-                                <td className="py-3">
-                                  {esEfectivo ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
-                                      Efectivo / Caja
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase">
-                                      Banco / Digital
-                                    </span>
-                                  )}
+                              <tr key={log.id} className="hover:bg-slate-50/50">
+                                <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">{fechaFmt}</td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <span className="flex items-center gap-1">
+                                    <User size={12} className="text-slate-400" />
+                                    {log.usuarioNom}
+                                  </span>
                                 </td>
-                                <td className="py-3 text-right text-emerald-600 font-bold font-mono">{fmt(m.ingresos)}</td>
-                                <td className="py-3 text-right text-red-500 font-bold font-mono">{fmt(m.egresos)}</td>
-                                <td className={`py-3 text-right font-extrabold font-mono ${m.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                                  {m.balance < 0 ? '-' : ''}{fmt(Math.abs(m.balance))}
+                                <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">{log.kilometraje.toLocaleString()} km</td>
+                                <td className="px-4 py-3 text-center whitespace-nowrap">
+                                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${fuelColor}`}>
+                                    {fuelLabel}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="space-y-0.5">
+                                    <span className="font-semibold text-slate-600 block">{checksCount} / 7 OK</span>
+                                    {log.otroCheckNombre && (
+                                      <span className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${log.otroCheckValor ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-red-100 bg-red-50 text-red-700'
+                                        }`}>
+                                        {log.otroCheckNombre}: {log.otroCheckValor ? 'OK' : 'Novedad'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 max-w-[200px]">
+                                  {log.observacion && <p className="line-clamp-2"><strong className="font-bold text-slate-500">Obs:</strong> {log.observacion}</p>}
+                                  {log.sugerencia && <p className="line-clamp-2 mt-0.5"><strong className="font-bold text-slate-500">Sugerencia:</strong> {log.sugerencia}</p>}
+                                  {!log.observacion && !log.sugerencia && <span className="text-slate-400">Sin novedades</span>}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewingControl(log)}
+                                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
+                                    title="Ver detalles"
+                                  >
+                                    <Eye size={13} />
+                                  </button>
                                 </td>
                               </tr>
                             );
                           })}
                         </tbody>
                       </table>
-                    </div>
-                  </div>
-
-                  {/* Grid de Secciones y Usuarios */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Operaciones por Sección */}
-                    <div className="ga-card p-6">
-                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
-                        <BarChart3 size={14} className="text-blue-500" />
-                        Desglose de Operaciones
-                      </h4>
-                      <div className="divide-y divide-slate-100/50 text-xs">
-                        <div className="flex justify-between items-center py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-slate-600 font-medium font-semibold">Abonos Iniciales</span>
-                          </div>
-                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosIniciales || 0)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-slate-600 font-medium font-semibold">Abonos Posteriores</span>
-                          </div>
-                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionIngresos?.abonosPosteriores || 0)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-slate-600 font-medium font-semibold">Gastos Generales</span>
-                          </div>
-                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosGenerales || 0)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-slate-600 font-medium font-semibold">Gastos por Auto / Vehículo</span>
-                          </div>
-                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosAuto || 0)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-slate-600 font-medium font-semibold">Órdenes de Compra</span>
-                          </div>
-                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosCompras || 0)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-slate-600 font-medium font-semibold">Pagos (Nómina/Personal)</span>
-                          </div>
-                          <span className="font-bold text-slate-800 font-mono">{fmt(cierrePreview.seccionEgresos?.gastosPagos || 0)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Resumen por Usuario */}
-                    <div className="ga-card p-6">
-                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
-                        <User size={14} className="text-blue-500" />
-                        Movimientos por Usuario
-                      </h4>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs animate-fade-in">
-                          <thead>
-                            <tr className="border-b border-slate-100 text-slate-400 text-left font-bold uppercase tracking-wider">
-                              <th className="py-2.5">Usuario</th>
-                              <th className="py-2.5 text-right">Ingresos</th>
-                              <th className="py-2.5 text-right">Egresos</th>
-                              <th className="py-2.5 text-right">Balance</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-150/40">
-                            {(cierrePreview.usuariosDetalle || []).map((u) => (
-                              <tr key={u.id} className="ga-tr">
-                                <td className="py-3 font-semibold text-slate-700">{u.nombre?.toUpperCase()}</td>
-                                <td className="py-3 text-right text-emerald-600 font-bold font-mono">{fmt(u.ingresos)}</td>
-                                <td className="py-3 text-right text-red-500 font-bold font-mono">{fmt(u.egresos)}</td>
-                                <td className={`py-3 text-right font-extrabold font-mono ${u.balance >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                  {u.balance < 0 ? '-' : ''}{fmt(Math.abs(u.balance))}
-                                </td>
-                              </tr>
-                            ))}
-                            {(cierrePreview.usuariosDetalle || []).length === 0 && (
-                              <tr>
-                                <td colSpan={4} className="text-center py-4 text-slate-400">
-                                  Sin movimientos por usuario en este rango.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="ga-card flex flex-col items-center justify-center py-24 px-6 text-center border border-dashed border-slate-200 bg-slate-50/10">
-                  <div className="w-12 h-12 rounded-full bg-blue-50/50 flex items-center justify-center text-blue-500 mb-4 animate-pulse">
-                    <ClipboardCheck size={24} />
-                  </div>
-                  <h4 className="text-sm font-bold text-slate-700">Previsualización del Cierre de Caja</h4>
-                  <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
-                    Selecciona un rango de fechas en el panel lateral y se cargará el resumen detallado de ingresos, egresos y el balance neto de tu operación.
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
+        </>
+      )}
+      {/* PESTAÑA 3: CIERRE DE CAJA */}
+      {activeTab === 'cierre' && (
+        <div className="space-y-4 animate-slide-up relative z-[90]">
+          {/* CONTENIDO PRINCIPAL: HOJA Y TABLAS DE CIERRE SIEMPRE VISIBLES */}
+          {loadingPreview ? (
+            <div className="ga-card flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <ExcelCierreSheet
+                cierreData={cierrePreview || {
+                  fechaInicio: cierreDates.desde,
+                  fechaFin: cierreDates.hasta,
+                  totalIngresos: 0,
+                  totalEgresos: 0,
+                  metodosDetalle: metodosPago.map(m => ({
+                    metodoPagoId: m.id,
+                    nombre: m.nombre,
+                    saldoInicial: 0,
+                    ingresos: 0,
+                    egresos: 0,
+                    saldoFinal: 0
+                  })),
+                  seccionIngresos: { items: [] },
+                  seccionEgresos: { items: [] }
+                }}
+                cierreDates={cierreDates}
+                setCierreDates={setCierreDates}
+                efectivoFisicoContado={efectivoFisicoContado}
+                setEfectivoFisicoContado={setEfectivoFisicoContado}
+                handleSaveCierre={handleSaveCierre}
+                savingCierre={savingCierre}
+                handleExportPdf={() => setPdfCierre({
+                  ...(cierrePreview || {
+                    fechaInicio: cierreDates.desde,
+                    fechaFin: cierreDates.hasta,
+                    totalIngresos: 0,
+                    totalEgresos: 0,
+                    metodosDetalle: metodosPago.map(m => ({
+                      metodoPagoId: m.id,
+                      nombre: m.nombre,
+                      saldoInicial: 0,
+                      ingresos: 0,
+                      egresos: 0,
+                      saldoFinal: 0
+                    })),
+                    seccionIngresos: { items: [] },
+                    seccionEgresos: { items: [] }
+                  }),
+                  efectivoFisicoContado
+                })}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -2684,9 +2401,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       ].map((item) => {
                         const ok = viewingControl[item.key];
                         return (
-                          <div key={item.key} className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
-                            ok ? 'bg-emerald-50/20 border-emerald-100 text-emerald-800' : 'bg-slate-50/30 border-slate-200 text-slate-500'
-                          }`}>
+                          <div key={item.key} className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${ok ? 'bg-emerald-50/20 border-emerald-100 text-emerald-800' : 'bg-slate-50/30 border-slate-200 text-slate-500'
+                            }`}>
                             <span className="font-semibold">{item.label}</span>
                             {ok ? (
                               <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">OK</span>
@@ -2698,9 +2414,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       })}
 
                       {viewingControl.otroCheckNombre && (
-                        <div className={`col-span-full flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
-                          viewingControl.otroCheckValor ? 'bg-emerald-50/20 border-emerald-100 text-emerald-800' : 'bg-slate-50/30 border-slate-200 text-slate-500'
-                        }`}>
+                        <div className={`col-span-full flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${viewingControl.otroCheckValor ? 'bg-emerald-50/20 border-emerald-100 text-emerald-800' : 'bg-slate-50/30 border-slate-200 text-slate-500'
+                          }`}>
                           <span className="font-semibold">{viewingControl.otroCheckNombre} (Adicional)</span>
                           {viewingControl.otroCheckValor ? (
                             <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">OK</span>
@@ -2823,11 +2538,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       ].map((item) => (
                         <label
                           key={item.name}
-                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                            controlForm[item.name]
-                              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800 font-medium'
-                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                          }`}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${controlForm[item.name]
+                            ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800 font-medium'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
                         >
                           <input
                             type="checkbox"
@@ -2862,11 +2576,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       </div>
                       <div>
                         <label
-                          className={`flex items-center gap-3 h-10 px-3 rounded-xl border transition-all cursor-pointer select-none ${
-                            controlForm.otroCheckValor
-                              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800'
-                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                          }`}
+                          className={`flex items-center gap-3 h-10 px-3 rounded-xl border transition-all cursor-pointer select-none ${controlForm.otroCheckValor
+                            ? 'border-emerald-200 bg-emerald-50/50 text-emerald-800'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
                         >
                           <input
                             type="checkbox"

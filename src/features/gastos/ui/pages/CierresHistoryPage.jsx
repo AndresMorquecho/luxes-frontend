@@ -6,6 +6,7 @@ import { Clock, User, ClipboardCheck, BarChart3, ArrowLeft, Trash2, X, Eye } fro
 import { Link } from 'react-router-dom';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
+import { ExcelCierreSheet } from '../components/ExcelCierreSheet';
 
 const fmt = (num) => {
   return Number(num).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -28,7 +29,7 @@ export const CierresHistoryPage = () => {
   const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
   const userRole = (storedUser?.rol || '').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
-  
+
   useEffect(() => {
     loadCierreHistory();
   }, []);
@@ -89,10 +90,10 @@ export const CierresHistoryPage = () => {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center">
-          <DateRangePicker 
-            value={{ start: dateRange.desde, end: dateRange.hasta }} 
+          <DateRangePicker
+            value={{ start: dateRange.desde, end: dateRange.hasta }}
             onChange={val => setDateRange({ desde: val.start, hasta: val.end })}
             placeholder="Seleccionar rango"
           />
@@ -133,7 +134,7 @@ export const CierresHistoryPage = () => {
                         diferenciaText = diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`;
                       }
                     }
-                  } catch (e) {}
+                  } catch (e) { }
 
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
@@ -245,7 +246,7 @@ export const CierresHistoryPage = () => {
                   if (Array.isArray(parsed)) {
                     parsed = { metodos: parsed, efectivoFisicoContado: 0, diferenciaEfectivo: 0, seccionIngresos: {}, seccionEgresos: {}, usuariosDetalle: [] };
                   }
-                } catch (e) {}
+                } catch (e) { }
 
                 const metodosArr = parsed.metodos || [];
                 const totalEfectivoEsperado = metodosArr.filter(m => esMetodoEfectivo(m.nombre)).reduce((acc, m) => acc + Number(m.balance), 0);

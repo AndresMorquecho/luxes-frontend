@@ -1,49 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { Printer, X, ZoomIn, ZoomOut, FileText, Download, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Printer, FileText, Download, ArrowUpRight, ArrowDownRight, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { ModalPortal, deferClose, useModalVisibility } from '../../../../shared/ui/components/ModalPortal';
-import { getMovimientos } from '../../application/gastosService';
 import '../../../../shared/ui/components/PDFPreviewModal.css';
 
 const fmt = (num) => {
-  return Number(num).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+  if (num === null || num === undefined || isNaN(num)) return '$ -';
+  const val = Number(num);
+  if (val === 0) return '$ -';
+  return val.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 };
 
-const esMetodoEfectivo = (nombre) => {
-  if (!nombre) return false;
+const formatDateLong = (dateStr) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return String(dateStr).toUpperCase();
+    const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+    const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    return `${days[d.getDay()]} ${String(d.getDate()).padStart(2, '0')} DE ${months[d.getMonth()]} DEL ${d.getFullYear()}`;
+  } catch (e) {
+    return String(dateStr).toUpperCase();
+  }
+};
+
+const formatDateShort = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return dateStr;
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return `${d.getDate()}-${months[d.getMonth()]}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const formatDateWithTime = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const dateFormatted = `${d.getDate()}-${months[d.getMonth()]}`;
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${dateFormatted} ${hours}:${minutes}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const esEfectivoName = (nombre = '') => {
   const n = nombre.toLowerCase();
   return n.includes('efectivo') || n.includes('caja') || n.includes('cash');
 };
 
 export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
   const [zoom, setZoom] = useState(100);
-  const [movimientos, setMovimientos] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const shouldShow = Boolean(isOpen && cierre);
   const visible = useModalVisibility(shouldShow);
-
-  useEffect(() => {
-    if (shouldShow && cierre.fechaInicio && cierre.fechaFin) {
-      loadMovimientosData();
-    }
-  }, [shouldShow, cierre]);
-
-  const loadMovimientosData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getMovimientos(cierre.fechaInicio, cierre.fechaFin);
-      // Filter out commitments (non-cash flows) to show real incomes and expenses
-      const cashFlows = (data?.movimientos || []).filter(m => !m.esCompromiso);
-      setMovimientos(cashFlows);
-    } catch (err) {
-      console.error("Error al cargar movimientos para cierre PDF:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (!visible || !cierre) return null;
 
@@ -51,8 +67,8 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
 
   const handleDownload = () => {
     const originalTitle = document.title;
-    const formattedId = cierre.id ? cierre.id.substring(0, 8) : 'reporte';
-    document.title = `Cierre_de_Caja_${formattedId}`;
+    const dateStr = cierre.fechaInicio ? cierre.fechaInicio.split('T')[0] : 'reporte';
+    document.title = `Reporte_Cierre_Caja_${dateStr}`;
     window.print();
     document.title = originalTitle;
   };
@@ -61,29 +77,72 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
     window.print();
   };
 
-  // Safe parsing of metodosDetalle
-  let parsed = { metodos: [], efectivoFisicoContado: 0, diferenciaEfectivo: 0, seccionIngresos: {}, seccionEgresos: {}, usuariosDetalle: [] };
+  // Desestructuración segura del objeto de cierre
+  let metodosDetalle = [];
+  let itemsIngresos = cierre.seccionIngresos?.items || [];
+  let itemsEgresos = cierre.seccionEgresos?.items || [];
+  let efectivoFisicoContadoVal = cierre.efectivoFisicoContado;
+
   try {
     if (typeof cierre.metodosDetalle === 'string') {
-      parsed = JSON.parse(cierre.metodosDetalle);
-    } else if (cierre.metodosDetalle) {
-      parsed = cierre.metodosDetalle;
-    }
-    // Handle array case from older schemas
-    if (Array.isArray(parsed)) {
-      parsed = { metodos: parsed, efectivoFisicoContado: 0, diferenciaEfectivo: 0, seccionIngresos: {}, seccionEgresos: {}, usuariosDetalle: [] };
+      const parsed = JSON.parse(cierre.metodosDetalle);
+      if (Array.isArray(parsed)) {
+        metodosDetalle = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        metodosDetalle = parsed.metodos || parsed.metodosDetalle || [];
+        if (parsed.seccionIngresos?.items) itemsIngresos = parsed.seccionIngresos.items;
+        if (parsed.seccionEgresos?.items) itemsEgresos = parsed.seccionEgresos.items;
+        if (parsed.efectivoFisicoContado !== undefined) efectivoFisicoContadoVal = parsed.efectivoFisicoContado;
+      }
+    } else if (Array.isArray(cierre.metodosDetalle)) {
+      metodosDetalle = cierre.metodosDetalle;
+    } else if (cierre.metodosDetalle && typeof cierre.metodosDetalle === 'object') {
+      metodosDetalle = cierre.metodosDetalle.metodos || cierre.metodosDetalle.metodosDetalle || [];
+      if (cierre.metodosDetalle.seccionIngresos?.items) itemsIngresos = cierre.metodosDetalle.seccionIngresos.items;
+      if (cierre.metodosDetalle.seccionEgresos?.items) itemsEgresos = cierre.metodosDetalle.seccionEgresos.items;
     }
   } catch (e) {
-    console.error("Error parsing metodosDetalle in PDF Modal:", e);
+    console.error("Error al desempaquetar metodosDetalle para el PDF:", e);
   }
 
-  const metodosArr = parsed.metodos || [];
-  const totalEfectivoEsperado = metodosArr.filter(m => esMetodoEfectivo(m.nombre)).reduce((acc, m) => acc + Number(m.balance), 0);
-  const physicalEfectivo = parsed.efectivoFisicoContado !== undefined ? Number(parsed.efectivoFisicoContado) : totalEfectivoEsperado;
-  const diffEfectivo = parsed.diferenciaEfectivo !== undefined ? Number(parsed.diferenciaEfectivo) : 0;
+  const metodoEfectivo = metodosDetalle.find(m => esEfectivoName(m.nombre)) || metodosDetalle[0] || { id: 'efectivo', nombre: 'EFECTIVO CAJA CHICA', saldoInicial: 0, ingresos: 0, egresos: 0, saldoFinal: 0 };
+  const metodosBancarios = metodosDetalle.filter(m => !esEfectivoName(m.nombre));
+  const columnasBancarias = metodosBancarios;
 
-  const formattedPeriodo = `${cierre.fechaInicio.split('T')[0]} al ${cierre.fechaFin.split('T')[0]}`;
-  const formattedCierreDate = new Date(cierre.fecha || cierre.createdAt || new Date()).toLocaleString();
+  const saldoInicialEfectivo = Number(metodoEfectivo.saldoInicial || 0);
+
+  const ingresosPorMetodo = {};
+  itemsIngresos.forEach(i => {
+    const mId = i.metodoPagoId || 'no_especificado';
+    ingresosPorMetodo[mId] = (ingresosPorMetodo[mId] || 0) + Number(i.monto);
+  });
+
+  const ingresosEfectivoSum = itemsIngresos
+    .filter(i => esEfectivoName(i.metodoPagoNombre) || i.metodoPagoId === metodoEfectivo.metodoPagoId)
+    .reduce((s, i) => s + Number(i.monto), 0);
+
+  const totalIngresosEfectivoAcumulado = saldoInicialEfectivo + ingresosEfectivoSum;
+
+  const egresosPorMetodo = {};
+  itemsEgresos.forEach(i => {
+    const mId = i.metodoPagoId || 'no_especificado';
+    egresosPorMetodo[mId] = (egresosPorMetodo[mId] || 0) + Number(i.monto);
+  });
+
+  const egresosEfectivoSum = itemsEgresos
+    .filter(i => esEfectivoName(i.metodoPagoNombre) || i.metodoPagoId === metodoEfectivo.metodoPagoId)
+    .reduce((s, i) => s + Number(i.monto), 0);
+
+  const saldoFinalEfectivo = totalIngresosEfectivoAcumulado - egresosEfectivoSum;
+
+  const cashPhysicalNum = (efectivoFisicoContadoVal === '' || efectivoFisicoContadoVal === undefined || efectivoFisicoContadoVal === null)
+    ? saldoFinalEfectivo 
+    : Number(efectivoFisicoContadoVal);
+
+  const diffCash = cashPhysicalNum - saldoFinalEfectivo;
+
+  const formattedCierreDate = formatDateLong(cierre.fechaInicio || cierre.fecha);
+  const nombreUsuario = cierre.usuario?.nombre || cierre.usuarioNom || 'ADMINISTRADOR DE CAJA';
 
   return (
     <ModalPortal>
@@ -91,256 +150,425 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
         className="pdf-modal-overlay"
         onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
       >
-        <div className="pdf-modal-container" onMouseDown={(e) => e.stopPropagation()}>
-          <div className="pdf-toolbar print:hidden">
-            <div className="pdf-toolbar-left">
-              <FileText size={18} className="text-blue-500" />
-              <span className="pdf-doc-title">Cierre de Caja - Período: {formattedPeriodo}</span>
+        <div className="pdf-modal-container max-w-[1220px]" onMouseDown={(e) => e.stopPropagation()}>
+          {/* BARRA DE HERRAMIENTAS DE IMPRESIÓN EN TONOS CLAROS */}
+          <div className="bg-white text-slate-800 px-5 py-3 flex items-center justify-between border-b border-slate-200 shrink-0 select-none print:hidden">
+            <div className="flex items-center gap-2.5">
+              <FileText size={18} className="text-slate-600" />
+              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">
+                Reporte Cierre de Caja — {formattedCierreDate}
+              </span>
             </div>
 
-            <div className="pdf-toolbar-center">
-              <button
-                type="button"
-                onClick={() => setZoom(Math.max(50, zoom - 10))}
-                className="pdf-tool-btn"
-                title="Reducir"
+            <div className="flex items-center gap-2">
+              <button 
+                type="button" 
+                onClick={() => setZoom(z => Math.max(50, z - 10))} 
+                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs flex items-center justify-center transition-colors border border-slate-200" 
+                title="Reducir zoom"
               >
-                <ZoomOut size={16} />
+                -
               </button>
-              <span className="pdf-zoom-text">{zoom}%</span>
-              <button
-                type="button"
-                onClick={() => setZoom(Math.min(150, zoom + 10))}
-                className="pdf-tool-btn"
-                title="Aumentar"
+              <span className="text-xs font-mono font-bold text-slate-600 min-w-[40px] text-center">{zoom}%</span>
+              <button 
+                type="button" 
+                onClick={() => setZoom(z => Math.min(150, z + 10))} 
+                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs flex items-center justify-center transition-colors border border-slate-200" 
+                title="Aumentar zoom"
               >
-                <ZoomIn size={16} />
+                +
               </button>
             </div>
 
-            <div className="pdf-toolbar-right">
-              <button type="button" onClick={handleDownload} className="pdf-download-btn" title="Guardar / Descargar PDF">
-                <Download size={14} />
-                Descargar PDF
+            <div className="flex items-center gap-3">
+              <button 
+                type="button" 
+                onClick={handleDownload} 
+                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs rounded-lg transition-colors flex items-center gap-2 border border-slate-300 shadow-2xs cursor-pointer"
+                title="Descargar PDF"
+              >
+                <Download size={14} className="text-slate-600" />
+                <span>Descargar PDF</span>
               </button>
-              <button type="button" onClick={handlePrint} className="pdf-print-btn" title="Imprimir documento">
-                <Printer size={14} />
-                Imprimir
+              <button 
+                type="button" 
+                onClick={handlePrint} 
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs rounded-lg transition-colors flex items-center gap-2 shadow-2xs cursor-pointer"
+                title="Imprimir documento"
+              >
+                <Printer size={14} className="text-white" />
+                <span>Imprimir</span>
               </button>
-              <button type="button" onClick={handleClose} className="pdf-close-btn" title="Cerrar">
-                <X size={18} />
+              <button 
+                type="button" 
+                onClick={handleClose} 
+                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors ml-1 cursor-pointer" 
+                title="Cerrar"
+              >
+                <X size={16} />
               </button>
             </div>
           </div>
 
+          {/* ÁREA DE SCROLL Y VISTA PREVIA HORIZONTAL */}
           <div className="pdf-scroll-area">
             <div
-              className="pdf-page-container"
+              className="pdf-page-container flex justify-center py-6"
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
             >
-              <div className="pdf-sheet">
-                {/* Header */}
-                <div className="pdf-sheet-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #02188E', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
-                  <div className="pdf-header-left" style={{ display: 'flex', alignItems: 'center', flex: 1, paddingRight: '20px' }}>
+              {/* HOJA IMPRESA ORIENTACIÓN HORIZONTAL (TAMAÑO A4 LANDSCAPE: 297mm x 210mm) */}
+              <div 
+                className="pdf-sheet bg-white text-slate-800 p-8 shadow-xl font-sans rounded-sm"
+                style={{ width: '297mm', minHeight: '210mm', boxSizing: 'border-box' }}
+              >
+                {/* ── ENCABEZADO OFICIAL CON LOGO LUXES Y DATOS DEL REGISTRO ── */}
+                <div className="flex items-center justify-between border-b-2 border-slate-700 pb-4 mb-5">
+                  <div className="flex items-center gap-4">
                     <img
                       src="/bannerProforma.png"
-                      alt="LUXES Diseño y Publicidad"
-                      style={{ maxWidth: '280px', display: 'block', height: 'auto' }}
+                      alt="LUXES Publicidad"
+                      className="h-12 w-auto max-w-[260px] object-contain"
                     />
                   </div>
-                  <div className="pdf-header-right" style={{ textAlign: 'right' }}>
-                    <div className="pdf-doc-badge" style={{ backgroundColor: '#02188E', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', display: 'inline-block', marginBottom: '0.3rem' }}>
+                  <div className="text-right space-y-1">
+                    <div className="bg-slate-700 text-white text-[10px] font-black uppercase px-3 py-1 rounded inline-block tracking-wider">
                       REPORTE DE CIERRE DE CAJA
                     </div>
-                    <h2 className="pdf-doc-id" style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>
-                      {cierre.id ? `ID: ${cierre.id.substring(0, 8).toUpperCase()}` : 'VISTA PREVIA'}
+                    <h2 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      FECHA DE CONTROL: {formattedCierreDate}
                     </h2>
-                    <p className="pdf-doc-date" style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                      <strong>Fecha de Arqueo:</strong> {formattedCierreDate}
-                    </p>
-                    <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                      <strong>Responsable:</strong> {cierre.usuario?.nombre || 'Administrador'}
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      <strong>Responsable:</strong> {nombreUsuario}
                     </p>
                   </div>
                 </div>
 
-                {/* Meta Grid (Resumen Financiero) */}
-                <div className="pdf-meta-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                  <div className="pdf-meta-box" style={{ border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.75rem' }}>
-                    <span className="pdf-box-title" style={{ fontSize: '0.65rem', fontWeight: '800', color: '#64748b', display: 'block', marginBottom: '0.4rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.2rem', textTransform: 'uppercase' }}>
-                      PERÍODO DE CONTROL
-                    </span>
-                    <div className="pdf-box-content" style={{ fontSize: '0.75rem', color: '#334155', lineHeight: '1.4' }}>
-                      <p style={{ margin: '0.15rem 0' }}><strong>Fecha Inicio:</strong> {cierre.fechaInicio.split('T')[0]}</p>
-                      <p style={{ margin: '0.15rem 0' }}><strong>Fecha Fin:</strong> {cierre.fechaFin.split('T')[0]}</p>
-                      <p style={{ margin: '0.15rem 0' }}><strong>Total Ingresos:</strong> <span style={{ color: '#10b981', fontWeight: 'bold' }}>{fmt(cierre.totalIngresos)}</span></p>
-                      <p style={{ margin: '0.15rem 0' }}><strong>Total Egresos:</strong> <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{fmt(cierre.totalEgresos)}</span></p>
-                      <p style={{ margin: '0.15rem 0' }}><strong>Balance Neto:</strong> <span style={{ color: '#2563eb', fontWeight: 'bold' }}>{fmt(cierre.balance)}</span></p>
+                {/* ── TABLA 1: INGRESOS DEL DÍA Y ARRASTRE INICIAL ── */}
+                <div className="border border-slate-300 rounded-lg overflow-hidden mb-5">
+                  <div className="bg-slate-700 text-white px-4 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ArrowUpRight size={15} className="text-emerald-400" />
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider">
+                        INGRESOS Y ARRASTRE DE SALDOS
+                      </h4>
                     </div>
+                    <span className="text-[10px] font-bold text-slate-300 font-mono">
+                      {itemsIngresos.length} transacción{itemsIngresos.length === 1 ? '' : 'es'}
+                    </span>
                   </div>
 
-                  <div className="pdf-meta-box" style={{ border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.75rem' }}>
-                    <span className="pdf-box-title" style={{ fontSize: '0.65rem', fontWeight: '800', color: '#64748b', display: 'block', marginBottom: '0.4rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.2rem', textTransform: 'uppercase' }}>
-                      ARQUEO FISICO Y CUADRE
-                    </span>
-                    <div className="pdf-box-content" style={{ fontSize: '0.75rem', color: '#334155', lineHeight: '1.4' }}>
-                      <p style={{ margin: '0.15rem 0' }}><strong>Efectivo Esperado:</strong> {fmt(totalEfectivoEsperado)}</p>
-                      <p style={{ margin: '0.15rem 0' }}><strong>Efectivo Contado:</strong> {fmt(physicalEfectivo)}</p>
-                      <p style={{ margin: '0.15rem 0' }}>
-                        <strong>Diferencia: </strong>
-                        <span style={{ 
-                          fontWeight: 'bold', 
-                          color: diffEfectivo === 0 ? '#10b981' : (diffEfectivo < 0 ? '#ef4444' : '#f59e0b') 
-                        }}>
-                          {diffEfectivo === 0 ? 'Caja Cuadrada' : (diffEfectivo < 0 ? `Faltante: ${fmt(Math.abs(diffEfectivo))}` : `Sobrante: ${fmt(diffEfectivo)}`)}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Métodos de Pago Summary */}
-                <h3 style={{ fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '0.3rem', margin: '1.5rem 0 0.75rem 0' }}>
-                  RESUMEN POR MÉTODOS DE PAGO
-                </h3>
-                <div className="pdf-table-container" style={{ marginBottom: '1.5rem' }}>
-                  <table className="pdf-items-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                  <table className="w-full text-xs text-left border-collapse table-fixed">
                     <thead>
-                      <tr style={{ backgroundColor: '#02188E', color: 'white', textAlign: 'left' }}>
-                        <th style={{ padding: '0.5rem', fontSize: '0.75rem' }}>MÉTODO DE PAGO</th>
-                        <th style={{ padding: '0.5rem', fontSize: '0.75rem' }}>TIPO</th>
-                        <th style={{ padding: '0.5rem', fontSize: '0.75rem', textAlign: 'right' }}>INGRESOS (+)</th>
-                        <th style={{ padding: '0.5rem', fontSize: '0.75rem', textAlign: 'right' }}>EGRESOS (-)</th>
-                        <th style={{ padding: '0.5rem', fontSize: '0.75rem', textAlign: 'right' }}>BALANCE</th>
+                      <tr className="bg-slate-100 text-[10px] font-black text-slate-700 uppercase border-b border-slate-300 h-10">
+                        <th className="py-2 px-2.5 w-24 text-center border-r border-slate-300">FECHA Y HORA</th>
+                        <th className="py-2 px-3 w-44 border-r border-slate-300">CLIENTE / ORIGEN</th>
+                        <th className="py-2 px-1.5 w-24 text-center border-r border-slate-300 font-black bg-amber-100/70 text-slate-900 leading-tight">
+                          EFECTIVO
+                        </th>
+                        {columnasBancarias.map((b, idx) => (
+                          <th key={`pdf-ing-col-${idx}`} className="py-2 px-1.5 w-24 text-center border-r border-slate-300 font-extrabold leading-tight">
+                            <span className="line-clamp-2 uppercase text-[9px] leading-tight block">{b.nombre}</span>
+                          </th>
+                        ))}
+                        <th className="py-2 px-2 w-28 text-center border-r border-slate-300 leading-tight">
+                          <span className="line-clamp-2 uppercase text-[9.5px]">PROFORMA / ORDEN #</span>
+                        </th>
+                        <th className="py-2 px-1.5 w-24 text-center border-r border-slate-300 font-black bg-amber-100/70 text-slate-900 leading-tight">VALOR</th>
+                        <th className="py-2 px-3">DETALLE</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {metodosArr.length > 0 ? (
-                        metodosArr.map((m, idx) => {
-                          const isEfectivo = esMetodoEfectivo(m.nombre);
-                          return (
-                            <tr key={m.metodoPagoId || idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{m.nombre}</td>
-                              <td style={{ padding: '0.5rem' }}>{isEfectivo ? 'Efectivo / Caja' : 'Banco / Digital'}</td>
-                              <td style={{ padding: '0.5rem', textAlign: 'right', color: '#10b981', fontFamily: 'monospace' }}>{fmt(m.ingresos)}</td>
-                              <td style={{ padding: '0.5rem', textAlign: 'right', color: '#ef4444', fontFamily: 'monospace' }}>{fmt(m.egresos)}</td>
-                              <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace' }}>{fmt(m.balance)}</td>
-                            </tr>
-                          );
-                        })
-                      ) : (
+                    <tbody className="divide-y divide-slate-200 text-slate-800">
+                      {/* FILA 1: ARRASTRE CAJA ANTERIOR */}
+                      <tr className="bg-slate-50 font-semibold h-9 border-b border-slate-200">
+                        <td className="py-1.5 px-2.5 text-center font-mono text-slate-500 border-r border-slate-200 whitespace-nowrap text-[11px]">
+                          {formatDateShort(cierre.fechaInicio)}
+                        </td>
+                        <td className="py-1.5 px-3 font-extrabold text-slate-800 uppercase border-r border-slate-200 truncate flex items-center gap-1">
+                          <span className="text-slate-400 font-semibold text-[9px] tracking-wider uppercase">(ARRAS.)</span>
+                          <span className="truncate">SALDO ANTERIOR CAJA CHICA</span>
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right font-mono font-black text-slate-900 border-r border-slate-200 bg-amber-50 text-xs whitespace-nowrap">
+                          {fmt(saldoInicialEfectivo)}
+                        </td>
+                        {columnasBancarias.map((_, idx) => (
+                          <td key={`pdf-arr-emp-${idx}`} className="py-1.5 px-1.5 text-right font-mono text-slate-400 border-r border-slate-200 whitespace-nowrap">$ -</td>
+                        ))}
+                        <td className="py-1.5 px-2 text-center font-mono text-slate-400 border-r border-slate-200 whitespace-nowrap">—</td>
+                        <td className="py-1.5 px-1.5 text-right font-mono font-black text-slate-900 border-r border-slate-200 bg-amber-50 text-xs whitespace-nowrap">{fmt(saldoInicialEfectivo)}</td>
+                        <td className="py-1.5 px-3 text-slate-500 italic text-[10.5px] truncate">Saldo inicial de caja chica del cierre anterior</td>
+                      </tr>
+
+                      {/* FILA 2: ARRASTRE BANCOS ANTERIOR */}
+                      {columnasBancarias.length > 0 && (
+                        <tr className="bg-slate-50 font-semibold h-9 border-b-2 border-b-slate-300">
+                          <td className="py-1.5 px-2.5 text-center font-mono text-slate-500 border-r border-slate-200 whitespace-nowrap text-[11px]">
+                            {formatDateShort(cierre.fechaInicio)}
+                          </td>
+                          <td className="py-1.5 px-3 font-bold text-slate-700 uppercase border-r border-slate-200 truncate flex items-center gap-1">
+                            <span className="text-slate-400 font-semibold text-[9px] tracking-wider uppercase">(ARRAS.)</span>
+                            <span className="truncate">SALDO ANTERIOR BANCOS</span>
+                          </td>
+                          <td className="py-1.5 px-1.5 text-right font-mono text-slate-400 border-r border-slate-200 whitespace-nowrap">$ -</td>
+                          {columnasBancarias.map((b, idx) => (
+                            <td key={`pdf-arr-bnk-${idx}`} className="py-1.5 px-1.5 text-right font-mono font-extrabold text-slate-800 border-r border-slate-200 bg-blue-50/40 whitespace-nowrap">
+                              {fmt(Number(b.saldoInicial || 0))}
+                            </td>
+                          ))}
+                          <td className="py-1.5 px-2 text-center font-mono text-slate-400 border-r border-slate-200 whitespace-nowrap">—</td>
+                          <td className="py-1.5 px-1.5 text-right font-mono text-slate-400 border-r border-slate-200 whitespace-nowrap">$ -</td>
+                          <td className="py-1.5 px-3 text-slate-500 italic text-[10.5px] truncate">Saldos iniciales bancarios de apertura de cuentas</td>
+                        </tr>
+                      )}
+
+                      {/* ITEMS DE INGRESOS */}
+                      {itemsIngresos.map((item, idx) => {
+                        const isEfectivo = esEfectivoName(item.metodoPagoNombre) || item.metodoPagoId === metodoEfectivo.metodoPagoId;
+                        const proformaOrdenText = [item.proformaNumero, item.ordenPedido].filter(Boolean).join(' / ') || '—';
+
+                        return (
+                          <tr key={item.id || idx} className="h-9">
+                            <td className="py-1.5 px-2.5 text-center font-mono text-slate-600 border-r border-slate-200 whitespace-nowrap font-bold text-[10.5px]">
+                              {formatDateWithTime(item.fecha)}
+                            </td>
+                            <td className="py-1.5 px-3 font-bold text-slate-800 uppercase border-r border-slate-200 truncate" title={item.cliente}>{item.cliente}</td>
+                            <td className="py-1.5 px-1.5 text-right font-mono font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                              {isEfectivo ? fmt(item.monto) : '$ -'}
+                            </td>
+                            {columnasBancarias.map((b, bIdx) => {
+                              const isThisBank = item.metodoPagoId === b.metodoPagoId || (item.metodoPagoNombre || '').toLowerCase().includes((b.nombre || '').toLowerCase());
+                              return (
+                                <td key={`pdf-ing-val-${bIdx}`} className="py-1.5 px-1.5 text-right font-mono font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">
+                                  {isThisBank ? fmt(item.monto) : '$ -'}
+                                </td>
+                              );
+                            })}
+                            <td className="py-1.5 px-2 text-center font-mono font-semibold text-slate-700 border-r border-slate-200 truncate text-[10.5px]">{proformaOrdenText}</td>
+                            <td className="py-1.5 px-1.5 text-right font-mono font-extrabold text-emerald-700 border-r border-slate-200 whitespace-nowrap">{fmt(item.monto)}</td>
+                            <td className="py-1.5 px-3 text-slate-600 font-medium uppercase text-[10.5px] truncate">{item.detalle}</td>
+                          </tr>
+                        );
+                      })}
+
+                      {itemsIngresos.length === 0 && (
                         <tr>
-                          <td colSpan="5" style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', italic: true }}>
-                            No hay desglose por métodos de pago registrado.
+                          <td colSpan={6 + columnasBancarias.length} className="py-4 text-center text-slate-400 font-medium italic text-xs">
+                            No existen ingresos ni abonos registrados para la fecha seleccionada.
                           </td>
                         </tr>
                       )}
                     </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100 text-slate-900 font-black text-xs border-t-2 border-slate-300 h-9">
+                        <td className="py-1.5 px-2.5 text-center border-r border-slate-300"></td>
+                        <td className="py-1.5 px-3 uppercase tracking-wider text-[10px] border-r border-slate-300 truncate">TOTAL INGRESOS + ARRASTRE INICIAL</td>
+                        <td className="py-1.5 px-1.5 text-right font-mono font-black text-slate-900 border-r border-slate-300 bg-amber-200/60 text-xs whitespace-nowrap">
+                          {fmt(totalIngresosEfectivoAcumulado)}
+                        </td>
+                        {columnasBancarias.map((b, bIdx) => {
+                          const sInit = Number(b.saldoInicial || 0);
+                          const sIng = ingresosPorMetodo[b.metodoPagoId] || 0;
+                          return (
+                            <td key={`pdf-tot-ing-banco-${bIdx}`} className="py-1.5 px-1.5 text-right font-mono font-black text-slate-900 border-r border-slate-300 whitespace-nowrap">
+                              {fmt(sInit + sIng)}
+                            </td>
+                          );
+                        })}
+                        <td className="py-1.5 px-2 border-r border-slate-300"></td>
+                        <td className="py-1.5 px-1.5 text-right font-mono font-black text-emerald-800 border-r border-slate-300 text-xs whitespace-nowrap">
+                          {fmt(totalIngresosEfectivoAcumulado)}
+                        </td>
+                        <td className="py-1.5 px-3"></td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
 
-                {/* Detailed Movements Table */}
-                <h3 style={{ fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '0.3rem', margin: '1.5rem 0 0.75rem 0' }}>
-                  DETALLE DE INGRESOS Y EGRESOS DEL PERÍODO
-                </h3>
-                <div className="pdf-table-container" style={{ marginBottom: '1.5rem' }}>
-                  {loading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 0' }}>
-                      <Loader2 className="animate-spin text-blue-500" size={28} />
-                      <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>Cargando transacciones del período...</p>
+                {/* ── TABLA 2: EGRESOS DEL DÍA ── */}
+                <div className="border border-slate-300 rounded-lg overflow-hidden mb-5">
+                  <div className="bg-slate-700 text-white px-4 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ArrowDownRight size={15} className="text-rose-400" />
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider">
+                        EGRESOS Y GASTOS DEL DÍA
+                      </h4>
                     </div>
-                  ) : error ? (
-                    <p style={{ padding: '1rem', textAlign: 'center', color: '#ef4444', fontSize: '0.75rem' }}>{error}</p>
-                  ) : movimientos.length === 0 ? (
-                    <p style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.75rem', fontStyle: 'italic' }}>
-                      No se encontraron transacciones financieras registradas en este período.
-                    </p>
-                  ) : (
-                    <table className="pdf-items-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem' }}>
-                      <thead>
-                        <tr style={{ backgroundColor: '#02188E', color: 'white', textAlign: 'left' }}>
-                          <th style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem', width: '12%' }}>FECHA</th>
-                          <th style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem', width: '10%' }}>TIPO</th>
-                          <th style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem', width: '22%' }}>DESCRIPCIÓN</th>
-                          <th style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem', width: '15%' }}>MÉTODO PAGO</th>
-                          <th style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem', width: '12%' }}>USUARIO</th>
-                          <th style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem', width: '18%' }}>OBSERVACIÓN</th>
-                          <th style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem', textAlign: 'right', width: '11%' }}>MONTO</th>
+                    <span className="text-[10px] font-bold text-slate-300 font-mono">
+                      {itemsEgresos.length} transacción{itemsEgresos.length === 1 ? '' : 'es'}
+                    </span>
+                  </div>
+
+                  <table className="w-full text-xs text-left border-collapse table-fixed">
+                    <thead>
+                      <tr className="bg-slate-100 text-[10px] font-black text-slate-700 uppercase border-b border-slate-300 h-10">
+                        <th className="py-2 px-2.5 w-24 text-center border-r border-slate-300">FECHA Y HORA</th>
+                        <th className="py-2 px-3 w-44 border-r border-slate-300">PROVEEDOR / BENEFICIARIO</th>
+                        <th className="py-2 px-1.5 w-24 text-center border-r border-slate-300 font-black bg-amber-100/70 text-slate-900 leading-tight">
+                          EFECTIVO
+                        </th>
+                        {columnasBancarias.map((b, idx) => (
+                          <th key={`pdf-egr-col-${idx}`} className="py-2 px-1.5 w-24 text-center border-r border-slate-300 font-extrabold leading-tight">
+                            <span className="line-clamp-2 uppercase text-[9px] leading-tight block">{b.nombre}</span>
+                          </th>
+                        ))}
+                        <th className="py-2 px-2 w-32 text-center border-r border-slate-300">FACTURA #</th>
+                        <th className="py-2 px-1.5 w-14 text-center border-r border-slate-300">IVA %</th>
+                        <th className="py-2 px-1.5 w-24 text-center border-r border-slate-300 font-black bg-amber-100/70 text-slate-900 leading-tight">EFECTIVO</th>
+                        <th className="py-2 px-3">DETALLE</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 text-slate-800">
+                      {itemsEgresos.map((item, idx) => {
+                        const isEfectivo = esEfectivoName(item.metodoPagoNombre) || item.metodoPagoId === metodoEfectivo.metodoPagoId;
+
+                        return (
+                          <tr key={item.id || idx} className="h-9">
+                            <td className="py-1.5 px-2.5 text-center font-mono text-slate-600 border-r border-slate-200 whitespace-nowrap font-bold text-[10.5px]">
+                              {formatDateWithTime(item.fecha)}
+                            </td>
+                            <td className="py-1.5 px-3 font-bold text-slate-800 uppercase border-r border-slate-200 truncate" title={item.proveedor}>{item.proveedor}</td>
+                            <td className="py-1.5 px-1.5 text-right font-mono font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                              {isEfectivo ? fmt(item.monto) : '$ -'}
+                            </td>
+                            {columnasBancarias.map((b, bIdx) => {
+                              const isThisBank = item.metodoPagoId === b.metodoPagoId || (item.metodoPagoNombre || '').toLowerCase().includes((b.nombre || '').toLowerCase());
+                              return (
+                                <td key={`pdf-egr-val-${bIdx}`} className="py-1.5 px-1.5 text-right font-mono font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">
+                                  {isThisBank ? fmt(item.monto) : '$ -'}
+                                </td>
+                              );
+                            })}
+                            <td className="py-1.5 px-2 text-center font-mono font-semibold text-slate-700 border-r border-slate-200 truncate text-[10.5px]">{item.facturaNumero || '—'}</td>
+                            <td className="py-1.5 px-1.5 text-center font-mono text-slate-500 border-r border-slate-200 whitespace-nowrap">{item.ivaPorcentaje ? `${item.ivaPorcentaje}%` : '—'}</td>
+                            <td className="py-1.5 px-1.5 text-right font-mono font-extrabold text-rose-700 border-r border-slate-200 whitespace-nowrap">{isEfectivo ? fmt(item.monto) : '$ -'}</td>
+                            <td className="py-1.5 px-3 text-slate-600 font-medium uppercase text-[10.5px] truncate">{item.detalle}</td>
+                          </tr>
+                        );
+                      })}
+
+                      {itemsEgresos.length === 0 && (
+                        <tr>
+                          <td colSpan={6 + columnasBancarias.length} className="py-4 text-center text-slate-400 font-medium italic text-xs">
+                            No existen egresos ni gastos registrados para la fecha seleccionada.
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {movimientos.map((m) => {
-                          const isIngreso = m.tipo === 'ingreso';
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100 text-slate-900 font-black text-xs border-t-2 border-slate-300 h-9">
+                        <td className="py-1.5 px-2.5 text-center border-r border-slate-300"></td>
+                        <td className="py-1.5 px-3 uppercase tracking-wider text-[10px] border-r border-slate-300 truncate">SALDO DE TRANSFERENCIA / EGRESOS TOTAL</td>
+                        <td className="py-1.5 px-1.5 text-right font-mono font-black text-slate-900 border-r border-slate-300 bg-rose-200/60 text-xs whitespace-nowrap">
+                          {fmt(egresosEfectivoSum)}
+                        </td>
+                        {columnasBancarias.map((b, bIdx) => {
+                          const sEgr = egresosPorMetodo[b.metodoPagoId] || 0;
                           return (
-                            <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '0.4rem 0.5rem', whiteSpace: 'nowrap' }}>
-                                {new Date(m.fecha).toLocaleDateString()}
-                              </td>
-                              <td style={{ padding: '0.4rem 0.5rem' }}>
-                                <span style={{ 
-                                  fontWeight: 'bold', 
-                                  color: isIngreso ? '#059669' : '#dc2626',
-                                  fontSize: '0.65rem'
-                                }}>
-                                  {isIngreso ? 'INGRESOS' : 'EGRESOS'}
-                                </span>
-                              </td>
-                              <td style={{ padding: '0.4rem 0.5rem', fontWeight: 'bold' }}>
-                                {m.descripcion}
-                              </td>
-                              <td style={{ padding: '0.4rem 0.5rem' }}>{m.metodoPago}</td>
-                              <td style={{ padding: '0.4rem 0.5rem' }}>{m.usuario}</td>
-                              <td style={{ padding: '0.4rem 0.5rem', fontStyle: 'italic', color: '#64748b' }}>
-                                {m.referencia || '—'}
-                              </td>
-                              <td style={{ 
-                                padding: '0.4rem 0.5rem', 
-                                textAlign: 'right', 
-                                fontWeight: 'bold', 
-                                fontFamily: 'monospace',
-                                color: isIngreso ? '#059669' : '#dc2626'
-                              }}>
-                                {isIngreso ? '+' : '-'}{fmt(m.monto)}
-                              </td>
-                            </tr>
+                            <td key={`pdf-tot-egr-banco-${bIdx}`} className="py-1.5 px-1.5 text-right font-mono font-black text-slate-900 border-r border-slate-300 whitespace-nowrap">
+                              {fmt(sEgr)}
+                            </td>
                           );
                         })}
-                      </tbody>
-                    </table>
-                  )}
+                        <td className="py-1.5 px-2 border-r border-slate-300"></td>
+                        <td className="py-1.5 px-1.5 text-center font-extrabold uppercase text-[10px] border-r border-slate-300">TOTAL</td>
+                        <td className="py-1.5 px-1.5 text-right font-mono font-black text-rose-800 border-r border-slate-300 text-xs whitespace-nowrap">
+                          {fmt(egresosEfectivoSum)}
+                        </td>
+                        <td className="py-1.5 px-3"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
 
-                {/* Observaciones Generales */}
+                {/* ── CUADRO CONTROL DE SALDOS FINALES CON ARQUEO Y DIAGNÓSTICO ── */}
+                <div className="border border-slate-300 rounded-lg p-4 bg-slate-50/50 mb-6">
+                  <div className="bg-slate-700 text-white px-3 py-1.5 rounded text-[11px] font-extrabold uppercase tracking-wider mb-3 flex items-center justify-between">
+                    <span>CUADRO CONTROL DE SALDOS FINALES Y ARQUEO FÍSICO DE CAJA</span>
+                    <span className="font-mono text-[9.5px] text-slate-300">Saldo Final = Ingresos Acumulados - Egresos</span>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-4 items-start">
+                    {/* TABLA DE SALDOS POR CUENTA */}
+                    <div className="col-span-7 border border-slate-300 rounded bg-white overflow-hidden">
+                      <table className="w-full text-[11px] text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-black uppercase text-[9.5px]">
+                            <th className="py-1.5 px-3">Cuenta / Método</th>
+                            <th className="py-1.5 px-2 text-right">Ingresos</th>
+                            <th className="py-1.5 px-2 text-right">Egresos</th>
+                            <th className="py-1.5 px-3 text-right font-black text-slate-900">Saldo Final</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 font-semibold text-slate-800">
+                          <tr className="bg-amber-50/30">
+                            <td className="py-1.5 px-3 font-extrabold text-slate-900 uppercase">SALDO DE CAJA (EFECTIVO)</td>
+                            <td className="py-1.5 px-2 text-right font-mono">{fmt(totalIngresosEfectivoAcumulado)}</td>
+                            <td className="py-1.5 px-2 text-right font-mono">{fmt(egresosEfectivoSum)}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-black text-slate-900 bg-amber-100/60">{fmt(saldoFinalEfectivo)}</td>
+                          </tr>
+                          {columnasBancarias.map((b, bIdx) => {
+                            const sInit = Number(b.saldoInicial || 0);
+                            const sIng = ingresosPorMetodo[b.metodoPagoId] || 0;
+                            const sEgr = egresosPorMetodo[b.metodoPagoId] || 0;
+                            return (
+                              <tr key={`pdf-res-banco-${bIdx}`}>
+                                <td className="py-1.5 px-3 font-bold text-slate-800 uppercase">SALDO {b.nombre}</td>
+                                <td className="py-1.5 px-2 text-right font-mono">{fmt(sInit + sIng)}</td>
+                                <td className="py-1.5 px-2 text-right font-mono">{fmt(sEgr)}</td>
+                                <td className="py-1.5 px-3 text-right font-mono font-extrabold text-slate-900">{fmt(sInit + sIng - sEgr)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* ARQUEO FÍSICO Y DIAGNÓSTICO */}
+                    <div className="col-span-5 border border-slate-300 rounded bg-white p-3 space-y-2 text-xs">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block border-b border-slate-200 pb-1">
+                        RESULTADO DEL ARQUEO FÍSICO
+                      </span>
+                      <div className="flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-slate-600 font-bold">Efectivo Sistema:</span>
+                        <strong className="text-slate-900 font-extrabold">{fmt(saldoFinalEfectivo)}</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-slate-600 font-bold">Efectivo Físico Contado:</span>
+                        <strong className="text-slate-900 font-black">{fmt(cashPhysicalNum)}</strong>
+                      </div>
+                      <div className={`p-2 rounded border text-[11px] font-mono font-extrabold flex items-center justify-between ${diffCash === 0 ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : (diffCash < 0 ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-amber-50 border-amber-300 text-amber-800')}`}>
+                        <span className="text-[9px] uppercase font-bold text-slate-500">DIAGNÓSTICO</span>
+                        {diffCash === 0 ? (
+                          <span className="flex items-center gap-1"><CheckCircle size={13} /> CAJA CUADRADA</span>
+                        ) : (
+                          <span className="flex items-center gap-1"><AlertCircle size={13} /> {diffCash < 0 ? `FALTANTE: -${fmt(Math.abs(diffCash))}` : `SOBRANTE: +${fmt(diffCash)}`}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OBSERVACIONES */}
                 {cierre.observaciones && (
-                  <div className="pdf-notes-section" style={{ border: '1px solid #fde68a', borderRadius: '4px', padding: '0.6rem', marginTop: '1rem', backgroundColor: '#fffbeb' }}>
-                    <p className="pdf-notes-title" style={{ fontWeight: 'bold', fontSize: '0.65rem', color: '#b45309', margin: '0 0 0.15rem 0' }}>
-                      NOTAS DE CIERRE GENERALES:
-                    </p>
-                    <p className="pdf-notes-text" style={{ fontSize: '0.75rem', color: '#78350f', margin: 0, lineHeight: 1.4 }}>
-                      {cierre.observaciones}
-                    </p>
+                  <div className="border border-amber-200 bg-amber-50/50 rounded-lg p-2.5 mb-6 text-xs text-amber-900">
+                    <strong className="text-[10px] font-black uppercase text-amber-800 block mb-0.5">OBSERVACIONES Y NOTAS DE CIERRE:</strong>
+                    <p className="font-medium leading-relaxed">{cierre.observaciones}</p>
                   </div>
                 )}
 
-                {/* Signatures */}
-                <div className="pdf-signatures-row" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4rem', padding: '0 1rem' }}>
-                  <div className="pdf-signature-field" style={{ flex: '1', maxWidth: '40%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div className="pdf-signature-line" style={{ width: '100%', borderTop: '1px solid #94a3b8', marginBottom: '0.25rem' }} />
-                    <span className="pdf-signature-lbl" style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
-                      {cierre.usuario?.nombre || 'Administrador'}
-                    </span>
-                    <span className="pdf-signature-lbl-sub" style={{ fontSize: '0.65rem', color: '#64748b' }}>Responsable de Caja</span>
+                {/* ── SECCIÓN DE FIRMA ÚNICA CENTRADA ── */}
+                <div className="mt-10 pt-4">
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <div className="w-72 border-t border-slate-500 mb-2" />
+                    <p className="text-xs font-black text-slate-900 uppercase tracking-wide">
+                      {nombreUsuario}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                      Responsable de Caja Chica
+                    </p>
                   </div>
-                  <div className="pdf-signature-field" style={{ flex: '1', maxWidth: '40%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div className="pdf-signature-line" style={{ width: '100%', borderTop: '1px solid #94a3b8', marginBottom: '0.25rem' }} />
-                    <span className="pdf-signature-lbl" style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Autorizado Por</span>
-                    <span className="pdf-signature-lbl-sub" style={{ fontSize: '0.65rem', color: '#64748b' }}>Administración Luxes</span>
+                  <div className="text-center text-[9px] text-slate-400 font-medium mt-8">
+                    Reporte de Cierre de Caja emitido automáticamente por el Sistema Operativo Luxes.
                   </div>
-                </div>
-
-                {/* Footer */}
-                <div className="pdf-sheet-footer" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem', marginTop: '3rem', textAlign: 'center', fontSize: '0.6rem', color: '#94a3b8' }}>
-                  Reporte de cierre de caja emitido electrónicamente en el Portal Operativo Luxes. Todos los derechos reservados.
                 </div>
               </div>
             </div>
