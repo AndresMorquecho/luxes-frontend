@@ -24,7 +24,35 @@ import { ExcelCierreSheet } from '../components/ExcelCierreSheet';
 import { getDeudasFijasCount } from '../../application/gastosFijosService';
 import { GastosFijosTab } from '../components/GastosFijosTab';
 
-const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
+const getTodayString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const formatGastoFecha = (fechaStr) => {
+  if (!fechaStr) return '—';
+  const str = String(fechaStr).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-');
+    return `${parseInt(d, 10)}/${parseInt(m, 10)}/${y.slice(2)}`;
+  }
+
+  if (str.endsWith('T00:00:00.000Z') || str.endsWith('T00:00:00Z') || str.endsWith('T12:00:00.000Z') || str.endsWith('T12:00:00Z')) {
+    const isoDate = str.slice(0, 10);
+    const [y, m, d] = isoDate.split('-');
+    return `${parseInt(d, 10)}/${parseInt(m, 10)}/${y.slice(2)}`;
+  }
+
+  const dObj = new Date(str);
+  if (isNaN(dObj.getTime())) return '—';
+  return dObj.toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' });
+};
+
+const EMPTY_FORM = { concepto: '', categoria: 'oficina', fecha: getTodayString(), monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
 const EMPTY_VEHICULO_FORM = { placa: '', marca: '', modelo: '', anio: '', color: '', kilometraje: '', responsable: '', notas: '', estado: 'activo' };
 
@@ -33,7 +61,7 @@ const esMetodoEfectivo = (nombre) => {
   return name.includes('efectivo') || name.includes('caja') || name.includes('chica') || name.includes('principal') || name.includes('cash');
 };
 
-const EMPTY_MAINT_FORM = { tipo: 'Cambio de Aceite', descripcion: '', fechaRealizado: new Date().toISOString().split('T')[0], fechaProxima: '', kilometraje: '', kmProximo: '', monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
+const EMPTY_MAINT_FORM = { tipo: 'Cambio de Aceite', descripcion: '', fechaRealizado: getTodayString(), fechaProxima: '', kilometraje: '', kmProximo: '', monto: 0, proveedor: '', notas: '', metodoPagoId: '' };
 
 const EMPTY_CONTROL_FORM = {
   fecha: '',
@@ -345,7 +373,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const loadControles = async (vehiculoId) => {
     setLoadingControles(true);
     try {
-      const data = await getControlesByVehiculo(vehiculoId);
+      const data = await getVehiculoControles(vehiculoId);
       setControles(data || []);
     } catch (err) {
       toast.error('Error al cargar historial de controles: ' + err.message);
@@ -1184,7 +1212,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         >
                           <td className="px-5 py-4">
                             <div className="text-[12px] font-medium text-slate-700 whitespace-nowrap">
-                              {g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                              {g.fecha ? formatGastoFecha(g.fecha) : '—'}
                             </div>
                             <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">
                               {g.registradoPor?.nombre || 'Automático'}
@@ -1302,7 +1330,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                           )}
                           <div className="flex justify-between items-center text-[10px] text-slate-500 mt-2 border-t border-slate-100/80 pt-2.5">
                             <div className="flex flex-col gap-0.5">
-                              <span>{g.fecha ? new Date(g.fecha).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
+                              <span>{g.fecha ? formatGastoFecha(g.fecha) : '—'}</span>
                               <span className="font-bold uppercase tracking-wider text-slate-400">{g.registradoPor?.nombre || 'Automático'}</span>
                             </div>
                             <div className="flex items-center gap-2">
