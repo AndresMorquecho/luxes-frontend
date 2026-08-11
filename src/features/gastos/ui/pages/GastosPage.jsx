@@ -273,6 +273,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   // --- ESTADOS CONTROLES ---
   const [controles, setControles] = useState([]);
   const [loadingControles, setLoadingControles] = useState(false);
+  const [controlPage, setControlPage] = useState(1);
+  const controlLimit = 10;
   const [controlFormOpen, setControlFormOpen] = useState(false);
   const [viewingControl, setViewingControl] = useState(null);
   const [controlForm, setControlForm] = useState(EMPTY_CONTROL_FORM);
@@ -282,7 +284,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
   const [maintFormOpen, setMaintFormOpen] = useState(false);
   const [editingMaint, setEditingMaint] = useState(null);
   const [maintPage, setMaintPage] = useState(1);
-  const maintLimit = 25;
+  const maintLimit = 10;
   const [maintForm, setMaintForm] = useState(EMPTY_MAINT_FORM);
   const [savingMaint, setSavingMaint] = useState(false);
   const [maintFiltroTipo, setMaintFiltroTipo] = useState('todos');
@@ -372,6 +374,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   const loadControles = async (vehiculoId) => {
     setLoadingControles(true);
+    setControlPage(1);
     try {
       const data = await getVehiculoControles(vehiculoId);
       setControles(data || []);
@@ -384,6 +387,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   useEffect(() => {
     if (selectedVehiculo?.id) {
+      setMaintPage(1);
+      setControlPage(1);
       loadControles(selectedVehiculo.id);
     }
   }, [selectedVehiculo]);
@@ -1202,7 +1207,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         vehiculo: 'Ir al módulo de Vehículos para editar/eliminar',
                       };
                       const style = origenStyles[g.origen] || origenStyles.otros_gastos;
-                      const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
+                      const canEdit = isAdmin && (g.origen === 'otros_gastos' || g.origen === 'vehiculo') && !g.readonly;
                       const disabledTooltip = !canEdit ? (origenModulos[g.origen] || 'Este gasto no se puede editar desde aquí') : '';
 
                       return (
@@ -1307,7 +1312,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         vehiculo: 'Editar en módulo de Vehículos',
                       };
                       const style = origenStyles[g.origen] || origenStyles.otros_gastos;
-                      const canEdit = isAdmin && g.origen === 'otros_gastos' && !g.readonly;
+                      const canEdit = isAdmin && (g.origen === 'otros_gastos' || g.origen === 'vehiculo') && !g.readonly;
                       const modLabel = origenModulos[g.origen];
 
                       return (
@@ -1639,7 +1644,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                 </div>
 
                 {/* Filtros de Mantenimientos */}
-                <div className="ga-card p-4 relative z-50">
+                <div className="ga-card p-4 relative z-50 !overflow-visible">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Tipo de Mantenimiento</label>
@@ -1975,81 +1980,113 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                     ) : controles.length === 0 ? (
                       <p className="text-center text-slate-400 text-xs py-12">Sin controles diarios registrados para este vehículo.</p>
                     ) : (
-                      <table className="w-full text-xs text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
-                            <th className="px-4 py-3">Fecha y Hora</th>
-                            <th className="px-4 py-3">Operador</th>
-                            <th className="px-4 py-3">Kilometraje</th>
-                            <th className="px-4 py-3 text-center">Combustible</th>
-                            <th className="px-4 py-3">Niveles Check</th>
-                            <th className="px-4 py-3">Observación / Sugerencia</th>
-                            <th className="px-4 py-3 text-center w-16">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-slate-700">
-                          {controles.map((log) => {
-                            const checksCount = [
-                              log.nivelAceite, log.nivelAgua, log.aceiteHidraulico,
-                              log.liquidoFrenos, log.gataLlave, log.extintorBotiquin, log.bandas
-                            ].filter(Boolean).length;
+                      <>
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
+                              <th className="px-4 py-3">Fecha y Hora</th>
+                              <th className="px-4 py-3">Operador</th>
+                              <th className="px-4 py-3">Kilometraje</th>
+                              <th className="px-4 py-3 text-center">Combustible</th>
+                              <th className="px-4 py-3">Niveles Check</th>
+                              <th className="px-4 py-3">Observación / Sugerencia</th>
+                              <th className="px-4 py-3 text-center w-16">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                            {(() => {
+                              const totalPagesControl = Math.ceil(controles.length / controlLimit);
+                              const paginatedControles = controles.slice((controlPage - 1) * controlLimit, controlPage * controlLimit);
 
-                            const fechaFmt = new Date(log.fecha).toLocaleString('es-EC', {
-                              day: '2-digit', month: '2-digit', year: 'numeric',
-                              hour: '2-digit', minute: '2-digit', hour12: true
-                            });
+                              return paginatedControles.map((log) => {
+                                const checksCount = [
+                                  log.nivelAceite, log.nivelAgua, log.aceiteHidraulico,
+                                  log.liquidoFrenos, log.gataLlave, log.extintorBotiquin, log.bandas
+                                ].filter(Boolean).length;
 
-                            const fuelLabel = log.combustible === 'bajo' ? 'Bajo' : log.combustible === 'medio' ? 'Medio' : 'Bueno';
-                            const fuelColor = log.combustible === 'bajo' ? 'text-red-700 bg-red-50 border-red-200' :
-                              log.combustible === 'medio' ? 'text-amber-700 bg-amber-50 border-amber-200' :
-                                'text-emerald-700 bg-emerald-50 border-emerald-200';
+                                const fechaFmt = new Date(log.fecha).toLocaleString('es-EC', {
+                                  day: '2-digit', month: '2-digit', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit', hour12: true
+                                });
 
-                            return (
-                              <tr key={log.id} className="hover:bg-slate-50/50">
-                                <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">{fechaFmt}</td>
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                  <span className="flex items-center gap-1">
-                                    <User size={12} className="text-slate-400" />
-                                    {log.usuarioNom}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">{log.kilometraje.toLocaleString()} km</td>
-                                <td className="px-4 py-3 text-center whitespace-nowrap">
-                                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${fuelColor}`}>
-                                    {fuelLabel}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="space-y-0.5">
-                                    <span className="font-semibold text-slate-600 block">{checksCount} / 7 OK</span>
-                                    {log.otroCheckNombre && (
-                                      <span className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${log.otroCheckValor ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-red-100 bg-red-50 text-red-700'
-                                        }`}>
-                                        {log.otroCheckNombre}: {log.otroCheckValor ? 'OK' : 'Novedad'}
+                                const fuelLabel = log.combustible === 'bajo' ? 'Bajo' : log.combustible === 'medio' ? 'Medio' : 'Bueno';
+                                const fuelColor = log.combustible === 'bajo' ? 'text-red-700 bg-red-50 border-red-200' :
+                                  log.combustible === 'medio' ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                                    'text-emerald-700 bg-emerald-50 border-emerald-200';
+
+                                return (
+                                  <tr key={log.id} className="hover:bg-slate-50/50">
+                                    <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">{fechaFmt}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                      <span className="flex items-center gap-1">
+                                        <User size={12} className="text-slate-400" />
+                                        {log.usuarioNom}
                                       </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 max-w-[200px]">
-                                  {log.observacion && <p className="line-clamp-2"><strong className="font-bold text-slate-500">Obs:</strong> {log.observacion}</p>}
-                                  {log.sugerencia && <p className="line-clamp-2 mt-0.5"><strong className="font-bold text-slate-500">Sugerencia:</strong> {log.sugerencia}</p>}
-                                  {!log.observacion && !log.sugerencia && <span className="text-slate-400">Sin novedades</span>}
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => setViewingControl(log)}
-                                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
-                                    title="Ver detalles"
-                                  >
-                                    <Eye size={13} />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                                    </td>
+                                    <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">{log.kilometraje.toLocaleString()} km</td>
+                                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${fuelColor}`}>
+                                        {fuelLabel}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <div className="space-y-0.5">
+                                        <span className="font-semibold text-slate-600 block">{checksCount} / 7 OK</span>
+                                        {log.otroCheckNombre && (
+                                          <span className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${log.otroCheckValor ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-red-100 bg-red-50 text-red-700'
+                                            }`}>
+                                            {log.otroCheckNombre}: {log.otroCheckValor ? 'OK' : 'Novedad'}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 max-w-[200px]">
+                                      {log.observacion && <p className="line-clamp-2"><strong className="font-bold text-slate-500">Obs:</strong> {log.observacion}</p>}
+                                      {log.sugerencia && <p className="line-clamp-2 mt-0.5"><strong className="font-bold text-slate-500">Sugerencia:</strong> {log.sugerencia}</p>}
+                                      {!log.observacion && !log.sugerencia && <span className="text-slate-400">Sin novedades</span>}
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => setViewingControl(log)}
+                                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
+                                        title="Ver detalles"
+                                      >
+                                        <Eye size={13} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              });
+                            })()}
+                          </tbody>
+                        </table>
+
+                        {/* Paginación de Controles Diarios */}
+                        {(() => {
+                          const totalPagesControl = Math.ceil(controles.length / controlLimit);
+                          if (totalPagesControl <= 1) return null;
+                          return (
+                            <div className="px-5 py-3 border-t border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
+                              <span className="text-xs text-slate-500">
+                                Mostrando {(controlPage - 1) * controlLimit + 1} a {Math.min(controlPage * controlLimit, controles.length)} de {controles.length}
+                              </span>
+                              <div className="flex gap-1">
+                                <button
+                                  disabled={controlPage === 1}
+                                  onClick={() => setControlPage(p => p - 1)}
+                                  className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                >Anterior</button>
+                                <button
+                                  disabled={controlPage === totalPagesControl}
+                                  onClick={() => setControlPage(p => p + 1)}
+                                  className="px-3 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                >Siguiente</button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </>
                     )}
                   </div>
                 </div>
