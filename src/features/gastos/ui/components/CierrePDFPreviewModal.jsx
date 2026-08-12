@@ -110,16 +110,18 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
         metodosDetalle = parsed;
       } else if (parsed && typeof parsed === 'object') {
         metodosDetalle = parsed.metodos || parsed.metodosDetalle || [];
-        if (parsed.seccionIngresos?.items) itemsIngresos = parsed.seccionIngresos.items;
-        if (parsed.seccionEgresos?.items) itemsEgresos = parsed.seccionEgresos.items;
+        if (parsed.seccionIngresos?.items?.length) itemsIngresos = parsed.seccionIngresos.items;
+        if (parsed.seccionEgresos?.items?.length) itemsEgresos = parsed.seccionEgresos.items;
         if (parsed.efectivoFisicoContado !== undefined) efectivoFisicoContadoVal = parsed.efectivoFisicoContado;
       }
     } else if (Array.isArray(cierre.metodosDetalle)) {
       metodosDetalle = cierre.metodosDetalle;
+      if (cierre.seccionIngresos?.items?.length) itemsIngresos = cierre.seccionIngresos.items;
+      if (cierre.seccionEgresos?.items?.length) itemsEgresos = cierre.seccionEgresos.items;
     } else if (cierre.metodosDetalle && typeof cierre.metodosDetalle === 'object') {
       metodosDetalle = cierre.metodosDetalle.metodos || cierre.metodosDetalle.metodosDetalle || [];
-      if (cierre.metodosDetalle.seccionIngresos?.items) itemsIngresos = cierre.metodosDetalle.seccionIngresos.items;
-      if (cierre.metodosDetalle.seccionEgresos?.items) itemsEgresos = cierre.metodosDetalle.seccionEgresos.items;
+      if (cierre.metodosDetalle.seccionIngresos?.items?.length) itemsIngresos = cierre.metodosDetalle.seccionIngresos.items;
+      if (cierre.metodosDetalle.seccionEgresos?.items?.length) itemsEgresos = cierre.metodosDetalle.seccionEgresos.items;
     }
   } catch (e) {
     console.error("Error al desempaquetar metodosDetalle para el PDF:", e);
