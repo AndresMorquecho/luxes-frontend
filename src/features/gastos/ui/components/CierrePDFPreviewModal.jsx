@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Printer, FileText, Download, ArrowUpRight, ArrowDownRight, CheckCircle, AlertCircle, X } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import { ModalPortal, deferClose, useModalVisibility } from '../../../../shared/ui/components/ModalPortal';
 import '../../../../shared/ui/components/PDFPreviewModal.css';
 
@@ -69,11 +70,26 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
   const handleClose = () => deferClose(onClose);
 
   const handleDownload = () => {
-    const originalTitle = document.title;
-    const dateStr = cierre.fechaInicio ? cierre.fechaInicio.split('T')[0] : 'reporte';
-    document.title = `Reporte_Cierre_Caja_${dateStr}`;
-    window.print();
-    document.title = originalTitle;
+    const element = document.querySelector('.pdf-sheet');
+    if (!element) return;
+    const dateStr = cierre.fechaInicio ? String(cierre.fechaInicio).split('T')[0] : 'reporte';
+    const opt = {
+      margin: [5, 5, 5, 5],
+      filename: `Reporte_Cierre_Caja_${dateStr}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      },
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'landscape'
+      }
+    };
+    html2pdf().set(opt).from(element).save();
   };
 
   const handlePrint = () => {

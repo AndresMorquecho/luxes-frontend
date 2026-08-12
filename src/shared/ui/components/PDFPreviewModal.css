@@ -409,14 +409,14 @@
 @media print {
   @page {
     size: A4 landscape;
-    margin: 0 !important;
+    margin: 5mm !important;
   }
 
   html, body {
     margin: 0 !important;
     padding: 0 !important;
-    height: 100% !important;
-    overflow: hidden !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   body * {
@@ -429,31 +429,34 @@
   }
 
   .pdf-modal-overlay {
-    position: fixed !important;
+    position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
+    width: 100% !important;
+    height: auto !important;
     background-color: #ffffff !important;
     padding: 0 !important;
     margin: 0 !important;
     display: block !important;
     z-index: 99999 !important;
     backdrop-filter: none !important;
+    overflow: visible !important;
   }
 
   .pdf-modal-container {
     border: none !important;
     box-shadow: none !important;
     width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
     max-width: none !important;
     background-color: #ffffff !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     border-radius: 0 !important;
   }
 
-  .pdf-toolbar {
+  .pdf-toolbar,
+  button,
+  .print\:hidden {
     display: none !important;
   }
 
@@ -462,6 +465,7 @@
     padding: 0 !important;
     overflow: visible !important;
     height: auto !important;
+    display: block !important;
   }
 
   .pdf-page-container {
@@ -476,13 +480,11 @@
   .pdf-sheet {
     width: 100% !important;
     height: auto !important;
-    min-height: 100% !important;
+    min-height: auto !important;
     max-height: none !important;
-    padding: 10mm 15mm 8mm 15mm !important;
+    padding: 5mm 8mm !important;
     box-sizing: border-box !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
+    display: block !important;
     overflow: visible !important;
   }
   
