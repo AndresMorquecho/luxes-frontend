@@ -90,7 +90,35 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
           scale: 1.5,
           useCORS: true,
           logging: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc) => {
+            try {
+              const win = clonedDoc.defaultView;
+              if (win && win.getComputedStyle) {
+                const origGetComputedStyle = win.getComputedStyle;
+                win.getComputedStyle = function(el, pseudo) {
+                  const style = origGetComputedStyle.call(win, el, pseudo);
+                  return new Proxy(style, {
+                    get(target, prop) {
+                      const val = target[prop];
+                      if (typeof val === 'string' && val.includes('oklch')) {
+                        return val.replace(/oklch\([^)]+\)/g, '#64748b');
+                      }
+                      return typeof val === 'function' ? val.bind(target) : val;
+                    }
+                  });
+                };
+              }
+              const styles = clonedDoc.querySelectorAll('style');
+              styles.forEach((tag) => {
+                if (tag.innerHTML && tag.innerHTML.includes('oklch')) {
+                  tag.innerHTML = tag.innerHTML.replace(/oklch\([^)]+\)/g, '#64748b');
+                }
+              });
+            } catch (e) {
+              console.warn("oklch sanitizer error:", e);
+            }
+          }
         },
         jsPDF: {
           unit: 'mm',
