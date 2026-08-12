@@ -61,6 +61,7 @@ const esEfectivoName = (nombre = '') => {
 
 export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
   const [zoom, setZoom] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 768) ? 50 : 100);
+  const [downloading, setDownloading] = useState(false);
 
   const shouldShow = Boolean(isOpen && cierre);
   const visible = useModalVisibility(shouldShow);
@@ -69,27 +70,43 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
 
   const handleClose = () => deferClose(onClose);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
+    if (downloading) return;
     const element = document.querySelector('.pdf-sheet');
     if (!element) return;
-    const dateStr = cierre.fechaInicio ? String(cierre.fechaInicio).split('T')[0] : 'reporte';
-    const opt = {
-      margin: [5, 5, 5, 5],
-      filename: `Reporte_Cierre_Caja_${dateStr}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      },
-      jsPDF: {
-        unit: 'mm',
-        format: 'a4',
-        orientation: 'landscape'
-      }
-    };
-    html2pdf().set(opt).from(element).save();
+
+    setDownloading(true);
+    try {
+      const currentZoom = zoom;
+      setZoom(100);
+      await new Promise(r => setTimeout(r, 100));
+
+      const dateStr = cierre.fechaInicio ? String(cierre.fechaInicio).split('T')[0] : 'reporte';
+      const opt = {
+        margin: [5, 5, 5, 5],
+        filename: `Reporte_Cierre_Caja_${dateStr}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: {
+          scale: 1.5,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'landscape'
+        }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+      setZoom(currentZoom);
+    } catch (err) {
+      console.error("Error descargando PDF:", err);
+      window.print();
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const handlePrint = () => {
@@ -222,12 +239,23 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
               <button 
                 type="button" 
                 onClick={handleDownload} 
-                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs rounded-lg transition-colors flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer"
+                disabled={downloading}
+                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs rounded-lg transition-colors flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer disabled:opacity-50"
                 title="Descargar PDF"
               >
-                <Download size={14} className="text-slate-600 shrink-0" />
-                <span className="hidden sm:inline">Descargar PDF</span>
-                <span className="sm:hidden text-[11px]">PDF</span>
+                {downloading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-blue-600 rounded-full animate-spin shrink-0" />
+                    <span className="hidden sm:inline">Generando...</span>
+                    <span className="sm:hidden text-[11px]">...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={14} className="text-slate-600 shrink-0" />
+                    <span className="hidden sm:inline">Descargar PDF</span>
+                    <span className="sm:hidden text-[11px]">PDF</span>
+                  </>
+                )}
               </button>
 
               <button 
