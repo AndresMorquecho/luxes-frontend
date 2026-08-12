@@ -79,7 +79,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
     try {
       const currentZoom = zoom;
       setZoom(100);
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 150));
 
       const dateStr = cierre.fechaInicio ? String(cierre.fechaInicio).split('T')[0] : 'reporte';
       const opt = {
@@ -93,7 +93,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
           backgroundColor: '#ffffff',
           onclone: (clonedDoc) => {
             try {
-              // 1. Reemplazar oklch en todas las etiquetas <style>
+              // 1. Limpiar oklch en todas las etiquetas <style>
               const styles = clonedDoc.querySelectorAll('style');
               styles.forEach((tag) => {
                 if (tag.textContent && tag.textContent.includes('oklch')) {
@@ -101,7 +101,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                 }
               });
 
-              // 2. Reemplazar oklch en atributos style de todos los elementos
+              // 2. Limpiar oklch en atributos style de todos los elementos
               const allElements = clonedDoc.querySelectorAll('*');
               allElements.forEach((el) => {
                 const styleAttr = el.getAttribute('style');
@@ -109,31 +109,6 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                   el.setAttribute('style', styleAttr.replace(/oklch\([^)]+\)/g, '#64748b'));
                 }
               });
-
-              // 3. Proxy a getComputedStyle
-              const win = clonedDoc.defaultView;
-              if (win && win.getComputedStyle) {
-                const origGetComputedStyle = win.getComputedStyle;
-                win.getComputedStyle = function(el, pseudo) {
-                  const style = origGetComputedStyle.call(win, el, pseudo);
-                  return new Proxy(style, {
-                    get(target, prop) {
-                      try {
-                        const val = target[prop];
-                        if (typeof val === 'string' && val.includes('oklch')) {
-                          return val.replace(/oklch\([^)]+\)/g, '#64748b');
-                        }
-                        if (typeof val === 'function') {
-                          return val.bind(target);
-                        }
-                        return val;
-                      } catch (e) {
-                        return target[prop];
-                      }
-                    }
-                  });
-                };
-              }
             } catch (e) {
               console.warn("oklch sanitizer error:", e);
             }
@@ -149,8 +124,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
       await html2pdf().set(opt).from(element).save();
       setZoom(currentZoom);
     } catch (err) {
-      console.error("Error descargando PDF:", err);
-      window.print();
+      console.error("Error generando archivo PDF:", err);
     } finally {
       setDownloading(false);
     }
