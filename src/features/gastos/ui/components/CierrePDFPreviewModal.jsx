@@ -93,7 +93,29 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
           backgroundColor: '#ffffff',
           onclone: (clonedDoc) => {
             try {
-              // 1. Limpiar oklch en todas las etiquetas <style>
+              // 1. Limpiar oklch de cssRules en document.styleSheets (CSSOM)
+              try {
+                const sheets = Array.from(clonedDoc.styleSheets || []);
+                sheets.forEach((sheet) => {
+                  try {
+                    const rules = Array.from(sheet.cssRules || []);
+                    for (let i = rules.length - 1; i >= 0; i--) {
+                      const rule = rules[i];
+                      if (rule.cssText && rule.cssText.includes('oklch')) {
+                        try {
+                          const cleaned = rule.cssText.replace(/oklch\([^)]+\)/g, '#64748b');
+                          sheet.deleteRule(i);
+                          sheet.insertRule(cleaned, i);
+                        } catch (err) {
+                          try { sheet.deleteRule(i); } catch (e) {}
+                        }
+                      }
+                    }
+                  } catch (e) {}
+                });
+              } catch (e) {}
+
+              // 2. Limpiar oklch en todas las etiquetas <style>
               const styles = clonedDoc.querySelectorAll('style');
               styles.forEach((tag) => {
                 if (tag.textContent && tag.textContent.includes('oklch')) {
@@ -101,7 +123,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                 }
               });
 
-              // 2. Limpiar oklch en atributos style de todos los elementos
+              // 3. Limpiar oklch en atributos style de todos los elementos
               const allElements = clonedDoc.querySelectorAll('*');
               allElements.forEach((el) => {
                 const styleAttr = el.getAttribute('style');
