@@ -78,7 +78,10 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
     setDownloading(true);
 
     const origGetComputedStyle = window.getComputedStyle;
-    const canvasCtx = document.createElement('canvas').getContext('2d');
+    const pixelCanvas = document.createElement('canvas');
+    pixelCanvas.width = 1;
+    pixelCanvas.height = 1;
+    const pixelCtx = pixelCanvas.getContext('2d', { willReadFrequently: true });
 
     const toLegacyColor = (str) => {
       if (!str || typeof str !== 'string') return str;
@@ -87,12 +90,17 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
       }
       return str.replace(/(oklch|oklab|lab|lch|color)\([^)]+\)/gi, (match) => {
         try {
-          canvasCtx.fillStyle = '#000000';
-          canvasCtx.fillStyle = match;
-          const converted = canvasCtx.fillStyle;
-          return (converted && converted !== '#000000') ? converted : match;
+          pixelCtx.clearRect(0, 0, 1, 1);
+          pixelCtx.fillStyle = match;
+          pixelCtx.fillRect(0, 0, 1, 1);
+          const data = pixelCtx.getImageData(0, 0, 1, 1).data;
+          const a = (data[3] / 255).toFixed(2);
+          if (a === '1.00' || a === '1') {
+            return `rgb(${data[0]}, ${data[1]}, ${data[2]})`;
+          }
+          return `rgba(${data[0]}, ${data[1]}, ${data[2]}, ${a})`;
         } catch (e) {
-          return match;
+          return 'rgb(100, 116, 139)';
         }
       });
     };
@@ -130,7 +138,50 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
           scale: 1.5,
           useCORS: true,
           logging: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc) => {
+            try {
+              const iframeWin = clonedDoc.defaultView;
+              if (iframeWin) {
+                if (iframeWin.CSSStyleDeclaration && iframeWin.CSSStyleDeclaration.prototype) {
+                  const origGPV = iframeWin.CSSStyleDeclaration.prototype.getPropertyValue;
+                  iframeWin.CSSStyleDeclaration.prototype.getPropertyValue = function(prop) {
+                    const val = origGPV.call(this, prop);
+                    return toLegacyColor(val);
+                  };
+                }
+                if (iframeWin.getComputedStyle) {
+                  const origGCS = iframeWin.getComputedStyle;
+                  iframeWin.getComputedStyle = function(elt, pseudoElt) {
+                    const style = origGCS.call(iframeWin, elt, pseudoElt);
+                    return new Proxy(style, {
+                      get(target, prop) {
+                        if (prop === 'getPropertyValue') {
+                          return function(property) {
+                            return toLegacyColor(target.getPropertyValue(property));
+                          };
+                        }
+                        const val = target[prop];
+                        if (typeof val === 'function') {
+                          return val.bind(target);
+                        }
+                        return toLegacyColor(val);
+                      }
+                    });
+                  };
+                }
+              }
+
+              const styleTags = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
+              styleTags.forEach((tag) => {
+                if (tag.textContent && (tag.textContent.includes('oklch') || tag.textContent.includes('oklab'))) {
+                  tag.textContent = tag.textContent.replace(/(oklch|oklab|lab|lch|color)\([^)]+\)/gi, '#64748b');
+                }
+              });
+            } catch (e) {
+              console.warn("onclone iframe patch error:", e);
+            }
+          }
         },
         jsPDF: {
           unit: 'mm',
