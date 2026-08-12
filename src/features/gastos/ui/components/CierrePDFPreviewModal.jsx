@@ -78,12 +78,23 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
     setDownloading(true);
 
     const origGetComputedStyle = window.getComputedStyle;
-    const cleanColorStr = (str) => {
-      if (typeof str !== 'string') return str;
-      if (str.includes('oklch') || str.includes('oklab') || str.includes('lab(') || str.includes('lch(') || str.includes('color(')) {
-        return str.replace(/oklch\([^)]+\)|oklab\([^)]+\)|lab\([^)]+\)|lch\([^)]+\)|color\([^)]+\)/gi, '#64748b');
+    const canvasCtx = document.createElement('canvas').getContext('2d');
+
+    const toLegacyColor = (str) => {
+      if (!str || typeof str !== 'string') return str;
+      if (!str.includes('oklch') && !str.includes('oklab') && !str.includes('lab(') && !str.includes('lch(') && !str.includes('color(')) {
+        return str;
       }
-      return str;
+      return str.replace(/(oklch|oklab|lab|lch|color)\([^)]+\)/gi, (match) => {
+        try {
+          canvasCtx.fillStyle = '#000000';
+          canvasCtx.fillStyle = match;
+          const converted = canvasCtx.fillStyle;
+          return (converted && converted !== '#000000') ? converted : match;
+        } catch (e) {
+          return match;
+        }
+      });
     };
 
     window.getComputedStyle = function(elt, pseudoElt) {
@@ -93,14 +104,14 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
           if (prop === 'getPropertyValue') {
             return function(property) {
               const val = target.getPropertyValue(property);
-              return cleanColorStr(val);
+              return toLegacyColor(val);
             };
           }
           const val = target[prop];
           if (typeof val === 'function') {
             return val.bind(target);
           }
-          return cleanColorStr(val);
+          return toLegacyColor(val);
         }
       });
     };
