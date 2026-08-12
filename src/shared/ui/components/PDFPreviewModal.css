@@ -172,7 +172,8 @@
   background-color: #ffffff;
   color: #1e293b;
   width: 750px;
-  height: 930px;
+  min-height: 930px;
+  height: auto;
   max-width: 100%;
   padding: 28px 36px 20px 36px;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -459,8 +460,8 @@
   .pdf-scroll-area {
     background-color: #ffffff !important;
     padding: 0 !important;
-    overflow: hidden !important;
-    height: 100% !important;
+    overflow: visible !important;
+    height: auto !important;
   }
 
   .pdf-page-container {
@@ -469,22 +470,20 @@
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
   }
 
   .pdf-sheet {
     width: 100% !important;
-    height: 100vh !important;
-    min-height: 100vh !important;
-    max-height: 100vh !important;
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
     padding: 10mm 15mm 8mm 15mm !important;
     box-sizing: border-box !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
-    page-break-inside: avoid !important;
-    page-break-after: avoid !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
   
   .pdf-footer-section {

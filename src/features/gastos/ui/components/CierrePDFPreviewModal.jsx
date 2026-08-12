@@ -244,7 +244,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
               {/* HOJA IMPRESA ORIENTACIÓN HORIZONTAL (TAMAÑO A4 LANDSCAPE: 297mm x 210mm) */}
               <div 
                 className="pdf-sheet bg-white text-slate-800 p-8 shadow-xl font-sans rounded-sm"
-                style={{ width: '297mm', minHeight: '210mm', boxSizing: 'border-box' }}
+                style={{ width: '297mm', minHeight: '210mm', height: 'auto', boxSizing: 'border-box' }}
               >
                 {/* ── ENCABEZADO OFICIAL CON LOGO LUXES Y DATOS DEL REGISTRO ── */}
                 <div className="flex items-center justify-between border-b-2 border-slate-700 pb-4 mb-5">
