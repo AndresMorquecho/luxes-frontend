@@ -13,8 +13,10 @@ const fmt = (num) => {
 const formatDateLong = (dateStr) => {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
-    if (isNaN(d.getTime())) return String(dateStr).toUpperCase();
+    const onlyDate = String(dateStr).split('T')[0];
+    const [year, month, day] = onlyDate.split('-').map(Number);
+    if (!year || !month || !day) return String(dateStr).toUpperCase();
+    const d = new Date(year, month - 1, day);
     const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
     const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
     return `${days[d.getDay()]} ${String(d.getDate()).padStart(2, '0')} DE ${months[d.getMonth()]} DEL ${d.getFullYear()}`;
@@ -26,10 +28,11 @@ const formatDateLong = (dateStr) => {
 const formatDateShort = (dateStr) => {
   if (!dateStr) return '—';
   try {
-    const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
-    if (isNaN(d.getTime())) return dateStr;
+    const onlyDate = String(dateStr).split('T')[0];
+    const [year, month, day] = onlyDate.split('-').map(Number);
+    if (!year || !month || !day) return dateStr;
     const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-    return `${d.getDate()}-${months[d.getMonth()]}`;
+    return `${day}-${months[month - 1]}`;
   } catch (e) {
     return dateStr;
   }
