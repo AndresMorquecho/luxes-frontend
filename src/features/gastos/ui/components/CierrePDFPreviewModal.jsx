@@ -159,7 +159,8 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
     ? saldoFinalEfectivo 
     : Number(efectivoFisicoContadoVal);
 
-  const diffCash = cashPhysicalNum - saldoFinalEfectivo;
+  const rawDiff = cashPhysicalNum - saldoFinalEfectivo;
+  const diffCash = Math.abs(rawDiff) < 0.009 ? 0 : rawDiff;
 
   const formattedCierreDate = formatDateLong(cierre.fechaInicio || cierre.fecha);
 

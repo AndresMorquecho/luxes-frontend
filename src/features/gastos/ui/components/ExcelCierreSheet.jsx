@@ -547,9 +547,11 @@ export const ExcelCierreSheet = ({
                   />
                 </div>
 
-                <div className={`px-3.5 py-2 rounded-lg border text-xs font-mono font-extrabold flex items-center justify-between shadow-xs ${diffCash === 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : (diffCash < 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-amber-50 border-amber-200 text-amber-700')}`}>
+                <div className={`px-3.5 py-2 rounded-lg border text-xs font-mono font-extrabold flex items-center justify-between shadow-xs ${efectivoFisicoContado === '' ? 'bg-amber-50/60 border-amber-200 text-amber-800' : (diffCash === 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : (diffCash < 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-amber-50 border-amber-200 text-amber-700'))}`}>
                   <span className="text-[10px] uppercase font-bold text-slate-500">DIAGNÓSTICO</span>
-                  {diffCash === 0 ? (
+                  {efectivoFisicoContado === '' ? (
+                    <span className="flex items-center gap-1.5 text-amber-800 font-bold text-[11px]"><AlertCircle size={15} /> DIGITA EL EFECTIVO FÍSICO CONTADO</span>
+                  ) : diffCash === 0 ? (
                     <span className="flex items-center gap-1.5"><CheckCircle size={15} /> CAJA CUADRADA</span>
                   ) : (
                     <span className="flex items-center gap-1.5"><AlertCircle size={15} /> {diffCash < 0 ? `FALTANTE: -${fmt(Math.abs(diffCash))}` : `SOBRANTE: +${fmt(diffCash)}`}</span>

@@ -420,6 +420,10 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
   const handleSaveCierre = async () => {
     if (!cierrePreview) return;
+    if (efectivoFisicoContado === '' || efectivoFisicoContado === null || efectivoFisicoContado === undefined) {
+      toast.warning('Por favor digita el monto de efectivo físico contado en caja chica antes de guardar el cierre.');
+      return;
+    }
     const confirmed = await confirmDialog(
       'Confirmar Cierre de Caja',
       '¿Confirmar registro de cierre de caja para el rango seleccionado?'
