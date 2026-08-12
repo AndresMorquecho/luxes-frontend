@@ -93,6 +93,24 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
           backgroundColor: '#ffffff',
           onclone: (clonedDoc) => {
             try {
+              // 1. Reemplazar oklch en todas las etiquetas <style>
+              const styles = clonedDoc.querySelectorAll('style');
+              styles.forEach((tag) => {
+                if (tag.textContent && tag.textContent.includes('oklch')) {
+                  tag.textContent = tag.textContent.replace(/oklch\([^)]+\)/g, '#64748b');
+                }
+              });
+
+              // 2. Reemplazar oklch en atributos style de todos los elementos
+              const allElements = clonedDoc.querySelectorAll('*');
+              allElements.forEach((el) => {
+                const styleAttr = el.getAttribute('style');
+                if (styleAttr && styleAttr.includes('oklch')) {
+                  el.setAttribute('style', styleAttr.replace(/oklch\([^)]+\)/g, '#64748b'));
+                }
+              });
+
+              // 3. Proxy a getComputedStyle
               const win = clonedDoc.defaultView;
               if (win && win.getComputedStyle) {
                 const origGetComputedStyle = win.getComputedStyle;
@@ -100,21 +118,22 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                   const style = origGetComputedStyle.call(win, el, pseudo);
                   return new Proxy(style, {
                     get(target, prop) {
-                      const val = target[prop];
-                      if (typeof val === 'string' && val.includes('oklch')) {
-                        return val.replace(/oklch\([^)]+\)/g, '#64748b');
+                      try {
+                        const val = target[prop];
+                        if (typeof val === 'string' && val.includes('oklch')) {
+                          return val.replace(/oklch\([^)]+\)/g, '#64748b');
+                        }
+                        if (typeof val === 'function') {
+                          return val.bind(target);
+                        }
+                        return val;
+                      } catch (e) {
+                        return target[prop];
                       }
-                      return typeof val === 'function' ? val.bind(target) : val;
                     }
                   });
                 };
               }
-              const styles = clonedDoc.querySelectorAll('style');
-              styles.forEach((tag) => {
-                if (tag.innerHTML && tag.innerHTML.includes('oklch')) {
-                  tag.innerHTML = tag.innerHTML.replace(/oklch\([^)]+\)/g, '#64748b');
-                }
-              });
             } catch (e) {
               console.warn("oklch sanitizer error:", e);
             }
