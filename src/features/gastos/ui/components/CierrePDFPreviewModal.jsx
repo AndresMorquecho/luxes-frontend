@@ -77,14 +77,32 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
 
     setDownloading(true);
 
-    // Patch temporal a CSSStyleDeclaration.prototype.getPropertyValue
-    const origGetPropertyValue = CSSStyleDeclaration.prototype.getPropertyValue;
-    CSSStyleDeclaration.prototype.getPropertyValue = function(prop) {
-      const val = origGetPropertyValue.call(this, prop);
-      if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('lab(') || val.includes('lch('))) {
-        return '#64748b';
+    const origGetComputedStyle = window.getComputedStyle;
+    const cleanColorStr = (str) => {
+      if (typeof str !== 'string') return str;
+      if (str.includes('oklch') || str.includes('oklab') || str.includes('lab(') || str.includes('lch(') || str.includes('color(')) {
+        return str.replace(/oklch\([^)]+\)|oklab\([^)]+\)|lab\([^)]+\)|lch\([^)]+\)|color\([^)]+\)/gi, '#64748b');
       }
-      return val;
+      return str;
+    };
+
+    window.getComputedStyle = function(elt, pseudoElt) {
+      const style = origGetComputedStyle.call(window, elt, pseudoElt);
+      return new Proxy(style, {
+        get(target, prop) {
+          if (prop === 'getPropertyValue') {
+            return function(property) {
+              const val = target.getPropertyValue(property);
+              return cleanColorStr(val);
+            };
+          }
+          const val = target[prop];
+          if (typeof val === 'function') {
+            return val.bind(target);
+          }
+          return cleanColorStr(val);
+        }
+      });
     };
 
     try {
@@ -115,7 +133,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
     } catch (err) {
       console.error("Error generando archivo PDF:", err);
     } finally {
-      CSSStyleDeclaration.prototype.getPropertyValue = origGetPropertyValue;
+      window.getComputedStyle = origGetComputedStyle;
       setDownloading(false);
     }
   };
