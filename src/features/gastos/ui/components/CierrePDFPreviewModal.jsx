@@ -92,8 +92,13 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
           logging: false,
           backgroundColor: '#ffffff',
           onclone: (clonedDoc) => {
+            const sanitizeStr = (str) => {
+              if (!str || typeof str !== 'string') return str;
+              return str.replace(/oklch\([^)]+\)|oklab\([^)]+\)|lab\([^)]+\)|lch\([^)]+\)|color\([^)]+\)/gi, '#64748b');
+            };
+
             try {
-              // 1. Limpiar oklch de cssRules en document.styleSheets (CSSOM)
+              // 1. Limpiar oklch/oklab/lab/lch de cssRules en document.styleSheets (CSSOM)
               try {
                 const sheets = Array.from(clonedDoc.styleSheets || []);
                 sheets.forEach((sheet) => {
@@ -101,9 +106,15 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                     const rules = Array.from(sheet.cssRules || []);
                     for (let i = rules.length - 1; i >= 0; i--) {
                       const rule = rules[i];
-                      if (rule.cssText && rule.cssText.includes('oklch')) {
+                      if (rule.cssText && (
+                        rule.cssText.includes('oklch') || 
+                        rule.cssText.includes('oklab') || 
+                        rule.cssText.includes('lab(') || 
+                        rule.cssText.includes('lch(') ||
+                        rule.cssText.includes('color(')
+                      )) {
                         try {
-                          const cleaned = rule.cssText.replace(/oklch\([^)]+\)/g, '#64748b');
+                          const cleaned = sanitizeStr(rule.cssText);
                           sheet.deleteRule(i);
                           sheet.insertRule(cleaned, i);
                         } catch (err) {
@@ -115,24 +126,36 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                 });
               } catch (e) {}
 
-              // 2. Limpiar oklch en todas las etiquetas <style>
+              // 2. Limpiar etiquetas <style>
               const styles = clonedDoc.querySelectorAll('style');
               styles.forEach((tag) => {
-                if (tag.textContent && tag.textContent.includes('oklch')) {
-                  tag.textContent = tag.textContent.replace(/oklch\([^)]+\)/g, '#64748b');
+                if (tag.textContent && (
+                  tag.textContent.includes('oklch') || 
+                  tag.textContent.includes('oklab') || 
+                  tag.textContent.includes('lab(') || 
+                  tag.textContent.includes('lch(') ||
+                  tag.textContent.includes('color(')
+                )) {
+                  tag.textContent = sanitizeStr(tag.textContent);
                 }
               });
 
-              // 3. Limpiar oklch en atributos style de todos los elementos
+              // 3. Limpiar atributos style de todos los elementos
               const allElements = clonedDoc.querySelectorAll('*');
               allElements.forEach((el) => {
                 const styleAttr = el.getAttribute('style');
-                if (styleAttr && styleAttr.includes('oklch')) {
-                  el.setAttribute('style', styleAttr.replace(/oklch\([^)]+\)/g, '#64748b'));
+                if (styleAttr && (
+                  styleAttr.includes('oklch') || 
+                  styleAttr.includes('oklab') || 
+                  styleAttr.includes('lab(') || 
+                  styleAttr.includes('lch(') ||
+                  styleAttr.includes('color(')
+                )) {
+                  el.setAttribute('style', sanitizeStr(styleAttr));
                 }
               });
             } catch (e) {
-              console.warn("oklch sanitizer error:", e);
+              console.warn("Modern CSS color sanitizer error:", e);
             }
           }
         },
