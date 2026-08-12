@@ -343,13 +343,23 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                       {itemsIngresos.map((item, idx) => {
                         const isEfectivo = esEfectivoName(item.metodoPagoNombre) || item.metodoPagoId === metodoEfectivo.metodoPagoId;
                         const proformaOrdenText = [item.proformaNumero, item.ordenPedido].filter(Boolean).join(' / ') || '—';
+                        const isTransfer = Boolean(item.esTransferencia);
 
                         return (
-                          <tr key={item.id || idx} className="h-9">
+                          <tr key={item.id || idx} className={`h-9 ${isTransfer ? 'bg-blue-50/30' : ''}`}>
                             <td className="py-1.5 px-2.5 text-center font-mono text-slate-600 border-r border-slate-200 whitespace-nowrap font-bold text-[10.5px]">
                               {formatDateWithTime(item.fecha)}
                             </td>
-                            <td className="py-1.5 px-3 font-bold text-slate-800 uppercase border-r border-slate-200 truncate" title={item.cliente}>{item.cliente}</td>
+                            <td className="py-1.5 px-3 font-bold text-slate-800 uppercase border-r border-slate-200 truncate" title={item.cliente}>
+                              <div className="flex items-center gap-1 truncate">
+                                {isTransfer && (
+                                  <span className="text-[8.5px] font-extrabold px-1 py-0.2 bg-blue-100 text-blue-800 border border-blue-200 rounded shrink-0">
+                                    TRANSF.
+                                  </span>
+                                )}
+                                <span className="truncate">{item.cliente}</span>
+                              </div>
+                            </td>
                             <td className="py-1.5 px-1.5 text-right font-mono font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
                               {isEfectivo ? fmt(item.monto) : '$ -'}
                             </td>
@@ -431,20 +441,30 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                         ))}
                         <th className="py-2 px-2 w-32 text-center border-r border-slate-300">FACTURA #</th>
                         <th className="py-2 px-1.5 w-14 text-center border-r border-slate-300">IVA %</th>
-                        <th className="py-2 px-1.5 w-24 text-center border-r border-slate-300 font-black bg-amber-100/70 text-slate-900 leading-tight">EFECTIVO</th>
+                        <th className="py-2 px-1.5 w-24 text-center border-r border-slate-300 font-black bg-rose-100/70 text-slate-900 leading-tight">VALOR</th>
                         <th className="py-2 px-3">DETALLE</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-slate-800">
                       {itemsEgresos.map((item, idx) => {
                         const isEfectivo = esEfectivoName(item.metodoPagoNombre) || item.metodoPagoId === metodoEfectivo.metodoPagoId;
+                        const isTransfer = Boolean(item.esTransferencia);
 
                         return (
-                          <tr key={item.id || idx} className="h-9">
+                          <tr key={item.id || idx} className={`h-9 ${isTransfer ? 'bg-blue-50/30' : ''}`}>
                             <td className="py-1.5 px-2.5 text-center font-mono text-slate-600 border-r border-slate-200 whitespace-nowrap font-bold text-[10.5px]">
                               {formatDateWithTime(item.fecha)}
                             </td>
-                            <td className="py-1.5 px-3 font-bold text-slate-800 uppercase border-r border-slate-200 truncate" title={item.proveedor}>{item.proveedor}</td>
+                            <td className="py-1.5 px-3 font-bold text-slate-800 uppercase border-r border-slate-200 truncate" title={item.proveedor}>
+                              <div className="flex items-center gap-1 truncate">
+                                {isTransfer && (
+                                  <span className="text-[8.5px] font-extrabold px-1 py-0.2 bg-blue-100 text-blue-800 border border-blue-200 rounded shrink-0">
+                                    TRANSF.
+                                  </span>
+                                )}
+                                <span className="truncate">{item.proveedor}</span>
+                              </div>
+                            </td>
                             <td className="py-1.5 px-1.5 text-right font-mono font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
                               {isEfectivo ? fmt(item.monto) : '$ -'}
                             </td>
@@ -458,7 +478,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
                             })}
                             <td className="py-1.5 px-2 text-center font-mono font-semibold text-slate-700 border-r border-slate-200 truncate text-[10.5px]">{item.facturaNumero || '—'}</td>
                             <td className="py-1.5 px-1.5 text-center font-mono text-slate-500 border-r border-slate-200 whitespace-nowrap">{item.ivaPorcentaje ? `${item.ivaPorcentaje}%` : '—'}</td>
-                            <td className="py-1.5 px-1.5 text-right font-mono font-extrabold text-rose-700 border-r border-slate-200 whitespace-nowrap">{isEfectivo ? fmt(item.monto) : '$ -'}</td>
+                            <td className="py-1.5 px-1.5 text-right font-mono font-extrabold text-rose-700 border-r border-slate-200 whitespace-nowrap">{fmt(item.monto)}</td>
                             <td className="py-1.5 px-3 text-slate-600 font-medium uppercase text-[10.5px] truncate">{item.detalle}</td>
                           </tr>
                         );
