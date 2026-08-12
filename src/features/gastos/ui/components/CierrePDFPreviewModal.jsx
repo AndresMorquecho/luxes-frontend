@@ -76,6 +76,17 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
     if (!element) return;
 
     setDownloading(true);
+
+    // Patch temporal a CSSStyleDeclaration.prototype.getPropertyValue
+    const origGetPropertyValue = CSSStyleDeclaration.prototype.getPropertyValue;
+    CSSStyleDeclaration.prototype.getPropertyValue = function(prop) {
+      const val = origGetPropertyValue.call(this, prop);
+      if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('lab(') || val.includes('lch('))) {
+        return '#64748b';
+      }
+      return val;
+    };
+
     try {
       const currentZoom = zoom;
       setZoom(100);
@@ -90,72 +101,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
           scale: 1.5,
           useCORS: true,
           logging: false,
-          backgroundColor: '#ffffff',
-          onclone: (clonedDoc) => {
-            try {
-              // 1. Remover hojas de estilo antiguas con variables Tailwind v4 oklch/oklab
-              const head = clonedDoc.head;
-              if (head) {
-                const styleElements = head.querySelectorAll('style, link[rel="stylesheet"]');
-                styleElements.forEach(s => s.remove());
-
-                // 2. Inyectar CSS puro con colores Hexadecimales para html2canvas
-                const cleanStyle = clonedDoc.createElement('style');
-                cleanStyle.textContent = `
-                  * { box-sizing: border-box !important; font-family: system-ui, -apple-system, sans-serif !important; }
-                  body { background: #ffffff !important; color: #1e293b !important; margin: 0 !important; padding: 0 !important; }
-                  .pdf-sheet { width: 100% !important; padding: 24px !important; background: #ffffff !important; color: #1e293b !important; box-sizing: border-box !important; }
-                  table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 16px !important; font-size: 11px !important; table-layout: fixed !important; }
-                  th { background-color: #f1f5f9 !important; color: #334155 !important; padding: 6px 8px !important; border: 1px solid #cbd5e1 !important; font-weight: 800 !important; text-transform: uppercase !important; }
-                  td { padding: 5px 8px !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; }
-                  tr { height: auto !important; }
-                  .bg-slate-700 { background-color: #334155 !important; color: #ffffff !important; }
-                  .bg-slate-100 { background-color: #f1f5f9 !important; }
-                  .bg-slate-50 { background-color: #f8fafc !important; }
-                  .bg-amber-100\\/70, .bg-amber-100 { background-color: #fef3c7 !important; }
-                  .bg-amber-50 { background-color: #fffbeb !important; }
-                  .bg-amber-200\\/60 { background-color: #fde68a !important; }
-                  .bg-blue-50\\/30, .bg-blue-50\\/40, .bg-blue-50 { background-color: #eff6ff !important; }
-                  .bg-emerald-50 { background-color: #ecfdf5 !important; }
-                  .bg-rose-50, .bg-red-50 { background-color: #fef2f2 !important; }
-                  .text-white { color: #ffffff !important; }
-                  .text-emerald-400 { color: #34d399 !important; }
-                  .text-emerald-700, .text-emerald-800, .text-emerald-600 { color: #047857 !important; }
-                  .text-rose-400, .text-rose-700, .text-red-500, .text-red-600 { color: #b91c1c !important; }
-                  .text-blue-600, .text-blue-800 { color: #1d4ed8 !important; }
-                  .text-slate-800, .text-slate-900 { color: #0f172a !important; }
-                  .text-slate-600, .text-slate-500, .text-slate-700 { color: #475569 !important; }
-                  .text-slate-400, .text-slate-300 { color: #94a3b8 !important; }
-                  .border-slate-700 { border-color: #334155 !important; }
-                  .border-slate-300 { border-color: #cbd5e1 !important; }
-                  .border-slate-200 { border-color: #e2e8f0 !important; }
-                  .border-slate-100 { border-color: #f1f5f9 !important; }
-                  .font-mono { font-family: monospace !important; }
-                  .font-bold, .font-semibold { font-weight: 700 !important; }
-                  .font-black, .font-extrabold { font-weight: 800 !important; }
-                  .uppercase { text-transform: uppercase !important; }
-                  .text-center { text-align: center !important; }
-                  .text-right { text-align: right !important; }
-                  .whitespace-nowrap { white-space: nowrap !important; }
-                  .truncate { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
-                  .flex { display: flex !important; }
-                  .items-center { align-items: center !important; }
-                  .justify-between { justify-content: space-between !important; }
-                  .gap-1 { gap: 4px !important; }
-                  .gap-2 { gap: 8px !important; }
-                  .gap-4 { gap: 16px !important; }
-                  .rounded-lg { border-radius: 8px !important; }
-                  .rounded { border-radius: 4px !important; }
-                  .p-8 { padding: 24px !important; }
-                  .mb-5 { margin-bottom: 20px !important; }
-                  .pb-4 { padding-bottom: 16px !important; }
-                `;
-                head.appendChild(cleanStyle);
-              }
-            } catch (e) {
-              console.warn("Pure CSS injection error:", e);
-            }
-          }
+          backgroundColor: '#ffffff'
         },
         jsPDF: {
           unit: 'mm',
@@ -169,6 +115,7 @@ export function CierrePDFPreviewModal({ isOpen, onClose, cierre }) {
     } catch (err) {
       console.error("Error generando archivo PDF:", err);
     } finally {
+      CSSStyleDeclaration.prototype.getPropertyValue = origGetPropertyValue;
       setDownloading(false);
     }
   };
