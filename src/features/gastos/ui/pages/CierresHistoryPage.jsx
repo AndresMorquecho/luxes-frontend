@@ -110,41 +110,53 @@ export const CierresHistoryPage = () => {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 bg-slate-50/50 text-left font-bold uppercase tracking-wider">
-                  <th className="px-6 py-4">Rango de Operación</th>
-                  <th className="px-6 py-4">Fecha de Cierre</th>
-                  <th className="px-6 py-4">Responsable</th>
-                  <th className="px-6 py-4 text-right">Ingresos</th>
-                  <th className="px-6 py-4 text-right">Egresos</th>
-                  <th className="px-6 py-4 text-right">Balance Sistema</th>
-                  <th className="px-6 py-4 text-center">Cuadre Físico</th>
-                  <th className="px-6 py-4 text-center">Acciones</th>
+                  <th className="px-4 py-3.5">Rango Operación</th>
+                  <th className="px-4 py-3.5">Fecha Cierre</th>
+                  <th className="px-4 py-3.5">Responsable</th>
+                  <th className="px-4 py-3.5 text-right">Efectivo Sistema</th>
+                  <th className="px-4 py-3.5 text-right">Efectivo Contado</th>
+                  <th className="px-4 py-3.5 text-right">Balance Total</th>
+                  <th className="px-4 py-3.5 text-center">Cuadre Físico</th>
+                  <th className="px-4 py-3.5 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/60">
                 {filteredCierres.map((c) => {
                   let cuadra = true;
-                  let diferenciaText = 'Cuadró';
+                  let diferenciaText = 'CAJA CUADRADA';
                   let diff = 0;
+                  let efectivoFisicoVal = null;
+                  let efectivoSistemaVal = null;
                   try {
                     const parsed = JSON.parse(c.metodosDetalle || '{}');
-                    if (parsed.diferenciaEfectivo !== undefined) {
-                      diff = Number(parsed.diferenciaEfectivo);
-                      if (diff !== 0) {
-                        cuadra = false;
-                        diferenciaText = diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`;
+                    if (parsed && typeof parsed === 'object') {
+                      if (parsed.efectivoFisicoContado !== undefined && parsed.efectivoFisicoContado !== null) {
+                        efectivoFisicoVal = Number(parsed.efectivoFisicoContado);
+                      }
+                      if (parsed.diferenciaEfectivo !== undefined) {
+                        diff = Number(parsed.diferenciaEfectivo);
+                        if (Math.abs(diff) > 0.009) {
+                          cuadra = false;
+                          diferenciaText = diff < 0 ? `Faltante: ${fmt(Math.abs(diff))}` : `Sobrante: ${fmt(diff)}`;
+                        }
+                      }
+                      const metodos = parsed.metodos || (Array.isArray(parsed) ? parsed : []);
+                      const mEfectivo = metodos.find(m => esMetodoEfectivo(m.nombre)) || metodos[0];
+                      if (mEfectivo) {
+                        efectivoSistemaVal = Number(mEfectivo.balance || 0);
                       }
                     }
                   } catch (e) { }
 
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-slate-700">
+                      <td className="px-4 py-3.5 font-bold text-slate-700">
                         {c.fechaInicio.split('T')[0]} <span className="text-slate-400 font-normal">al</span> {c.fechaFin.split('T')[0]}
                       </td>
-                      <td className="px-6 py-4 font-medium text-slate-500">
+                      <td className="px-4 py-3.5 font-medium text-slate-500">
                         {new Date(c.fecha).toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 font-semibold text-slate-600">
+                      <td className="px-4 py-3.5 font-semibold text-slate-600">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[9px]">
                             {(c.usuario?.nombre || 'AD').substring(0, 2).toUpperCase()}
@@ -152,17 +164,21 @@ export const CierresHistoryPage = () => {
                           {c.usuario?.nombre || 'Administrador'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right font-bold text-emerald-600 font-mono">{fmt(c.totalIngresos)}</td>
-                      <td className="px-6 py-4 text-right font-bold text-red-500 font-mono">{fmt(c.totalEgresos)}</td>
-                      <td className={`px-6 py-4 text-right font-black font-mono ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                      <td className="px-4 py-3.5 text-right font-bold text-amber-700 font-mono">
+                        {efectivoSistemaVal !== null ? fmt(efectivoSistemaVal) : '—'}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-bold text-slate-800 font-mono">
+                        {efectivoFisicoVal !== null ? fmt(efectivoFisicoVal) : '—'}
+                      </td>
+                      <td className={`px-4 py-3.5 text-right font-black font-mono ${c.balance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
                         {fmt(c.balance)}
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 py-3.5 text-center">
                         <span className={`px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider ${cuadra ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : (diff < 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-600 border border-amber-100')}`}>
                           {diferenciaText}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 py-3.5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => setPdfCierre(c)}

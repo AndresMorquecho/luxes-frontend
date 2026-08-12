@@ -105,7 +105,8 @@ export const ExcelCierreSheet = ({
   const saldoFinalEfectivo = totalIngresosEfectivoAcumulado - egresosEfectivoSum;
 
   const cashPhysicalNum = efectivoFisicoContado === '' ? saldoFinalEfectivo : Number(efectivoFisicoContado);
-  const diffCash = cashPhysicalNum - saldoFinalEfectivo;
+  const rawDiff = cashPhysicalNum - saldoFinalEfectivo;
+  const diffCash = Math.abs(rawDiff) < 0.009 ? 0 : rawDiff;
 
   return (
     <div className="w-full space-y-6 font-sans select-none my-2 animate-slide-up relative z-[90]">
