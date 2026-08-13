@@ -30,25 +30,28 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
       className="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
     >
       {/* Indicador de color de fase + Proyecto */}
-      <td className="pl-3 pr-2 py-3">
-        <div className="flex items-center gap-2.5 min-w-0">
+      <td className="pl-3 pr-2 py-3 overflow-hidden">
+        <div className="flex items-center gap-2.5 min-w-0 w-full overflow-hidden">
           <div
             className="w-1 h-10 rounded-full shrink-0"
             style={{ backgroundColor: faseConfig?.color || '#94a3b8' }}
           />
           <PersonInitialsAvatar name={proyecto.nombre} seed={proyecto.id} size="sm" />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <button
-              className="font-semibold text-slate-800 text-xs sm:text-sm hover:text-blue-700 text-left line-clamp-1 truncate"
+              className="block w-full font-semibold text-slate-800 text-xs sm:text-sm hover:text-blue-700 text-left truncate overflow-hidden cursor-pointer"
               onClick={() => navigate(`/proyectos/${proyecto.id}`)}
+              title={proyecto.nombre}
             >
               {proyecto.nombre}
             </button>
-            <p className="text-[11px] text-slate-500 truncate">{proyecto.cliente?.empresa || proyecto.cliente?.nombre}</p>
+            <p className="text-[11px] text-slate-500 truncate block w-full overflow-hidden" title={proyecto.cliente?.empresa || proyecto.cliente?.nombre}>
+              {proyecto.cliente?.empresa || proyecto.cliente?.nombre}
+            </p>
             {proyecto.etiquetas?.length > 0 && (
               <div className="flex gap-1 mt-0.5 flex-wrap">
                 {proyecto.etiquetas.map((tag) => (
-                  <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded">
+                  <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded truncate max-w-[120px]">
                     {tag}
                   </span>
                 ))}
@@ -59,10 +62,12 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
       </td>
 
       {/* Responsable */}
-      <td className="px-2 py-3">
-        <div className="flex items-center gap-2 min-w-0">
+      <td className="px-2 py-3 overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0 w-full overflow-hidden">
           <PersonInitialsAvatar name={proyecto.responsable} seed={proyecto.responsable} size="xs" />
-          <span className="text-xs text-slate-700 truncate max-w-[110px] normal-case">{proyecto.responsable}</span>
+          <span className="text-xs text-slate-700 truncate max-w-[120px] min-w-0 inline-block overflow-hidden" title={proyecto.responsable}>
+            {proyecto.responsable}
+          </span>
         </div>
       </td>
 
