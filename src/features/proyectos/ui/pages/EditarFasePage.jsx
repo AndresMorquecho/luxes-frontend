@@ -16,10 +16,19 @@ export default function EditarFasePage() {
 
   const { proyecto, avanzar, validacionFaseActual: validacionBase } = useProyecto(id);
   const { getJobsByProyectoId } = usePrintQueueStable();
-  const validacionFaseActual =
-    proyecto?.faseActual === 'PRODUCCION'
+  const [printQueueTick, setPrintQueueTick] = React.useState(0);
+
+  React.useEffect(() => {
+    const handlePrintQueueChange = () => setPrintQueueTick((t) => t + 1);
+    window.addEventListener('print-queue-updated', handlePrintQueueChange);
+    return () => window.removeEventListener('print-queue-updated', handlePrintQueueChange);
+  }, []);
+
+  const validacionFaseActual = React.useMemo(() => {
+    return proyecto?.faseActual === 'PRODUCCION'
       ? enrichValidacionConImpresion(validacionBase, getJobsByProyectoId(id))
       : validacionBase;
+  }, [proyecto?.faseActual, validacionBase, getJobsByProyectoId, id, printQueueTick]);
   const faseConfig = proyecto ? getFaseConfig(proyecto.faseActual) : null;
 
   function handleVolver() {

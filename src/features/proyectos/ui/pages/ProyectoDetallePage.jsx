@@ -73,11 +73,19 @@ export default function ProyectoDetallePage() {
 
   const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual: validacionBase } = useProyecto(id);
   const { getJobsByProyectoId } = usePrintQueueStable();
+  const [printQueueTick, setPrintQueueTick] = useState(0);
+
+  useEffect(() => {
+    const handlePrintQueueChange = () => setPrintQueueTick((t) => t + 1);
+    window.addEventListener('print-queue-updated', handlePrintQueueChange);
+    return () => window.removeEventListener('print-queue-updated', handlePrintQueueChange);
+  }, []);
+
   const validacionFaseActual = React.useMemo(() => {
     return proyecto?.faseActual === 'PRODUCCION'
       ? enrichValidacionConImpresion(validacionBase, getJobsByProyectoId(id))
       : validacionBase;
-  }, [proyecto?.faseActual, validacionBase, getJobsByProyectoId, id]);
+  }, [proyecto?.faseActual, validacionBase, getJobsByProyectoId, id, printQueueTick]);
 
   useAutoAvanceInstalacionAdmin({
     proyectoId: id,

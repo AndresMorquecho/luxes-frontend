@@ -47,7 +47,13 @@ export function MaterialesRequestPage() {
   const navigate = useNavigate();
   const { adapter, dispatch } = useProyectosContext();
   const { proyecto, updateFaseDatos } = useProyecto(id);
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const user = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  }, []);
   const puedeEnviarEncuesta = isTallerUser(user);
 
   const faseInstalacionMeta = proyecto?.fases?.INSTALACION || {};

@@ -55,7 +55,10 @@ export function useProyecto(id) {
     const proyectoActualizado = avanzarFaseUseCase(proyecto);
     dispatch({ type: ACTIONS.AVANZAR_FASE, payload: { id } });
     try {
-      await adapter.avanzarFase(id, proyectoActualizado.faseActual, proyectoActualizado.fases[proyectoActualizado.faseActual]?.datos || {});
+      const servidor = await adapter.avanzarFase(id, proyectoActualizado.faseActual, proyectoActualizado.fases[proyectoActualizado.faseActual]?.datos || {});
+      if (servidor) {
+        dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios: servidor } });
+      }
     } catch (error) {
       console.error('Error al guardar avance de fase:', error);
     }
