@@ -27,7 +27,22 @@ export default function ProyectosPage() {
 
   const [vista, setVista] = useState('lista'); // 'lista' | 'kanban'
   const [proyectoAEliminar, setProyectoAEliminar] = useState(null);
-  const [eliminandoId, setEliminandoId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState('15'); // '15' | '25' | '50' | 'TODOS'
+
+  // Resetear a página 1 al actualizar filtros
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filtros]);
+
+  const totalItems = proyectos.length;
+  const itemsPerPageNum = itemsPerPage === 'TODOS' ? totalItems : Number(itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalItems / (itemsPerPageNum || 1)));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const startIndex = totalItems === 0 ? 0 : (safePage - 1) * itemsPerPageNum;
+  const endIndex = itemsPerPage === 'TODOS' ? totalItems : Math.min(startIndex + itemsPerPageNum, totalItems);
+  const proyectosPaginados = proyectos.slice(startIndex, endIndex);
 
   async function handleConfirmEliminar() {
     if (!proyectoAEliminar) return;
@@ -225,7 +240,7 @@ export default function ProyectosPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {proyectos.map((p) => (
+                        {proyectosPaginados.map((p) => (
                           <ProyectoRow
                             key={p.id}
                             proyecto={p}
@@ -240,7 +255,7 @@ export default function ProyectosPage() {
 
                 <div className="proj-mobile-only p-4">
                   <div className="grid grid-cols-1 gap-4">
-                    {proyectos.map((p) => (
+                    {proyectosPaginados.map((p) => (
                       <ProyectoCard
                         key={p.id}
                         proyecto={p}
@@ -250,6 +265,70 @@ export default function ProyectosPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* BARRA DE PAGINACIÓN */}
+                {totalItems > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50/90 border-t border-slate-100 rounded-b-2xl text-xs text-slate-600">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span>
+                        Mostrando <strong className="text-slate-800">{startIndex + 1}</strong> - <strong className="text-slate-800">{endIndex}</strong> de <strong className="text-slate-800">{totalItems}</strong> proyectos
+                      </span>
+                      <div className="flex items-center gap-1.5 ml-1">
+                        <span className="text-slate-400">Mostrar:</span>
+                        <select
+                          value={itemsPerPage}
+                          onChange={(e) => {
+                            setItemsPerPage(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer shadow-xs"
+                        >
+                          <option value="15">15 por página</option>
+                          <option value="25">25 por página</option>
+                          <option value="50">50 por página</option>
+                          <option value="TODOS">Todos ({totalItems})</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {itemsPerPage !== 'TODOS' && totalPages > 1 && (
+                      <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          disabled={safePage <= 1}
+                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg font-semibold text-slate-700 transition-colors cursor-pointer shadow-xs"
+                        >
+                          Anterior
+                        </button>
+
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`w-8 h-8 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                              pageNum === safePage
+                                ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-400/30'
+                                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={safePage >= totalPages}
+                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg font-semibold text-slate-700 transition-colors cursor-pointer shadow-xs"
+                        >
+                          Siguiente
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
