@@ -81,10 +81,16 @@ export function MaterialesRequestPage() {
     fechaFin: fechaFinResuelta || datosInstalacionBase.fechaFin,
     horaFin: horaFinResuelta || datosInstalacionBase.horaFin,
   };
+  const [personalLocal, setPersonalLocal] = useState([]);
+  const [materialesLocales, setMaterialesLocales] = useState([]);
+
   const materialesExistentes = datosInstalacion.materiales || [];
   const esSoloLectura = datosInstalacion.instalacionCompletada === true;
   const instalacionIniciada = isInstalacionIniciada(datosInstalacion);
-  const mostrarContenidoCierre = puedeAccederCierreObra(datosInstalacion);
+  const mostrarContenidoCierre = puedeAccederCierreObra({
+    ...datosInstalacion,
+    personalAsignado: personalLocal.length ? personalLocal : datosInstalacion.personalAsignado,
+  });
   const encuestaCliente = getEncuestaSatisfaccion(proyecto);
 
   // Cargar proyecto completo al entrar (evidencias y cierre viven en fases.INSTALACION.datos)
@@ -101,7 +107,8 @@ export function MaterialesRequestPage() {
   }, [id, adapter, dispatch]);
 
   const [ordenesCompraProyecto, setOrdenesCompraProyecto] = useState([]);
-  const [activeTab, setActiveTab] = useState('equipo'); // 'equipo' | 'bodega' | 'distribucion' | 'compras' | 'cierre'
+  const [activeTab, setActiveTab] = useState('equipo'); // 'equipo' | 'bodega' | 'cierre'
+  const [isComprasModalOpen, setIsComprasModalOpen] = useState(false);
 
   const cargarOrdenesProyecto = useCallback(async () => {
     if (!id) {
@@ -130,10 +137,10 @@ export function MaterialesRequestPage() {
   }, [cargarOrdenesProyecto]);
 
   useEffect(() => {
-    if (activeTab === 'compras') {
+    if (activeTab === 'compras' || isComprasModalOpen) {
       cargarOrdenesProyecto();
     }
-  }, [activeTab, cargarOrdenesProyecto]);
+  }, [activeTab, isComprasModalOpen, cargarOrdenesProyecto]);
 
   const ordenesProyectoRaw = filterOrdenesPorProyecto(
     ordenesCompraProyecto.length > 0
@@ -159,10 +166,6 @@ export function MaterialesRequestPage() {
   });
 
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
-
-  // Estados locales para edición y guardado explícito
-  const [personalLocal, setPersonalLocal] = useState([]);
-  const [materialesLocales, setMaterialesLocales] = useState([]);
 
   // Estados de control de inventario local
   const [inventarioDb, setInventarioDb] = useState([]);
@@ -363,7 +366,7 @@ export function MaterialesRequestPage() {
         personalAsignado: personalLocal
       });
       toast.success('Equipo de trabajo guardado con éxito');
-      setActiveTab('bodega');
+      setActiveTab('cierre');
     } catch (err) {
       toast.error('No se pudo guardar el equipo de trabajo: ' + err.message);
     }
@@ -454,24 +457,15 @@ export function MaterialesRequestPage() {
   // Iniciar montaje / instalación en sitio
   async function handleIniciarInstalacion() {
     const hasTeam = personalLocal && personalLocal.length > 0;
-    const hasMaterials = materialesConStock && materialesConStock.length > 0;
 
-    if (!hasTeam || !hasMaterials) {
-      if (!hasTeam && !hasMaterials) {
-        toast.error('No se puede iniciar la instalación: debes asignar al menos un miembro al Equipo de trabajo y agregar Materiales.');
-      } else if (!hasTeam) {
-        toast.error('No se puede iniciar la instalación: debes asignar al menos un miembro al Equipo de trabajo.');
-      } else {
-        toast.error('No se puede iniciar la instalación: debes agregar al menos un Material para la obra.');
-      }
+    if (!hasTeam) {
+      toast.error('No se puede iniciar la instalación: debes asignar al menos un miembro al Equipo de trabajo.');
       return;
     }
 
-    if (!validarResponsablesHerramientas()) return;
-
     showModal(
       'Iniciar Instalación',
-      '¿Estás seguro? Se notificará a la administración que empezó la instalación y se guardará el equipo y materiales seleccionados.',
+      '¿Estás seguro de que deseas iniciar la instalación en sitio? Se registrará la fecha y hora de arranque.',
       'confirm',
       async () => {
         const now = new Date();
@@ -481,10 +475,10 @@ export function MaterialesRequestPage() {
             horaInstalacion: now.toTimeString().slice(0, 5),
             direccionInstalacion: datosInstalacion.direccionInstalacion || proyecto.cliente?.direccion || '',
             personalAsignado: personalLocal,
-            materiales: materialesConStock
           });
 
-          toast.success('Instalación iniciada con éxito, equipo/materiales guardados y administración notificada');
+          toast.success('¡Instalación iniciada en sitio!');
+          setActiveTab('cierre');
         } catch (err) {
           toast.error('No se pudo iniciar la instalación: ' + err.message);
         }
@@ -660,13 +654,7 @@ export function MaterialesRequestPage() {
             horaFin,
           });
           setActiveTab('cierre');
-          if (puedeEnviarEncuesta) {
-            setProyectoParaEncuesta(snapshot);
-            toast.success('¡Instalación completada! Envía la encuesta al cliente.');
-            window.setTimeout(() => setIsSurveyModalOpen(true), 200);
-          } else {
-            toast.success('¡Instalación completada en sitio!');
-          }
+          toast.success('¡Instalación completada en sitio! Notificado a Administración y Ventas.');
         } catch (err) {
           toast.error('No se pudo completar la instalación: ' + err.message);
         }
@@ -729,20 +717,15 @@ export function MaterialesRequestPage() {
     );
   }
 
-  // Definición de las pestañas
+  // Definición de las pestañas principales (Compras es una acción opcional en la cabecera)
   const tabs = [
-    { id: 'equipo', label: 'Equipo Técnico', shortLabel: 'Equipo', Icon: User },
-    { id: 'bodega', label: 'Materiales de Bodega', shortLabel: 'Materiales', Icon: Package },
-    { id: 'compras', label: 'Órdenes de Compra', shortLabel: 'Compras', Icon: ShoppingCart },
-    { id: 'cierre', label: 'Cierre de Obra', shortLabel: 'Cierre', Icon: Wrench }
+    { id: 'equipo', label: '1. Equipo Técnico', shortLabel: 'Equipo', Icon: User },
+    { id: 'cierre', label: '2. Cierre y Evidencias', shortLabel: 'Cierre y Fotos', Icon: Wrench }
   ];
 
   const isTabSaved = (tabId) => {
     if (tabId === 'equipo') {
       return datosInstalacion.personalAsignado && datosInstalacion.personalAsignado.length > 0;
-    }
-    if (tabId === 'bodega') {
-      return datosInstalacion.materiales && datosInstalacion.materiales.length > 0;
     }
     if (tabId === 'cierre') {
       return !!datosInstalacion.instalacionCompletada;
@@ -764,8 +747,7 @@ export function MaterialesRequestPage() {
     };
   });
 
-  const herramientasSinResponsable = getHerramientasSinResponsable(materialesConStock);
-  const bloqueoPorHerramientas = herramientasSinResponsable.length > 0;
+  const bloqueoPorHerramientas = false;
 
   return (
     <div className="request-page-container">
@@ -777,9 +759,9 @@ export function MaterialesRequestPage() {
 
       {/* Título de la página */}
       <div className="inventario-header-box print:hidden">
-        <h1 className="inventario-title">Gestión de Instalación y Materiales</h1>
+        <h1 className="inventario-title">Gestión de Instalación</h1>
         <p className="inventario-subtitle">
-          Control del montaje, asignación de personal, distribución de insumos a llevar y registro del cierre de obra.
+          Control del montaje, asignación de equipo técnico, carga de evidencias fotográficas y registro del cierre de obra.
         </p>
       </div>
 
@@ -882,26 +864,44 @@ export function MaterialesRequestPage() {
             )}
           </div>
         </div>
-      {!datosInstalacion.instalacionCompletada && !instalacionIniciada && (
-        <button
-          onClick={handleIniciarInstalacion}
-          disabled={bloqueoPorHerramientas}
-          title={
-            bloqueoPorHerramientas
-              ? 'Asigna un responsable a cada herramienta en Materiales de Bodega'
-              : undefined
-          }
-          className={`px-5 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all shrink-0 ${
-            bloqueoPorHerramientas
-              ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-100 cursor-pointer'
-          }`}
-        >
-          <Play size={16} fill="currentColor" />
-          Iniciar Instalación
-        </button>
-      )}
-    </div>
+        <div className="grid grid-cols-2 gap-3 w-full sm:w-auto shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsComprasModalOpen(true)}
+            className="w-full py-3 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-100 transition-all cursor-pointer text-center"
+            title="Solicitar o ver compras vinculadas al proyecto (Opcional)"
+          >
+            <ShoppingCart size={16} className="shrink-0" />
+            <span className="truncate">Solicitar Compra</span>
+            {ordenesProyecto.length > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.5 text-[10px] font-extrabold bg-amber-700/60 rounded-full text-white shrink-0">
+                {ordenesProyecto.length}
+              </span>
+            )}
+          </button>
+
+          {!datosInstalacion.instalacionCompletada && (
+            !instalacionIniciada ? (
+              <button
+                onClick={handleIniciarInstalacion}
+                className="w-full py-3 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-100 transition-all cursor-pointer text-center"
+              >
+                <Play size={16} fill="currentColor" className="shrink-0" />
+                <span className="truncate">Iniciar Instalación</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleCompletarInstalacion}
+                disabled={!puedeCompletar}
+                className="w-full py-3 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-100 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-center"
+              >
+                <CheckCircle size={16} className="shrink-0" />
+                <span className="truncate">Finalizar Instalación</span>
+              </button>
+            )
+          )}
+        </div>
+      </div>
 
       {/* Barra de Navegación de Pestañas (Tabs) */}
       <div className="tabs-navigation-bar print:hidden">
@@ -919,8 +919,7 @@ export function MaterialesRequestPage() {
               {isTabSaved(tab.id) && (
                 <CheckCircle 
                   size={14} 
-                  className="tab-saved-check text-emerald-500 shrink-0" 
-                  style={{ fill: '#e6fffa', color: '#10b981' }} 
+                  className="tab-saved-icon" 
                 />
               )}
             </button>
@@ -967,423 +966,27 @@ export function MaterialesRequestPage() {
           </div>
         )}
 
-        {/* --- PESTAÑA 2: MATERIALES DE BODEGA --- */}
-        {activeTab === 'bodega' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-up">
-            
-            {/* Buscador de Stock */}
-            {!esSoloLectura && (
-              <div className="lg:col-span-5" style={{ position: 'relative', zIndex: 20 }}>
-                <div className="request-section-card glass-panel h-full">
-                  <div>
-                    <h2 className="request-card-title flex items-center gap-2">
-                      <Search size={18} className="text-indigo-600" />
-                      Consultar Inventario Central (Bodega)
-                    </h2>
-                    <p className="text-xs text-slate-400 -mt-2">
-                      Consulta el catálogo de inventario e ingresa los insumos que vas a utilizar en la instalación.
-                    </p>
-                  </div>
 
-                  <div className="material-search-section">
-                    <label className="form-label">Buscar Material en Stock</label>
-                    <div style={{ position: 'relative', zIndex: 10 }}>
-                      <input
-                        type="text"
-                        className="inv-search-input"
-                        style={{ background: '#ffffff' }}
-                        placeholder="Escribe para buscar (ej. Acrílico, LED, Perno...)"
-                        value={materialSearch}
-                        onChange={(e) => {
-                          setMaterialSearch(e.target.value);
-                          setShowDropdown(true);
-                        }}
-                        onFocus={() => setShowDropdown(true)}
-                      />
-                      {showDropdown && materialSearch.trim().length > 0 && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-                          <div className="search-results-dropdown z-20">
-                            {matchedInventory.length > 0 ? (
-                              matchedInventory.map(item => (
-                                <div 
-                                  key={item.id} 
-                                  className="search-result-item"
-                                  onClick={() => {
-                                    setSelectedItem(item);
-                                    setShowDropdown(false);
-                                    setMaterialSearch(item.nombre);
-                                  }}
-                                >
-                                  <div className="result-item-info">
-                                    <span className="result-item-name">{item.nombre}</span>
-                                    <span className="result-item-meta">SKU: {item.sku} • Stock: {item.stock} {item.unidad}s</span>
-                                  </div>
-                                  <span className="badge-category">{item.categoria}</span>
-                                </div>
-                              ))
-                            ) : (
-                              <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
-                                {inventarioDb.some((item) =>
-                                  !esItemSeleccionable(item) && (
-                                    item.nombre.toLowerCase().includes(materialSearch.toLowerCase())
-                                    || item.sku.toLowerCase().includes(materialSearch.toLowerCase())
-                                  ),
-                                ) ? (
-                                  <>
-                                    Las herramientas que coinciden ya están prestadas o en uso y no se pueden volver a seleccionar.
-                                  </>
-                                ) : (
-                                  <>
-                                    Sin resultados en inventario. ¿No hay stock?{' '}
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveTab('compras')}
-                                      className="text-blue-600 font-bold hover:underline"
-                                    >
-                                      Generar Orden de Compra
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Selección y Cantidad */}
-                  {selectedItem && (
-                    <div className="item-add-control-panel mt-2 animate-slide-up">
-                      <div className="selected-item-display flex justify-between items-start">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800">{selectedItem.nombre}</span>
-                          <span className="text-xs text-slate-500">Stock: {selectedItem.stock} {selectedItem.unidad}s</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedItem(null);
-                            setQty(1);
-                            setMaterialSearch('');
-                          }}
-                          className="text-slate-400 hover:text-red-500 p-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                          title="Cancelar selección"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
 
-                      <div className="qty-inputs-box">
-                        <span className="form-label">Cantidad a llevar:</span>
-                        <input
-                          type="number"
-                          min="1"
-                          className="qty-input-field"
-                          value={qty}
-                          onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                        />
-                        <span className="font-semibold text-slate-600 text-sm">
-                          {selectedItem.unidad}s
-                        </span>
-                      </div>
 
-                      <button
-                        onClick={handleAddToDraft}
-                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                      >
-                        <Plus size={16} />
-                        Agregar a la Lista de Obra
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Panel de Materiales Asignados */}
-            <div className={esSoloLectura ? "lg:col-span-12" : "lg:col-span-7"} style={{ position: 'relative', zIndex: 10 }}>
-              <div className="request-section-card glass-panel min-h-[350px] flex flex-col justify-between">
-                <div>
-                  <h2 className="request-card-title flex items-center gap-2">
-                    <Package size={18} className="text-indigo-600" />
-                    Materiales y Herramientas Asignados
-                  </h2>
-                  <p className="text-xs text-slate-400 -mt-2">
-                    Anota los materiales y herramientas que se llevarán a la obra. Asigna responsable solo para las herramientas no consumibles.
-                  </p>
-
-                  {bloqueoPorHerramientas && !esSoloLectura && (
-                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                      <span>
-                        {personalLocal.length === 0
-                          ? 'Hay herramientas sin responsable. Primero asigna el equipo en la pestaña "Equipo de Trabajo".'
-                          : `Falta asignar responsable en: ${herramientasSinResponsable.map((m) => m.nombre).join(', ')}.`}
-                      </span>
-                    </div>
-                  )}
-
-                  {materialesConStock.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-slate-400 italic text-sm">
-                      <Package size={36} className="text-slate-300 mb-2" />
-                      <span>No has asignado materiales aún. Búscar e agregar en el panel izquierdo.</span>
-                    </div>
-                  ) : (
-                    <div className="overflow-auto max-h-[420px] mt-4 thin-scrollbar pr-1 mobile-table-cards">
-                      <table className="materials-list-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: '30%' }}>Material / Herramienta</th>
-                            <th style={{ width: '15%', textAlign: 'center' }}>Stock</th>
-                            <th style={{ width: '15%', textAlign: 'center' }}>Cantidad</th>
-                            <th style={{ width: '20%' }}>Responsable</th>
-                            <th style={{ width: '15%' }}>Notas</th>
-                            {!esSoloLectura && <th style={{ width: '5%', textAlign: 'center' }}></th>}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {materialesConStock.map((m, i) => (
-                            <tr key={`${m.sku}-${m.nombre}`}>
-                              <td data-label="Material">
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-slate-800">{m.nombre}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono">SKU: {m.sku}</span>
-                                  <span className={`origin-badge w-max mt-1 ${m.origen === 'compra' ? 'compra' : 'inventario'}`}>
-                                    {m.origen === 'compra' ? 'Compra' : 'Stock'}
-                                  </span>
-                                </div>
-                              </td>
-                              <td style={{ textAlign: 'center' }} className="text-slate-500 font-medium" data-label="Stock">
-                                {m.stock} {m.unidad}s
-                              </td>
-                              <td style={{ textAlign: 'center' }} data-label="Cantidad">
-                                {esSoloLectura ? (
-                                  <span className="font-bold text-slate-700">{m.cantidad} {m.unidad}s</span>
-                                ) : (
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    className="qty-input-field"
-                                    style={{ width: '65px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                                    value={m.cantidad}
-                                    onChange={(e) => {
-                                      const val = Math.max(1, parseInt(e.target.value) || 1);
-                                      handleLocalMaterialChange(i, 'cantidad', val);
-                                    }}
-                                  />
-                                )}
-                              </td>
-                              <td data-label="Responsable">
-                                {esSoloLectura ? (
-                                  <span className="text-slate-700 font-medium">{m.responsable || 'Sin asignar'}</span>
-                                ) : (
-                                  m.tipo === 'herramienta' ? (
-                                    <select
-                                      className={`w-full border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 bg-white ${
-                                        !(m.responsable || '').trim()
-                                          ? 'border-red-300 ring-1 ring-red-200 focus:ring-red-400'
-                                          : 'border-slate-200 focus:ring-indigo-400'
-                                      }`}
-                                      value={m.responsable || ''}
-                                      onChange={(e) => handleLocalMaterialChange(i, 'responsable', e.target.value)}
-                                    >
-                                      <option value="">
-                                        {personalLocal.length === 0 ? 'Sin equipo asignado' : 'Seleccionar...'}
-                                      </option>
-                                      {(personalLocal || []).map((p, idx) => (
-                                        <option key={idx} value={p.nombre}>{p.nombre}</option>
-                                      ))}
-                                    </select>
-                                  ) : (
-                                    <span className="text-slate-400 text-xs italic">Consumible</span>
-                                  )
-                                )}
-                              </td>
-                              <td data-label="Notas">
-                                {esSoloLectura ? (
-                                  <span className="text-slate-600 italic">{m.observacion || 'Sin notas'}</span>
-                                ) : (
-                                  <input
-                                    type="text"
-                                    className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-                                    placeholder="Notas..."
-                                    value={m.observacion || ''}
-                                    onChange={(e) => handleLocalMaterialChange(i, 'observacion', e.target.value)}
-                                  />
-                                )}
-                              </td>
-                              {!esSoloLectura && (
-                                <td style={{ textAlign: 'center' }} data-label="Acción">
-                                  <button
-                                    onClick={() => handleRemoveFromDraft(i)}
-                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                    title="Eliminar material"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                {!esSoloLectura && materialesConStock.length > 0 && (
-                  <div className="flex justify-end mt-6 pt-4 border-t border-slate-100">
-                    <button
-                      onClick={handleConfirmarConsumo}
-                      disabled={bloqueoPorHerramientas}
-                      title={
-                        bloqueoPorHerramientas
-                          ? 'Asigna un responsable a cada herramienta antes de guardar'
-                          : undefined
-                      }
-                      className={`px-6 py-2.5 font-bold text-sm rounded-xl flex items-center gap-2 transition-all ${
-                        bloqueoPorHerramientas
-                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-100 cursor-pointer'
-                      }`}
-                    >
-                      <Save size={16} />
-                      Guardar Materiales y Carga
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* --- PESTAÑA 4: ÓRDENES DE COMPRA --- */}
-        {activeTab === 'compras' && (
-          <div className="request-section-card glass-panel animate-slide-up">
-            <div className="flex justify-between items-center flex-wrap gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <h2 className="request-card-title flex items-center gap-2">
-                  <ShoppingCart size={18} className="text-indigo-600" />
-                  Historial de Solicitudes de Compra
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Solo se muestran las órdenes de compra vinculadas a este proyecto ({proyecto.id}).
-                </p>
-              </div>
-              <button
-                onClick={() => navigate(`/compras/nueva?proyectoId=${proyecto.id}`)}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-              >
-                <Plus size={14} />
-                Solicitar Compra
-              </button>
-            </div>
-
-            {ordenesProyecto.length === 0 ? (
-              <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>
-                Ninguna solicitud de compra registrada aún para este proyecto.
-              </div>
-            ) : (
-              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm mt-2 mobile-table-cards">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                      <th className="p-3 font-bold uppercase tracking-wider" style={{ width: '120px' }}>Nº Orden</th>
-                      <th className="p-3 font-bold uppercase tracking-wider" style={{ width: '100px' }}>Fecha</th>
-                      <th className="p-3 font-bold uppercase tracking-wider">Detalle de Insumos</th>
-                      <th className="p-3 font-bold uppercase tracking-wider">Obs. Administración</th>
-                      <th className="p-3 font-bold uppercase tracking-wider text-center" style={{ width: '120px' }}>Estado</th>
-                      <th className="p-3 font-bold uppercase tracking-wider text-right" style={{ width: '180px' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ordenesProyecto.map((oc) => {
-                      const statusClass = oc.estado.toLowerCase();
-                      return (
-                        <tr key={oc.id} className="border-b border-slate-100 text-slate-600 hover:bg-slate-50/50">
-                          <td className="p-3 font-bold text-slate-800" data-label="Nº Orden">
-                            {oc.numero || oc.id}
-                          </td>
-                          <td className="p-3 text-slate-500" data-label="Fecha">
-                            {oc.fechaCreacion || oc.fecha}
-                          </td>
-                          <td className="p-3" data-label="Detalle de Insumos">
-                            <div className="space-y-1">
-                              {(oc.items || []).map((item, idx) => (
-                                <div key={idx} className="flex justify-between max-w-xs text-[11px]">
-                                  <span className="text-slate-700">{item.nombre}</span>
-                                  <span className="font-bold text-slate-500 ml-2">
-                                    {oc.estado === 'APROBADA' || oc.estado === 'RECIBIDA'
-                                      ? `${item.cantidadAprobada} / ${item.cantidadSolicitada} ud.`
-                                      : `${item.cantidadSolicitada} ud.`
-                                    }
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="p-3 text-slate-400 italic" data-label="Obs. Administración">
-                            {oc.comentarios || '—'}
-                          </td>
-                          <td className="p-3 text-center" data-label="Estado">
-                            <span className={`oc-history-badge ${statusClass}`}>
-                              {oc.estado}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right" data-label="Acciones">
-                            <div className="flex gap-2 justify-end">
-                              <button
-                                onClick={() => {
-                                  setPreviewOC(mapOrdenToPDFFormat(oc));
-                                  setIsPDFOpen(true);
-                                }}
-                                className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
-                              >
-                                <Eye size={12} />
-                                PDF
-                              </button>
-                              {oc.estado === 'APROBADA' && (
-                                <button
-                                  onClick={() => navigate(`/compras/recepcion/${oc.id}`)}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
-                                >
-                                  <Package size={12} />
-                                  Recibir
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* --- PESTAÑA 5: CIERRE DE OBRA --- */}
+        {/* --- PESTAÑA: CIERRE Y FOTOS --- */}
         {activeTab === 'cierre' && (
           <div className="space-y-6 animate-slide-up">
-            
-            {mostrarContenidoCierre ? (
+            {!instalacionIniciada && !datosInstalacion.instalacionCompletada ? (
+              <div className="request-section-card glass-panel p-8 text-center space-y-3">
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                  <Play size={24} fill="currentColor" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-800">Toca &quot;Iniciar Instalación&quot; arriba</h3>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">
+                    Al presionar el botón verde de arriba se registrará la hora de arranque en obra y se habilitará la subida de evidencias.
+                  </p>
+                </div>
+              </div>
+            ) : mostrarContenidoCierre ? (
               <div className="space-y-6">
-
-                {!instalacionIniciada && !datosInstalacion.instalacionCompletada && (
-                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-xs text-amber-800 flex items-start gap-2">
-                    <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold">Obra aún no iniciada formalmente</p>
-                      <p className="mt-1">
-                        Puedes subir evidencias y cerrar la obra aquí. Al subir la primera foto o finalizar el cierre
-                        se registrará automáticamente la fecha y hora de inicio en obra.
-                      </p>
-                    </div>
-                  </div>
-                )}
                 
                 {/* Evidencia Fotográfica en Cierre */}
                 <div className="request-section-card glass-panel">
@@ -1541,45 +1144,29 @@ export function MaterialesRequestPage() {
                           </p>
                           <EncuestaResultadosView encuesta={encuestaCliente} />
                         </div>
-                      ) : encuestaFueEnviada(proyecto) ? (
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-500">
-                          Encuesta enviada — esperando respuesta del cliente.
-                        </div>
-                      ) : puedeEnviarEncuesta ? (
-                        <div className="space-y-3">
-                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
-                            Encuesta pendiente de envío al cliente.
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setIsSurveyModalOpen(true)}
-                            className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
-                          >
-                            <Star size={16} className="fill-current" />
-                            Enviar encuesta de calificación
-                          </button>
-                        </div>
                       ) : (
                         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-500">
-                          Encuesta pendiente — la enviará el equipo de Taller.
+                          {encuestaFueEnviada(proyecto)
+                            ? 'Encuesta enviada — esperando respuesta del cliente.'
+                            : 'Montaje completado — Notificado a Administración y Ventas para el envío de la encuesta.'}
                         </div>
                       )}
                     </div>
                   ) : (
                     <div className="space-y-4">
                       <p className="text-xs text-slate-500">
-                        Una vez completados todos los trabajos de instalación en obra, ingresa las observaciones finales y marca el proyecto como completado para notificar al administrador.
+                        Una vez completados todos los trabajos de instalación en obra, ingresa las observaciones finales (opcional) y finaliza la instalación.
                       </p>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                          Notas y Observaciones de Cierre
+                          Notas y Observaciones de Cierre (Opcional)
                         </label>
                         <textarea
                           value={observacionesCierre}
                           onChange={(e) => setObservacionesCierre(e.target.value)}
-                          placeholder="Ingresa detalles sobre los resultados de la obra, comentarios del cliente o incidentes..."
+                          placeholder="Notas o comentarios opcionales..."
                           className="w-full border border-slate-200 rounded-xl p-3 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-                          rows={4}
+                          rows={3}
                         />
                       </div>
 
@@ -1607,7 +1194,7 @@ export function MaterialesRequestPage() {
                         className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
                       >
                         <CheckCircle size={16} />
-                        Marcar Instalación como Completada en Sitio
+                        Finalizar Instalaciones en Sitio
                       </button>
                     </div>
                   )}
@@ -1616,8 +1203,7 @@ export function MaterialesRequestPage() {
               </div>
             ) : (
               <div className="request-section-card glass-panel p-6 text-center text-slate-400 italic text-sm">
-                Asigna al menos un técnico en &quot;Equipo Técnico&quot; y registra materiales en &quot;Materiales de Bodega&quot;
-                antes de cargar evidencias o cerrar la obra en sitio.
+                Asigna al menos un técnico en la pestaña &quot;Equipo Técnico&quot; antes de cargar evidencias o cerrar la obra en sitio.
               </div>
             )}
           </div>
@@ -1714,6 +1300,151 @@ export function MaterialesRequestPage() {
         onClose={() => setIsCameraOpen(false)}
         onCapture={(file) => handleUploadEvidencias([file])}
       />
+
+      {/* Modal Flotante de Órdenes de Compra (Opcionales) */}
+      {isComprasModalOpen && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-scaleUp">
+              {/* Header del Modal */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-100 text-amber-700 rounded-xl">
+                    <ShoppingCart size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-base">Solicitudes de Compra de Obra</h3>
+                    <p className="text-xs text-slate-400">
+                      Órdenes de compra vinculadas al proyecto <strong className="text-slate-600">{proyecto.nombre}</strong> (Opcional)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsComprasModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body del Modal */}
+              <div className="p-6 overflow-y-auto space-y-4">
+                <div className="flex justify-between items-center flex-wrap gap-3 bg-amber-50/60 border border-amber-100 rounded-xl p-3.5 text-xs text-amber-900">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+                    <span>Las solicitudes de compra son <strong>opcionales</strong> y se utilizan si requieres insumos adicionales para la obra.</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsComprasModalOpen(false);
+                      navigate(`/compras/nueva?proyectoId=${proyecto.id}`);
+                    }}
+                    className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer shrink-0"
+                  >
+                    <Plus size={14} />
+                    Solicitar Nueva Compra
+                  </button>
+                </div>
+
+                {ordenesProyecto.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 italic text-xs border border-dashed border-slate-200 rounded-xl">
+                    No hay solicitudes de compra registradas aún para este proyecto.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-xs">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                          <th className="p-3 font-bold uppercase tracking-wider" style={{ width: '120px' }}>Nº Orden</th>
+                          <th className="p-3 font-bold uppercase tracking-wider" style={{ width: '100px' }}>Fecha</th>
+                          <th className="p-3 font-bold uppercase tracking-wider">Detalle de Insumos</th>
+                          <th className="p-3 font-bold uppercase tracking-wider">Obs. Administración</th>
+                          <th className="p-3 font-bold uppercase tracking-wider text-center" style={{ width: '120px' }}>Estado</th>
+                          <th className="p-3 font-bold uppercase tracking-wider text-right" style={{ width: '150px' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ordenesProyecto.map((oc) => {
+                          const statusClass = oc.estado.toLowerCase();
+                          return (
+                            <tr key={oc.id} className="border-b border-slate-100 text-slate-600 hover:bg-slate-50/50">
+                              <td className="p-3 font-bold text-slate-800" data-label="Nº Orden">
+                                {oc.numero || oc.id}
+                              </td>
+                              <td className="p-3 text-slate-500" data-label="Fecha">
+                                {oc.fechaCreacion || oc.fecha}
+                              </td>
+                              <td className="p-3" data-label="Detalle de Insumos">
+                                <div className="space-y-1">
+                                  {(oc.items || []).map((item, idx) => (
+                                    <div key={idx} className="flex justify-between max-w-xs text-[11px]">
+                                      <span className="text-slate-700">{item.nombre}</span>
+                                      <span className="font-bold text-slate-500 ml-2">
+                                        {oc.estado === 'APROBADA' || oc.estado === 'RECIBIDA'
+                                          ? `${item.cantidadAprobada} / ${item.cantidadSolicitada} ud.`
+                                          : `${item.cantidadSolicitada} ud.`}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="p-3 text-slate-400 italic" data-label="Obs. Administración">
+                                {oc.comentarios || '—'}
+                              </td>
+                              <td className="p-3 text-center" data-label="Estado">
+                                <span className={`oc-history-badge ${statusClass}`}>
+                                  {oc.estado}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right" data-label="Acciones">
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    onClick={() => {
+                                      setPreviewOC(mapOrdenToPDFFormat(oc));
+                                      setIsPDFOpen(true);
+                                    }}
+                                    className="px-2 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Eye size={12} />
+                                    PDF
+                                  </button>
+                                  {oc.estado === 'APROBADA' && (
+                                    <button
+                                      onClick={() => {
+                                        setIsComprasModalOpen(false);
+                                        navigate(`/compras/recepcion/${oc.id}`);
+                                      }}
+                                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Package size={12} />
+                                      Recibir
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer del Modal */}
+              <div className="px-6 py-3 border-t border-slate-100 flex justify-end bg-slate-50/50">
+                <button
+                  onClick={() => setIsComprasModalOpen(false)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 }

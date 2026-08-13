@@ -80,7 +80,7 @@ const getNotificationRoute = (notification) => {
     || title.includes('herramientas por devolver')
     || message.includes('por devolver')
     || message.includes('debes devolver')) {
-    return '/devoluciones';
+    return '/instalaciones';
   }
 
   // Instalación iniciada o completada / Montaje

@@ -478,26 +478,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         <span className="sidebar-submenu-text">Stock de Materiales</span>
                       </Link>
                     </li>
-                    {!isImpresion && (
-                      <li className={currentPath.startsWith('/inventario/prestamos') ? 'submenu-active' : ''}>
-                        <Link to="/inventario/prestamos" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Préstamos</span>
-                        </Link>
-                      </li>
-                    )}
-                    {!isAdmin && !isImpresion && !isTaller && (
-                      <li className={currentPath.startsWith('/inventario/devoluciones') ? 'submenu-active' : ''}>
-                        <Link to="/inventario/devoluciones" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Devoluciones</span>
-                        </Link>
-                      </li>
-                    )}
                   </ul>
                 )}
               </li>
@@ -615,19 +595,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {shouldShowModule('devolucionesTaller', isTaller) && (
-              <li className={currentPath.startsWith('/devoluciones') ? 'active' : ''}>
-                <Link to="/devoluciones">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-install">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L17.5 12M21 7.5H7.5" />
-                  </svg>
-                  <span className="sidebar-link-text">Devoluciones</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </Link>
-              </li>
-            )}
 
             {shouldShowModule('controlVehiculos', isTaller || isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && (
               <li className={currentPath === '/taller/control' ? 'active' : ''}>

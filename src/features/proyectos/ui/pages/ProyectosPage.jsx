@@ -212,16 +212,16 @@ export default function ProyectosPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
                       <thead>
-                        <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide bg-slate-50">
-                          <th className="text-left pl-2 pr-4 py-3 w-[24%]">Proyecto</th>
-                          <th className="text-left px-4 py-3 w-[14%]">Responsable</th>
-                          <th className="text-left px-4 py-3 w-[12%]">Fase</th>
-                          <th className="text-left px-4 py-3 w-[11%]">Instalación</th>
-                          <th className="text-left px-4 py-3 w-[13%]">Progreso</th>
-                          <th className="text-center px-4 py-3 w-[6%]">Días</th>
-                          <th className="text-left px-4 py-3 w-[11%]">Entrega</th>
-                          <th className="text-left px-4 py-3 w-[8%]">Prioridad</th>
-                          <th className="px-4 py-3 w-[7%]"></th>
+                        <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/70">
+                          <th className="text-left pl-3 pr-2 py-3 w-[25%]">Proyecto</th>
+                          <th className="text-left px-2 py-3 w-[15%]">Responsable</th>
+                          <th className="text-left px-2 py-3 w-[13%]">Fase</th>
+                          <th className="text-center px-2 py-3 w-[9%]">Instalación</th>
+                          <th className="text-left px-2 py-3 w-[15%]">Progreso</th>
+                          <th className="text-center px-2 py-3 w-[6%]">Días</th>
+                          <th className="text-left px-2 py-3 w-[9%]">Entrega</th>
+                          <th className="text-center px-2 py-3 w-[8%]">Prioridad</th>
+                          <th className="pr-3 pl-2 py-3 w-[10%] text-right">Acciones</th>
                         </tr>
                       </thead>
                       <tbody>

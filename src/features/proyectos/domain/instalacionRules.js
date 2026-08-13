@@ -40,7 +40,7 @@ export function tieneRegistroCierreObra(datos = {}) {
  * Equipo y materiales listos para trabajar cierre en sitio.
  */
 export function tieneEquipoYMateriales(datos = {}) {
-  return Boolean(datos.personalAsignado?.length && datos.materiales?.length);
+  return Boolean(datos.personalAsignado?.length);
 }
 
 /** Si el tab Cierre de Obra debe mostrar el formulario/registro (no el aviso vacío). */
@@ -48,7 +48,7 @@ export function puedeAccederCierreObra(datos = {}) {
   return (
     isInstalacionIniciada(datos) ||
     tieneRegistroCierreObra(datos) ||
-    tieneEquipoYMateriales(datos)
+    Boolean(datos.personalAsignado?.length)
   );
 }
 
@@ -80,31 +80,18 @@ export function tieneHerramientasSinResponsable(materiales = []) {
  */
 export function getInstalacionCompletionBlockers(datos = {}, opts = {}) {
   const faltantes = [];
-  const ordenes = opts.ordenesCompra || [];
 
   if (!isInstalacionIniciada(datos)) {
     faltantes.push(
-      'Registra el inicio en obra (botón "Iniciar Instalación" o sube al menos una evidencia fotográfica)',
+      'Inicia la obra (presiona el botón "Iniciar Instalación")',
     );
   }
   if (!datos.personalAsignado?.length) {
     faltantes.push('Asigna al menos un miembro al equipo técnico');
   }
-  if (!datos.materiales?.length) {
-    faltantes.push('Registra al menos un material para la obra');
-  }
-
-  const herramientasSinResponsable = getHerramientasSinResponsable(datos.materiales);
-  if (herramientasSinResponsable.length > 0) {
-    faltantes.push(
-      `Asigna responsable a las herramientas: ${herramientasSinResponsable.map((m) => m.nombre).join(', ')}`,
-    );
-  }
-
   if (!datos.evidencias?.length) {
     faltantes.push('Sube al menos una evidencia fotográfica del trabajo realizado');
   }
-
   if (datos.instalacionCompletada === true) {
     faltantes.push('La instalación ya fue marcada como completada');
   }

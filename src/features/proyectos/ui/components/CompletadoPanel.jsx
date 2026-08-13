@@ -57,22 +57,26 @@ export function CompletadoPanel({ proyectoId, soloLectura = false }) {
           <MessageSquare size={24} className="text-slate-400" />
         </div>
         <h3 className="text-lg font-bold text-slate-700">
-          {instalacionCompletada && enviada
-            ? 'Esperando respuesta del cliente'
-            : 'Encuesta pendiente de envío'}
+          {!instalacionCompletada
+            ? 'Fase pendiente de cierre'
+            : (enviada ? 'Esperando respuesta del cliente' : 'Encuesta pendiente de envío')}
         </h3>
         <p className="text-sm text-slate-500 mt-2 max-w-md">
-          {instalacionCompletada && enviada
+          {!instalacionCompletada
             ? (proyecto.requiereInstalacion !== false
-                ? 'La instalación fue completada y la encuesta ya fue enviada. Los resultados aparecerán aquí cuando el cliente responda.'
-                : 'El proyecto fue finalizado y la encuesta ya fue enviada. Los resultados aparecerán aquí cuando el cliente responda.')
-            : (puedeEnviarEncuesta
+                ? 'El proyecto se encuentra actualmente en la fase de Instalación. Se deben cumplir los requisitos de obra para completar la instalación y finalizar el proyecto.'
+                : 'El proyecto aún no ha sido finalizado. Completa las fases previas para avanzar a la finalización.')
+            : (enviada
                 ? (proyecto.requiereInstalacion !== false
-                    ? 'La obra está completada. Envía el enlace de calificación con estrellas al cliente por WhatsApp.'
-                    : 'El proyecto está finalizado. Envía el enlace de calificación con estrellas al cliente por WhatsApp.')
-                : (proyecto.requiereInstalacion !== false
-                    ? 'La obra está completada. El equipo de Taller enviará la encuesta de calificación al cliente.'
-                    : 'El proyecto está finalizado. El equipo de LUXES enviará la encuesta de calificación al cliente.'))
+                    ? 'La instalación fue completada y la encuesta ya fue enviada. Los resultados aparecerán aquí cuando el cliente responda.'
+                    : 'El proyecto fue finalizado y la encuesta ya fue enviada. Los resultados aparecerán aquí cuando el cliente responda.')
+                : (puedeEnviarEncuesta
+                    ? (proyecto.requiereInstalacion !== false
+                        ? 'La obra está completada. Envía el enlace de calificación con estrellas al cliente por WhatsApp.'
+                        : 'El proyecto está finalizado. Envía el enlace de calificación con estrellas al cliente por WhatsApp.')
+                    : (proyecto.requiereInstalacion !== false
+                        ? 'La obra está completada. El equipo de Taller enviará la encuesta de calificación al cliente.'
+                        : 'El proyecto está finalizado. El equipo de LUXES enviará la encuesta de calificación al cliente.')))
           }
         </p>
         {instalacionCompletada && !soloLectura && puedeEnviarEncuesta && (

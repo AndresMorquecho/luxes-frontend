@@ -358,25 +358,6 @@ export function InventarioPage() {
               <span className="inv-kpi-label">Stock Bajo</span>
             </div>
           </div>
-          <div className="inv-kpi-card inv-kpi-card--link" onClick={() => navigate('/inventario/prestamos')}>
-            <div className="inv-kpi-icon teal"><ArrowRightLeft size={20}/></div>
-            <div>
-              <span className="inv-kpi-value">{stats.activeLoans}</span>
-              <span className="inv-kpi-label">
-                <span className="inv-kpi-label-long">Préstamos Activos</span>
-                <span className="inv-kpi-label-short">Préstamos</span>
-              </span>
-            </div>
-            <ExternalLink size={14} className="inv-kpi-link-icon"/>
-          </div>
-          <div className="inv-kpi-card inv-kpi-card--link" onClick={() => navigate('/inventario/prestamos')}>
-            <div className="inv-kpi-icon green"><CheckCircle2 size={20}/></div>
-            <div>
-              <span className="inv-kpi-value">{stats.returnedLoans}</span>
-              <span className="inv-kpi-label">Devueltos</span>
-            </div>
-            <ExternalLink size={14} className="inv-kpi-link-icon"/>
-          </div>
         </div>
       )}
 

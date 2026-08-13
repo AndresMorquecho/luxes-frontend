@@ -30,25 +30,25 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
       className="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
     >
       {/* Indicador de color de fase + Proyecto */}
-      <td className="pl-0 pr-4 py-3">
-        <div className="flex items-center gap-3 min-w-0">
+      <td className="pl-3 pr-2 py-3">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div
-            className="w-1 h-12 rounded-full shrink-0"
+            className="w-1 h-10 rounded-full shrink-0"
             style={{ backgroundColor: faseConfig?.color || '#94a3b8' }}
           />
           <PersonInitialsAvatar name={proyecto.nombre} seed={proyecto.id} size="sm" />
           <div className="min-w-0 flex-1">
             <button
-              className="font-semibold text-slate-800 text-sm hover:text-blue-700 text-left line-clamp-1"
+              className="font-semibold text-slate-800 text-xs sm:text-sm hover:text-blue-700 text-left line-clamp-1 truncate"
               onClick={() => navigate(`/proyectos/${proyecto.id}`)}
             >
               {proyecto.nombre}
             </button>
-            <p className="text-xs text-slate-500 truncate">{proyecto.cliente.empresa}</p>
+            <p className="text-[11px] text-slate-500 truncate">{proyecto.cliente?.empresa || proyecto.cliente?.nombre}</p>
             {proyecto.etiquetas?.length > 0 && (
-              <div className="flex gap-1 mt-1 flex-wrap">
+              <div className="flex gap-1 mt-0.5 flex-wrap">
                 {proyecto.etiquetas.map((tag) => (
-                  <span key={tag} className="text-xs bg-slate-100 text-slate-500 px-1.5 rounded">
+                  <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded">
                     {tag}
                   </span>
                 ))}
@@ -59,21 +59,21 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
       </td>
 
       {/* Responsable */}
-      <td className="px-4 py-3">
+      <td className="px-2 py-3">
         <div className="flex items-center gap-2 min-w-0">
           <PersonInitialsAvatar name={proyecto.responsable} seed={proyecto.responsable} size="xs" />
-          <span className="text-xs text-slate-700 truncate max-w-[100px] normal-case">{proyecto.responsable}</span>
+          <span className="text-xs text-slate-700 truncate max-w-[110px] normal-case">{proyecto.responsable}</span>
         </div>
       </td>
 
       {/* Fase */}
-      <td className="px-4 py-3">
+      <td className="px-2 py-3">
         <FaseBadge faseId={proyecto.faseActual} />
       </td>
 
       {/* Instalación */}
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5">
+      <td className="px-2 py-3 text-center">
+        <div className="flex items-center justify-center gap-1.5">
           {proyecto.requiereInstalacion ? (
             <span className="flex items-center gap-1 text-[11px] text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full font-semibold border border-orange-100" title="Requiere instalación en obra">
               <Wrench size={12} className="text-orange-500 shrink-0" />
@@ -88,27 +88,27 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
       </td>
 
       {/* Progreso */}
-      <td className="px-4 py-3 min-w-[120px]">
+      <td className="px-2 py-3">
         <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} showLabel />
       </td>
 
       {/* Días */}
-      <td className="px-4 py-3 text-center">
-        <span className="text-sm text-slate-600">{diasTranscurridos}d</span>
+      <td className="px-2 py-3 text-center">
+        <span className="text-xs font-semibold text-slate-600">{diasTranscurridos}d</span>
       </td>
 
       {/* Fecha entrega */}
-      <td className="px-4 py-3">
-        <div className={`flex items-center gap-1 text-xs font-medium ${estaVencido ? 'text-red-500' : 'text-slate-600'}`}>
-          {estaVencido && <AlertTriangle size={12} />}
-          {proyecto.fechaEntregaEstimada || '—'}
+      <td className="px-2 py-3">
+        <div className={`flex items-center gap-1 text-xs font-medium ${estaVencido ? 'text-red-500 font-bold' : 'text-slate-600'}`}>
+          {estaVencido && <AlertTriangle size={12} className="shrink-0" />}
+          <span className="truncate">{proyecto.fechaEntregaEstimada || '—'}</span>
         </div>
       </td>
 
       {/* Prioridad */}
-      <td className="px-4 py-3">
+      <td className="px-2 py-3 text-center">
         <span
-          className="text-xs font-bold px-2 py-0.5 rounded-full"
+          className="text-[11px] font-bold px-2 py-0.5 rounded-full inline-block"
           style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
         >
           {prioridadConfig.label}
@@ -116,8 +116,8 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
       </td>
 
       {/* Acciones */}
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
+      <td className="pr-3 pl-2 py-3 text-right">
+        <div className="flex items-center justify-end gap-1">
           <button
             className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-colors"
             title="Ver detalle"

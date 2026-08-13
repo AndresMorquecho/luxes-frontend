@@ -382,137 +382,181 @@ export function EncuestaPage() {
   }
 
   const personal = contexto?.personal || [];
+  const RATING_LABELS = {
+    1: 'Necesita mejorar',
+    2: 'Regular',
+    3: 'Bueno',
+    4: 'Muy Bueno',
+    5: '¡Excelente!',
+  };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/50 to-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 relative">
+    <div className="min-h-screen w-screen overflow-y-auto lg:overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/40 to-slate-100 flex flex-col items-center justify-center p-3 sm:p-6 relative">
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#1e3a8a 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
 
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-full z-10 overflow-hidden">
-        <div className="p-6 sm:px-10 sm:pt-8 sm:pb-6 border-b border-slate-50 text-center bg-white flex-shrink-0">
-          <img src="/Logo.jpg" alt="LUXES" className="h-12 mx-auto mb-4 rounded shadow-sm" />
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight mb-1">
-            Nos importa tu opinión
-          </h1>
-          <p className="text-slate-500 text-sm mb-6">
-            Hola <span className="font-semibold text-blue-600">{contexto?.clienteNombre || 'Cliente'}</span>,
-            ayúdanos a evaluar el proyecto: <span className="font-medium text-slate-700">{contexto?.nombre || id}</span>
-          </p>
+      <form onSubmit={handleSubmit} className="w-full max-w-6xl z-10 my-auto py-2 sm:py-4">
+        <div className="bg-white rounded-3xl p-5 sm:p-7 shadow-2xl border border-slate-100 flex flex-col gap-5">
+          
+          {/* HEADER: LOGO, SALUDO Y EL ÚNICO BOTÓN DE ENVÍO */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3.5 text-center sm:text-left min-w-0">
+              <img src="/Logo.jpg" alt="LUXES" className="h-10 sm:h-12 rounded shadow-xs shrink-0" />
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
+                  Nos importa tu opinión
+                </h1>
+                <p className="text-slate-500 text-xs sm:text-sm truncate">
+                  Hola <span className="font-semibold text-blue-600">{contexto?.clienteNombre || 'Cliente'}</span>, ayúdanos a evaluar el proyecto: <span className="font-medium text-slate-700">{contexto?.nombre || id}</span>
+                </p>
+              </div>
+            </div>
 
-          <h2 className="text-lg font-medium text-slate-700 tracking-tight mb-3">
-            ¿Cómo fue tu experiencia general?
-          </h2>
-
-          <div className="flex justify-center gap-2">
-            {[1, 2, 3, 4, 5].map((star) => (
+            {/* EL ÚNICO BOTÓN DE ENVÍO EN TODA LA PÁGINA */}
+            <div className="w-full sm:w-auto flex flex-col items-center sm:items-end gap-1 shrink-0">
               <button
-                key={star}
-                type="button"
-                onMouseEnter={() => setHoverEstrellas(star)}
-                onMouseLeave={() => setHoverEstrellas(0)}
-                onClick={() => handleEstrellaGeneral(star)}
-                className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                type="submit"
+                disabled={estrellas === 0 || enviando}
+                className={`w-full sm:w-auto px-7 py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-lg ${
+                  estrellas === 0 || enviando
+                    ? 'bg-slate-200 text-slate-400 border border-slate-300/80 cursor-not-allowed shadow-none'
+                    : 'bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-blue-500/25 ring-4 ring-blue-500/20'
+                }`}
               >
-                <Star
-                  size={42}
-                  strokeWidth={1.5}
-                  fill={star <= (hoverEstrellas || estrellas) ? 'currentColor' : 'none'}
-                  className={`transition-colors duration-200 ${
-                    star <= (hoverEstrellas || estrellas)
-                      ? 'text-blue-500'
-                      : 'text-slate-200 hover:text-blue-200'
-                  }`}
-                />
+                {enviando ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={20} />
+                    <span>Enviar Calificación</span>
+                  </>
+                )}
               </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="overflow-y-auto px-6 sm:px-10 py-6 flex-1 bg-slate-50/50">
-          <form onSubmit={handleSubmit} className="h-full flex flex-col">
-            <div className="space-y-8 flex-1">
-              {personal.length > 0 && (
-                <div>
-                  <div className="mb-4">
-                    <p className="text-base font-semibold text-slate-800">Evaluación del equipo</p>
-                    <p className="text-xs text-slate-500">Califica la atención de las personas que trabajaron en tu proyecto.</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {personal.map((emp) => {
-                      const empId = getEmpleadoKey(emp);
-                      const estrellasPersona = calificacionPersonal[empId] || 0;
-                      return (
-                      <div key={empId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                        <div className="mb-2 sm:mb-0">
-                          <p className="font-semibold text-slate-700 text-sm">{emp.nombre}</p>
-                          <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">{emp.rol}</p>
-                        </div>
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              type="button"
-                              onClick={() => handleEstrellaPersonal(empId, star)}
-                              className="focus:outline-none"
-                            >
-                              <Star
-                                size={20}
-                                strokeWidth={1.5}
-                                fill={star <= estrellasPersona ? 'currentColor' : 'none'}
-                                className={`transition-colors duration-200 ${
-                                  star <= estrellasPersona
-                                    ? 'text-blue-400'
-                                    : 'text-slate-200 hover:text-blue-100'
-                                }`}
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );})}
-                  </div>
-                </div>
+              {estrellas === 0 && (
+                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-3 py-0.5 rounded-full border border-amber-200/80">
+                  ⚠️ Selecciona tus estrellas primero
+                </span>
               )}
+            </div>
+          </div>
 
-              <div className="flex flex-col">
-                <p className="text-base font-semibold text-slate-800 mb-3">Comentarios adicionales</p>
+          {/* GRID CONTENEDOR EN WEB (2 COLUMNAS SIDE-BY-SIDE SIN SCROLL) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            
+            {/* COLUMNA IZQUIERDA (5 COLS EN WEB): EXPERIENCIA GENERAL + COMENTARIOS */}
+            <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
+              
+              {/* EXPERIENCIA GENERAL */}
+              <div className="bg-slate-50/80 rounded-2xl p-4 sm:p-5 border border-slate-200/70 text-center sm:text-left">
+                <h2 className="text-sm sm:text-base font-bold text-slate-800">
+                  ¿Cómo fue tu experiencia general?
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5 mb-3">
+                  {estrellas > 0 ? (
+                    <span className="font-bold text-blue-600">{estrellas} de 5 estrellas — {RATING_LABELS[estrellas]}</span>
+                  ) : (
+                    'Toca una estrella para calificar'
+                  )}
+                </p>
+
+                <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-2 bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onMouseEnter={() => setHoverEstrellas(star)}
+                      onMouseLeave={() => setHoverEstrellas(0)}
+                      onClick={() => handleEstrellaGeneral(star)}
+                      className="focus:outline-none transition-transform hover:scale-125 active:scale-90 p-1 cursor-pointer"
+                      title={`${star} Estrellas`}
+                    >
+                      <Star
+                        size={36}
+                        strokeWidth={1.5}
+                        fill={star <= (hoverEstrellas || estrellas) ? 'currentColor' : 'none'}
+                        className={`transition-colors duration-150 ${
+                          star <= (hoverEstrellas || estrellas)
+                            ? 'text-blue-500 drop-shadow-xs'
+                            : 'text-slate-300 hover:text-blue-200'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* COMENTARIOS */}
+              <div className="flex-1 flex flex-col">
+                <p className="text-sm font-bold text-slate-800 mb-1.5">Comentarios adicionales (opcional)</p>
                 <textarea
-                  className="w-full p-4 text-sm text-slate-700 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none shadow-sm"
+                  className="w-full p-3.5 text-sm text-slate-700 bg-slate-50/60 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent resize-none shadow-xs flex-1 min-h-[90px]"
                   placeholder="¿Qué podríamos mejorar para tu próxima experiencia?"
-                  rows="3"
                   value={comentarios}
                   onChange={(e) => setComentarios(e.target.value)}
                 />
               </div>
-            </div>
 
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-4">
-                {error}
-              </p>
-            )}
-
-            <div className="mt-8 flex-shrink-0">
-              <button
-                type="submit"
-                disabled={estrellas === 0 || enviando}
-                className={`w-full py-3.5 font-medium text-base rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 ${
-                  estrellas === 0 || enviando ? 'text-slate-400 cursor-not-allowed' : 'text-white hover:opacity-90'
-                }`}
-                style={{ backgroundColor: estrellas === 0 || enviando ? '#e2e8f0' : 'var(--color-secondary-blue)' }}
-              >
-                {enviando ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                {enviando ? 'Enviando...' : 'Enviar retroalimentación'}
-              </button>
-              {estrellas === 0 && (
-                <p className="text-center text-slate-400 text-xs mt-2">
-                  * Selecciona una calificación general para poder enviar
+              {error && (
+                <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                  {error}
                 </p>
               )}
             </div>
-          </form>
+
+            {/* COLUMNA DERECHA (7 COLS EN WEB): EVALUACIÓN DEL EQUIPO */}
+            <div className="lg:col-span-7 flex flex-col justify-start">
+              {personal.length > 0 && (
+                <div className="h-full flex flex-col bg-slate-50/50 rounded-2xl p-4 sm:p-5 border border-slate-200/60">
+                  <div className="mb-3">
+                    <p className="text-sm font-bold text-slate-800">Evaluación del equipo</p>
+                    <p className="text-xs text-slate-500">Califica la atención de las personas que trabajaron en tu proyecto (opcional).</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto max-h-[320px] lg:max-h-[380px] pr-1">
+                    {personal.map((emp) => {
+                      const empId = getEmpleadoKey(emp);
+                      const estrellasPersona = calificacionPersonal[empId] || 0;
+                      return (
+                        <div key={empId} className="flex flex-col justify-between p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-xs gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 text-xs sm:text-sm truncate">{emp.nombre}</p>
+                            <p className="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider mt-0.5">{emp.rol}</p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => handleEstrellaPersonal(empId, star)}
+                                className="focus:outline-none p-0.5 cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+                              >
+                                <Star
+                                  size={20}
+                                  strokeWidth={1.5}
+                                  fill={star <= estrellasPersona ? 'currentColor' : 'none'}
+                                  className={`transition-colors duration-150 ${
+                                    star <= estrellasPersona
+                                      ? 'text-blue-500'
+                                      : 'text-slate-300 hover:text-blue-200'
+                                  }`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+
         </div>
-      </div>
+      </form>
     </div>
   );
 }

@@ -15,6 +15,23 @@ import { updateOrden } from '../../../compras/application/comprasService.js';
 import { getMetodosPago } from '../../../gastos/application/gastosService.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 
+import { FaseTimeline } from '../components/FaseTimeline.jsx';
+import { FaseBadge } from '../components/FaseBadge.jsx';
+import { ProgressBar } from '../components/ProgressBar.jsx';
+import { InstalacionPanel } from '../components/InstalacionPanel.jsx';
+import { CotizacionPanel } from '../components/CotizacionPanel.jsx';
+import { DisenoPanel } from '../components/DisenoPanel.jsx';
+import { ProduccionPanel } from '../components/ProduccionPanel.jsx';
+import { EntregaPanel } from '../components/EntregaPanel.jsx';
+import { CompletadoPanel } from '../components/CompletadoPanel.jsx';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ProyectoDetallesModal } from '../components/ProyectoDetallesModal.jsx';
+import { ProyectoEditModal } from '../components/ProyectoEditModal.jsx';
+import { PRIORIDADES_CONFIG, ESTADOS_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
+import { getFaseConfig, FASES } from '../../domain/value-objects/FaseConfig.js';
+import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
+
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
 const formatDateTime = (val) => {
@@ -42,22 +59,6 @@ const formatGastoDateTime = (gasto) => {
   }
   return '—';
 };
-import { FaseTimeline } from '../components/FaseTimeline.jsx';
-import { FaseBadge } from '../components/FaseBadge.jsx';
-import { ProgressBar } from '../components/ProgressBar.jsx';
-import { InstalacionPanel } from '../components/InstalacionPanel.jsx';
-import { CotizacionPanel } from '../components/CotizacionPanel.jsx';
-import { DisenoPanel } from '../components/DisenoPanel.jsx';
-import { ProduccionPanel } from '../components/ProduccionPanel.jsx';
-import { EntregaPanel } from '../components/EntregaPanel.jsx';
-import { CompletadoPanel } from '../components/CompletadoPanel.jsx';
-import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
-import { ProyectoDetallesModal } from '../components/ProyectoDetallesModal.jsx';
-import { ProyectoEditModal } from '../components/ProyectoEditModal.jsx';
-import { PRIORIDADES_CONFIG, ESTADOS_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
-import { getFaseConfig, FASES } from '../../domain/value-objects/FaseConfig.js';
-import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
-import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 export default function ProyectoDetallePage() {
   const { id } = useParams();
@@ -97,11 +98,18 @@ export default function ProyectoDetallePage() {
   });
   const [faseVista, setFaseVista] = useState(() => {
     const tab = searchParams.get('tab');
-    if (tab && tab.toUpperCase() === 'PRODUCCION') {
-      return 'PRODUCCION';
+    if (tab) {
+      return tab.toUpperCase();
     }
     return null;
   });
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setFaseVista(tab.toUpperCase());
+    }
+  }, [searchParams]);
   const [subTab, setSubTab] = useState('fases'); // 'fases' | 'gastos'
   const [isPendingTab, startTabTransition] = React.useTransition();
   const handleSetSubTab = (val) => {
@@ -545,13 +553,7 @@ const GastosComprasTab = React.memo(function GastosComprasTab({ proyecto, isAdmi
   const [comentarioOC, setComentarioOC] = useState('');
   const [printableOC, setPrintableOC] = useState(null);
   const [isPDFOpen, setIsPDFOpen] = useState(false);
-  const [openGastos, setOpenGastos] = useState(false);
-  const [openCompras, setOpenCompras] = useState(false);
-  const [openBodega, setOpenBodega] = useState(false);
-
-  // Estados para los nuevos modales del rediseño
   const [isGastosModalOpen, setIsGastosModalOpen] = useState(false);
-  const [isBodegaModalOpen, setIsBodegaModalOpen] = useState(false);
   const [selectedOCForDetail, setSelectedOCForDetail] = useState(null);
   const [isAddGastoModalOpen, setIsAddGastoModalOpen] = useState(false);
 
@@ -578,18 +580,7 @@ const GastosComprasTab = React.memo(function GastosComprasTab({ proyecto, isAdmi
     ? cotizacionesSeleccionadas.reduce((sum, c) => sum + (Number(c.total) || 0), 0)
     : (Number(proyecto.montoEstimado) || 0);
 
-  // Consumo Estimado de Bodega: solo consumibles generan costo, las herramientas no
-  const materialesBodega = proyecto?.fases?.INSTALACION?.datos?.materiales || [];
-  const costoMaterialesBodega = materialesBodega.reduce((sum, m) => {
-    const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
-    const price = Number(m.precioUnitario || 0);
-    const isHerramienta = m.tipo === 'herramienta';
-    if (isHerramienta) return sum; // las herramientas no generan gasto por amortización
-    const sub = cant * price;
-    return sum + sub;
-  }, 0);
-
-  const totalGastos = (proyecto.gastos || []).reduce((sum, g) => sum + Number(g.monto), 0) + costoMaterialesBodega;
+  const totalGastos = (proyecto.gastos || []).reduce((sum, g) => sum + Number(g.monto), 0);
   const balance = totalEstimado - totalGastos;
   const porcentajeGastado = totalEstimado > 0 ? Math.min(100, (totalGastos / totalEstimado) * 100) : 0;
 
@@ -605,8 +596,6 @@ const GastosComprasTab = React.memo(function GastosComprasTab({ proyecto, isAdmi
   const totalGastosOC = (proyecto.gastos || [])
     .filter(g => g.id && g.id.startsWith('G-OC-'))
     .reduce((sum, g) => sum + Number(g.monto), 0);
-
-  const totalBodega = costoMaterialesBodega;
 
   // Registrar gasto manual
   const handleAddManualGasto = (e) => {
@@ -1027,62 +1016,6 @@ const GastosComprasTab = React.memo(function GastosComprasTab({ proyecto, isAdmi
             </div>
           </div>
         )}
-
-        {/* PANEL 3: CONSUMO DE BODEGA */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-12 animate-in fade-in duration-200">
-          <div className="lg:col-span-4 bg-slate-50/50 p-6 flex flex-col justify-between border-r border-slate-200">
-            <div>
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm w-max mb-4 text-amber-600">
-                <Package size={20} />
-              </div>
-              <h2 className="font-extrabold text-slate-800 text-sm tracking-tight">Consumo de Bodega (Insumos y Herramientas)</h2>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Insumos y depreciación de herramientas utilizados en el proyecto.
-              </p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-100/70">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total ejecutado</span>
-              <span className="text-xl font-black text-amber-600 mt-1 block">${costoMaterialesBodega.toLocaleString('es-EC', { minimumFractionDigits: 2 })}</span>
-            </div>
-          </div>
-
-          <div className="lg:col-span-8 p-6 flex flex-col justify-between min-h-[200px]">
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Resumen de consumo</h4>
-              </div>
-
-              {materialesBodega.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-400 italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  No se han registrado consumos de bodega en la fase de instalación.
-                </div>
-              ) : (
-                <div className="p-4 bg-slate-50 hover:bg-slate-100/50 rounded-xl border border-slate-100 flex justify-between items-center transition-colors">
-                  <div>
-                    <span className="font-bold text-slate-800 text-xs block">CB_{proyecto.id?.slice(-6).toUpperCase() || '001'}</span>
-                    <span className="text-[10px] text-slate-400 block mt-1 font-medium">
-                      Registrado por {proyecto.responsable || 'Equipo de Instalación'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setIsBodegaModalOpen(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
-                    >
-                      <Eye size={13} />
-                      Ver detalle
-                    </button>
-                    <div className="text-right min-w-[80px]">
-                      <span className="font-black text-xs text-slate-800 block">${costoMaterialesBodega.toFixed(2)}</span>
-                      <span className="text-[9px] text-slate-455 block font-medium font-mono">Total consumo</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* --- MODAL: AGREGAR GASTO MANUAL --- */}
@@ -1285,96 +1218,6 @@ const GastosComprasTab = React.memo(function GastosComprasTab({ proyecto, isAdmi
                 <button
                   type="button"
                   onClick={() => setIsGastosModalOpen(false)}
-                  className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
-
-      {/* --- MODAL: DETALLE DE CONSUMO DE BODEGA --- */}
-      {isBodegaModalOpen && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-4xl w-full overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in duration-150">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
-                <div>
-                  <h3 className="font-extrabold text-slate-800 text-base">Detalle de Consumo de Bodega</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Lista de materiales e insumos de bodega. Las herramientas se registran sin costo imputado al proyecto.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsBodegaModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              
-              <div className="overflow-x-auto max-h-[450px] border border-slate-100 rounded-xl pr-1 bg-slate-50/50">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100/80 text-slate-500 border-b border-slate-200">
-                      <th className="p-3 font-bold uppercase tracking-wider">Nombre del Insumo / Herramienta</th>
-                      <th className="p-3 font-bold uppercase tracking-wider text-center">Tipo</th>
-                      <th className="p-3 font-bold uppercase tracking-wider text-center">Cantidad Llevada</th>
-                      <th className="p-3 font-bold uppercase tracking-wider text-right">CPP (Costo Promedio)</th>
-                      <th className="p-3 font-bold uppercase tracking-wider text-right">Costo Imputado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {materialesBodega.map((m, idx) => {
-                      const cant = Number(m.cantidadLlevada !== undefined ? m.cantidadLlevada : (m.cantidad || 0));
-                      const price = Number(m.precioUnitario || 0);
-                      const isHerramienta = m.tipo === 'herramienta';
-                      const sub = isHerramienta ? 0 : (cant * price);
-                      if (cant <= 0) return null;
-                      
-                      return (
-                        <tr key={idx} className="border-b border-slate-100 text-slate-650 hover:bg-slate-50/70">
-                          <td className="p-3 font-semibold text-slate-700">{m.nombre}</td>
-                          <td className="p-3 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
-                              isHerramienta ? 'bg-amber-50 text-amber-700 border-amber-250' : 'bg-slate-100 text-slate-650 border-slate-200'
-                            }`}>
-                              {isHerramienta ? 'Herramienta' : 'Consumible'}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center font-bold text-slate-800">{cant} {m.unidad || 'ud'}s</td>
-                          <td className="p-3 text-right font-medium">
-                            {isHerramienta ? (
-                              <span className="text-slate-400 italic">-</span>
-                            ) : (
-                              `$${price.toFixed(2)}`
-                            )}
-                          </td>
-                          <td className="p-3 text-right font-black text-slate-800">
-                            {isHerramienta ? (
-                              <span className="text-slate-400 italic">-</span>
-                            ) : (
-                              `$${sub.toFixed(2)}`
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-100/50 font-bold text-slate-800 border-t border-slate-200">
-                      <td colSpan="4" className="p-3 text-right uppercase tracking-wider text-[10px]">Total Estimado Consumo:</td>
-                      <td className="p-3 text-right text-sm font-extrabold text-indigo-700">${costoMaterialesBodega.toFixed(2)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              
-              <div className="flex justify-end pt-4 border-t border-slate-100 mt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsBodegaModalOpen(false)}
                   className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors shadow-sm cursor-pointer"
                 >
                   Cerrar
