@@ -1,5 +1,5 @@
 import React from 'react';
-import { diffMinutosVsEsperado, formatDiffMinutos } from '../../helpers/horarioLaboral';
+import { diffMinutosVsEsperado, formatDiffMinutos, tieneDesvioHorario } from '../../helpers/horarioLaboral';
 
 const formatTime = (iso) =>
   iso ? new Date(iso).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : null;
@@ -7,11 +7,15 @@ const formatTime = (iso) =>
 /**
  * Celda de marcación: hora real + referencia del horario definido.
  */
-export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = false, isAdmin = true, onClick }) {
+export function MarcacionHorarioCell({ marcacion, esperado, tipo, omitidoEsperado = false, isAdmin = true, onClick }) {
+  const resolvedTipo = tipo || marcacion?.tipo || esperado?.tipo || 'ENTRADA';
   const horaReal = formatTime(marcacion?.fechaHora);
   const diff = marcacion && esperado ? diffMinutosVsEsperado(marcacion.fechaHora, esperado) : null;
-  const tieneDesvio = diff !== null && Math.abs(diff) > 5;
+  const tieneDesvio = tieneDesvioHorario(diff, resolvedTipo);
   const registrada = Boolean(horaReal);
+
+  const isAdicional = resolvedTipo === 'SALIDA' && diff !== null && diff >= 30;
+  const isEarlyExit = resolvedTipo === 'SALIDA' && diff !== null && diff < -5;
 
   const cardCls = registrada
     ? 'border-emerald-200 bg-emerald-50/90'
@@ -72,6 +76,12 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
     );
   }
 
+  const badgeCls = isAdicional
+    ? 'text-blue-700 font-bold bg-blue-100/80 px-1 rounded'
+    : isEarlyExit
+    ? 'text-orange-600 font-semibold'
+    : 'text-amber-600 font-semibold';
+
   return (
     <div
       onClick={handleClick}
@@ -83,12 +93,12 @@ export function MarcacionHorarioCell({ marcacion, esperado, omitidoEsperado = fa
       </span>
       {horaReal ? (
         <>
-          <span className={`font-mono text-xs font-bold mt-0.5 ${tieneDesvio ? 'text-amber-700' : 'text-slate-800'}`}>
+          <span className={`font-mono text-xs font-bold mt-0.5 ${tieneDesvio && !isAdicional ? (isEarlyExit ? 'text-orange-700' : 'text-amber-700') : 'text-slate-800'}`}>
             {horaReal}
           </span>
           {tieneDesvio && (
-            <span className="text-[9px] font-semibold text-amber-600 leading-tight">
-              {formatDiffMinutos(diff)}
+            <span className={`text-[9px] leading-tight mt-0.5 ${badgeCls}`}>
+              {formatDiffMinutos(diff, resolvedTipo)}
             </span>
           )}
           {marcacion?.ubicacionLat && marcacion?.ubicacionLng && (

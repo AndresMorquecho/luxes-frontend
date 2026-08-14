@@ -189,13 +189,48 @@ export function diffMinutosVsEsperado(iso, esperado) {
   return markToMinutes(iso) - toMinutes(esperado.hour, esperado.minute);
 }
 
-export function formatDiffMinutos(diff) {
+/**
+ * Evaluates if a given deviation in minutes should trigger a visual badge/warning.
+ *
+ * Rules per tipo:
+ * - ENTRADA: diff > 5 min (tarde) or diff < -5 min (temprano)
+ * - INICIO_ALMUERZO: diff > 12 min (only if leaving for lunch after 13:12)
+ * - FIN_ALMUERZO: diff > 8 min (only if returning > 8 min late)
+ * - SALIDA: diff >= 30 min (stayed 30+ min extra -> "adicionales") OR diff < -5 min (left early)
+ */
+export function tieneDesvioHorario(diff, tipo) {
+  if (diff === null || diff === undefined) return false;
+
+  if (tipo === 'INICIO_ALMUERZO') {
+    return diff > 12; // Only flag if leaving for lunch past 13:12 (+12m)
+  }
+
+  if (tipo === 'FIN_ALMUERZO') {
+    return diff > 8; // Only flag if returning past 14:08 (+8m tolerance)
+  }
+
+  if (tipo === 'SALIDA') {
+    return diff >= 30 || diff < -5; // >= 30m extra OR > 5m early
+  }
+
+  // Default (ENTRADA or unspecified): > 5m late or < -5m early
+  return Math.abs(diff) > 5;
+}
+
+export function formatDiffMinutos(diff, tipo) {
   if (diff === null || diff === undefined) return '';
   if (diff === 0) return 'a tiempo';
   const abs = Math.abs(diff);
   const h = Math.floor(abs / 60);
   const m = abs % 60;
   const parte = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+  if (tipo === 'SALIDA') {
+    if (diff >= 30) return `+${parte} adicionales`;
+    if (diff < 0) return `-${parte} antes`;
+    return '';
+  }
+
   return diff > 0 ? `+${parte} tarde` : `-${parte} temprano`;
 }
 
@@ -232,8 +267,9 @@ export function getEstadoAlmuerzo(marcaciones = [], dateStr, config, tipoContrat
     const mins = Math.floor((new Date(fin.fechaHora) - new Date(inicio.fechaHora)) / 60000);
     const diffInicio = diffMinutosVsEsperado(inicio.fechaHora, horario.INICIO_ALMUERZO);
     let detalle = `${mins} min`;
-    if (diffInicio !== null && Math.abs(diffInicio) > 5) {
-      detalle += ` · salida ${formatDiffMinutos(diffInicio)}`;
+    // Solo incluir "salida +Xm tarde" si salió a almorzar pasadas las 13:12 (> 12 min)
+    if (diffInicio !== null && diffInicio > 12) {
+      detalle += ` · salida ${formatDiffMinutos(diffInicio, 'INICIO_ALMUERZO')}`;
     }
     return { status: 'COMPLETO', label: `Almorzó ${detalle}`, cls: 'emerald', duracionMin: mins };
   }

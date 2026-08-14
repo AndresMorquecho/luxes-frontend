@@ -1661,6 +1661,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           <MarcacionHorarioCell
                             marcacion={entrada}
                             esperado={horarioDia.ENTRADA}
+                            tipo="ENTRADA"
                             isAdmin={isAdmin}
                             onClick={() => handleOpenAdminCellModal({
                               marcacion: entrada,
@@ -1684,6 +1685,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           <MarcacionHorarioCell
                             marcacion={inicioAlm}
                             esperado={horarioDia.INICIO_ALMUERZO}
+                            tipo="INICIO_ALMUERZO"
                             omitidoEsperado={!horarioDia.INICIO_ALMUERZO}
                             isAdmin={isAdmin}
                             onClick={() => handleOpenAdminCellModal({
@@ -1708,6 +1710,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           <MarcacionHorarioCell
                             marcacion={finAlm}
                             esperado={horarioDia.FIN_ALMUERZO}
+                            tipo="FIN_ALMUERZO"
                             omitidoEsperado={!horarioDia.FIN_ALMUERZO}
                             isAdmin={isAdmin}
                             onClick={() => handleOpenAdminCellModal({
@@ -1732,6 +1735,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           <MarcacionHorarioCell
                             marcacion={salida}
                             esperado={horarioDia.SALIDA}
+                            tipo="SALIDA"
                             isAdmin={isAdmin}
                             onClick={() => handleOpenAdminCellModal({
                               marcacion: salida,

@@ -734,6 +734,8 @@ const DetallePermisosModal = ({
             if (expectedMins === null) return null;
             const date = new Date(asistencia.fechaHora);
             const realMins = date.getHours() * 60 + date.getMinutes();
+            // Desestimar entradas fuera del rango 07:00 a 14:00
+            if (realMins < 7 * 60 || realMins > 14 * 60) return null;
             const atrasoMins = realMins - expectedMins;
             if (atrasoMins <= 0) return null;
             const multa = calcularMultaAtraso(atrasoMins, toleranciaMinutos);
@@ -765,10 +767,11 @@ const DetallePermisosModal = ({
           if (json.success && Array.isArray(json.data)) {
             const empAsistencias = json.data.filter(a => a.empleadoId === empleadoId);
 
-            // Group by date to pair INICIO_ALMUERZO with FIN_ALMUERZO
+            // Group by date in Ecuador local time (UTC-5) to pair INICIO_ALMUERZO with FIN_ALMUERZO
             const byDate = {};
             for (const a of empAsistencias) {
-              const d = a.fechaHora.slice(0, 10);
+              const ecDate = new Date(new Date(a.fechaHora).getTime() - 5 * 3600000);
+              const d = ecDate.toISOString().slice(0, 10);
               if (!byDate[d]) byDate[d] = {};
               byDate[d][a.tipo] = a;
             }
