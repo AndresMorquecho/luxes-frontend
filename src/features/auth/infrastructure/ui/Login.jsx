@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPostLoginPath, normalizeUserForSession } from '../../../../shared/utils/userRoleHelpers';
+import loginLogo from '../../../../assets/login.png';
 import './Login.css';
 
 export const Login = ({ onLogin }) => {
@@ -54,7 +55,7 @@ export const Login = ({ onLogin }) => {
           <div className="loading-animation-container">
             <div className="loading-balloon-glow"></div>
             <div className="loading-ring"></div>
-            <img src="/Logo.jpg" alt="Loading Balloon" className="loading-balloon-img" />
+            <img src={loginLogo} alt="Loading Balloon" className="loading-balloon-img" />
             <p className="loading-text">Iniciando sesión...</p>
           </div>
         </div>
@@ -68,13 +69,8 @@ export const Login = ({ onLogin }) => {
       {/* Center card */}
       <div className="login-unified-card">
 
-        {/* Left Side: Branding Panel (Filled with Logo.jpg) */}
-        <div className="login-branding-panel">
-          <div className="login-branding-overlay"></div>
-          <p className="login-branding-slogan">
-            Damos vida a tus ideas, impulsamos tu marca.
-          </p>
-        </div>
+        {/* Left Side: Branding Panel (Filled with login.png) */}
+        <div className="login-branding-panel" style={{ backgroundImage: `url(${loginLogo})` }} />
 
         {/* Right Side: Form Panel (White) */}
         <div className="login-form-panel">
@@ -88,7 +84,7 @@ export const Login = ({ onLogin }) => {
               >
                 ← Volver al inicio
               </button>
-              <img src="/Logo.jpg" alt="Luxes Logo" className="login-mobile-logo" />
+              <img src={loginLogo} alt="Luxes Logo" className="login-mobile-logo" />
               <h2 className="login-form-title">Bienvenido</h2>
               <p className="login-form-subtitle">Inicia sesión para continuar</p>
             </div>
@@ -151,18 +147,10 @@ export const Login = ({ onLogin }) => {
                     )}
                   </button>
                 </div>
-                <div className="login-forgot-wrapper">
-                  <a href="#forgot" className="login-forgot-link">¿Olvidaste tu contraseña?</a>
-                </div>
               </div>
 
               <button type="submit" className="login-submit-btn">Iniciar sesión</button>
             </form>
-
-            <div className="login-register-container">
-              <span className="login-register-text">¿No tienes cuenta?</span>
-              <a href="#register" className="login-register-link">Regístrate</a>
-            </div>
 
           </div>
         </div>

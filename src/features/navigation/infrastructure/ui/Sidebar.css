@@ -32,21 +32,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  height: 64px;
-  min-height: 64px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.35rem 0.75rem;
+  height: 70px;
+  min-height: 70px;
+  border-bottom: 1px solid #cbd5e1;
   position: relative;
   transition: all 0.3s ease;
   overflow: hidden;
   flex-shrink: 0;
+  background-color: #ffffff;
 }
 
 /* Ajuste de logo según el estado */
 .sidebar-logo-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: all 0.2s ease;
 }
 
@@ -59,18 +60,21 @@
 
 .sidebar.collapsed .sidebar-logo-box {
   justify-content: center;
-  padding: 0.75rem 0.5rem;
-  height: 64px;
-  min-height: 64px;
+  padding: 0.5rem;
+  height: 70px;
+  min-height: 70px;
+  background-color: #ffffff;
 }
 
 .sidebar.collapsed .sidebar-logo-collapsed {
   display: block !important;
-  width: 36px;
-  height: 36px;
-  max-height: 36px;
-  max-width: 36px;
+  width: 42px;
+  height: 42px;
+  max-height: 42px;
+  max-width: 42px;
   object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .sidebar.collapsed .sidebar-logo-expanded {
