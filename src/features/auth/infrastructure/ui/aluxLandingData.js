@@ -58,7 +58,7 @@ export const ALUX_DATA = {
       icon: 'LayoutGrid',
       tag: 'Alta Durabilidad',
       caracteristicas: ['Aislamiento térmico y acústico', 'Perfiles extruidos de alta resistencia', 'Cierres de seguridad de precisión'],
-      image: '/assets/1.png',
+      image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80',
     },
     {
       id: 'mamparas',
@@ -69,7 +69,7 @@ export const ALUX_DATA = {
       icon: 'Maximize',
       tag: 'Diseño Moderno',
       caracteristicas: ['Vidrio templado de 8mm y 10mm', 'Herrajes de acero inoxidable', 'Máxima entrada de luz natural'],
-      image: '/assets/2.png',
+      image: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=800&q=80',
     },
     {
       id: 'fachadas',
@@ -80,7 +80,7 @@ export const ALUX_DATA = {
       icon: 'Building2',
       tag: 'Imagen Corporativa',
       caracteristicas: ['Paneles de aluminio compuesto (ACM)', 'Resistentes a la intemperie y rayos UV', 'Diseño arquitectónico vanguardista'],
-      image: '/assets/3.png',
+      image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
     },
     {
       id: 'vitrinas',
@@ -91,7 +91,7 @@ export const ALUX_DATA = {
       icon: 'Store',
       tag: 'Mayor Visibilidad',
       caracteristicas: ['Estructuras de aluminio anodizado', 'Vidrios pulidos y templados', 'Sistemas de iluminación LED opcionales'],
-      image: '/assets/1.png',
+      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80',
     },
     {
       id: 'pergolas',
@@ -102,7 +102,7 @@ export const ALUX_DATA = {
       icon: 'Sun',
       tag: 'Protección UV',
       caracteristicas: ['Estructuras libres de corrosión', 'Protección solar y lluvia', 'Elegante integración arquitectónica'],
-      image: '/assets/2.png',
+      image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80',
     },
     {
       id: 'puertas',
@@ -113,7 +113,7 @@ export const ALUX_DATA = {
       icon: 'DoorClosed',
       tag: 'Seguridad & Estilo',
       caracteristicas: ['Cierres herméticos de alta seguridad', 'Variedad de colores y acabados', 'Deslizamiento suave e insonoro'],
-      image: '/assets/3.png',
+      image: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=800&q=80',
     },
     {
       id: 'barandas',
@@ -124,7 +124,7 @@ export const ALUX_DATA = {
       icon: 'Layers',
       tag: 'Máxima Elegancia',
       caracteristicas: ['Soportes en acero calidad 304', 'Vidrio de seguridad laminado/templado', 'Vista panorámica sin interrupciones'],
-      image: '/assets/1.png',
+      image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80',
     },
     {
       id: 'cerramientos',
@@ -135,7 +135,7 @@ export const ALUX_DATA = {
       icon: 'Shield',
       tag: 'Resistencia Total',
       caracteristicas: ['Sellado estructural antihumedad', 'Soportes de aluminio reforzado', 'Bajo mantenimiento'],
-      image: '/assets/2.png',
+      image: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=800&q=80',
     },
     {
       id: 'espejos',
@@ -146,7 +146,7 @@ export const ALUX_DATA = {
       icon: 'Sparkles',
       tag: 'Servicio Integral',
       caracteristicas: ['Biselado de precisión', 'Montaje con adhesivos neutros especiales', 'Remodelación y cambio de vidrios rotos'],
-      image: '/assets/3.png',
+      image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=800&q=80',
     },
   ],
   beneficios: [
