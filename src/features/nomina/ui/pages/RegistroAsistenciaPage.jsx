@@ -40,8 +40,8 @@ export const RegistroAsistenciaPage = () => {
       <style>{`
         .asistencia-page, .asistencia-page * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
         .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
-        .btn-primary { background: #2563eb; transition: all 0.15s ease; }
-        .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+        .btn-primary { background: linear-gradient(135deg, #0b2d64 0%, #164e96 100%); border: 1px solid rgba(200,150,62,0.4); color: white; transition: all 0.15s ease; }
+        .btn-primary:hover { background: linear-gradient(135deg, #071f45 0%, #0b2d64 100%); border-color: #c8963e; box-shadow: 0 4px 14px rgba(11,45,100,0.35); }
         .btn-ghost { transition: all 0.15s ease; }
         .btn-ghost:hover { background: #f1f5f9; }
         .input-field { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.625rem 0.875rem; font-size: 0.875rem; font-weight: 500; color: #1e293b; outline: none; transition: all 0.15s ease; background: white; width: 100%; }

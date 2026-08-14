@@ -172,8 +172,11 @@ export default function NuevoProyectoPage() {
             type="button"
             onClick={handleSubmit}
             disabled={guardando}
-            className="flex items-center gap-2 px-6 py-2 rounded-xl text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 shadow-md"
-            style={{ backgroundColor: '#1d4ed8' }}
+            className="flex items-center gap-2 px-6 py-2 rounded-xl text-white font-semibold transition-all duration-200 hover:brightness-110 disabled:opacity-60 shadow-md border border-[rgba(200,150,62,0.4)]"
+            style={{
+              background: 'linear-gradient(135deg, #0b2d64 0%, #164e96 100%)',
+              boxShadow: '0 2px 8px rgba(11, 45, 100, 0.2)'
+            }}
           >
             {guardando ? 'Guardando...' : 'Crear Proyecto'}
             <Check size={18} />

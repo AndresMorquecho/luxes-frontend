@@ -299,14 +299,15 @@
 }
 
 .sidebar-nav li.active > a {
-  color: #0f172a; /* Slate 900 */
-  background-color: #ffffff; /* Efecto tarjeta elevada (blanco puro) sobre fondo azulado */
+  color: #0b2d64; /* Azul Marino Alux */
+  background-color: #ffffff;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); /* Sombra suave para elevación */
+  border-left: 3.5px solid #c8963e; /* Indicador Dorado Alux */
+  box-shadow: 0 2px 8px rgba(11, 45, 100, 0.08);
 }
 
 .sidebar-nav li.active > a .sidebar-icon {
-  color: #0f172a;
+  color: #c8963e; /* Dorado Alux */
 }
 
 /* Icono Chevron */
@@ -320,7 +321,7 @@
 
 .sidebar-nav a:hover .chevron-icon,
 .sidebar-nav li.active a .chevron-icon {
-  color: #475569;
+  color: #c8963e;
 }
 
 /* Transición del texto de los enlaces cuando colapsa */
@@ -350,8 +351,9 @@
 
 .sidebar.collapsed .sidebar-nav li.active > a {
   background-color: #ffffff;
-  color: #0f172a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  color: #0b2d64;
+  border-left: 3.5px solid #c8963e;
+  box-shadow: 0 2px 8px rgba(11, 45, 100, 0.08);
 }
 
 /* Botón de toggle para submenús */
@@ -379,26 +381,28 @@
 }
 
 .sidebar-submenu-toggle:hover {
-  color: #0f172a;
+  color: #0b2d64;
   background-color: #e8eef5;
   border-color: #c7d6e8;
 }
 
 .sidebar-submenu-toggle:hover .sidebar-icon {
-  color: #0f172a;
+  color: #0b2d64;
   transform: scale(1.05);
 }
 
 /* Estado activo del toggle padre cuando un subitem está activo */
 .sidebar-has-submenu.active > .sidebar-submenu-toggle {
-  color: #0f172a;
-  background-color: #eef1fb;
+  color: #0b2d64;
+  background-color: #ffffff;
   font-weight: 700;
-  border-color: var(--color-primary-blue, #02188e);
+  border-left: 3.5px solid #c8963e;
+  border-color: rgba(200, 150, 62, 0.3);
+  box-shadow: 0 2px 8px rgba(11, 45, 100, 0.06);
 }
 
 .sidebar-has-submenu.active > .sidebar-submenu-toggle .sidebar-icon {
-  color: var(--color-primary-blue, #02188e);
+  color: #c8963e;
 }
 
 /* Estado abierto pero no activo */
@@ -418,11 +422,11 @@
 }
 
 .sidebar-submenu-toggle:hover .submenu-chevron {
-  color: #475569;
+  color: #c8963e;
 }
 
 .sidebar-has-submenu.active > .sidebar-submenu-toggle .submenu-chevron {
-  color: var(--color-primary-blue, #02188e);
+  color: #c8963e;
 }
 
 .submenu-chevron.rotated {
@@ -473,13 +477,13 @@
 }
 
 .sidebar-submenu li.submenu-active .sidebar-submenu-link {
-  color: var(--color-primary-blue, #02188e);
+  color: #0b2d64;
   font-weight: 600;
   background-color: transparent;
 }
 
 .sidebar-submenu li.submenu-active .sidebar-submenu-link .sidebar-submenu-icon {
-  color: var(--color-primary-blue, #02188e);
+  color: #c8963e;
 }
 
 /* Evitar que la regla global li.active a afecte a los links del submenú */
@@ -492,7 +496,7 @@
 }
 
 .sidebar-submenu li.submenu-active a.sidebar-submenu-link {
-  color: var(--color-primary-blue, #02188e);
+  color: #0b2d64;
   font-weight: 600;
   background-color: transparent;
   box-shadow: none;
@@ -504,7 +508,7 @@
 }
 
 .sidebar-submenu li.submenu-active .sidebar-submenu-link.is-secondary .sidebar-submenu-text {
-  color: var(--color-primary-blue, #02188e);
+  color: #0b2d64;
 }
 
 /* Reset: la clase active en el li padre no debe estilizar los links del submenú */
@@ -516,12 +520,12 @@
 }
 
 .sidebar-has-submenu.active .sidebar-submenu li.submenu-active .sidebar-submenu-link {
-  color: var(--color-primary-blue, #02188e);
+  color: #0b2d64;
   font-weight: 600;
 }
 
 .sidebar-has-submenu.active .sidebar-submenu li.submenu-active .sidebar-submenu-link .sidebar-submenu-icon {
-  color: var(--color-primary-blue, #02188e);
+  color: #c8963e;
 }
 
 /* Comportamiento del submenú cuando colapsa */

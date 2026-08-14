@@ -1,16 +1,17 @@
 import headerBg from '../../../../assets/header-bg.png';
 
 export const MODAL_HEADER_STYLE = {
-  backgroundColor: '#02188E',
-  backgroundImage: `linear-gradient(90deg, rgba(1, 12, 72, 0.55) 0%, rgba(4, 51, 255, 0.25) 50%, rgba(1, 12, 72, 0.55) 100%), url(${headerBg})`,
+  backgroundColor: '#030d24',
+  backgroundImage: `linear-gradient(90deg, #030d24 0%, #081d3d 50%, #030d24 100%)`,
+  borderBottom: '1.5px solid rgba(200, 150, 62, 0.45)',
   backgroundPosition: 'center',
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
 };
 
 export const MODAL_FORM_STYLES = `
-  .btn-primary { background: #2563eb; transition: all 0.15s ease; }
-  .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+  .btn-primary { background: linear-gradient(135deg, #0b2d64 0%, #164e96 100%); border: 1px solid rgba(200,150,62,0.4); color: white; transition: all 0.15s ease; }
+  .btn-primary:hover { background: linear-gradient(135deg, #071f45 0%, #0b2d64 100%); border-color: #c8963e; box-shadow: 0 4px 14px rgba(11,45,100,0.35); }
   .btn-ghost { transition: all 0.15s ease; }
   .btn-ghost:hover { background: #f1f5f9; }
   .input-field { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.625rem 0.875rem; font-size: 0.875rem; font-weight: 500; color: #1e293b; outline: none; transition: all 0.15s ease; background: white; width: 100%; }

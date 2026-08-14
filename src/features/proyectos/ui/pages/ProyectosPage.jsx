@@ -88,8 +88,11 @@ export default function ProyectosPage() {
 
           <button
             onClick={() => navigate('/proyectos/nuevo')}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold text-sm transition-opacity hover:opacity-90 shadow-sm"
-            style={{ backgroundColor: '#1d4ed8' }}
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold text-sm transition-all duration-200 hover:brightness-110 shadow-sm border border-[rgba(200,150,62,0.4)]"
+            style={{
+              background: 'linear-gradient(135deg, #0b2d64 0%, #164e96 100%)',
+              boxShadow: '0 2px 8px rgba(11, 45, 100, 0.2)'
+            }}
           >
             <Plus size={15} />
             Nuevo Proyecto

@@ -415,15 +415,16 @@ export const UsuariosPage = () => {
           background: rgba(226,232,240,0.4);
         }
         .us-tab-button.active {
-          color: #7c3aed; /* Purple brand color */
-          border-bottom-2px: 2px solid #7c3aed;
-          background: rgba(124,58,237,0.06);
+          color: #0b2d64; /* Alux Navy */
+          border-bottom: 2px solid #c8963e; /* Alux Gold */
+          background: rgba(200,150,62,0.08);
+          font-weight: 700;
         }
         
         .us-btn-primary-purple {
-          background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+          background: linear-gradient(135deg, #0b2d64 0%, #164e96 100%);
           color: white;
-          border: none;
+          border: 1px solid rgba(200,150,62,0.4);
           border-radius: 12px;
           padding: 10px 20px;
           font-size: 13px;
@@ -433,12 +434,14 @@ export const UsuariosPage = () => {
           align-items: center;
           gap: 8px;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+          box-shadow: 0 4px 14px rgba(11,45,100,0.25);
           letter-spacing: 0.01em;
         }
         .us-btn-primary-purple:hover {
           transform: translateY(-1px);
-          box-shadow: 0 8px 24px rgba(124,58,237,0.42);
+          background: linear-gradient(135deg, #071f45 0%, #0b2d64 100%);
+          border-color: #c8963e;
+          box-shadow: 0 8px 24px rgba(11,45,100,0.35);
         }
 
         .action-button-desactivar {
