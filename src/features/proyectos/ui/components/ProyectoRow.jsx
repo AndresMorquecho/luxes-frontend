@@ -73,7 +73,7 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
 
       {/* Fase */}
       <td className="px-2 py-3">
-        <FaseBadge faseId={proyecto.faseActual} />
+        <FaseBadge faseId={proyecto.faseActual} proyecto={proyecto} />
       </td>
 
       {/* Instalación */}

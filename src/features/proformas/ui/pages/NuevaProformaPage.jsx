@@ -7,19 +7,29 @@ import { ProformaPDF } from '../components/ProformaPDF';
 import { toast } from '../../../../shared/ui/components/Toast';
 import '../../../compras/ui/pages/ComprasPage.css';
 
+const parseNum = (v) => {
+  if (v === undefined || v === null || v === '') return 0;
+  const num = parseFloat(String(v).replace(',', '.'));
+  return isNaN(num) ? 0 : num;
+};
+
 const EMPTY_PROFORMA = {
   clienteId: '',
   cliente: '',
   telefono: '',
   email: '',
   direccion: '',
+  ciudad: '',
   fecha: new Date().toISOString().split('T')[0],
   vencimiento: '',
   diasValidez: 3,
-  medio: 'LUXES',
+  medio: 'ALUX',
   atiende: '',
-  condiciones: '',
-  iva: 0.12,
+  condiciones: `60% DE ANTICIPO Y 40% CONTRAENTREGA\nENTREGA DE 7-8 DIAS LABORABLES DESPUES DE LA CONFIRMACION DE PAGO\nESTA COTIZACION ES VALIDA POR 3 DIAS DESPUÉS DE SU EMISIÓN`,
+  iva: 0,
+  descuento: 0,
+  categoriaHeader: '',
+  subcategoriaHeader: '',
   notas: '',
   estado: 'Pendiente',
   items: [],
@@ -43,10 +53,13 @@ export const NuevaProformaPage = () => {
   const [clienteDropdownOpen, setClienteDropdownOpen] = useState(false);
   const [showMoreClientData, setShowMoreClientData] = useState(false);
 
-  // Top Bar input state for adding item to table
+  // Compact bar input state
   const [itemInput, setItemInput] = useState({
-    descripcion: '',
+    cod: '',
     cantidad: '1',
+    ancho: '',
+    alto: '',
+    descripcion: '',
     precioUnitario: '0',
   });
 
@@ -72,12 +85,13 @@ export const NuevaProformaPage = () => {
               ...existing,
               clienteId: related?.id || existing.clienteId || '',
               direccion: existing.direccion || related?.direccion || '',
-              medio: existing.medio || 'LUXES',
-              items: existing.items.map(i => ({ ...i })),
+              ciudad: existing.ciudad || related?.ciudad || '',
+              medio: existing.medio || 'ALUX',
+              items: (existing.items || []).map(i => ({ ...i })),
             });
             setClienteSearch(existing.cliente);
           } else {
-            toast.error('No se encontro la proforma especificada');
+            toast.error('No se encontró la proforma especificada');
             navigate('/proformas');
           }
         } else {
@@ -93,7 +107,6 @@ export const NuevaProformaPage = () => {
             vencimiento: venc.toISOString().split('T')[0],
             diasValidez: valDays,
             atiende: currentUser?.nombre || currentUser?.name || currentUser?.username || currentUser?.email || '',
-            condiciones: config?.condicionesPago || '',
           });
         }
       } catch (err) {
@@ -150,44 +163,56 @@ export const NuevaProformaPage = () => {
       telefono: c.telefono || prev.telefono,
       email: c.email || prev.email,
       direccion: c.direccion || prev.direccion || '',
+      ciudad: c.ciudad || prev.ciudad || '',
     }));
     setClienteSearch(c.nombre);
     setClienteDropdownOpen(false);
   };
 
   const handleAddItem = () => {
-    const qty = parseFloat(itemInput.cantidad) || 0;
-    const price = parseFloat(itemInput.precioUnitario) || 0;
+    const qty = parseNum(itemInput.cantidad) || 1;
+    const price = parseNum(itemInput.precioUnitario);
+    const ancho = parseNum(itemInput.ancho);
+    const alto = parseNum(itemInput.alto);
 
     if (!itemInput.descripcion.trim()) {
-      toast.error('La descripcion no puede estar vacia.');
+      toast.error('La descripción no puede estar vacía.');
       return;
     }
     if (qty <= 0) {
       toast.error('La cantidad debe ser mayor a 0.');
       return;
     }
-    if (price < 0) {
-      toast.error('El precio unitario no puede ser negativo.');
-      return;
-    }
+
+    const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : 1;
+    const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : qty;
+    const valor = metrajeTotal * price;
 
     setForm(prev => ({
       ...prev,
       items: [
         ...prev.items,
         {
-          descripcion: itemInput.descripcion,
+          cod: itemInput.cod || `V${prev.items.length + 1}`,
           cantidad: qty,
+          ancho: ancho > 0 ? ancho : '',
+          alto: alto > 0 ? alto : '',
+          metraje: metraje > 0 ? metraje : 1,
+          metrajeTotal: metrajeTotal > 0 ? metrajeTotal : qty,
+          descripcion: itemInput.descripcion,
           precioUnitario: price,
+          valor,
         }
       ]
     }));
 
     // Reset input fields
     setItemInput({
-      descripcion: '',
+      cod: '',
       cantidad: '1',
+      ancho: '',
+      alto: '',
+      descripcion: '',
       precioUnitario: '0',
     });
   };
@@ -195,7 +220,22 @@ export const NuevaProformaPage = () => {
   const updateDetalle = (index, field, val) => {
     setForm(prev => {
       const items = [...prev.items];
-      items[index] = { ...items[index], [field]: val };
+      const item = { ...items[index], [field]: val };
+      
+      const qty = parseNum(item.cantidad) || 1;
+      const price = parseNum(item.precioUnitario);
+      const ancho = parseNum(item.ancho);
+      const alto = parseNum(item.alto);
+
+      const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(item.metraje) || 1);
+      const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : qty;
+      const valor = metrajeTotal * price;
+
+      item.metraje = metraje;
+      item.metrajeTotal = metrajeTotal;
+      item.valor = valor;
+
+      items[index] = item;
       return { ...prev, items };
     });
   };
@@ -214,7 +254,7 @@ export const NuevaProformaPage = () => {
       return;
     }
     if (form.items.length === 0) {
-      toast.error('Debe agregar al menos un item a la tabla antes de guardar.');
+      toast.error('Debe agregar al menos un ítem a la tabla antes de guardar.');
       return;
     }
 
@@ -222,12 +262,19 @@ export const NuevaProformaPage = () => {
     try {
       const payload = {
         ...form,
-        iva: Number(form.iva),
-        diasValidez: Number(form.diasValidez),
+        iva: parseNum(form.iva),
+        descuento: parseNum(form.descuento),
+        diasValidez: parseNum(form.diasValidez),
         items: form.items.map(it => ({
+          cod: it.cod || '—',
           descripcion: it.descripcion,
-          cantidad: parseFloat(it.cantidad) || 0,
-          precioUnitario: parseFloat(it.precioUnitario) || 0,
+          cantidad: parseNum(it.cantidad) || 1,
+          ancho: parseNum(it.ancho),
+          alto: parseNum(it.alto),
+          metraje: parseNum(it.metraje),
+          metrajeTotal: parseNum(it.metrajeTotal),
+          precioUnitario: parseNum(it.precioUnitario),
+          valor: parseNum(it.valor),
         }))
       };
 
@@ -237,7 +284,7 @@ export const NuevaProformaPage = () => {
       
       const action = e.nativeEvent.submitter?.value || 'pdf';
       const saved = await saveProforma(payload);
-      toast.success(isEdit ? 'Proforma actualizada con exito' : 'Proforma creada con exito');
+      toast.success(isEdit ? 'Proforma actualizada con éxito' : 'Proforma creada con éxito');
       
       if (action === 'abono') {
         navigate(`/proformas/detalle/${saved.id}?action=abono`);
@@ -252,9 +299,22 @@ export const NuevaProformaPage = () => {
     }
   };
 
-  const subTotal = form.items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precioUnitario) || 0), 0);
-  const ivaVal = subTotal * form.iva;
-  const total = subTotal + ivaVal;
+  const calculateRowValor = (item) => {
+    if (item.valor !== undefined && item.valor !== null && !isNaN(parseNum(item.valor)) && parseNum(item.valor) > 0) {
+      return parseNum(item.valor);
+    }
+    const qty = parseNum(item.cantidad) || 1;
+    const price = parseNum(item.precioUnitario);
+    const ancho = parseNum(item.ancho);
+    const alto = parseNum(item.alto);
+    const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(item.metraje) || 1);
+    const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : (parseNum(item.metrajeTotal) || qty);
+    return metrajeTotal * price;
+  };
+
+  const subTotal = form.items.reduce((s, i) => s + calculateRowValor(i), 0);
+  const descuentoVal = parseNum(form.descuento);
+  const total = Math.max(0, subTotal - descuentoVal);
 
   const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -268,12 +328,20 @@ export const NuevaProformaPage = () => {
     );
   }
 
+  // Live Calculations for Item Bar
+  const barQty = parseNum(itemInput.cantidad) || 1;
+  const barAncho = parseNum(itemInput.ancho);
+  const barAlto = parseNum(itemInput.alto);
+  const barPrice = parseNum(itemInput.precioUnitario);
 
+  const barMetraje = (barAncho > 0 && barAlto > 0) ? (barAncho * barAlto) : 0;
+  const barMetrajeTotal = (barAncho > 0 && barAlto > 0) ? (barQty * barMetraje) : barQty;
+  const barValor = (barAncho > 0 && barAlto > 0) ? (barMetrajeTotal * barPrice) : (barQty * barPrice);
 
   return (
-    <div className="co-page animate-slide-up">
+    <div className="co-page animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
-      <div className="co-card co-header" style={{ border: '1.5px solid #cbd5e1', background: '#ffffff' }}>
+      <div className="co-card co-header mb-4" style={{ border: '1px solid #e2e8f0', background: '#ffffff', padding: '16px 24px' }}>
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-2xl flex items-center justify-center shrink-0" style={{ background: '#eff6ff', color: '#3b82f6' }}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -281,38 +349,38 @@ export const NuevaProformaPage = () => {
             </svg>
           </div>
           <div>
-            <h1 className="co-title" style={{ color: '#1e293b', fontWeight: 800 }}>
-              {isEdit ? 'Editar Proforma' : 'Nueva Proforma'}
+            <h1 className="text-xl font-extrabold text-slate-900 leading-tight">
+              {isEdit ? 'Editar Proforma Alux' : 'Nueva Proforma Alux'}
             </h1>
-            <p className="co-subtitle">
-              {isEdit ? 'Modifica los datos de la proforma seleccionada' : 'Completa la cotización para el cliente'}
+            <p className="text-xs text-slate-500 font-medium">
+              Cotizador con metraje automático (Alto x Ancho) y resumen visual
             </p>
           </div>
         </div>
-        <button onClick={() => navigate('/proformas')} className="co-btn-ghost" style={{ color: '#2563eb', fontWeight: 700 }}>
+        <button onClick={() => navigate('/proformas')} className="co-btn-ghost text-xs" style={{ color: '#2563eb', fontWeight: 700 }}>
           Volver al listado
         </button>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-4">
         
-        {/* Encabezado and Valores split grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Upper Split Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           
-          {/* Encabezado Card */}
-          <div className="co-card lg:col-span-3 p-4" style={{ background: '#fff', border: '1.5px solid #e2e8f0', overflow: 'visible' }}>
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 border-b border-slate-100 pb-1.5">
-              Informacion de la Proforma
+          {/* Main Form Fields Card */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm lg:col-span-3">
+            <div className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">
+              Información de la Proforma Alux
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
               
               <div className="relative md:col-span-2 lg:col-span-2">
-                <label className="co-label">Cliente *</label>
+                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Cliente *</label>
                 <input
                   type="text"
-                  className="co-input"
-                  placeholder="Buscar cliente..."
+                  className="co-input text-xs font-semibold"
+                  placeholder="Buscar o escribir nombre del cliente..."
                   value={clienteSearch}
                   onChange={e => {
                     setClienteSearch(e.target.value);
@@ -338,7 +406,7 @@ export const NuevaProformaPage = () => {
                           className="co-search-item"
                           onMouseDown={() => selectCliente(c)}
                         >
-                          <div className="font-semibold text-slate-800">{c.nombre}</div>
+                          <div className="font-semibold text-slate-800 text-xs">{c.nombre}</div>
                           <div className="text-slate-400 text-[10px]">RUC: {c.cedulaRuc || 'N/A'} | Tel: {c.telefono || 'N/A'}</div>
                         </div>
                       ))}
@@ -353,19 +421,31 @@ export const NuevaProformaPage = () => {
               </div>
 
               <div>
-                <label className="co-label">Fecha de Emision *</label>
+                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Ciudad</label>
+                <input
+                  name="ciudad"
+                  type="text"
+                  placeholder="Ej. Guayaquil"
+                  value={form.ciudad || ''}
+                  onChange={handleChange}
+                  className="co-input text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Fecha de Emisión *</label>
                 <input
                   name="fecha"
                   type="date"
                   value={form.fecha}
                   onChange={handleChange}
                   required
-                  className="co-input"
+                  className="co-input text-xs"
                 />
               </div>
 
               <div>
-                <label className="co-label">Dias de validez *</label>
+                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Días de validez *</label>
                 <input
                   name="diasValidez"
                   type="number"
@@ -373,40 +453,40 @@ export const NuevaProformaPage = () => {
                   value={form.diasValidez}
                   onChange={handleChange}
                   required
-                  className="co-input"
+                  className="co-input text-xs text-center"
                 />
-              </div>
-
-              <div>
-                <label className="co-label">Fecha de vencimiento *</label>
-                <input
-                  name="vencimiento"
-                  type="date"
-                  value={form.vencimiento}
-                  onChange={handleChange}
-                  required
-                  className="co-input"
-                />
-              </div>
-
-              <div>
-                <label className="co-label">Medio de consecución *</label>
-                <select
-                  name="medio"
-                  value={form.medio || 'LUXES'}
-                  onChange={handleChange}
-                  className="co-input cursor-pointer font-medium"
-                >
-                  <option value="LUXES">LUXES</option>
-                  <option value="REDES">REDES</option>
-                  <option value="VENDEDORES">VENDEDORES</option>
-                </select>
               </div>
 
             </div>
 
+            {/* Categorías / Subcategorías de la proforma */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2 border-t border-slate-100 pt-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Encabezado Sección Principal (Ej: VENTANAS - HOGAR)</label>
+                <input
+                  name="categoriaHeader"
+                  type="text"
+                  placeholder="Ej. VENTANAS (HOGAR)"
+                  value={form.categoriaHeader || ''}
+                  onChange={handleChange}
+                  className="co-input text-xs font-bold uppercase"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Sub-encabezado Detalle (Ej: ALUMINIO CLARO...)</label>
+                <input
+                  name="subcategoriaHeader"
+                  type="text"
+                  placeholder="Ej. ALUMINIO CLARO + VIDRIO CLARO CON MALLAS"
+                  value={form.subcategoriaHeader || ''}
+                  onChange={handleChange}
+                  className="co-input text-xs font-semibold uppercase"
+                />
+              </div>
+            </div>
+
             {/* Accordion Toggle */}
-            <div className="border-t border-slate-100 pt-2 mt-2">
+            <div className="border-t border-slate-100 pt-2 mt-1">
               <button
                 type="button"
                 onClick={() => setShowMoreClientData(!showMoreClientData)}
@@ -421,352 +501,363 @@ export const NuevaProformaPage = () => {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                 </svg>
-                {showMoreClientData ? 'Ocultar datos de contacto' : 'Ver más datos del cliente (Teléfono, Email, etc.)'}
+                {showMoreClientData ? 'Ocultar datos de contacto' : 'Ver más datos del cliente (Teléfono, Email, Dirección)'}
               </button>
             </div>
 
             {showMoreClientData && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-100/60 animate-slide-up">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-2 pt-3 border-t border-slate-100/60 animate-slide-up">
                 <div>
-                  <label className="co-label">Telefono Cliente *</label>
+                  <label className="text-[11px] font-bold text-slate-600 mb-1 block">Teléfono / Celular</label>
                   <input
                     name="telefono"
                     value={form.telefono}
                     onChange={handleChange}
-                    required
-                    placeholder="Ej. 0991234567"
-                    className="co-input"
+                    placeholder="Ej. 0985740242"
+                    className="co-input text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="co-label">Email Cliente</label>
+                  <label className="text-[11px] font-bold text-slate-600 mb-1 block">Email Cliente</label>
                   <input
                     name="email"
                     type="email"
                     value={form.email}
                     onChange={handleChange}
                     placeholder="Ej. cliente@correo.com"
-                    className="co-input"
+                    className="co-input text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="co-label">Direccion Cliente</label>
+                  <label className="text-[11px] font-bold text-slate-600 mb-1 block">Dirección Cliente</label>
                   <input
                     name="direccion"
                     value={form.direccion || ''}
                     onChange={handleChange}
-                    placeholder="Ej. Av. Principal y Calle 10"
-                    className="co-input"
+                    placeholder="Ej. Edificio Huancavilca"
+                    className="co-input text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="co-label">Atiende *</label>
+                  <label className="text-[11px] font-bold text-slate-600 mb-1 block">Atiende *</label>
                   <input
                     name="atiende"
                     value={form.atiende}
                     onChange={handleChange}
                     required
                     readOnly
-                    className="co-input bg-slate-50 text-slate-400 font-semibold cursor-not-allowed"
+                    className="co-input text-xs bg-slate-50 text-slate-400 font-semibold cursor-not-allowed"
                   />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Valores Summary Card */}
-          <div className="co-card p-4 flex flex-col justify-between" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 border-b border-slate-100 pb-1.5">
-              Valores de la Proforma
+          {/* Totals Summary Card */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <div className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">
+              Resumen de Cotización
             </div>
             <div className="space-y-3 flex-1 justify-center flex flex-col">
-              <div className="flex justify-between items-center text-sm text-slate-600">
-                <span className="font-semibold text-slate-500 uppercase tracking-wider text-[11px]">Subtotal:</span>
-                <span className="font-bold text-slate-800 text-sm">{formatUSD(subTotal)}</span>
+              <div className="flex justify-between items-center text-xs text-slate-600">
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">Subtotal:</span>
+                <span className="font-bold text-slate-900 text-sm font-mono">{formatUSD(subTotal)}</span>
               </div>
-              <div className="flex justify-between items-center text-sm text-slate-600">
-                <span className="font-semibold text-slate-500 uppercase tracking-wider text-[11px] flex items-center gap-2">
-                  IVA (%):
-                  <select
-                    name="iva"
-                    value={form.iva}
-                    onChange={e => setForm(p => ({ ...p, iva: parseFloat(e.target.value) }))}
-                    className="co-input"
-                    style={{ width: '70px', padding: '2px 8px', display: 'inline', fontSize: '12px', height: '26px' }}
-                  >
-                    <option value={0}>0%</option>
-                    <option value={0.08}>8%</option>
-                    <option value={0.12}>12%</option>
-                    <option value={0.15}>15%</option>
-                  </select>
-                </span>
-                <span className="font-bold text-slate-800 text-sm">{formatUSD(ivaVal)}</span>
+              <div className="flex justify-between items-center text-xs text-slate-600">
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">Descuento ($):</span>
+                <input
+                  type="text"
+                  name="descuento"
+                  placeholder="0.00"
+                  value={form.descuento || ''}
+                  onChange={e => setForm(p => ({ ...p, descuento: e.target.value }))}
+                  className="co-input text-right font-bold text-xs"
+                  style={{ width: '90px', padding: '4px 8px', height: '28px' }}
+                />
               </div>
             </div>
-            <div className="border-t border-slate-100 pt-2.5 mt-2.5 flex justify-between items-center">
-              <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Total Final:</span>
-              <span className="text-xl font-black text-blue-600">{formatUSD(total)}</span>
+            <div className="border-t border-slate-100 pt-3 mt-3 flex justify-between items-center">
+              <span className="text-xs font-black text-slate-600 uppercase tracking-wider">Total Final:</span>
+              <span className="text-xl font-black text-blue-600 font-mono">{formatUSD(total)}</span>
             </div>
           </div>
 
         </div>
 
-        {/* Dynamic Item Entry Bar */}
-        <div className="p-5" style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px' }}>
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
-            Agregar Recurso a la Proforma
+        {/* Sección de Ingreso Fijada a 2 Filas Exactas */}
+        <div className="bg-white border border-slate-300 rounded-xl p-4 space-y-3 shadow-sm">
+          <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            AGREGAR ÍTEM A LA COTIZACIÓN
           </div>
-          <div className="co-add-item-bar">
-            
-            {/* Manual Description Input */}
-            <div className="flex-[3] min-w-[280px]">
-              <label className="co-label">Descripcion del Articulo / Servicio</label>
+
+          {/* FILA 1 DE 2: 7 columnas idénticas forzadas siempre en 1 sola línea */}
+          <div className="grid grid-cols-7 gap-2.5 w-full items-end">
+            <div>
+              <label className="text-[10px] font-bold text-slate-600 mb-1 block text-center truncate">
+                CANT *
+              </label>
               <input
                 type="text"
-                className="co-input"
-                placeholder="Escribe la descripción del ítem o servicio..."
-                value={itemInput.descripcion}
-                onChange={e => {
-                  const val = e.target.value;
-                  setItemInput(prev => ({
-                    ...prev,
-                    descripcion: val,
-                  }));
-                }}
-              />
-            </div>
-
-            <div className="w-[90px]">
-              <label className="co-label">Cantidad</label>
-              <input
-                type="number"
-                className="co-input text-center"
-                min="0.01"
-                step="0.01"
+                className="co-input text-center font-bold text-xs w-full"
+                placeholder="1"
                 value={itemInput.cantidad}
                 onChange={e => setItemInput(prev => ({ ...prev, cantidad: e.target.value }))}
               />
             </div>
 
-            <div className="w-[120px]">
-              <label className="co-label">Precio Unit.</label>
+            <div>
+              <label className="text-[10px] font-bold text-slate-600 mb-1 block text-center truncate">
+                ANCHO (m)
+              </label>
               <input
-                type="number"
-                className="co-input text-right"
-                min="0"
-                step="0.01"
+                type="text"
+                className="co-input text-center font-semibold text-xs w-full"
+                placeholder="0.00"
+                value={itemInput.ancho}
+                onChange={e => setItemInput(prev => ({ ...prev, ancho: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-600 mb-1 block text-center truncate">
+                ALTO (m)
+              </label>
+              <input
+                type="text"
+                className="co-input text-center font-semibold text-xs w-full"
+                placeholder="0.00"
+                value={itemInput.alto}
+                onChange={e => setItemInput(prev => ({ ...prev, alto: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 mb-1 block text-center truncate">
+                METRAJE (m²)
+              </label>
+              <input
+                type="text"
+                readOnly
+                tabIndex={-1}
+                className="co-input text-center font-mono text-xs bg-slate-100 text-slate-700 cursor-not-allowed w-full"
+                value={barMetraje > 0 ? barMetraje.toFixed(2) : '—'}
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 mb-1 block text-center truncate">
+                M. TOTAL (m²)
+              </label>
+              <input
+                type="text"
+                readOnly
+                tabIndex={-1}
+                className="co-input text-center font-mono font-bold text-xs bg-slate-100 text-slate-800 cursor-not-allowed w-full"
+                value={barMetrajeTotal.toFixed(2)}
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-600 mb-1 block text-center truncate">
+                VALOR UNIT ($)
+              </label>
+              <input
+                type="text"
+                className="co-input text-right font-semibold text-xs w-full"
+                placeholder="0.00"
                 value={itemInput.precioUnitario}
                 onChange={e => setItemInput(prev => ({ ...prev, precioUnitario: e.target.value }))}
               />
             </div>
 
-            <div className="w-[120px]">
-              <label className="co-label">Subtotal</label>
-              <div className="co-input bg-slate-50 text-right font-semibold text-slate-500 flex items-center justify-end px-3 border border-slate-200/80" style={{ height: '38px', borderRadius: '10px' }}>
-                {formatUSD((parseFloat(itemInput.cantidad) || 0) * (parseFloat(itemInput.precioUnitario) || 0))}
-              </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-700 mb-1 block text-center truncate">
+                VALOR TOTAL ($)
+              </label>
+              <input
+                type="text"
+                readOnly
+                tabIndex={-1}
+                className="co-input text-right font-mono font-extrabold text-xs bg-slate-100 text-slate-900 cursor-not-allowed w-full"
+                value={formatUSD(barValor)}
+              />
+            </div>
+          </div>
+
+          {/* FILA 2 DE 2: Descripción full-width + Botón Agregar */}
+          <div className="flex items-end gap-2.5 w-full pt-1">
+            <div className="flex-1">
+              <label className="text-[10px] font-bold text-slate-600 mb-1 block">
+                DESCRIPCIÓN DEL ÍTEM / SERVICIO *
+              </label>
+              <input
+                type="text"
+                className="co-input w-full text-xs font-medium"
+                placeholder="Ej. Ventana de aluminio claro + vidrio transparente con mallas anti-mosquitos..."
+                value={itemInput.descripcion}
+                onChange={e => setItemInput(prev => ({ ...prev, descripcion: e.target.value }))}
+              />
             </div>
 
             <button
               type="button"
               onClick={handleAddItem}
-              className="co-add-btn-moderate h-[38px] shrink-0"
+              className="px-6 h-[38px] bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-colors shrink-0"
             >
-              + Agregar
+              + Agregar Ítem
             </button>
           </div>
         </div>
 
-        {/* Line Items Table */}
-        <>
-          <div className="co-items-desktop-only">
-            <div className="overflow-x-auto">
-              <table className="co-items-table">
-                <thead>
-                  <tr>
-                    <th className="text-center" style={{ width: '60px' }}>N°</th>
-                    <th className="text-center" style={{ width: '100px' }}>Cantidad</th>
-                    <th>Descripción / Artículo / Servicio</th>
-                    <th className="text-center" style={{ width: '130px' }}>Precio Unit.</th>
-                    <th className="text-right" style={{ width: '130px' }}>Subtotal</th>
-                    <th className="text-right" style={{ width: '130px' }}>Total + IVA</th>
-                    <th className="text-center" style={{ width: '80px' }}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.items.map((d, index) => {
-                    const sub = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
-                    const totalWithIva = sub + sub * form.iva;
-                    return (
-                      <tr key={index}>
-                        <td className="text-center font-bold text-slate-400">{index + 1}</td>
-                        <td>
-                          <input
-                            type="number"
-                            className="co-table-input text-center mx-auto"
-                            style={{ width: '75px' }}
-                            min="0.01"
-                            step="0.01"
-                            value={d.cantidad}
-                            onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
-                            required
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            className="co-table-input w-full font-medium"
-                            value={d.descripcion}
-                            onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
-                            required
-                          />
-                        </td>
-                        <td>
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span className="text-slate-400 font-bold">$</span>
-                            <input
-                              type="number"
-                              className="co-table-input text-right"
-                              style={{ width: '95px' }}
-                              min="0"
-                              step="0.01"
-                              value={d.precioUnitario}
-                              onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
-                              required
-                            />
-                          </div>
-                        </td>
-                        <td className="text-right font-semibold text-slate-700">
-                          {formatUSD(sub)}
-                        </td>
-                        <td className="text-right font-extrabold text-blue-600">
-                          {formatUSD(totalWithIva)}
-                        </td>
-                        <td className="text-center">
-                          <button
-                            type="button"
-                            onClick={() => removeItem(index)}
-                            className="co-table-remove-btn"
-                            title="Eliminar item"
-                          >
-                            &times;
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {form.items.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="text-center py-16 text-slate-400 font-medium text-sm">
-                        No hay items agregados en esta proforma. Utilice la barra superior para agregar items a la tabla.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="co-items-mobile-only">
-            {form.items.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 font-medium text-sm border border-slate-200/80 rounded-2xl bg-slate-50/50">
-                No hay items agregados en esta proforma. Utilice el formulario de arriba para agregar items.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
+        {/* Tabla Sobria de Ítems Registrados */}
+        <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-300 text-[10.5px] font-extrabold text-slate-700 bg-slate-100 uppercase tracking-wider">
+                  <th className="text-center py-2.5 px-2 w-12 border-r border-slate-200">CÓD</th>
+                  <th className="text-center py-2.5 px-2 w-16 border-r border-slate-200">CANT</th>
+                  <th className="text-center py-2.5 px-2 w-20 border-r border-slate-200">ANCHO</th>
+                  <th className="text-center py-2.5 px-2 w-20 border-r border-slate-200">ALTO</th>
+                  <th className="text-center py-2.5 px-2 w-24 border-r border-slate-200">METRAJE</th>
+                  <th className="text-center py-2.5 px-2 w-24 border-r border-slate-200">M. TOTAL</th>
+                  <th className="text-left py-2.5 px-3 border-r border-slate-200">DESCRIPCIÓN</th>
+                  <th className="text-right py-2.5 px-3 w-28 border-r border-slate-200">VALOR UNIT.</th>
+                  <th className="text-right py-2.5 px-3 w-28 border-r border-slate-200">VALOR</th>
+                  <th className="text-center py-2.5 px-2 w-14">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
                 {form.items.map((d, index) => {
-                  const sub = (parseFloat(d.cantidad) || 0) * (parseFloat(d.precioUnitario) || 0);
-                  const totalWithIva = sub + sub * form.iva;
+                  const rowValor = calculateRowValor(d);
+                  const qty = parseNum(d.cantidad) || 1;
+                  const ancho = parseNum(d.ancho);
+                  const alto = parseNum(d.alto);
+                  const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(d.metraje) || 0);
+                  const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : (parseNum(d.metrajeTotal) || qty);
+
                   return (
-                    <div key={index} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                        <span className="font-bold text-slate-500 text-xs">Ítem #{index + 1}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="co-table-remove-btn"
-                          title="Eliminar item"
-                        >
-                          &times;
-                        </button>
-                      </div>
-                      
-                      <div className="flex flex-col gap-1">
-                        <label className="co-label !mb-1">Descripción</label>
+                    <tr key={index} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-2 text-center border-r border-slate-200 font-mono font-bold text-slate-700 bg-slate-50/50">
+                        {d.cod || `V${index + 1}`}
+                      </td>
+                      <td className="p-2 text-center border-r border-slate-200">
                         <input
                           type="text"
-                          className="co-table-input font-medium"
+                          className="co-table-input text-center font-bold mx-auto text-xs"
+                          style={{ width: '50px' }}
+                          value={d.cantidad}
+                          onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
+                          required
+                        />
+                      </td>
+                      <td className="p-2 text-center border-r border-slate-200">
+                        <input
+                          type="text"
+                          className="co-table-input text-center mx-auto text-xs"
+                          style={{ width: '55px' }}
+                          placeholder="—"
+                          value={d.ancho || ''}
+                          onChange={e => updateDetalle(index, 'ancho', e.target.value)}
+                        />
+                      </td>
+                      <td className="p-2 text-center border-r border-slate-200">
+                        <input
+                          type="text"
+                          className="co-table-input text-center mx-auto text-xs"
+                          style={{ width: '55px' }}
+                          placeholder="—"
+                          value={d.alto || ''}
+                          onChange={e => updateDetalle(index, 'alto', e.target.value)}
+                        />
+                      </td>
+                      <td className="p-2 text-center border-r border-slate-200 font-mono font-semibold text-slate-600">
+                        {metraje > 0 ? metraje.toFixed(2) : '—'}
+                      </td>
+                      <td className="p-2 text-center border-r border-slate-200 font-mono font-bold text-slate-800">
+                        {metrajeTotal.toFixed(2)}
+                      </td>
+                      <td className="p-2 border-r border-slate-200">
+                        <input
+                          type="text"
+                          className="co-table-input w-full font-medium text-xs"
                           value={d.descripcion}
                           onChange={e => updateDetalle(index, 'descripcion', e.target.value)}
                           required
                         />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1">
-                          <label className="co-label !mb-1">Cantidad</label>
-                          <input
-                            type="number"
-                            className="co-table-input text-center"
-                            min="0.01"
-                            step="0.01"
-                            value={d.cantidad}
-                            onChange={e => updateDetalle(index, 'cantidad', e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="co-label !mb-1">Precio Unitario ($)</label>
-                          <input
-                            type="number"
-                            className="co-table-input text-right"
-                            min="0"
-                            step="0.01"
-                            value={d.precioUnitario}
-                            onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 bg-slate-50/70 rounded-xl p-2.5 mt-1 text-center">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] text-slate-400 font-semibold uppercase">Subtotal</span>
-                          <span className="text-xs font-bold text-slate-700 font-mono mt-0.5">{formatUSD(sub)}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[9px] text-slate-400 font-semibold uppercase">Total + IVA</span>
-                          <span className="text-xs font-bold text-blue-600 font-mono mt-0.5">{formatUSD(totalWithIva)}</span>
-                        </div>
-                      </div>
-                    </div>
+                      </td>
+                      <td className="p-2 text-right border-r border-slate-200">
+                        <input
+                          type="text"
+                          className="co-table-input text-right font-semibold text-xs ml-auto"
+                          style={{ width: '80px' }}
+                          value={d.precioUnitario}
+                          onChange={e => updateDetalle(index, 'precioUnitario', e.target.value)}
+                          required
+                        />
+                      </td>
+                      <td className="p-2 text-right border-r border-slate-200 font-extrabold text-blue-700 font-mono text-xs">
+                        {formatUSD(rowValor)}
+                      </td>
+                      <td className="p-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="text-red-500 hover:text-red-700 font-black text-base px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                          title="Eliminar ítem"
+                        >
+                          &times;
+                        </button>
+                      </td>
+                    </tr>
                   );
                 })}
-              </div>
-            )}
+                {form.items.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="text-center py-10 text-slate-400 font-medium text-xs">
+                      No hay ítems registrados en esta cotización. Rellene los campos superiores y presione "+ Agregar Ítem".
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        </>
+        </div>
 
-        {/* Observaciones and Submit footer */}
-        <div className="flex flex-wrap md:flex-nowrap gap-6">
-          <div className="flex-1">
-            <label className="co-label">Notas libres / Observaciones Generales (se imprimen arriba de las condiciones)</label>
-            <textarea
-              className="co-input co-textarea"
-              style={{ borderRadius: '10px' }}
-              rows={2}
-              name="notas"
-              placeholder="Comentarios adicionales visibles para el cliente en la proforma…"
-              value={form.notas}
-              onChange={handleChange}
-            />
+        {/* Observaciones y Footer de acciones */}
+        <div className="flex flex-wrap md:flex-nowrap gap-4 pt-2">
+          <div className="flex-1 space-y-3">
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 mb-1 block">Condiciones y Formas de Pago</label>
+              <textarea
+                className="co-input co-textarea font-mono text-xs"
+                style={{ borderRadius: '10px' }}
+                rows={3}
+                name="condiciones"
+                value={form.condiciones}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 mb-1 block">Observaciones Generales</label>
+              <textarea
+                className="co-input co-textarea text-xs"
+                style={{ borderRadius: '10px' }}
+                rows={2}
+                name="notas"
+                placeholder="Comentarios adicionales para la cotización…"
+                value={form.notas}
+                onChange={handleChange}
+              />
+            </div>
           </div>
           
           <div className="flex items-center justify-end gap-3 shrink-0 self-end mt-4">
-            <button type="button" onClick={() => navigate('/proformas')} className="co-btn-ghost" style={{ fontWeight: 600 }}>
+            <button type="button" onClick={() => navigate('/proformas')} className="co-btn-ghost text-xs" style={{ fontWeight: 600 }}>
               Cancelar
             </button>
             <button
@@ -774,14 +865,14 @@ export const NuevaProformaPage = () => {
               name="action"
               value="pdf"
               disabled={saving}
-              className="co-btn-primary flex items-center justify-center relative overflow-hidden group"
+              className="co-btn-primary flex items-center justify-center relative overflow-hidden text-xs font-bold"
               style={{
-                padding: '12px 30px',
+                padding: '12px 28px',
                 borderRadius: '10px'
               }}
             >
               {saving && <div className="co-spinner-sm mr-2" />}
-              {form.estado === 'Rechazada' ? 'Guardar y Enviar a Aprobación' : 'Guardar y Ver PDF'}
+              {form.estado === 'Rechazada' ? 'Guardar y Enviar a Aprobación' : 'Guardar y Ver PDF Alux'}
             </button>
           </div>
         </div>
@@ -798,39 +889,8 @@ export const NuevaProformaPage = () => {
           }}
         />
       )}
-
-      <style>{`
-        .co-input, .co-table-input {
-          box-sizing: border-box !important;
-        }
-        .co-add-item-bar {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: end;
-          gap: 12px;
-        }
-        .co-items-desktop-only { display: block; }
-        .co-items-mobile-only { display: none; }
-        
-        @media (max-width: 768px) {
-          .co-add-item-bar {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 8px;
-          }
-          .co-add-item-bar > div {
-            width: 100% !important;
-            min-width: 0 !important;
-            flex: none !important;
-          }
-          .co-add-item-bar button {
-            width: 100% !important;
-            margin-top: 8px;
-          }
-          .co-items-desktop-only { display: none !important; }
-          .co-items-mobile-only { display: block !important; }
-        }
-      `}</style>
     </div>
   );
 };
+
+

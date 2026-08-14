@@ -15,6 +15,7 @@ import { isAsistenciaUser, normalizeUserForSession, isAdminUser } from '../../..
 import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
 import { OverlayPortal, ModalPortal } from '../../../../shared/ui/components/ModalPortal';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { checkBiometricSupport, requestBiometricScan } from '../../helpers/biometricHelper';
 
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -627,45 +628,104 @@ const KioskView = () => {
 
           {!isCameraActive ? (
             <div className="flex flex-col items-center gap-4 mt-6 w-full">
+              {/* Botón Circular de Huella Dactilar */}
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (gpsBadge.tone === 'amber') {
                     toast.error('La ubicación (GPS) es obligatoria para registrar asistencia. Actívala e intenta nuevamente.');
-                  } else {
-                    setIsCameraActive(true);
+                    return;
+                  }
+                  setIsProcessingScan(true);
+                  try {
+                    const empTarget = {
+                      id: kioskSession?.empleadoId || userObj?.id || 'EMP-001',
+                      nombre: kioskSession?.nombreEmpleado || userObj?.nombre || 'Empleado'
+                    };
+                    const res = await requestBiometricScan(empTarget);
+                    if (res.success) {
+                      toast.success('👆 Huella biométrica verificada con éxito');
+                      const ubicacionFinal = await resolveUbicacion();
+                      const reg = await registrarAsistencia({
+                        empleadoId: empTarget.id,
+                        ubicacion: ubicacionFinal
+                      });
+                      toast.success(`Asistencia registrada: ${reg?.label || 'Marcación completada'}`);
+                      if (typeof reloadMarcaciones === 'function') reloadMarcaciones();
+                    }
+                  } catch (err) {
+                    toast.error(err.message || 'Error en autenticación de huella');
+                  } finally {
+                    setIsProcessingScan(false);
                   }
                 }}
-                className={`w-40 h-40 border-2 rounded-full flex flex-col items-center justify-center gap-1.5 transition-all duration-300 transform hover:scale-[1.03] cursor-pointer ${gpsBadge.tone === 'amber'
-                    ? 'border-dashed border-rose-300 bg-rose-50/10'
-                    : 'border-dashed border-emerald-400 hover:border-emerald-500 bg-emerald-50/20 hover:bg-emerald-50/40'
-                  }`}
+                disabled={isProcessingScan}
+                className={`w-40 h-40 border-4 rounded-full flex flex-col items-center justify-center gap-1.5 transition-all duration-300 transform hover:scale-105 cursor-pointer shadow-lg shadow-blue-500/20 active:scale-95 ${
+                  gpsBadge.tone === 'amber'
+                    ? 'border-dashed border-rose-300 bg-rose-50/10 cursor-not-allowed'
+                    : 'border-blue-500 bg-gradient-to-b from-blue-50 to-indigo-50 hover:bg-blue-100/50'
+                }`}
               >
-                <svg className={`w-8 h-8 ${gpsBadge.tone === 'amber' ? 'text-rose-400' : 'text-emerald-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 15.75h4.5M16.5 14.25v4.5" />
+                <svg className={`w-12 h-12 ${gpsBadge.tone === 'amber' ? 'text-rose-400' : 'text-blue-600 animate-pulse'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0 1 19.5 10.5c0 2.92-.556 5.709-1.568 8.258M4.75 10.5a7.489 7.489 0 0 1 2.24-5.303m-2.24 5.303C4.248 12.38 4 14.364 4 16.425m11.378-6.19a3.75 3.75 0 0 0-6.756 2.19c0 4.195-1.127 8.127-3.122 11.512m10.878-13.702c.787 1.258 1.25 2.748 1.25 4.34 0 2.978-.887 5.75-2.41 8.082M12.75 12a.75.75 0 0 1 .75.75c0 2.379-.47 4.647-1.326 6.711 font-mono" />
                 </svg>
-                <span className={`text-xs font-black ${gpsBadge.tone === 'amber' ? 'text-rose-700' : 'text-emerald-800'}`}>Escanear QR</span>
-                <span className={`text-[9px] font-semibold ${gpsBadge.tone === 'amber' ? 'text-rose-500/80' : 'text-emerald-600/70'}`}>para registrar</span>
+                <span className={`text-xs font-black uppercase tracking-wider ${gpsBadge.tone === 'amber' ? 'text-rose-700' : 'text-blue-900'}`}>
+                  Marcar con Huella
+                </span>
+                <span className={`text-[9px] font-semibold ${gpsBadge.tone === 'amber' ? 'text-rose-500/80' : 'text-blue-600/70'}`}>
+                  Biometría Móvil
+                </span>
               </button>
 
+              {/* Botón Principal de Huella */}
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (gpsBadge.tone === 'amber') {
                     toast.error('La ubicación (GPS) es obligatoria para registrar asistencia. Actívala en tu navegador.');
-                  } else {
-                    setIsCameraActive(true);
+                    return;
+                  }
+                  setIsProcessingScan(true);
+                  try {
+                    const empTarget = {
+                      id: kioskSession?.empleadoId || userObj?.id || 'EMP-001',
+                      nombre: kioskSession?.nombreEmpleado || userObj?.nombre || 'Empleado'
+                    };
+                    const res = await requestBiometricScan(empTarget);
+                    if (res.success) {
+                      toast.success('👆 Huella biométrica verificada con éxito');
+                      const ubicacionFinal = await resolveUbicacion();
+                      const reg = await registrarAsistencia({
+                        empleadoId: empTarget.id,
+                        ubicacion: ubicacionFinal
+                      });
+                      toast.success(`Asistencia registrada: ${reg?.label || 'Marcación completada'}`);
+                      if (typeof reloadMarcaciones === 'function') reloadMarcaciones();
+                    }
+                  } catch (err) {
+                    toast.error(err.message || 'Error en autenticación de huella');
+                  } finally {
+                    setIsProcessingScan(false);
                   }
                 }}
-                className={`w-full max-w-xs py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer border ${gpsBadge.tone === 'amber'
-                    ? 'bg-rose-50/50 border-rose-100 text-rose-400 cursor-not-allowed'
-                    : 'bg-blue-950 hover:bg-blue-900 text-white border-blue-900/40 shadow-sm shadow-blue-900/20'
-                  }`}
+                disabled={isProcessingScan}
+                className={`w-full max-w-xs py-3 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
+                  gpsBadge.tone === 'amber'
+                    ? 'bg-rose-50/50 border border-rose-100 text-rose-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 active:scale-98'
+                }`}
               >
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0 1 19.5 10.5c0 2.92-.556 5.709-1.568 8.258M4.75 10.5a7.489 7.489 0 0 1 2.24-5.303m-2.24 5.303C4.248 12.38 4 14.364 4 16.425" />
                 </svg>
-                Abrir cámara
+                {isProcessingScan ? 'Verificando Huella...' : '👆 Marcar Asistencia con Huella'}
+              </button>
+
+              {/* Opción secundaria: Escáner QR */}
+              <button
+                type="button"
+                onClick={() => setIsCameraActive(true)}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline mt-1 cursor-pointer flex items-center gap-1"
+              >
+                📷 O usar escáner de cámara QR
               </button>
 
               {gpsBadge.tone === 'amber' && (

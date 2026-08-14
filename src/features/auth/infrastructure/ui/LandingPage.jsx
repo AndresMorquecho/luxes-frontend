@@ -1,346 +1,341 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+// src/features/auth/infrastructure/ui/LandingPage.jsx
+
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLandingConfig } from '../../../landing-config/application/useLandingImages';
-import { ArrowRight, Play, Award, Users, Clock, Shield, Smile, Palette, Printer, Wrench, Megaphone, PhoneCall } from 'lucide-react';
+import { 
+  ArrowRight, PhoneCall, Award, Building, ShieldCheck, Clock, 
+  Users, PenTool, Wrench, CheckCircle, Shield, CheckCircle2, 
+  MapPin, Phone, Mail, ChevronRight, Star, ExternalLink
+} from 'lucide-react';
 import { HeroCarousel } from './HeroCarousel';
 import { WhatsAppFloat } from './WhatsAppFloat';
-import { CategoryCard } from './CategoryCard';
+import { ALUX_DATA } from './aluxLandingData';
+import aluxBannerLogo from '../../../../assets/aluxBanner1.png';
 import './LandingPage.css';
-
-// Las categorías y productos vienen del backend dinámicamente
 
 export const LandingPage = () => {
   const navigate = useNavigate();
-  const { images, whatsapp, social, categories: backendCategories } = useLandingConfig();
-  const [activeSection, setActiveSection] = useState('inicio');
-  const [selectedCategorySlugs, setSelectedCategorySlugs] = useState(['todos']);
+  const [activeCategory, setActiveCategory] = useState('todos');
 
-  const toggleCategoryFilter = (slug) => {
-    if (selectedCategorySlugs.includes('todos')) {
-      setSelectedCategorySlugs([slug]);
-    } else {
-      if (selectedCategorySlugs.includes(slug)) {
-        const next = selectedCategorySlugs.filter((s) => s !== slug);
-        setSelectedCategorySlugs(next.length === 0 ? ['todos'] : next);
-      } else {
-        const next = [...selectedCategorySlugs, slug];
-        if (next.length === backendCategories.length) {
-          setSelectedCategorySlugs(['todos']);
-        } else {
-          setSelectedCategorySlugs(next);
-        }
-      }
-    }
-  };
+  const waPhone = ALUX_DATA.whatsappPhone;
+  const defaultMessage = 'Hola ALUX, deseo cotizar un proyecto en aluminio/vidrio.';
+  const waLink = `https://wa.me/${waPhone}?text=${encodeURIComponent(defaultMessage)}`;
 
-  const displayedCategories = useMemo(() => {
-    if (selectedCategorySlugs.includes('todos') || selectedCategorySlugs.length === 0) {
-      return backendCategories;
-    }
-    return backendCategories.filter((c) => selectedCategorySlugs.includes(c.slug));
-  }, [backendCategories, selectedCategorySlugs]);
+  // hero images
+  const heroImages = useMemo(() => [
+    { id: 'hero-1', src: '/assets/1.png', alt: 'Fachada Alucobond y Ventanería ALUX' },
+    { id: 'hero-2', src: '/assets/2.png', alt: 'Mamparas de Vidrio Templado ALUX' },
+    { id: 'hero-3', src: '/assets/3.png', alt: 'Pérgolas Modernas de Aluminio ALUX' },
+  ], []);
 
-  const heroImages = useMemo(
-    () => [
-      { id: 'hero-1', src: images.hero['hero-1'], alt: 'Proyecto Luxes 1' },
-      { id: 'hero-2', src: images.hero['hero-2'], alt: 'Proyecto Luxes 2' },
-      { id: 'hero-3', src: images.hero['hero-3'], alt: 'Proyecto Luxes 3' },
-      { id: 'hero-4', src: images.hero['hero-4'], alt: 'Proyecto Luxes 4' },
-    ],
-    [images.hero]
-  );
-
-  const waPhone = whatsapp?.phone || '593968982380';
-  const waMessage = whatsapp?.message || 'Hola, me interesa conocer más sobre los servicios de LUXES.';
-
-  const waLink = useMemo(
-    () => `https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`,
-    [waPhone, waMessage]
-  );
-
-
-  useEffect(() => {
-    const sections = ['inicio', 'servicios', 'catalogo'];
-    const observers = sections.map(id => {
-      const el = document.getElementById(id);
-      if (!el) return null;
-
-      const observer = new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting) {
-          setActiveSection(id);
-        }
-      }, {
-        rootMargin: '-30% 0px -50% 0px'
-      });
-      observer.observe(el);
-      return { observer, el };
-    });
-
-    return () => {
-      observers.forEach(obs => {
-        if (obs) obs.observer.unobserve(obs.el);
-      });
-    };
-  }, []);
+  // Productos filtrados
+  const productosFiltrados = useMemo(() => {
+    if (activeCategory === 'todos') return ALUX_DATA.productos;
+    return ALUX_DATA.productos.filter((p) => p.slug === activeCategory || p.id === activeCategory);
+  }, [activeCategory]);
 
   return (
     <div className="landing-page-container">
-
-      {/* FIXED HEADER WITH BLUR EFFECT */}
-      <header className="landing-header">
-        <div className="landing-logo-group">
-          <img src="/LogoGlobo.png" alt="Luxes" className="landing-logo" />
-          <div className="landing-logo-text">
-            <span className="landing-brand-name">LUXES</span>
-            <span className="landing-brand-subtitle">DISEÑO Y PUBLICIDAD</span>
+      {/* HEADER PRINCIPAL BLUR */}
+      <header className="alux-header">
+        <a href="#inicio" className="alux-logo-group">
+          <img src={aluxBannerLogo} alt="ALUX" className="alux-logo-img" />
+          <div className="alux-logo-brand">
+            <span className="alux-brand-title">{ALUX_DATA.brandName}</span>
+            <span className="alux-brand-subtitle">ALUMINIO & VIDRIO</span>
           </div>
-        </div>
+        </a>
 
-        <nav className="landing-nav">
-          <a href="#inicio" className={`landing-nav-link ${activeSection === 'inicio' ? 'active' : ''}`}>Inicio</a>
-          <a href="#servicios" className={`landing-nav-link ${activeSection === 'servicios' ? 'active' : ''}`}>Servicios</a>
-          <a href="#catalogo" className={`landing-nav-link ${activeSection === 'catalogo' ? 'active' : ''}`}>Catálogo</a>
+        <nav className="alux-nav">
+          <a href="#inicio" className="alux-nav-link active">Inicio</a>
+          <a href="#productos" className="alux-nav-link">Productos</a>
+          <a href="#proceso" className="alux-nav-link">El Proceso</a>
+          <a href="#nosotros" className="alux-nav-link">Por Qué ALUX</a>
+          <a href="#contacto" className="alux-nav-link">Contacto</a>
         </nav>
 
-        <div className="landing-header-actions">
+        <div className="alux-header-actions">
           <button
             type="button"
-            className="landing-header-login-btn-text"
+            className="alux-btn-login"
             onClick={() => navigate('/login')}
           >
-            Iniciar sesión
+            Iniciar Sesión
           </button>
-          <a href={waLink} target="_blank" rel="noopener noreferrer" className="landing-header-cta-btn">
-            Solicitar cotización
-            <ArrowRight size={16} />
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="alux-btn-wa"
+          >
+            <PhoneCall size={15} />
+            Cotizar por WhatsApp
           </a>
         </div>
       </header>
 
-      {/* SECTION 1: HERO */}
-      <section id="inicio" className="landing-section landing-hero-section">
-        <div className="landing-slide-inner">
-          <div className="landing-hero">
-            <div className="landing-hero-content">
-              <div className="landing-hero-promo">
-                <h1 className="landing-hero-title">
-                  <span className="hero-title-line line-blue">RENUEVA</span>
-                  <span className="hero-title-line line-yellow">TU MARCA</span>
-                  <span className="hero-title-line line-blue">IMPULSA TU ÉXITO</span>
-                </h1>
-                
-                <p className="landing-hero-desc">
-                  Diseñamos y producimos piezas que comunican, conectan y venden. Desde la idea hasta la instalación, gestionamos todo tu proyecto.
-                </p>
-                
-                <div className="landing-hero-cta-group">
-                  <a href="#catalogo" className="btn-cta-yellow">
-                    Ver catálogo
-                    <ArrowRight size={18} />
-                  </a>
-                </div>
-
-                <div className="landing-hero-features">
-                  <div className="hero-feature-item">
-                    <div className="feature-icon-box">
-                      <Award size={16} />
-                    </div>
-                    <span>Calidad garantizada</span>
-                  </div>
-                  <div className="hero-feature-item">
-                    <div className="feature-icon-box">
-                      <Users size={16} />
-                    </div>
-                    <span>Asesoría personalizada</span>
-                  </div>
-                  <div className="hero-feature-item">
-                    <div className="feature-icon-box">
-                      <Clock size={16} />
-                    </div>
-                    <span>Entregas a tiempo</span>
-                  </div>
-                  <div className="hero-feature-item">
-                    <div className="feature-icon-box">
-                      <Shield size={16} />
-                    </div>
-                    <span>Soluciones integrales</span>
-                  </div>
-                </div>
-              </div>
+      {/* SECCIÓN 1: HERO */}
+      <section id="inicio" className="alux-hero-section">
+        <div className="alux-hero-overlay-glow" />
+        
+        <div className="alux-hero-grid">
+          <div>
+            <div className="alux-badge-tag">
+              <Star size={14} className="text-amber-400" />
+              <span>Constructores en Aluminio & Vidrio • Milagro, Ecuador</span>
             </div>
 
-            <div className="landing-hero-visual">
-              <span className="visual-top-label">Algunos de nuestros proyectos</span>
-              
-              <div className="visual-carousel-container">
-                <div className="visual-shape shape-blue" />
-                <div className="visual-shape shape-yellow" />
-                
-                <div className="hero-carousel-wrapper">
-                  <HeroCarousel heroImages={heroImages} />
-                </div>
-              </div>
+            <h1 className="alux-hero-h1">
+              DISEÑAMOS, FABRICAMOS E INSTALAMOS
+              <span className="alux-hero-h1-gold">Soluciones que Duran.</span>
+            </h1>
 
-              <div className="hero-stats-card">
-                <div className="stats-item">
-                  <div className="stats-icon-box">
-                    <Users size={22} />
-                  </div>
-                  <span className="stats-number">+500</span>
-                  <span className="stats-label">Proyectos realizados</span>
-                </div>
-                <div className="stats-divider" />
-                <div className="stats-item">
-                  <div className="stats-icon-box">
-                    <Smile size={22} />
-                  </div>
-                  <span className="stats-number">+300</span>
-                  <span className="stats-label">Clientes satisfechos</span>
-                </div>
-                <div className="stats-divider" />
-                <div className="stats-item">
-                  <div className="stats-icon-box">
-                    <Award size={22} />
-                  </div>
-                  <span className="stats-number">8+</span>
-                  <span className="stats-label">Años de experiencia</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 2: SERVICES */}
-      <section id="servicios" className="landing-section landing-services-section">
-        <div className="landing-slide-inner">
-          <div className="landing-services-header">
-            <span className="landing-services-subtitle">¿QUÉ HACEMOS?</span>
-            <h2 className="landing-services-title">
-              Servicios que <span className="landing-services-title-accent">potencian tu marca</span>
-            </h2>
-          </div>
-
-          <div className="landing-services-grid">
-            <div className="service-card-new">
-              <div className="service-icon-circle bg-blue-soft">
-                <Palette size={24} className="text-blue" />
-              </div>
-              <h3 className="service-card-title">Diseño Gráfico</h3>
-              <p className="service-card-desc">Creamos identidades visuales que comunican tu esencia.</p>
-            </div>
-
-            <div className="service-card-new">
-              <div className="service-icon-circle bg-yellow-soft">
-                <Printer size={24} className="text-yellow" />
-              </div>
-              <h3 className="service-card-title">Producción</h3>
-              <p className="service-card-desc">Impresión de gran formato, acabados y más.</p>
-            </div>
-
-            <div className="service-card-new">
-              <div className="service-icon-circle bg-blue-soft">
-                <Wrench size={24} className="text-blue" />
-              </div>
-              <h3 className="service-card-title">Instalaciones</h3>
-              <p className="service-card-desc">Montaje profesional para que tu marca destaque.</p>
-            </div>
-
-            <div className="service-card-new">
-              <div className="service-icon-circle bg-yellow-soft">
-                <Megaphone size={24} className="text-yellow" />
-              </div>
-              <h3 className="service-card-title">Publicidad</h3>
-              <p className="service-card-desc">Estrategias visuales que impulsan tu negocio.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* SECTION 4: CATALOG SHOWCASE */}
-      <section id="catalogo" className="landing-section landing-catalog-section">
-        <div className="landing-slide-inner">
-          <div className="landing-catalog-header">
-            <h2 className="landing-section-title">
-              Catálogo por <span className="landing-section-title-accent">categorías</span>
-            </h2>
-            <p className="landing-section-description">
-              Explora nuestros proyectos y trabajos agrupados por especialidad. Selecciona una o varias categorías para filtrar las opciones.
+            <p className="alux-hero-subtitle">
+              Especialistas en fachadas de Alucobond (ACM), ventanería de aluminio, mamparas comerciales y vidrio templado para hogares, negocios e industrias.
             </p>
 
-            {/* Multi-select category filter tabs */}
-            <div className="landing-category-filter-tabs">
-              <button
-                type="button"
-                className={`category-filter-tab ${selectedCategorySlugs.includes('todos') ? 'active' : ''}`}
-                onClick={() => setSelectedCategorySlugs(['todos'])}
+            <div className="alux-hero-cta-box">
+              <a
+                href={waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="alux-btn-primary-gold"
               >
-                Todos
-              </button>
-              {backendCategories.map((cat) => {
-                const isSelected = !selectedCategorySlugs.includes('todos') && selectedCategorySlugs.includes(cat.slug);
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`category-filter-tab ${isSelected ? 'active' : ''}`}
-                    onClick={() => toggleCategoryFilter(cat.slug)}
-                  >
-                    {cat.name}
-                  </button>
-                );
-              })}
+                Cotiza tus Proyectos con Nosotros
+                <ArrowRight size={18} />
+              </a>
+
+              <a href="#productos" className="alux-btn-secondary-glass">
+                Ver Catálogo de Productos
+              </a>
+            </div>
+
+            <div className="alux-hero-bullets">
+              <div className="alux-bullet-item">
+                <CheckCircle2 size={16} className="alux-bullet-icon" />
+                <span>Materiales Certificados</span>
+              </div>
+              <div className="alux-bullet-item">
+                <CheckCircle2 size={16} className="alux-bullet-icon" />
+                <span>Diseños a la Medida</span>
+              </div>
+              <div className="alux-bullet-item">
+                <CheckCircle2 size={16} className="alux-bullet-icon" />
+                <span>Garantía en Obra</span>
+              </div>
             </div>
           </div>
 
-          <div className="landing-categories-showcase-grid">
-            {displayedCategories.map((category) => (
-              <CategoryCard key={category.id} category={category} />
-            ))}
-          </div>
-
-          {backendCategories.length === 0 && (
-            <div className="catalog-empty-state">
-              <p className="empty-state-text">Cargando categorías del catálogo...</p>
+          {/* Carrusel Visual en Hero */}
+          <div className="alux-hero-visual-card">
+            <div className="alux-hero-visual-inner">
+              <HeroCarousel heroImages={heroImages} />
             </div>
-          )}
+          </div>
         </div>
       </section>
 
-      {/* SECTION 5: CONTACT / CTA */}
-      <footer id="contacto" className="landing-footer">
-        <div className="landing-footer-left">
-          <p className="landing-footer-brand">LUXES — Diseño y Publicidad</p>
-          <p className="landing-footer-copy">© {new Date().getFullYear()} LUXES · Todos los derechos reservados</p>
+      {/* SECCIÓN 2: BARRA DE ESTADÍSTICAS / MÉTRICAS */}
+      <section className="alux-stats-bar">
+        <div className="alux-stats-grid">
+          {ALUX_DATA.stats.map((st, i) => (
+            <div key={i} className="alux-stat-card">
+              <div className="alux-stat-number">{st.number}</div>
+              <div className="alux-stat-label">{st.label}</div>
+            </div>
+          ))}
         </div>
-        <div className="landing-footer-socials">
-          {social.facebook && (
-            <a href={social.facebook} target="_blank" rel="noopener noreferrer" className="landing-social-link" aria-label="Facebook">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-              </svg>
-            </a>
-          )}
-          {social.instagram && (
-            <a href={social.instagram} target="_blank" rel="noopener noreferrer" className="landing-social-link" aria-label="Instagram">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-              </svg>
-            </a>
-          )}
-          {social.tiktok && (
-            <a href={social.tiktok} target="_blank" rel="noopener noreferrer" className="landing-social-link" aria-label="TikTok">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
-              </svg>
-            </a>
-          )}
+      </section>
+
+      {/* SECCIÓN 3: NUESTROS PRODUCTOS Y SERVICIOS */}
+      <section id="productos" className="alux-products-section">
+        <div className="alux-section-header">
+          <span className="alux-section-sub">NUESTROS PRODUCTOS</span>
+          <h2 className="alux-section-title">
+            Calidad y Estilo para Cada Espacio
+          </h2>
+          <p className="alux-section-desc">
+            Trabajamos con aluminio extruido, vidrio templado y paneles de Alucobond para ofrecer soluciones duraderas, funcionales y de alto valor estético.
+          </p>
+
+          {/* Filtro rápido */}
+          <div className="flex flex-wrap justify-center gap-2 mt-6">
+            <button
+              onClick={() => setActiveCategory('todos')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeCategory === 'todos'
+                  ? 'bg-slate-900 text-amber-400 shadow-md'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Todos los Productos
+            </button>
+            {ALUX_DATA.productos.map((prod) => (
+              <button
+                key={prod.id}
+                onClick={() => setActiveCategory(prod.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  activeCategory === prod.id
+                    ? 'bg-slate-900 text-amber-400'
+                    : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {prod.nombre}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Grid de Tarjetas de Producto */}
+        <div className="alux-products-grid">
+          {productosFiltrados.map((prod) => {
+            const itemWaLink = `https://wa.me/${waPhone}?text=${encodeURIComponent(`Hola ALUX, me interesa cotizar ${prod.nombre}`)}`;
+
+            return (
+              <div key={prod.id} className="alux-product-card">
+                <span className="alux-product-tag">{prod.tag}</span>
+                <img
+                  src={prod.image}
+                  alt={prod.nombre}
+                  className="alux-product-header-img"
+                />
+
+                <div className="alux-product-body">
+                  <span className="alux-product-cat">{prod.categoria}</span>
+                  <h3 className="alux-product-title">{prod.nombre}</h3>
+                  <p className="alux-product-desc">{prod.desc}</p>
+
+                  <div className="alux-product-bullets">
+                    {prod.caracteristicas.map((car, idx) => (
+                      <div key={idx} className="alux-product-bullet-li">
+                        <CheckCircle size={14} />
+                        <span>{car}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <a
+                    href={itemWaLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="alux-product-cta-btn"
+                  >
+                    Cotizar este Producto
+                    <ArrowRight size={14} />
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* SECCIÓN 4: NUESTRO PROCESO (5 PASOS) */}
+      <section id="proceso" className="alux-process-section">
+        <div className="alux-section-header">
+          <span className="alux-section-sub">NUESTRO PROCESO</span>
+          <h2 className="alux-section-title">
+            ¿Cómo Ejecutamos tu Proyecto?
+          </h2>
+          <p className="alux-section-desc">
+            Seguimos una metodología rigurosa desde la primera consulta hasta la entrega de llaves en mano.
+          </p>
+        </div>
+
+        <div className="alux-process-timeline">
+          {ALUX_DATA.procesos.map((pr) => (
+            <div key={pr.num} className="alux-process-card">
+              <div className="alux-process-num-badge">{pr.num}</div>
+              <h3 className="alux-process-card-title">{pr.titulo}</h3>
+              <p className="alux-process-card-desc">{pr.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SECCIÓN 5: POR QUÉ ELEGIR ALUX */}
+      <section id="nosotros" className="alux-why-section">
+        <div className="alux-section-header">
+          <span className="alux-section-sub" style={{ color: '#e6b835' }}>
+            CALIDAD QUE MARCA LA DIFERENCIA
+          </span>
+          <h2 className="alux-section-title" style={{ color: '#ffffff' }}>
+            ¿Por Qué Elegir a ALUX?
+          </h2>
+          <p className="alux-section-desc" style={{ color: '#94a3b8' }}>
+            Respaldamos cada proyecto con materiales certificados, acabados de primera y garantía directa.
+          </p>
+        </div>
+
+        <div className="alux-why-grid">
+          {ALUX_DATA.beneficios.map((ben, idx) => (
+            <div key={idx} className="alux-why-card">
+              <div className="alux-why-icon-box">
+                <CheckCircle2 size={24} />
+              </div>
+              <h3 className="alux-why-title">{ben.titulo}</h3>
+              <p className="alux-why-desc">{ben.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FOOTER & CONTACTO */}
+      <footer id="contacto" className="alux-footer">
+        <div className="alux-footer-grid">
+          <div>
+            <h3 className="alux-footer-brand-title">{ALUX_DATA.brandName}</h3>
+            <p className="alux-footer-desc">
+              {ALUX_DATA.brandSubtitle}. Construimos espacios modernos con soluciones duraderas en aluminio, vidrio templado y fachadas de Alucobond.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="alux-footer-h4">Contacto y Obra</h4>
+            <ul className="alux-footer-info-list">
+              <li className="alux-footer-info-item">
+                <MapPin size={16} />
+                <span>{ALUX_DATA.address} — {ALUX_DATA.city}</span>
+              </li>
+              <li className="alux-footer-info-item">
+                <Phone size={16} />
+                <span>WhatsApp: {ALUX_DATA.phone}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="alux-footer-h4">Redes Sociales</h4>
+            <div className="flex gap-3">
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 bg-white/10 hover:bg-amber-400 hover:text-slate-900 rounded-xl transition-all"
+                title="Facebook @alux_ec"
+              >
+                <ExternalLink size={18} />
+              </a>
+              <a
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 bg-white/10 hover:bg-amber-400 hover:text-slate-900 rounded-xl transition-all"
+                title="Instagram @alux_ec"
+              >
+                <ExternalLink size={18} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="alux-footer-bottom">
+          <p>© {new Date().getFullYear()} ALUX Constructores en Aluminio & Vidrio. Todos los derechos reservados.</p>
+          <p>Milagro - Guayas - Ecuador</p>
         </div>
       </footer>
 
+      {/* Botón Flotante de WhatsApp */}
       <WhatsAppFloat />
     </div>
   );

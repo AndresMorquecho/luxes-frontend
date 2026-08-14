@@ -128,8 +128,28 @@ export const ProformaDetallePage = () => {
     );
   }
 
-  const subtotal = (proforma.items || []).reduce((s, item) => s + Number(item.cantidad) * Number(item.precioUnitario), 0);
-  const total = subtotal * (1 + Number(proforma.iva));
+const parseNum = (v) => {
+  if (v === undefined || v === null || v === '') return 0;
+  const num = parseFloat(String(v).replace(',', '.'));
+  return isNaN(num) ? 0 : num;
+};
+
+  const calculateRowValor = (item) => {
+    if (item.valor !== undefined && item.valor !== null && !isNaN(parseNum(item.valor)) && parseNum(item.valor) > 0) {
+      return parseNum(item.valor);
+    }
+    const qty = parseNum(item.cantidad) || 1;
+    const price = parseNum(item.precioUnitario);
+    const ancho = parseNum(item.ancho);
+    const alto = parseNum(item.alto);
+    const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(item.metraje) || 1);
+    const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : (parseNum(item.metrajeTotal) || qty);
+    return metrajeTotal * price;
+  };
+
+  const subtotal = (proforma.items || []).reduce((s, item) => s + calculateRowValor(item), 0);
+  const descuentoVal = parseFloat(proforma.descuento) || 0;
+  const total = Math.max(0, subtotal - descuentoVal + (proforma.iva ? subtotal * Number(proforma.iva) : 0));
   const totalCobrado = (proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
   const totalPendiente = Math.max(0, total - totalCobrado);
   
@@ -301,10 +321,9 @@ export const ProformaDetallePage = () => {
       return proforma.condiciones.split('\n').filter(Boolean);
     }
     return [
-      "60% de anticipo y 40% contra entrega, efectivo o transferencias bancarias",
-      "Entrega en 15 días hábiles después de la confirmación de diseño",
-      "Esta cotización es válida por 3 días después de su fecha de emisión",
-      "Nuestros productos cuentan con garantía mínima de 12 meses, no cubre daños por mal uso o instalación incorrecta"
+      "60% DE ANTICIPO Y 40% CONTRAENTREGA",
+      "ENTREGA DE 7-8 DIAS LABORABLES DESPUES DE LA CONFIRMACION DE PAGO",
+      "ESTA COTIZACION ES VALIDA POR 3 DÍAS DESPUÉS DE SU EMISIÓN"
     ];
   };
 
@@ -341,7 +360,7 @@ export const ProformaDetallePage = () => {
               <FileText size={24} />
             </div>
             <div>
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">PROFORMA</span>
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">PROFORMA ALUX</span>
               <div className="flex items-center gap-2.5 mt-1.5">
                 <h1 className="text-2xl font-black text-slate-900 leading-none">{proforma.id}</h1>
                 <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${estStyle.bg}`}>
@@ -355,10 +374,17 @@ export const ProformaDetallePage = () => {
           {/* Action buttons */}
           <div className="flex items-center gap-3 flex-wrap">
             <button
+              onClick={() => navigate(`/proyectos/nuevo?proformaId=${proforma.id}`)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center gap-1.5"
+            >
+              🚀 Convertir a Proyecto Alux
+            </button>
+
+            <button
               onClick={() => setPreview(proforma)}
               className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
             >
-              <Download size={14} className="text-slate-500" /> Ver PDF
+              <Download size={14} className="text-slate-500" /> Ver PDF Alux
             </button>
 
             {(isAdmin || isVentasODisenador) && (
@@ -440,7 +466,8 @@ export const ProformaDetallePage = () => {
               <div className="min-w-0">
                 <span className="block font-extrabold text-slate-800 text-sm">{proforma.cliente}</span>
                 <span className="block text-xs text-slate-500 font-medium mt-1">
-                  {proforma.clienteCedula ? `RUC/CC: ${proforma.clienteCedula}` : proforma.telefono ? `Teléfono: ${proforma.telefono}` : '—'}
+                  {proforma.ciudad ? `Ciudad: ${proforma.ciudad} | ` : ''}
+                  {proforma.telefono ? `Tel: ${proforma.telefono}` : ''}
                   {proforma.direccion ? ` | Dir: ${proforma.direccion}` : ''}
                 </span>
               </div>
@@ -480,8 +507,8 @@ export const ProformaDetallePage = () => {
                   <Share2 size={16} />
                 </div>
                 <div>
-                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Medio de consecución</span>
-                  <span className="block text-xs text-slate-700 font-bold uppercase mt-0.5">{proforma.medio || 'LUXES'}</span>
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Medio</span>
+                  <span className="block text-xs text-slate-700 font-bold uppercase mt-0.5">{proforma.medio || 'ALUX'}</span>
                 </div>
               </div>
             </div>
@@ -509,46 +536,50 @@ export const ProformaDetallePage = () => {
       {/* Items Card */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-6">
         <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-bold text-slate-800">Detalle de la Proforma</h2>
+          <h2 className="text-sm font-bold text-slate-800">Detalle de la Proforma Alux</h2>
         </div>
 
-        {isMobileSm ? (
-          <div className="divide-y divide-slate-100">
-            {(proforma.items || []).map((item, idx) => (
-              <div key={idx} className="px-4 py-3 flex flex-col gap-1">
-                <p className="text-sm font-semibold text-slate-800">{item.descripcion}</p>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>Cant: <span className="font-mono font-semibold text-slate-700">{item.cantidad.toFixed(2)}</span></span>
-                  <span>P/u: <span className="font-mono font-semibold text-slate-700">{formatUSD(item.precioUnitario)}</span></span>
-                  <span className="font-mono font-bold text-slate-800">{formatUSD(item.cantidad * item.precioUnitario)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
-                  <th className="text-left px-6 py-3.5">Descripción</th>
-                  <th className="text-center px-4 py-3.5 w-28">Cantidad</th>
-                  <th className="text-right px-4 py-3.5 w-36">Precio Unitario</th>
-                  <th className="text-right px-6 py-3.5 w-36">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {(proforma.items || []).map((item, idx) => (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs font-bold text-slate-500 bg-slate-50/70">
+                <th className="text-center px-3 py-3.5 w-16">COD</th>
+                <th className="text-center px-3 py-3.5 w-16">CANT</th>
+                <th className="text-center px-3 py-3.5 w-20">ANCHO</th>
+                <th className="text-center px-3 py-3.5 w-20">ALTO</th>
+                <th className="text-center px-3 py-3.5 w-24">METRAJE</th>
+                <th className="text-center px-3 py-3.5 w-28">M. TOTAL</th>
+                <th className="text-left px-4 py-3.5">DESCRIPCIÓN</th>
+                <th className="text-right px-4 py-3.5 w-32">VALOR UNIT.</th>
+                <th className="text-right px-6 py-3.5 w-32">VALOR</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {(proforma.items || []).map((item, idx) => {
+                const qty = parseFloat(item.cantidad) || 0;
+                const ancho = parseFloat(item.ancho) || 0;
+                const alto = parseFloat(item.alto) || 0;
+                const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseFloat(item.metraje) || 0);
+                const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : (parseFloat(item.metrajeTotal) || qty);
+                const rowValor = calculateRowValor(item);
+
+                return (
                   <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-800 font-semibold">{item.descripcion}</td>
-                    <td className="px-4 py-4 text-center text-slate-600 font-mono font-semibold">{item.cantidad.toFixed(2)}</td>
+                    <td className="px-3 py-4 text-center text-slate-800 font-bold">{item.cod || `V${idx+1}`}</td>
+                    <td className="px-3 py-4 text-center text-slate-700 font-mono font-bold">{qty}</td>
+                    <td className="px-3 py-4 text-center text-slate-600 font-mono">{ancho > 0 ? ancho : '—'}</td>
+                    <td className="px-3 py-4 text-center text-slate-600 font-mono">{alto > 0 ? alto : '—'}</td>
+                    <td className="px-3 py-4 text-center text-slate-600 font-mono font-semibold">{metraje > 0 ? metraje.toFixed(2) : '—'}</td>
+                    <td className="px-3 py-4 text-center text-slate-800 font-mono font-bold">{metrajeTotal.toFixed(2)}</td>
+                    <td className="px-4 py-4 text-slate-800 font-semibold">{item.descripcion}</td>
                     <td className="px-4 py-4 text-right text-slate-600 font-mono font-semibold">{formatUSD(item.precioUnitario)}</td>
-                    <td className="px-6 py-4 text-right text-slate-800 font-bold font-mono">{formatUSD(item.cantidad * item.precioUnitario)}</td>
+                    <td className="px-6 py-4 text-right text-slate-900 font-bold font-mono text-base">{formatUSD(rowValor)}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
         {/* Totals Summary */}
         <div className="border-t border-slate-100 bg-slate-50/30 px-6 py-4 flex flex-col items-end">
@@ -557,38 +588,14 @@ export const ProformaDetallePage = () => {
               <span>Subtotal:</span>
               <span className="font-mono font-bold text-slate-700">{formatUSD(subtotal)}</span>
             </div>
-            <div className="flex justify-between items-center text-slate-500 font-semibold">
-              <div className="flex items-center gap-1">
-                <span>IVA</span>
-                {proforma.estado === 'Pendiente' ? (
-                  <select
-                    className="ml-1 text-xs font-bold bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-blue-500 cursor-pointer"
-                    value={proforma.iva}
-                    onChange={async (e) => {
-                      const newIva = Number(e.target.value);
-                      try {
-                        const updated = await saveProforma({ ...proforma, iva: newIva });
-                        setProforma(updated);
-                        toast.success(`IVA actualizado al ${newIva * 100}%`);
-                      } catch (err) {
-                        toast.error("Error al actualizar el IVA");
-                      }
-                    }}
-                  >
-                    <option value={0}>0%</option>
-                    <option value={0.05}>5%</option>
-                    <option value={0.10}>10%</option>
-                    <option value={0.15}>15%</option>
-                  </select>
-                ) : (
-                  <span>({Number(proforma.iva * 100)}%)</span>
-                )}
-                <span>:</span>
+            {descuentoVal > 0 && (
+              <div className="flex justify-between text-slate-500 font-semibold">
+                <span>Descuento:</span>
+                <span className="font-mono font-bold text-slate-700">- {formatUSD(descuentoVal)}</span>
               </div>
-              <span className="font-mono font-bold text-slate-700">{formatUSD(subtotal * Number(proforma.iva))}</span>
-            </div>
+            )}
             <div className="flex justify-between text-slate-800 font-bold text-base border-t border-slate-200 pt-2">
-              <span>Total Proforma:</span>
+              <span>Total Cotización:</span>
               <span className="font-mono text-blue-600 font-extrabold">{formatUSD(total)}</span>
             </div>
           </div>

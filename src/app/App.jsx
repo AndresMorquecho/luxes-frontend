@@ -258,6 +258,8 @@ function App() {
           <Suspense fallback={<RouteLoading />}>
             {isTallerMode ? (
               <Routes>
+                <Route path="/" element={<Navigate to="/proyectos" replace />} />
+                <Route path="/proyectos/*" element={<ProyectosFeature />} />
                 <Route path="/notificaciones" element={<NotificacionesPage />} />
                 <Route path="/instalaciones" element={<InstalacionesPage />} />
                 <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
@@ -269,7 +271,7 @@ function App() {
                 <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
                 <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
                 <Route path="/taller/control" element={<TallerControlPage />} />
-                <Route path="*" element={<Navigate to="/taller/control" replace />} />
+                <Route path="*" element={<Navigate to="/proyectos" replace />} />
               </Routes>
             ) : (
               <Routes>

@@ -3,17 +3,50 @@ import { Printer, X, ZoomIn, ZoomOut, FileText, Download } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import '../../../../shared/ui/components/PDFPreviewModal.css';
+import aluxBannerLogo from '../../../../assets/aluxBanner.png';
 
 const formatUSD = (val) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val ?? 0);
+
+
+const parseNum = (v) => {
+  if (v === undefined || v === null || v === '') return 0;
+  const num = parseFloat(String(v).replace(',', '.'));
+  return isNaN(num) ? 0 : num;
+};
+
+const getItemCalc = (item) => {
+  const cant = parseNum(item.cantidad) || 1;
+  const ancho = parseNum(item.ancho);
+  const alto = parseNum(item.alto);
+  const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : parseNum(item.metraje);
+  const metrajeTotal = (ancho > 0 && alto > 0) ? (cant * metraje) : (parseNum(item.metrajeTotal) || cant);
+  const precioUnitario = parseNum(item.precioUnitario);
+  const valor = (item.valor !== undefined && item.valor !== null && !isNaN(parseNum(item.valor)) && parseNum(item.valor) > 0)
+    ? parseNum(item.valor)
+    : (metrajeTotal > 0 ? metrajeTotal * precioUnitario : cant * precioUnitario);
+
+  return {
+    cod: item.cod || item.codigo || '—',
+    cant,
+    ancho: ancho > 0 ? ancho : (item.ancho ? item.ancho : '—'),
+    alto: alto > 0 ? alto : (item.alto ? item.alto : '—'),
+    metraje: metraje > 0 ? metraje.toFixed(2) : (item.metraje ? Number(item.metraje).toFixed(2) : '—'),
+    metrajeTotal: metrajeTotal > 0 ? metrajeTotal.toFixed(2) : cant.toFixed(2),
+    descripcion: item.descripcion || '',
+    precioUnitario,
+    valor
+  };
+};
 
 export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
   const [zoom, setZoom] = useState(100);
   const contentRef = useRef(null);
 
-  const subTotal = proforma.items.reduce((s, i) => s + (i.cantidad || 0) * (i.precioUnitario || 0), 0);
-  const ivaVal = subTotal * (proforma.iva ?? 0.12);
-  const total = subTotal + ivaVal;
+  const itemsCalculated = (proforma.items || []).map(getItemCalc);
+  const subTotal = itemsCalculated.reduce((s, i) => s + i.valor, 0);
+  const descuento = parseFloat(proforma.descuento) || 0;
+  const total = Math.max(0, subTotal - descuento);
 
   const handlePrint = () => {
     window.print();
@@ -129,68 +162,75 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
             page-break-after: avoid !important;
             page-break-inside: avoid !important;
           }
-          /* Forzar la impresión exacta de colores y fondos */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             color-adjust: exact !important;
           }
-          .lx-table th {
-            background: #34d399 !important;
-            color: white !important;
-          }
-          .lx-footer {
-            background: linear-gradient(135deg, #e8b84b 0%, #d4a017 100%) !important;
-          }
         }
 
-        /* ── Tabla ── */
-        .lx-table { width: 100%; border-collapse: collapse; }
-        .lx-table th {
-          background: #34d399;
+        /* ── Estilos Alux ── */
+        .alux-table { width: 100%; border-collapse: collapse; border: 1px solid #1f2937; }
+        .alux-table th {
+          background: #2b3647;
+          color: white;
+          font-size: 9.5px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          padding: 6px 4px;
+          border: 1px solid #1f2937;
+          text-align: center;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .alux-table td {
+          font-size: 9.5px;
+          color: #1e293b;
+          padding: 5px 6px;
+          border: 1px solid #94a3b8;
+          background: white;
+        }
+        .alux-table tbody tr:nth-child(even) td { background: #f8fafc; }
+        .alux-totals-table { border-collapse: collapse; margin-left: auto; width: 280px; }
+        .alux-totals-table th {
+          background: #2b3647;
           color: white;
           font-size: 10px;
           font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          padding: 7px 8px;
+          padding: 5px 12px;
+          text-align: center;
           border: 1px solid #1f2937;
+          width: 110px;
           -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-          color-adjust: exact;
         }
-        .lx-table td {
-          font-size: 10px;
-          color: #1e293b;
-          padding: 4px 8px;
-          border: 1px solid #e5e7eb;
+        .alux-totals-table td {
           background: white;
+          color: #1e293b;
+          font-size: 10.5px;
+          font-weight: 800;
+          padding: 5px 12px;
+          text-align: right;
+          border: 1px solid #1f2937;
         }
-        .lx-table tbody tr:nth-child(even) td { background: #f9fafb; }
-        .lx-table tbody tr:nth-child(odd) td { background: white; }
-
-        /* ── Footer dorado ── */
-        .lx-footer {
-          background: linear-gradient(135deg, #e8b84b 0%, #d4a017 100%);
-          padding: 6px 14px;
-          margin-top: 0;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-          color-adjust: exact;
-        }
-        .lx-footer-title {
+        .alux-terms-header {
+          background: #009688;
+          color: white;
           font-size: 10px;
           font-weight: 800;
-          color: #7c3f00;
-          text-decoration: underline;
-          margin-bottom: 3px;
+          padding: 4px 10px;
+          display: inline-block;
+          border-radius: 2px 2px 0 0;
+          -webkit-print-color-adjust: exact;
         }
-        .lx-footer p {
-          font-size: 8.5px;
-          color: #4a2000;
-          margin: 1.5px 0;
-          font-weight: 500;
-          line-height: 1.3;
+        .alux-terms-box {
+          background: #e2e8f0;
+          padding: 6px 12px;
+          font-size: 9px;
+          color: #1e293b;
+          font-weight: 700;
+          line-height: 1.5;
+          -webkit-print-color-adjust: exact;
         }
       `}</style>
 
@@ -199,7 +239,7 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
         <div className="pdf-toolbar print:hidden">
           <div className="pdf-toolbar-left">
             <FileText size={18} className="text-blue-500" />
-            <span className="pdf-doc-title">Vista previa — Proforma {proforma.id || 'Borrador'}</span>
+            <span className="pdf-doc-title">Vista previa — Proforma Alux {proforma.id || 'Borrador'}</span>
           </div>
 
           <div className="pdf-toolbar-center">
@@ -254,7 +294,7 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                 width: '794px',
                 height: '1050px',
                 minHeight: '1050px',
-                padding: '0px',
+                padding: '24px 28px',
                 margin: '0 auto',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -262,242 +302,214 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                 justifyContent: 'space-between',
               }}
             >
+              <div>
+                {/* ENCABEZADO — BANNER ALUX FULL WIDTH ELEGANTE */}
+                <div style={{
+                  width: '100%',
+                  height: '110px',
+                  marginBottom: '14px',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <img
+                    src={proforma.bannerUrl || proforma.logoUrl || configuracion?.logoUrl || aluxBannerLogo}
+                    alt="Alux Constructores en Aluminio & Vidrio"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                  />
+                </div>
 
-                <div>
-                  {/* ENCABEZADO — BANNER CENTRADO */}
-                  <div style={{ 
-                    borderBottom: '1px solid #e9ecef',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: '10px 0'
-                  }}>
-                    <img
-                      src="/bannerProforma.png"
-                      alt="LUXES Diseño y Publicidad"
-                      style={{ maxWidth: '100%', display: 'block', height: 'auto' }}
-                    />
+                {/* DATOS DEL CLIENTE */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.2fr 1fr 1fr',
+                  gap: '4px 16px',
+                  fontSize: '9.5px',
+                  padding: '8px 12px',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '4px',
+                  marginBottom: '10px'
+                }}>
+                  <div>
+                    <strong style={{ color: '#0f2537' }}>CLIENTE:</strong> {proforma.cliente || '—'}
                   </div>
-
-                  {/* Datos de contacto de la empresa */}
-                  {configuracion && (
-                    <div style={{
-                      background: '#f8fafc',
-                      padding: '4px 18px',
-                      fontSize: '8.5px',
-                      color: '#475569',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      borderBottom: '1px solid #e2e8f0',
-                      fontWeight: 500,
-                    }}>
-                      <span>Dirección: {configuracion.direccion}</span>
-                      <span>Celular: {configuracion.celular} | Email: {configuracion.email}</span>
-                    </div>
-                  )}
-
-                  {/* DATOS DEL CLIENTE */}
-                  <div style={{
-                    padding: '6px 18px',
-                    display: 'grid', gridTemplateColumns: '1fr 1fr',
-                    gap: '3px 24px',
-                    borderBottom: '1px solid #e9ecef',
-                  }}>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 70 }}>CLIENTE:</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.cliente?.toUpperCase()}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 78 }}>FECHA:</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.fecha}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 70 }}>TELÉFONO:</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.telefono || '—'}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 78 }}>VENCE:</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.vencimiento || '—'}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 70 }}>EMAIL:</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.email || '—'}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 78 }}>ATIENDE:</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.atiende?.toUpperCase() || '—'}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, gridColumn: 'span 2' }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', minWidth: 70 }}>DIRECCIÓN:</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{proforma.direccion || '—'}</span>
-                    </div>
+                  <div>
+                    <strong style={{ color: '#0f2537' }}>FECHA:</strong> {proforma.fecha || '—'}
                   </div>
-
-                  {/* TÍTULO PROFORMA */}
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '6px 18px 5px',
-                    borderBottom: '1px solid #e9ecef',
-                  }}>
-                    <h2 style={{
-                      fontSize: 16, fontWeight: 900, color: '#0f172a',
-                      letterSpacing: '0.15em', textTransform: 'uppercase',
-                      margin: 0,
-                    }}>PROFORMA</h2>
-                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 600 }}>N° {proforma.id}</span>
+                  <div>
+                    <strong style={{ color: '#0f2537' }}>CELULAR:</strong> {proforma.telefono || proforma.celular || '—'}
                   </div>
-
-                  {/* TABLA DE ÍTEMS */}
-                  <div style={{ padding: '0 18px 0' }}>
-                    <table className="lx-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: 70, textAlign: 'center' }}>CANTIDAD</th>
-                          <th style={{ textAlign: 'left', paddingLeft: 14 }}>DESCRIPCIÓN</th>
-                          <th style={{ width: 90, textAlign: 'right' }}>SUBTOTAL</th>
-                          <th style={{ width: 90, textAlign: 'right' }}>TOTAL + IVA</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {proforma.items.map((item, i) => {
-                          const sub = (item.cantidad || 0) * (item.precioUnitario || 0);
-                          const withIva = sub + sub * (proforma.iva ?? 0.12);
-                          return (
-                            <tr key={i}>
-                              <td style={{ textAlign: 'center', fontWeight: 600 }}>
-                                {item.cantidad}
-                              </td>
-                              <td style={{ paddingLeft: 14 }}>{item.descripcion}</td>
-                              <td style={{ textAlign: 'right' }}>
-                                {formatUSD(sub)}
-                              </td>
-                              <td style={{ textAlign: 'right' }}>
-                                {formatUSD(withIva)}
-                              </td>
-                            </tr>
-                          );
-                        })}
-
-                        {/* Fila de totales - Sin celdas vacías */}
-                        <tr>
-                          <td colSpan={2} style={{
-                            fontSize: 10, fontWeight: 800, color: '#34d399',
-                            textAlign: 'right', borderTop: '2px solid #34d399',
-                            background: 'white', border: '1px solid #e5e7eb', borderTop: '2px solid #34d399',
-                          }}>
-                            TOTAL SIN IVA
-                          </td>
-                          <td style={{ textAlign: 'center', fontWeight: 600, background: 'white', border: '1px solid #e5e7eb', borderTop: '2px solid #34d399' }}>
-                            {formatUSD(subTotal)}
-                          </td>
-                          <td style={{
-                            textAlign: 'right', fontWeight: 700,
-                            background: 'white', border: '1px solid #e5e7eb', borderTop: '2px solid #34d399',
-                          }}>
-                            {formatUSD(subTotal)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colSpan={2} style={{
-                            fontSize: 10, fontWeight: 800, color: '#34d399',
-                            textAlign: 'right', background: '#f9fafb', border: '1px solid #e5e7eb',
-                          }}>
-                            IVA ({((proforma.iva ?? 0.12) * 100).toFixed(0)}%)
-                          </td>
-                          <td style={{ textAlign: 'center', fontWeight: 600, background: '#f9fafb', border: '1px solid #e5e7eb' }}>
-                            {formatUSD(ivaVal)}
-                          </td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, background: '#f9fafb', border: '1px solid #e5e7eb' }}>
-                            {formatUSD(ivaVal)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colSpan={2} style={{
-                            fontSize: 11, fontWeight: 900, color: '#0f172a',
-                            textAlign: 'right', background: 'white',
-                            border: '1px solid #e5e7eb', borderTop: '2px solid #34d399',
-                          }}>
-                            TOTAL
-                          </td>
-                          <td style={{
-                            textAlign: 'center', fontWeight: 900, fontSize: 13,
-                            background: 'white', color: '#0f172a',
-                            border: '1px solid #e5e7eb', borderTop: '2px solid #34d399',
-                          }}>
-                            {formatUSD(total)}
-                          </td>
-                          <td style={{
-                            textAlign: 'right', fontWeight: 900, fontSize: 13,
-                            background: 'white', color: '#0f172a',
-                            border: '1px solid #e5e7eb', borderTop: '2px solid #34d399',
-                          }}>
-                            {formatUSD(total)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  <div>
+                    <strong style={{ color: '#0f2537' }}>CIUDAD:</strong> {proforma.ciudad || '—'}
                   </div>
-
-                  {/* Notas libres solo si las hay */}
-                  {(proforma.notes || proforma.notas) && (
-                    <div style={{ padding: '6px 18px 3px' }}>
-                      <p style={{ fontSize: '9.5px', color: '#475569', fontStyle: 'italic', margin: 0 }}>
-                        <strong>Nota:</strong> {proforma.notes || proforma.notas}
-                      </p>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <strong style={{ color: '#0f2537' }}>DIRECCIÓN:</strong> {proforma.direccion || '—'}
+                  </div>
+                  {proforma.email && (
+                    <div style={{ gridColumn: 'span 3' }}>
+                      <strong style={{ color: '#0f2537' }}>CORREO:</strong> {proforma.email}
                     </div>
                   )}
                 </div>
 
+                {/* TÍTULO PROFORMA */}
+                <div style={{
+                  textAlign: 'center',
+                  margin: '10px 0 12px'
+                }}>
+                  <h2 style={{
+                    fontSize: '15px',
+                    fontWeight: 900,
+                    color: '#0f2537',
+                    letterSpacing: '0.08em',
+                    margin: 0,
+                    textTransform: 'uppercase'
+                  }}>
+                    PROFORMA {proforma.id ? (proforma.id.toString().startsWith('PROFORMA') ? proforma.id : `${proforma.id}`) : ''}
+                  </h2>
+                </div>
+
+                {/* ENCABEZADOS DE CATEGORÍA / SUBGRUPO SI EXISTEN */}
+                {(proforma.categoriaHeader || proforma.subcategoriaHeader) && (
+                  <div style={{ marginBottom: '6px' }}>
+                    {proforma.categoriaHeader && (
+                      <div style={{
+                        background: '#ebd5cf',
+                        color: '#1e293b',
+                        fontWeight: 800,
+                        fontSize: '9.5px',
+                        textAlign: 'center',
+                        padding: '4px',
+                        border: '1px solid #1f2937',
+                        textTransform: 'uppercase',
+                        WebkitPrintColorAdjust: 'exact'
+                      }}>
+                        {proforma.categoriaHeader}
+                      </div>
+                    )}
+                    {proforma.subcategoriaHeader && (
+                      <div style={{
+                        background: '#dce4ec',
+                        color: '#1e293b',
+                        fontWeight: 800,
+                        fontSize: '9px',
+                        textAlign: 'center',
+                        padding: '3px',
+                        border: '1px solid #1f2937',
+                        borderTop: 'none',
+                        textTransform: 'uppercase',
+                        WebkitPrintColorAdjust: 'exact'
+                      }}>
+                        {proforma.subcategoriaHeader}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TABLA DE ÍTEMS */}
+                <table className="alux-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px' }}>COD</th>
+                      <th style={{ width: '45px' }}>CANT</th>
+                      <th style={{ width: '50px' }}>ANCHO</th>
+                      <th style={{ width: '50px' }}>ALTO</th>
+                      <th style={{ width: '60px' }}>METRAJE</th>
+                      <th style={{ width: '65px' }}>METRAJE TOTAL</th>
+                      <th style={{ textAlign: 'left', paddingLeft: '8px' }}>DESCRIPCIÓN</th>
+                      <th style={{ width: '100px', textAlign: 'right', paddingRight: '8px' }}>VALOR</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {itemsCalculated.map((it, idx) => (
+                      <tr key={idx}>
+                        <td style={{ textAlign: 'center', fontWeight: 700 }}>{it.cod}</td>
+                        <td style={{ textAlign: 'center', fontWeight: 700 }}>{it.cant}</td>
+                        <td style={{ textAlign: 'center' }}>{it.ancho}</td>
+                        <td style={{ textAlign: 'center' }}>{it.alto}</td>
+                        <td style={{ textAlign: 'center', fontWeight: 600 }}>{it.metraje}</td>
+                        <td style={{ textAlign: 'center', fontWeight: 700 }}>{it.metrajeTotal}</td>
+                        <td style={{ paddingLeft: '8px', fontWeight: 500 }}>{it.descripcion}</td>
+                        <td style={{ textAlign: 'right', paddingRight: '8px', fontWeight: 800 }}>
+                          $ {it.valor.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {itemsCalculated.length === 0 && (
+                      <tr>
+                        <td colSpan={8} style={{ textAlign: 'center', padding: '16px', color: '#94a3b8' }}>
+                          No hay ítems registrados
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+
+                {/* BLOQUE RESUMEN DE TOTALES */}
+                <div style={{ marginTop: '8px', display: 'flex', justify: 'flex-end' }}>
+                  <table className="alux-totals-table">
+                    <tbody>
+                      <tr>
+                        <th>SUBTOTAL</th>
+                        <td>$ {subTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                      {descuento > 0 && (
+                        <tr>
+                          <th>Descuento</th>
+                          <td>$ {descuento.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        </tr>
+                      )}
+                      <tr>
+                        <th>TOTAL</th>
+                        <td>$ {total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* NOTAS LIBRES ADICIONALES */}
+                {(proforma.notes || proforma.notas) && (
+                  <div style={{ marginTop: '8px', fontSize: '9px', color: '#475569', fontStyle: 'italic' }}>
+                    <strong>Observación:</strong> {proforma.notes || proforma.notas}
+                  </div>
+                )}
+              </div>
+
+              {/* SECCIÓN INFERIOR — AVISO Y CONDICIONES */}
+              <div style={{ marginTop: '16px' }}>
+                <div style={{
+                  color: '#dc2626',
+                  fontSize: '9.5px',
+                  fontWeight: 900,
+                  fontStyle: 'italic',
+                  marginBottom: '8px'
+                }}>
+                  NUESTROS PRECIOS NO INCLUYEN IVA
+                </div>
+
                 <div>
-                  {/* FOOTER DORADO — CONDICIONES */}
-                  <div className="lx-footer" style={{ marginTop: 6 }}>
-                    <div className="lx-footer-title">CONDICIONES Y FORMAS DE PAGO</div>
+                  <div className="alux-terms-header">
+                    CONDICIONES Y FORMAS DE PAGO
+                  </div>
+                  <div className="alux-terms-box">
                     {proforma.condiciones ? (
-                      proforma.condiciones.split('\n').map((line, idx) => {
-                        const cleanLine = line
-                          .replace(/d\?\?as/gi, 'días')
-                          .replace(/h\?\?biles/gi, 'hábiles')
-                          .replace(/despu\?\?s/gi, 'después')
-                          .replace(/confirmaci\?\?n/gi, 'confirmación')
-                          .replace(/dise\?\?o/gi, 'diseño')
-                          .replace(/cotizaci\?\?n/gi, 'cotización')
-                          .replace(/v\?\?lida/gi, 'válida')
-                          .replace(/garant\?\?a/gi, 'garantía')
-                          .replace(/m\?\?nimo/gi, 'mínimo')
-                          .replace(/da\?\?os/gi, 'daños')
-                          .replace(/instalaci\?\?n/gi, 'instalación');
-                        return <p key={idx}>{cleanLine}</p>;
-                      })
+                      proforma.condiciones.split('\n').map((line, idx) => <div key={idx}>{line}</div>)
                     ) : (
                       <>
-                        <p>60% de anticipo y 40% contra entrega, efectivo o transferencias bancarias</p>
-                        <p>Entrega en 15 días hábiles después de la confirmación de diseño</p>
-                        <p>Esta cotización es válida por 3 días después de su fecha de emisión</p>
-                        <p>Nuestros productos cuentan con garantía mínimo de 12 meses, no cubre daños por mal uso o instalación incorrecta</p>
+                        <div>60% DE ANTICIPO Y 40% CONTRAENTREGA</div>
+                        <div>ENTREGA DE 7-8 DIAS LABORABLES DESPUES DE LA CONFIRMACION DE PAGO</div>
+                        <div>ESTA COTIZACION ES VALIDA POR 3 DÍAS DESPUÉS DE SU EMISIÓN</div>
                       </>
                     )}
                   </div>
-
-                  {/* Firma */}
-                  <div style={{
-                    display: 'grid', gridTemplateColumns: '1fr 1fr',
-                    gap: 24, padding: '8px 40px 8px',
-                  }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ borderBottom: '1.5px solid #94a3b8', marginBottom: 3, paddingTop: 16 }} />
-                      <span style={{ fontSize: 9, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Firma Autorizada — {proforma.atiende ? proforma.atiende.toUpperCase() : 'LUXES'}
-                      </span>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ borderBottom: '1.5px solid #94a3b8', marginBottom: 3, paddingTop: 16 }} />
-                      <span style={{ fontSize: 9, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Firma Cliente — {proforma.cliente ? proforma.cliente.toUpperCase() : ''}
-                      </span>
-                    </div>
-                  </div>
+                </div>
               </div>
+
             </div>
           </div>
         </div>
@@ -506,3 +518,4 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
     </ModalPortal>
   );
 };
+

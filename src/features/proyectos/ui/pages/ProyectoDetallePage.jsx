@@ -24,6 +24,10 @@ import { DisenoPanel } from '../components/DisenoPanel.jsx';
 import { ProduccionPanel } from '../components/ProduccionPanel.jsx';
 import { EntregaPanel } from '../components/EntregaPanel.jsx';
 import { CompletadoPanel } from '../components/CompletadoPanel.jsx';
+import { AluxFasesPanel } from '../components/AluxFasesPanel.jsx';
+import { AluxGastosResumenPanel } from '../components/AluxGastosResumenPanel.jsx';
+import { AluxCotizacionTab } from '../components/AluxCotizacionTab.jsx';
+import { generateAluxFasesWithDates } from '../../domain/value-objects/aluxFasesTemplate.js';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { ProyectoDetallesModal } from '../components/ProyectoDetallesModal.jsx';
 import { ProyectoEditModal } from '../components/ProyectoEditModal.jsx';
@@ -298,7 +302,7 @@ export default function ProyectoDetallePage() {
                   {estadoConfig.label}
                 </span>
               )}
-              <FaseBadge faseId={proyecto.faseActual} size="sm" />
+              <FaseBadge faseId={proyecto.faseActual} proyecto={proyecto} size="sm" />
             </div>
           </div>
         </div>
@@ -312,17 +316,28 @@ export default function ProyectoDetallePage() {
             onClick={() => handleSetSubTab('fases')}
             className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
               ${subTab === 'fases'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-blue-600 text-blue-700'
                 : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
             Flujo de Trabajo
           </button>
+
+          <button
+            onClick={() => handleSetSubTab('cotizacion')}
+            className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
+              ${subTab === 'cotizacion'
+                ? 'border-blue-600 text-blue-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            Cotización
+          </button>
+
           {canViewGastos && (
             <button
               onClick={() => handleSetSubTab('gastos')}
               className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
                 ${subTab === 'gastos'
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-blue-600 text-blue-700'
                   : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
               Gastos y Compras
@@ -331,76 +346,96 @@ export default function ProyectoDetallePage() {
         </div>
 
         <div className={subTab === 'fases' ? 'block space-y-6' : 'hidden'}>
-          {/* Timeline + Progreso */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 relative">
-            <FaseTimeline 
-              faseActual={proyecto.faseActual} 
-              fases={proyecto.fases} 
-              faseVista={faseActiva}
-              onFaseClick={handleSetFaseVista}
-              requiereInstalacion={proyecto.requiereInstalacion}
-            />
-            <div className="mt-3 sm:mt-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
-                <span className="text-sm font-bold" style={{ color: faseConfig?.color }}>
-                  {proyecto.progreso}% — {faseConfig?.label}
-                </span>
+          {/* Si NO es un proyecto Alux, muestra el timeline fijo tradicional de Luxes */}
+          {!(proyecto?.medio === 'ALUX' || proyecto?.fasesAlux) && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 relative">
+              <FaseTimeline 
+                faseActual={proyecto.faseActual} 
+                fases={proyecto.fases} 
+                faseVista={faseActiva}
+                onFaseClick={handleSetFaseVista}
+                requiereInstalacion={proyecto.requiereInstalacion}
+              />
+              <div className="mt-3 sm:mt-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
+                  <span className="text-sm font-bold" style={{ color: faseConfig?.color }}>
+                    {proyecto.progreso}% — {faseConfig?.label}
+                  </span>
+                </div>
+                <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} height="h-4" />
               </div>
-              <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} height="h-4" />
             </div>
-          </div>
+          )}
         </div>
 
         {/* Panel de fase actual / vista — SOLO visible en el tab Flujo de Trabajo */}
         <div style={{ display: subTab === 'fases' ? 'block' : 'none' }} className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
-          <div
-            className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50 rounded-t-2xl gap-2 sm:gap-3"
-            style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <h2 className="font-bold text-slate-800 text-sm sm:text-base truncate">
-                  {esVistaSoloLectura ? `Historial: ${faseConfig?.label}` : `Fase actual: ${faseConfig?.label}`}
-                </h2>
-                {esVistaSoloLectura && (
-                  <button 
-                    onClick={() => setFaseVista(null)}
-                    className="text-[10px] font-bold bg-white text-slate-500 px-2 py-1 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors uppercase tracking-wider shrink-0"
-                  >
-                    Ver actual
-                  </button>
-                )}
+          {!(proyecto?.medio === 'ALUX' || proyecto?.fasesAlux) && (
+            <div
+              className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50 rounded-t-2xl gap-2 sm:gap-3"
+              style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <h2 className="font-bold text-slate-800 text-sm sm:text-base truncate">
+                    {esVistaSoloLectura ? `Historial: ${faseConfig?.label}` : `Fase actual: ${faseConfig?.label}`}
+                  </h2>
+                  {esVistaSoloLectura && (
+                    <button 
+                      onClick={() => setFaseVista(null)}
+                      className="text-[10px] font-bold bg-white text-slate-500 px-2 py-1 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors uppercase tracking-wider shrink-0"
+                    >
+                      Ver actual
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{faseConfig?.descripcion}</p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{faseConfig?.descripcion}</p>
+              <FaseBadge faseId={faseActiva} />
             </div>
-            <FaseBadge faseId={faseActiva} />
-          </div>
+          )}
 
           <div className="p-3 sm:p-6">
-            {faseActiva === 'INSTALACION' && <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-            {faseActiva === 'COTIZACION' && <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-            {faseActiva === 'DISEÑO' && <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-            {faseActiva === 'PRODUCCION' && <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-            {faseActiva === 'ENTREGA' && <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-            {faseActiva === 'COMPLETADO' && <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-            {!['INSTALACION','COTIZACION','DISEÑO','PRODUCCION','ENTREGA','COMPLETADO'].includes(faseActiva) && (
-              <div
-                className="rounded-xl p-4 text-sm"
-                style={{ backgroundColor: faseConfig?.bgColor, color: faseConfig?.color }}
-              >
-                {faseConfig?.descripcion}
-                {faseConfig?.camposRequeridos?.length > 0 && (
-                  <ul className="mt-3 space-y-1 text-slate-600">
-                    {faseConfig.camposRequeridos.map((campo) => (
-                      <li key={campo} className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full border-2 border-current inline-block" />
-                        {campo}
-                      </li>
-                    ))}
-                  </ul>
+            {proyecto?.medio === 'ALUX' || proyecto?.fasesAlux ? (
+              <AluxFasesPanel
+                proyecto={proyecto}
+                fases={proyecto.fasesAlux || generateAluxFasesWithDates(proyecto.fechaCreacion || proyecto.fechaInicio)}
+                onUpdateFases={(updatedFases) => {
+                  updateProyecto({ fasesAlux: updatedFases });
+                }}
+                onAddGasto={(fase) => {
+                  navigate(`/gastos?proyectoId=${proyecto.id}&faseId=${fase.id}`);
+                }}
+                gastos={proyecto?.gastos || []}
+              />
+            ) : (
+              <>
+                {faseActiva === 'INSTALACION' && <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                {faseActiva === 'COTIZACION' && <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                {faseActiva === 'DISEÑO' && <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                {faseActiva === 'PRODUCCION' && <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                {faseActiva === 'ENTREGA' && <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                {faseActiva === 'COMPLETADO' && <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
+                {!['INSTALACION','COTIZACION','DISEÑO','PRODUCCION','ENTREGA','COMPLETADO'].includes(faseActiva) && (
+                  <div
+                    className="rounded-xl p-4 text-sm"
+                    style={{ backgroundColor: faseConfig?.bgColor, color: faseConfig?.color }}
+                  >
+                    {faseConfig?.descripcion}
+                    {faseConfig?.camposRequeridos?.length > 0 && (
+                      <ul className="mt-3 space-y-1 text-slate-600">
+                        {faseConfig.camposRequeridos.map((campo) => (
+                          <li key={campo} className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full border-2 border-current inline-block" />
+                            {campo}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </div>
 
@@ -487,14 +522,31 @@ export default function ProyectoDetallePage() {
         </div>
       </div>
 
+      {subTab === 'cotizacion' && (
+        <div className="w-full mx-auto px-4 sm:px-6 py-3 sm:py-6">
+          <AluxCotizacionTab proyecto={proyecto} onUpdateProyecto={updateProyecto} />
+        </div>
+      )}
+
       {canViewGastos && subTab === 'gastos' && (
-        <div>
-          <GastosComprasTab 
-            proyecto={proyecto} 
-            isAdmin={isAdmin} 
-            updateProyecto={updateProyecto} 
-            reloadProyectos={reloadProyectos} 
-          />
+        <div className="w-full mx-auto px-4 sm:px-6 py-3 sm:py-6">
+          {proyecto?.medio === 'ALUX' || proyecto?.fasesAlux ? (
+            <AluxGastosResumenPanel
+              proyecto={proyecto}
+              fases={proyecto.fasesAlux || generateAluxFasesWithDates(proyecto.fechaCreacion || proyecto.fechaInicio)}
+              gastos={proyecto?.gastos || []}
+              onAddGasto={(fase) => {
+                navigate(`/gastos?proyectoId=${proyecto.id}&faseId=${fase.id}`);
+              }}
+            />
+          ) : (
+            <GastosComprasTab 
+              proyecto={proyecto} 
+              isAdmin={isAdmin} 
+              updateProyecto={updateProyecto} 
+              reloadProyectos={reloadProyectos} 
+            />
+          )}
         </div>
       )}
 

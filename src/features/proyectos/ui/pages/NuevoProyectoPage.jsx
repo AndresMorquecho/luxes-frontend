@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Check, Search, ChevronDown, Info, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Search, ChevronDown, Info, ClipboardList, Trash2 } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
 import { getClientes } from '../../../clientes/application/clientesService.js';
 import { getTodayDateISO } from '../../domain/utils/proyectoDates.js';
+import { generateAluxFasesWithDates } from '../../domain/value-objects/aluxFasesTemplate.js';
+import { useSearchParams } from 'react-router-dom';
 
 const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'URGENTE'];
 const PRIORIDAD_COLORS = {
@@ -32,8 +34,12 @@ const EMPTY_FORM = {
 
 export default function NuevoProyectoPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const proformaId = searchParams.get('proformaId');
+
   const { addProyecto } = useProyectos();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [fasesAlux, setFasesAlux] = useState(() => generateAluxFasesWithDates(getTodayDateISO(), proformaId));
   const [errors, setErrors] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [clientes, setClientes] = useState([]);
@@ -119,6 +125,8 @@ export default function NuevoProyectoPage() {
         etiquetas: form.etiquetas,
         requiereInstalacion: form.requiereInstalacion,
         clienteId: form.clienteId,
+        medio: 'ALUX',
+        fasesAlux: fasesAlux,
         cliente: {
           nombre: clienteObj.nombre,
           empresa: clienteObj.tipo === 'Empresa' ? clienteObj.nombre : '',
@@ -442,6 +450,97 @@ export default function NuevoProyectoPage() {
             />
           </div>
 
+        </div>
+
+        {/* CONFIGURADOR DE FASES DE PROYECTO (ALUX) */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                Fases del Proyecto (Alux)
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Personaliza el número de fases, nombres y fechas estimadas para este proyecto
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const nueva = {
+                  id: 'fase-' + Date.now(),
+                  orden: fasesAlux.length + 1,
+                  nombre: `Fase ${fasesAlux.length + 1}: `,
+                  descripcion: 'Fase personalizada',
+                  fechaInicioPlan: getTodayDateISO(),
+                  fechaFinPlan: getTodayDateISO(),
+                  estado: 'PENDIENTE',
+                  evidencias: [],
+                  notas: '',
+                };
+                setFasesAlux(prev => [...prev, nueva]);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs rounded-xl transition-colors"
+            >
+              <Plus size={14} />
+              + Agregar Fase
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {fasesAlux.map((fase, index) => (
+              <div key={fase.id} className="flex flex-wrap sm:flex-nowrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <span className="w-6 h-6 rounded-full bg-slate-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                  {index + 1}
+                </span>
+
+                <div className="flex-1 min-w-[200px]">
+                  <input
+                    type="text"
+                    className="co-input font-bold text-xs w-full bg-white"
+                    placeholder="Nombre de la Fase"
+                    value={fase.nombre}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFasesAlux(prev => prev.map(f => f.id === fase.id ? { ...f, nombre: val } : f));
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 text-xs">
+                  <input
+                    type="date"
+                    className="co-input text-xs bg-white"
+                    value={fase.fechaInicioPlan || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFasesAlux(prev => prev.map(f => f.id === fase.id ? { ...f, fechaInicioPlan: val } : f));
+                    }}
+                  />
+                  <span className="text-slate-400 font-bold">➔</span>
+                  <input
+                    type="date"
+                    className="co-input text-xs bg-white"
+                    value={fase.fechaFinPlan || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFasesAlux(prev => prev.map(f => f.id === fase.id ? { ...f, fechaFinPlan: val } : f));
+                    }}
+                  />
+                </div>
+
+                {fasesAlux.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setFasesAlux(prev => prev.filter(f => f.id !== fase.id))}
+                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                    title="Eliminar esta fase"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
       </div>

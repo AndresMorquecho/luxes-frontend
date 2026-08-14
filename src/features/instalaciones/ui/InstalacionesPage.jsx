@@ -48,10 +48,11 @@ export function InstalacionesPage() {
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
-  // Filtrar proyectos que requieren instalación y que YA están en la fase de instalación o posteriores
+  // Filtrar proyectos que requieren instalación (Luxes) o todos los proyectos de Alux con fases operativas
   const proyectosInstalacion = todosLosProyectos.filter(p => 
-    p.requiereInstalacion === true && 
-    ['INSTALACION', 'ENTREGA', 'COMPLETADO'].includes(p.faseActual)
+    p.medio === 'ALUX' || 
+    p.fasesAlux?.length > 0 ||
+    (p.requiereInstalacion === true && ['INSTALACION', 'ENTREGA', 'COMPLETADO'].includes(p.faseActual))
   );
 
   const getStarted = (p) => !!(p.fases?.INSTALACION?.datos?.fechaInstalacion && p.fases?.INSTALACION?.datos?.horaInstalacion);
@@ -417,9 +418,9 @@ export function InstalacionesPage() {
                 {/* Columna 6: Acciones */}
                 <div className="list-col col-actions">
                   <button
-                    onClick={() => navigate(`/instalaciones/${proyecto.id}/materiales`)}
+                    onClick={() => navigate(proyecto.medio === 'ALUX' || proyecto.fasesAlux ? `/proyectos/${proyecto.id}` : `/instalaciones/${proyecto.id}/materiales`)}
                     className="card-action-btn primary list-btn"
-                    title="Ver ficha del proyecto"
+                    title="Ver ficha y fases del proyecto"
                   >
                     <Eye size={14} />
                     Ver Proyecto

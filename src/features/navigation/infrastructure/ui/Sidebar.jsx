@@ -49,7 +49,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const canViewBalances = isAdmin || (!isImpresion && !isTaller && !isVentas && !isDisenador);
   const canViewFinanzas = (canViewMovimientos || canViewCierreCaja || canViewBalances) && !isVentas && !isDisenador;
   const canViewTareas = true;
-  const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
+  const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador || isTaller;
   const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller);
   const canViewCompras = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion || isTaller;
   const canViewRelaciones = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
