@@ -1,70 +1,109 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
-/* ── ALUX LUXURY ARCHITECTURAL DESIGN SYSTEM ── */
-:root {
-  --alux-navy-dark: #071325;
-  --alux-navy-main: #0b1d3a;
-  --alux-navy-light: #132a50;
-  --alux-gold-main: #c59b27;
-  --alux-gold-bright: #e6b835;
-  --alux-gold-light: #fdf8e6;
-  --alux-gold-border: rgba(197, 155, 39, 0.3);
-  --alux-gold-glow: rgba(230, 184, 53, 0.15);
-  --text-primary: #0f172a;
-  --text-muted: #64748b;
-  --text-white: #ffffff;
-  --bg-slate-light: #f8fafc;
-  --border-slate: #e2e8f0;
-  --header-glass: rgba(7, 19, 37, 0.94);
-  --glass-blur: blur(16px);
-  --shadow-subtle: 0 4px 20px rgba(7, 19, 37, 0.06);
-  --shadow-hover: 0 20px 40px rgba(7, 19, 37, 0.12);
-  --transition-fast: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--alux-navy-dark);
-  font-family: 'Outfit', sans-serif;
-  color: var(--text-primary);
-  overflow-x: hidden;
-}
-
+/* ── NESTORIA-STYLE LIGHT ARCHITECTURAL DESIGN SYSTEM FOR ALUX (SCOPED STRICTLY TO .landing-page-container) ── */
 .landing-page-container {
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --bg-page: #f8fafc;
+  --bg-white: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f1f5f9;
+
+  --color-navy-dark: #0a192f;
+  --color-navy-main: #0e1e38;
+  --color-navy-light: #1e2e4a;
+  --color-navy-muted: #334155;
+
+  --text-dark: #0a192f;
+  --text-body: #475569;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  --text-white: #ffffff;
+
+  /* ALUX Brand Gold Accents */
+  --color-gold-main: #c59b27;
+  --color-gold-bright: #e6b835;
+  --color-gold-light: #fef8e7;
+  --color-gold-border: rgba(197, 155, 39, 0.35);
+  --color-gold-glow: rgba(230, 184, 53, 0.18);
+
+  /* Pastel Card Accent Backgrounds */
+  --pastel-purple-bg: #ede9fe;
+  --pastel-purple-icon: #7c3aed;
+  --pastel-blue-bg: #e0f2fe;
+  --pastel-blue-icon: #0284c7;
+  --pastel-cyan-bg: #ccfbf1;
+  --pastel-cyan-icon: #0d9488;
+  --pastel-rose-bg: #ffe4e6;
+  --pastel-rose-icon: #e11d48;
+  --pastel-amber-bg: #fef3c7;
+  --pastel-amber-icon: #d97706;
+
+  --border-light: #e2e8f0;
+  --border-subtle: #f1f5f9;
+
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 10px 25px -3px rgba(15, 23, 42, 0.06), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 20px 40px -10px rgba(15, 23, 42, 0.08), 0 8px 16px -4px rgba(15, 23, 42, 0.03);
+  --shadow-hover: 0 25px 50px -12px rgba(15, 23, 42, 0.12);
+  --shadow-floating: 0 20px 60px rgba(10, 25, 47, 0.12);
+
+  --radius-xs: 8px;
+  --radius-sm: 14px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+  --radius-xl: 36px;
+  --radius-pill: 9999px;
+
+  --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
   min-height: 100vh;
   width: 100%;
-  background-color: #ffffff;
+  background-color: var(--bg-page);
+  font-family: var(--font-body);
+  color: var(--text-body);
   position: relative;
   display: flex;
   flex-direction: column;
 }
 
-/* ── HEADER NAU / BARRA PRINCIPAL ── */
-.alux-header {
+.landing-page-container * {
+  box-sizing: border-box;
+}
+
+/* ── HEADER MINIMALISTA FLOTANTE ── */
+.landing-page-container .alux-header-wrapper {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.landing-page-container .alux-header {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 1240px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: var(--radius-pill);
+  padding: 0.65rem 1.5rem 0.65rem 1.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.9rem clamp(1.5rem, 4vw, 5rem);
-  background-color: var(--header-glass);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid rgba(197, 155, 39, 0.2);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(10, 25, 47, 0.05);
   transition: var(--transition-smooth);
 }
 
-.alux-logo-group {
+.landing-page-container .alux-logo-group {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -72,721 +111,1078 @@ body {
   cursor: pointer;
 }
 
-.alux-logo-img {
-  height: 44px;
+.landing-page-container .alux-header-logo-img {
+  height: 46px;
   width: auto;
   object-fit: contain;
+  mix-blend-mode: multiply;
 }
 
-.alux-logo-brand {
+.landing-page-container .alux-logo-text-group {
   display: flex;
   flex-direction: column;
 }
 
-.alux-brand-title {
-  font-size: 1.4rem;
+.landing-page-container .alux-brand-title-clean {
+  font-family: var(--font-display);
   font-weight: 900;
-  letter-spacing: 0.08em;
-  color: #ffffff;
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  color: var(--color-navy-dark);
   line-height: 1;
-  background: linear-gradient(135deg, #ffffff 40%, var(--alux-gold-bright) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
-.alux-brand-subtitle {
-  font-size: 0.65rem;
-  font-weight: 700;
+.landing-page-container .alux-brand-tagline {
+  font-size: 0.64rem;
+  font-weight: 800;
   letter-spacing: 0.12em;
-  color: var(--alux-gold-bright);
+  color: var(--color-gold-main);
   text-transform: uppercase;
   margin-top: 2px;
 }
 
-.alux-nav {
+.landing-page-container .alux-nav {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.75rem;
 }
 
-.alux-nav-link {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.85rem;
+.landing-page-container .alux-nav-link {
+  color: var(--text-muted);
+  font-size: 0.88rem;
   font-weight: 600;
   text-decoration: none;
   transition: var(--transition-fast);
+  padding: 0.4rem 0.2rem;
   position: relative;
-  padding: 0.4rem 0;
 }
 
-.alux-nav-link:hover,
-.alux-nav-link.active {
-  color: var(--alux-gold-bright);
+.landing-page-container .alux-nav-link:hover,
+.landing-page-container .alux-nav-link.active {
+  color: var(--color-navy-dark);
+  font-weight: 700;
 }
 
-.alux-nav-link::after {
+.landing-page-container .alux-nav-link.active::after {
   content: '';
   position: absolute;
-  bottom: 0;
+  bottom: -2px;
   left: 0;
-  width: 0;
+  right: 0;
   height: 2px;
-  background: var(--alux-gold-bright);
-  transition: var(--transition-fast);
+  background: var(--color-gold-main);
   border-radius: 2px;
 }
 
-.alux-nav-link:hover::after,
-.alux-nav-link.active::after {
+.landing-page-container .alux-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.landing-page-container .alux-btn-login {
+  background: var(--color-navy-dark);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.6rem 1.4rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(10, 25, 47, 0.15);
+}
+
+.landing-page-container .alux-btn-login:hover {
+  background: var(--color-navy-light);
+  border-color: var(--color-gold-border);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(10, 25, 47, 0.25);
+}
+
+.landing-page-container .alux-btn-wa-header {
+  background: rgba(37, 211, 102, 0.1);
+  color: #0f8a3d;
+  border: 1px solid rgba(37, 211, 102, 0.3);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: var(--transition-fast);
+}
+
+.landing-page-container .alux-btn-wa-header:hover {
+  background: #25d366;
+  color: #ffffff;
+  border-color: #25d366;
+  transform: translateY(-1px);
+}
+
+/* ── HERO BANNER & CARRUSEL HERO (ESTILO NESTORIA) ── */
+.landing-page-container .alux-hero-wrapper {
+  padding: 6.5rem 1.5rem 2rem;
+  max-width: 1240px;
+  margin: 0 auto;
   width: 100%;
 }
 
-.alux-header-actions {
+.landing-page-container .alux-hero-banner {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  min-height: 540px;
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 3.5rem clamp(1.5rem, 5vw, 4rem) clamp(6rem, 8vw, 7.5rem);
+  box-shadow: 0 20px 50px rgba(10, 25, 47, 0.12);
+  border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
-.alux-btn-login {
-  background: transparent;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 0.55rem 1.25rem;
-  border-radius: 10px;
-  font-size: 0.825rem;
+/* Diapositivas de fondo del Hero con transición suave */
+.landing-page-container .alux-hero-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: right center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+
+.landing-page-container .alux-hero-slide.active {
+  opacity: 1;
+}
+
+.landing-page-container .alux-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(248, 250, 252, 0.94) 0%,
+    rgba(248, 250, 252, 0.82) 36%,
+    rgba(248, 250, 252, 0.2) 65%,
+    transparent 100%
+  );
+  z-index: 2;
+  pointer-events: none;
+}
+
+.landing-page-container .alux-hero-top-row {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 2rem;
+}
+
+/* Badge Flotante Superior */
+.landing-page-container .alux-trusted-badge {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  box-shadow: var(--shadow-md);
+}
+
+.landing-page-container .alux-avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+.landing-page-container .alux-avatar-img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  margin-left: -8px;
+  object-fit: cover;
+}
+
+.landing-page-container .alux-avatar-img:first-child {
+  margin-left: 0;
+}
+
+.landing-page-container .alux-trusted-text {
+  font-size: 0.78rem;
   font-weight: 700;
+  color: var(--color-navy-dark);
+}
+
+.landing-page-container .alux-trusted-text strong {
+  color: var(--color-gold-main);
+  font-weight: 800;
+}
+
+/* Contenido Principal del Hero (Estilo Nestoria Editorial) */
+.landing-page-container .alux-hero-content {
+  position: relative;
+  z-index: 3;
+  max-width: 540px;
+}
+
+.landing-page-container .alux-hero-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 0.45rem 1.15rem 0.45rem 0.65rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(197, 155, 39, 0.35);
+  box-shadow: 0 4px 18px rgba(10, 25, 47, 0.06);
+  margin-bottom: 1.25rem;
+}
+
+.landing-page-container .alux-hero-badge-logo-img {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+.landing-page-container .alux-hero-badge-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-page-container .alux-hero-badge-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--color-navy-dark);
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.landing-page-container .alux-hero-badge-sub {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--color-gold-main);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.landing-page-container .alux-hero-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 4.2vw, 3.6rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-navy-dark);
+  margin-bottom: 1.15rem;
+}
+
+.landing-page-container .alux-hero-h1-accent {
+  display: block;
+  color: var(--color-navy-light);
+  font-weight: 800;
+  margin-top: 0.25rem;
+}
+
+.landing-page-container .alux-hero-desc {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-body);
+  font-weight: 500;
+  max-width: 480px;
+}
+
+/* Indicadores / Dots del Carrusel Hero */
+.landing-page-container .alux-hero-dots {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 2rem;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.landing-page-container .alux-hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(10, 25, 47, 0.25);
+  border: none;
   cursor: pointer;
   transition: var(--transition-fast);
 }
 
-.alux-btn-login:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #ffffff;
-}
-
-.alux-btn-wa {
-  background: linear-gradient(135deg, var(--alux-gold-main), var(--alux-gold-bright));
-  color: var(--alux-navy-dark);
-  border: none;
-  padding: 0.6rem 1.35rem;
-  border-radius: 10px;
-  font-size: 0.825rem;
-  font-weight: 800;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 15px rgba(230, 184, 53, 0.3);
-  transition: var(--transition-fast);
-}
-
-.alux-btn-wa:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(230, 184, 53, 0.45);
-  background: linear-gradient(135deg, var(--alux-gold-bright), #f5d166);
-}
-
-/* ── HERO SECTION ── */
-.alux-hero-section {
-  position: relative;
-  background: radial-gradient(circle at 70% 30%, #102548 0%, var(--alux-navy-dark) 70%);
-  padding: clamp(7rem, 12vw, 10rem) clamp(1.5rem, 5vw, 6rem) clamp(4rem, 8vw, 6rem);
-  color: #ffffff;
-  overflow: hidden;
-}
-
-.alux-hero-overlay-glow {
-  position: absolute;
-  top: -10%;
-  right: -5%;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(197, 155, 39, 0.15) 0%, rgba(7, 19, 37, 0) 70%);
-  pointer-events: none;
-}
-
-.alux-hero-grid {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: clamp(2.5rem, 5vw, 4rem);
-  align-items: center;
-  max-width: 1350px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 2;
-}
-
-.alux-badge-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: rgba(197, 155, 39, 0.12);
-  border: 1px solid var(--alux-gold-border);
-  color: var(--alux-gold-bright);
-  padding: 0.4rem 1rem;
-  border-radius: 30px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 1.25rem;
-}
-
-.alux-hero-h1 {
-  font-size: clamp(2.2rem, 4vw, 3.6rem);
-  font-weight: 900;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
-  margin-bottom: 1.25rem;
-  color: #ffffff;
-}
-
-.alux-hero-h1-gold {
-  background: linear-gradient(135deg, #ffffff 20%, var(--alux-gold-bright) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  display: block;
-}
-
-.alux-hero-subtitle {
-  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
-  color: #cbd5e1;
-  line-height: 1.6;
-  margin-bottom: 2rem;
-  max-width: 620px;
-}
-
-.alux-hero-cta-box {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2.5rem;
-}
-
-.alux-btn-primary-gold {
-  background: linear-gradient(135deg, var(--alux-gold-main), var(--alux-gold-bright));
-  color: var(--alux-navy-dark);
-  font-weight: 800;
-  font-size: 0.925rem;
-  padding: 0.9rem 2rem;
+.landing-page-container .alux-hero-dot.active {
+  width: 24px;
   border-radius: 12px;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  box-shadow: 0 8px 25px rgba(230, 184, 53, 0.35);
-  transition: var(--transition-smooth);
+  background: var(--color-navy-dark);
 }
 
-.alux-btn-primary-gold:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 35px rgba(230, 184, 53, 0.5);
-  background: linear-gradient(135deg, var(--alux-gold-bright), #ffe380);
+/* ── BARRA FLOTANTE DE BÚSQUEDA / COTIZACIÓN (ESTILO NESTORIA) ── */
+.landing-page-container .alux-search-bar-wrapper {
+  position: relative;
+  z-index: 20;
+  max-width: 1060px;
+  margin: -3.2rem auto 0;
+  padding: 0 1.5rem;
+  width: 100%;
 }
 
-.alux-btn-secondary-glass {
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  font-weight: 700;
-  font-size: 0.925rem;
-  padding: 0.9rem 1.75rem;
-  border-radius: 12px;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: var(--transition-fast);
-}
-
-.alux-btn-secondary-glass:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: #ffffff;
-}
-
-/* Feature bullets en el Hero */
-.alux-hero-bullets {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.alux-bullet-item {
+.landing-page-container .alux-search-bar {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1.25rem;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 0.825rem;
-  font-weight: 600;
-  color: #94a3b8;
+  gap: 1rem;
+  box-shadow: 0 20px 50px rgba(10, 25, 47, 0.12);
 }
 
-.alux-bullet-icon {
-  color: var(--alux-gold-bright);
-  shrink: 0;
-}
-
-/* Visual Right Column (Hero Carousel Container) */
-.alux-hero-visual-card {
-  position: relative;
-  border-radius: 24px;
-  padding: 8px;
-  background: linear-gradient(135deg, rgba(197, 155, 39, 0.4), rgba(255, 255, 255, 0.05));
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
-}
-
-.alux-hero-visual-inner {
-  border-radius: 18px;
-  overflow: hidden;
-  position: relative;
-  background: var(--alux-navy-main);
-  aspect-ratio: 4/3;
-}
-
-/* ── STATS BAR / METRICS BANNER ── */
-.alux-stats-bar {
-  background: var(--alux-navy-main);
-  border-top: 1px solid var(--alux-gold-border);
-  border-bottom: 1px solid var(--alux-gold-border);
-  padding: 2.25rem clamp(1.5rem, 5vw, 6rem);
-}
-
-.alux-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.alux-stat-card {
-  text-align: center;
-  padding: 1rem;
-  position: relative;
-}
-
-.alux-stat-card:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 20%;
-  height: 60%;
-  width: 1px;
-  background: rgba(197, 155, 39, 0.25);
-}
-
-.alux-stat-number {
-  font-size: clamp(2rem, 3.2vw, 2.75rem);
-  font-weight: 900;
-  color: var(--alux-gold-bright);
-  font-mono: true;
-  line-height: 1;
-  margin-bottom: 0.35rem;
-}
-
-.alux-stat-label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-/* ── PRODUCTOS / CATÁLOGO SECTION ── */
-.alux-products-section {
-  padding: clamp(4rem, 8vw, 7rem) clamp(1.5rem, 5vw, 6rem);
-  background: #ffffff;
-}
-
-.alux-section-header {
-  text-align: center;
-  max-width: 750px;
-  margin: 0 auto 3.5rem;
-}
-
-.alux-section-sub {
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.15em;
-  color: var(--alux-gold-main);
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-  display: block;
-}
-
-.alux-section-title {
-  font-size: clamp(1.8rem, 3.2vw, 2.75rem);
-  font-weight: 900;
-  color: var(--alux-navy-dark);
-  line-height: 1.2;
-}
-
-.alux-section-desc {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  margin-top: 0.75rem;
-  line-height: 1.6;
-}
-
-.alux-products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 2rem;
-  max-width: 1350px;
-  margin: 0 auto;
-}
-
-.alux-product-card {
-  background: #ffffff;
-  border: 1px solid var(--border-slate);
-  border-radius: 20px;
-  overflow: hidden;
-  transition: var(--transition-smooth);
+.landing-page-container .alux-search-field {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-subtle);
-  position: relative;
+  padding: 0.35rem 0.85rem;
+  border-right: 1px solid var(--border-light);
 }
 
-.alux-product-card:hover {
-  transform: translateY(-6px);
-  border-color: var(--alux-gold-main);
-  box-shadow: var(--shadow-hover);
+.landing-page-container .alux-search-field:last-of-type {
+  border-right: none;
 }
 
-.alux-product-header-img {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  background-color: var(--alux-navy-dark);
-}
-
-.alux-product-tag {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: var(--alux-navy-dark);
-  color: var(--alux-gold-bright);
-  border: 1px solid var(--alux-gold-border);
+.landing-page-container .alux-search-label {
   font-size: 0.68rem;
   font-weight: 800;
-  padding: 0.3rem 0.75rem;
-  border-radius: 20px;
+  color: var(--text-light);
   text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.25rem;
 }
 
-.alux-product-body {
+.landing-page-container .alux-search-select {
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-navy-dark);
+  cursor: pointer;
+  outline: none;
+  padding: 0.15rem 0;
+}
+
+.landing-page-container .alux-search-btn {
+  background: var(--color-navy-dark);
+  color: #ffffff;
+  border: 1px solid var(--color-gold-border);
+  border-radius: var(--radius-md);
+  padding: 0.95rem 1.75rem;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(10, 25, 47, 0.2);
+}
+
+.landing-page-container .alux-search-btn:hover {
+  background: var(--color-navy-light);
+  border-color: var(--color-gold-bright);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(197, 155, 39, 0.25);
+}
+
+.landing-page-container .alux-search-btn-icon {
+  color: var(--color-gold-bright);
+}
+
+/* ── ROW OF 4 VALUE PROPOSITION CARDS (PASTEL) ── */
+.landing-page-container .alux-value-section {
+  max-width: 1240px;
+  margin: 3.5rem auto 0;
+  padding: 0 1.5rem;
+  width: 100%;
+}
+
+.landing-page-container .alux-value-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+.landing-page-container .alux-value-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+
+.landing-page-container .alux-value-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
+}
+
+.landing-page-container .alux-value-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.landing-page-container .alux-value-icon-box.purple {
+  background: var(--pastel-purple-bg);
+  color: var(--pastel-purple-icon);
+}
+
+.landing-page-container .alux-value-icon-box.blue {
+  background: var(--pastel-blue-bg);
+  color: var(--pastel-blue-icon);
+}
+
+.landing-page-container .alux-value-icon-box.cyan {
+  background: var(--pastel-cyan-bg);
+  color: var(--pastel-cyan-icon);
+}
+
+.landing-page-container .alux-value-icon-box.rose {
+  background: var(--pastel-rose-bg);
+  color: var(--pastel-rose-icon);
+}
+
+.landing-page-container .alux-value-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-navy-dark);
+  margin-bottom: 0.25rem;
+}
+
+.landing-page-container .alux-value-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* ── SECCIÓN "WHY CHOOSE ALUX" (SPLIT 2 COLUMNS + CARRUSEL) ── */
+.landing-page-container .alux-why-section {
+  max-width: 1240px;
+  margin: 5.5rem auto 0;
+  padding: 0 1.5rem;
+  width: 100%;
+}
+
+.landing-page-container .alux-why-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 3.5rem;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: clamp(2rem, 4vw, 3.5rem);
+  box-shadow: var(--shadow-md);
+}
+
+.landing-page-container .alux-section-eyebrow {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.landing-page-container .alux-why-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 900;
+  color: var(--color-navy-dark);
+  line-height: 1.15;
+  margin-bottom: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.landing-page-container .alux-why-desc {
+  font-size: 0.95rem;
+  color: var(--text-body);
+  line-height: 1.6;
+  margin-bottom: 1.75rem;
+}
+
+.landing-page-container .alux-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 2.25rem;
+}
+
+.landing-page-container .alux-check-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-navy-dark);
+}
+
+.landing-page-container .alux-check-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pastel-purple-bg);
+  color: var(--pastel-purple-icon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.landing-page-container .alux-btn-learn {
+  background: var(--color-navy-dark);
+  color: #ffffff;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.85rem 1.85rem;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: 0 4px 14px rgba(10, 25, 47, 0.15);
+}
+
+.landing-page-container .alux-btn-learn:hover {
+  background: var(--color-navy-light);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(10, 25, 47, 0.25);
+}
+
+/* Carrusel Sección Why */
+.landing-page-container .alux-why-image-box {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  height: 100%;
+  min-height: 400px;
+  box-shadow: var(--shadow-md);
+  background: #0f172a;
+}
+
+.landing-page-container .alux-why-slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landing-page-container .alux-why-slide.active {
+  opacity: 1;
+}
+
+.landing-page-container .alux-why-dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.4rem;
+  z-index: 5;
+  background: rgba(10, 25, 47, 0.4);
+  backdrop-filter: blur(8px);
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-pill);
+}
+
+.landing-page-container .alux-why-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.landing-page-container .alux-why-dot.active {
+  width: 18px;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+/* ── FEATURED PRODUCTS (CARDS ESTILO NESTORIA) ── */
+.landing-page-container .alux-featured-section {
+  max-width: 1240px;
+  margin: 6rem auto 0;
+  padding: 0 1.5rem;
+  width: 100%;
+}
+
+.landing-page-container .alux-featured-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.landing-page-container .alux-featured-title-group h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 2.8vw, 2.4rem);
+  font-weight: 900;
+  color: var(--color-navy-dark);
+  letter-spacing: -0.02em;
+}
+
+.landing-page-container .alux-view-all-link {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-navy-dark);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: var(--transition-fast);
+}
+
+.landing-page-container .alux-view-all-link:hover {
+  color: var(--color-gold-main);
+  transform: translateX(3px);
+}
+
+.landing-page-container .alux-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.landing-page-container .alux-tab-btn {
+  border: 1px solid var(--border-light);
+  background: #ffffff;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 0.55rem 1.15rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.landing-page-container .alux-tab-btn:hover {
+  background: var(--bg-card-subtle);
+  color: var(--color-navy-dark);
+}
+
+.landing-page-container .alux-tab-btn.active {
+  background: var(--color-navy-dark);
+  color: #ffffff;
+  border-color: var(--color-navy-dark);
+  box-shadow: var(--shadow-sm);
+}
+
+.landing-page-container .alux-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.75rem;
+}
+
+/* Tarjeta individual estilo Nestoria */
+.landing-page-container .alux-nestoria-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+
+.landing-page-container .alux-nestoria-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-hover);
+  border-color: #cbd5e1;
+}
+
+.landing-page-container .alux-card-image-wrap {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.landing-page-container .alux-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.landing-page-container .alux-nestoria-card:hover .alux-card-img {
+  transform: scale(1.04);
+}
+
+.landing-page-container .alux-card-tag-badge {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--color-navy-dark);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.landing-page-container .alux-card-tag-badge.featured {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.landing-page-container .alux-card-tag-badge.new {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.landing-page-container .alux-card-tag-badge.guaranteed {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.landing-page-container .alux-card-body {
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 }
 
-.alux-product-cat {
-  font-size: 0.7rem;
+.landing-page-container .alux-card-category {
+  font-size: 0.72rem;
   font-weight: 800;
-  color: var(--alux-gold-main);
-  text-transform: uppercase;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-light);
   margin-bottom: 0.35rem;
 }
 
-.alux-product-title {
+.landing-page-container .alux-card-title {
+  font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 800;
-  color: var(--alux-navy-dark);
+  color: var(--color-navy-dark);
   margin-bottom: 0.5rem;
+  line-height: 1.25;
 }
 
-.alux-product-desc {
+.landing-page-container .alux-card-desc {
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--text-body);
   line-height: 1.5;
   margin-bottom: 1.25rem;
+  flex-grow: 1;
 }
 
-.alux-product-bullets {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1.5rem 0;
-  space-y: 0.4rem;
-}
-
-.alux-product-bullet-li {
-  font-size: 0.78rem;
-  color: var(--text-primary);
+.landing-page-container .alux-card-footer {
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--border-subtle);
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing-page-container .alux-card-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-page-container .alux-card-meta-label {
+  font-size: 0.68rem;
+  color: var(--text-light);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.landing-page-container .alux-card-meta-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-navy-dark);
+}
+
+.landing-page-container .alux-btn-card-quote {
+  background: var(--bg-card-subtle);
+  color: var(--color-navy-dark);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin-bottom: 0.35rem;
-}
-
-.alux-product-bullet-li svg {
-  color: var(--alux-gold-main);
-  shrink: 0;
-}
-
-.alux-product-cta-btn {
-  margin-top: auto;
-  width: 100%;
-  padding: 0.75rem;
-  background: var(--bg-slate-light);
-  color: var(--alux-navy-dark);
-  border: 1px solid var(--border-slate);
-  border-radius: 12px;
-  font-weight: 800;
-  font-size: 0.825rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
   transition: var(--transition-fast);
-  text-decoration: none;
 }
 
-.alux-product-card:hover .alux-product-cta-btn {
-  background: var(--alux-navy-dark);
-  color: var(--alux-gold-bright);
-  border-color: var(--alux-navy-dark);
+.landing-page-container .alux-btn-card-quote:hover {
+  background: var(--color-navy-dark);
+  color: #ffffff;
 }
 
-/* ── PROCESO DE EJECUCIÓN (5 PASOS) ── */
-.alux-process-section {
-  background: var(--bg-slate-light);
-  padding: clamp(4rem, 8vw, 7rem) clamp(1.5rem, 5vw, 6rem);
-  border-top: 1px solid var(--border-slate);
-  border-bottom: 1px solid var(--border-slate);
+/* ── PROCESO DE TRABAJO (5 PASOS) ── */
+.landing-page-container .alux-process-section {
+  max-width: 1240px;
+  margin: 6.5rem auto 0;
+  padding: 0 1.5rem;
+  width: 100%;
 }
 
-.alux-process-timeline {
+.landing-page-container .alux-process-header {
+  text-align: center;
+  max-width: 650px;
+  margin: 0 auto 3rem;
+}
+
+.landing-page-container .alux-process-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 1.5rem;
-  max-width: 1350px;
-  margin: 3rem auto 0;
-  position: relative;
+  gap: 1rem;
 }
 
-.alux-process-card {
+.landing-page-container .alux-process-card {
   background: #ffffff;
-  border: 1px solid var(--border-slate);
-  border-radius: 18px;
-  padding: 1.5rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.5rem 1.15rem;
+  display: flex;
+  flex-direction: column;
   position: relative;
-  box-shadow: var(--shadow-subtle);
+  box-shadow: var(--shadow-sm);
   transition: var(--transition-smooth);
 }
 
-.alux-process-card:hover {
+.landing-page-container .alux-process-card:hover {
   transform: translateY(-4px);
-  border-color: var(--alux-gold-main);
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
 }
 
-.alux-process-num-badge {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: var(--alux-navy-dark);
-  color: var(--alux-gold-bright);
-  font-weight: 900;
-  font-size: 1.1rem;
+.landing-page-container .alux-process-num-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-navy-dark);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
-  box-shadow: 0 4px 12px rgba(7, 19, 37, 0.2);
 }
 
-.alux-process-card-title {
-  font-size: 1rem;
+.landing-page-container .alux-process-title {
+  font-size: 0.92rem;
   font-weight: 800;
-  color: var(--alux-navy-dark);
-  margin-bottom: 0.5rem;
+  color: var(--color-navy-dark);
+  margin-bottom: 0.4rem;
 }
 
-.alux-process-card-desc {
-  font-size: 0.8rem;
+.landing-page-container .alux-process-desc {
+  font-size: 0.78rem;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
-/* ── POR QUÉ ELEGIR ALUX ── */
-.alux-why-section {
-  background: var(--alux-navy-dark);
-  color: #ffffff;
-  padding: clamp(5rem, 9vw, 8rem) clamp(1.5rem, 5vw, 6rem);
-  position: relative;
+/* ── FOOTER LIMPIO Y MODERNO ── */
+.landing-page-container .alux-footer {
+  margin-top: 7rem;
+  background: #ffffff;
+  border-top: 1px solid var(--border-light);
+  padding: 4.5rem 1.5rem 2rem;
 }
 
-.alux-why-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
-  max-width: 1250px;
-  margin: 3rem auto 0;
+.landing-page-container .alux-footer-container {
+  max-width: 1240px;
+  margin: 0 auto;
 }
 
-.alux-why-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(197, 155, 39, 0.2);
-  border-radius: 20px;
-  padding: 2rem;
-  transition: var(--transition-smooth);
-}
-
-.alux-why-card:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: var(--alux-gold-bright);
-  transform: translateY(-4px);
-}
-
-.alux-why-icon-box {
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
-  background: rgba(197, 155, 39, 0.15);
-  color: var(--alux-gold-bright);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.25rem;
-}
-
-.alux-why-title {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #ffffff;
-  margin-bottom: 0.5rem;
-}
-
-.alux-why-desc {
-  font-size: 0.85rem;
-  color: #94a3b8;
-  line-height: 1.55;
-}
-
-/* ── FOOTER / UBICACIÓN & CONTACTO ── */
-.alux-footer {
-  background: #040b15;
-  color: #ffffff;
-  border-top: 1px solid rgba(197, 155, 39, 0.2);
-  padding: 4rem clamp(1.5rem, 5vw, 6rem) 2rem;
-}
-
-.alux-footer-grid {
+.landing-page-container .alux-footer-grid {
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr;
-  gap: 3rem;
-  max-width: 1300px;
-  margin: 0 auto 3rem;
+  gap: 3.5rem;
+  margin-bottom: 3.5rem;
 }
 
-.alux-footer-brand-title {
-  font-size: 1.5rem;
+.landing-page-container .alux-footer-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.landing-page-container .alux-footer-logo-img {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.landing-page-container .alux-footer-brand-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
   font-weight: 900;
-  color: var(--alux-gold-bright);
-  margin-bottom: 0.75rem;
+  color: var(--color-navy-dark);
+  line-height: 1;
 }
 
-.alux-footer-desc {
-  font-size: 0.85rem;
-  color: #94a3b8;
+.landing-page-container .alux-footer-brand-desc {
+  font-size: 0.88rem;
+  color: var(--text-muted);
   line-height: 1.6;
-  max-width: 380px;
+  max-width: 360px;
 }
 
-.alux-footer-h4 {
-  font-size: 0.9rem;
+.landing-page-container .alux-footer-col-title {
+  font-size: 0.82rem;
   font-weight: 800;
-  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  color: var(--color-navy-dark);
   margin-bottom: 1.25rem;
 }
 
-.alux-footer-info-list {
+.landing-page-container .alux-footer-list {
   list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.alux-footer-info-item {
   display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  font-size: 0.85rem;
-  color: #cbd5e1;
-  margin-bottom: 0.85rem;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.alux-footer-info-item svg {
-  color: var(--alux-gold-bright);
-  shrink: 0;
-  margin-top: 2px;
+.landing-page-container .alux-footer-link {
+  color: var(--text-body);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.alux-footer-bottom {
-  max-width: 1300px;
-  margin: 0 auto;
+.landing-page-container .alux-footer-link:hover {
+  color: var(--color-navy-dark);
+  font-weight: 700;
+}
+
+.landing-page-container .alux-footer-bottom {
   padding-top: 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border-subtle);
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  font-size: 0.8rem;
-  color: #64748b;
+  font-size: 0.82rem;
+  color: var(--text-light);
 }
 
-/* Responsive adjustments */
+/* ── RESPONSIVE DESIGN ── */
 @media (max-width: 1024px) {
-  .alux-hero-grid {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-  .alux-hero-subtitle {
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .alux-hero-cta-box {
-    justify-content: center;
-  }
-  .alux-stats-grid {
+  .landing-page-container .alux-value-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  .alux-stat-card:nth-child(2)::after {
+  .landing-page-container .alux-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .landing-page-container .alux-process-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .landing-page-container .alux-why-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+  .landing-page-container .alux-why-image-box {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-page-container .alux-nav {
     display: none;
   }
-  .alux-process-timeline {
-    grid-template-columns: repeat(2, 1fr);
+  .landing-page-container .alux-hero-banner {
+    min-height: auto;
+    padding: 2rem 1.25rem 3.5rem;
   }
-  .alux-why-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .landing-page-container .alux-hero-dots {
+    display: none;
   }
-  .alux-footer-grid {
+  .landing-page-container .alux-search-bar {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  .landing-page-container .alux-search-field {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+    padding: 0.5rem 0;
+  }
+  .landing-page-container .alux-search-field:last-of-type {
+    border-bottom: none;
+  }
+  .landing-page-container .alux-search-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .landing-page-container .alux-value-grid {
+    grid-template-columns: 1fr;
+  }
+  .landing-page-container .alux-cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .landing-page-container .alux-process-grid {
+    grid-template-columns: 1fr;
+  }
+  .landing-page-container .alux-footer-grid {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
-}
-
-@media (max-width: 640px) {
-  .alux-nav {
-    display: none;
-  }
-  .alux-stats-grid {
-    grid-template-columns: 1fr;
-  }
-  .alux-stat-card::after {
-    display: none;
-  }
-  .alux-process-timeline {
-    grid-template-columns: 1fr;
-  }
-  .alux-why-grid {
-    grid-template-columns: 1fr;
+  .landing-page-container .alux-footer-bottom {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
   }
 }
