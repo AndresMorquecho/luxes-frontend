@@ -110,11 +110,17 @@ const normalizeBankName = (name) => {
   }) || '';
 };
 
+const getTodayLocalDate = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomina, onDeleteAbono, onEditAbono, onClose, onConfirm, onMontoChange }) => {
   const [activeTab, setActiveTab] = useState('registrar'); // 'registrar' | 'historial'
   const [metodosPago, setMetodosPago] = useState([]);
   const [selectedMetodoPagoId, setSelectedMetodoPagoId] = useState('');
-  const [fechaPago, setFechaPago] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fechaPago, setFechaPago] = useState(() => getTodayLocalDate());
   const [loadingMps, setLoadingMps] = useState(true);
 
   // Comprobante de pago (upload) para nuevo abono
@@ -2868,9 +2874,10 @@ export const NominaMesTab = () => {
       
       const now = new Date();
       const pad = (n) => String(n).padStart(2, '0');
-      const fechaHora = `${fecha || now.toISOString().slice(0, 10)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const fechaBase = fecha || getTodayLocalDate();
+      const fechaHora = `${fechaBase} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-      const actualizada = registrarAbono(nomina, { monto, fecha, metodoPagoId, usuarioNombre, fechaHora, comprobanteUrl });
+      const actualizada = registrarAbono(nomina, { monto, fecha: fechaBase, metodoPagoId, usuarioNombre, fechaHora, comprobanteUrl });
       const totalAb = actualizada.abonos.reduce((s, a) => s + a.monto, 0);
       if (subtotal > 0 && totalAb >= subtotal) {
         actualizada.estado = 'PAGADO';
@@ -2897,7 +2904,7 @@ export const NominaMesTab = () => {
     if (!confirm) return;
 
     try {
-      const fechaPagoFinal = fechaSeleccionada || new Date().toISOString().slice(0, 10);
+      const fechaPagoFinal = fechaSeleccionada || getTodayLocalDate();
       const empId = payTarget.emp.id;
       const emp   = payTarget.emp;
       const cp1   = q1Calculated.find(p => p.empleadoId === empId);
