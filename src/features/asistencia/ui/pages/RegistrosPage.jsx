@@ -15,6 +15,7 @@ import { isAsistenciaUser, normalizeUserForSession, isAdminUser } from '../../..
 import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
 import { OverlayPortal, ModalPortal } from '../../../../shared/ui/components/ModalPortal';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { exportarAsistenciaMensualExcel, exportarAsistenciaDiaExcel } from '../../helpers/asistenciaExcelExporter';
 
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -1322,66 +1323,64 @@ const AdminView = () => {
     return { total, asistieron, faltaron, permisos, sinAlmuerzo };
   }, [empleados, rows]);
 
-  const descargarExcel = () => {
-    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8">
-<style>
-td{mso-number-format:"\\@";padding:4px 8px;font-size:10pt;font-family:Calibri;border:1px solid #d1d5db;}
-th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-family:Calibri;border:1px solid #a0b8cc;text-align:center;}
-.title{background:#1e3a5f;color:#fff;font-size:14pt;font-weight:bold;text-align:center;}
-.asistio{color:#10b981;font-weight:bold;text-align:center;}
-.falta{color:#ef4444;font-weight:bold;text-align:center;}
-.permiso{color:#3b82f6;font-weight:bold;text-align:center;}
-.nombre{font-weight:bold;}
-</style>
-</head><body><table>`;
+  const [exportingMonth, setExportingMonth] = useState(false);
 
-    const cell = (content, cls = '') => `<td${cls ? ' class="' + cls + '"' : ''}>${String(content ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>`;
+  // Extraer información del mes seleccionado según fechaFiltro
+  const { currentYear, currentMonthIndex, mesLabel } = useMemo(() => {
+    const parts = (fechaFiltro || getTodayEcuadorStr()).split('-').map(Number);
+    const y = parts[0] || new Date().getFullYear();
+    const mIndex = (parts[1] || (new Date().getMonth() + 1)) - 1;
+    return {
+      currentYear: y,
+      currentMonthIndex: mIndex,
+      mesLabel: MESES[mIndex] || 'Mes',
+    };
+  }, [fechaFiltro]);
 
-    html += `<tr><td colspan="10" class="title">REPORTE DIARIO DE ASISTENCIA - ${fechaFiltro}</td></tr>`;
-    html += `<tr><td colspan="10">${horarioLabel}</td></tr>`;
-    html += '<tr><td colspan="10" style="height:6px;border:none"></td></tr>';
-    html += '<tr><th>Empleado</th><th>ID</th><th>Cargo</th><th>Estado</th><th>Entrada</th><th>Sal. Almuerzo</th><th>Reg. Almuerzo</th><th>Salida</th><th>Almuerzo</th><th>Total Horas</th></tr>';
+  const handleExportarMes = async () => {
+    setExportingMonth(true);
+    const toastId = toast.loading(`Generando reporte de asistencia de ${mesLabel} ${currentYear}...`);
+    try {
+      const pad = (n) => String(n).padStart(2, '0');
+      const totalDias = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
+      const desde = `${currentYear}-${pad(currentMonthIndex + 1)}-01`;
+      const hasta = `${currentYear}-${pad(currentMonthIndex + 1)}-${pad(totalDias)}`;
 
-    rows.forEach(r => {
-      const e = r.marcaciones.find(a => a.tipo === 'ENTRADA');
-      const ia = r.marcaciones.find(a => a.tipo === 'INICIO_ALMUERZO');
-      const fa = r.marcaciones.find(a => a.tipo === 'FIN_ALMUERZO');
-      const s = r.marcaciones.find(a => a.tipo === 'SALIDA');
-      const lapsos = r.estado === 'ASISTIO' ? calculateLapses(r.marcaciones) : { trabajo: '', almuerzo: '' };
-      let statusText = 'Faltó';
-      let statusCls = 'falta';
-      if (r.estado === 'ASISTIO') {
-        statusText = 'Asistió';
-        statusCls = 'asistio';
-      } else if (r.estado === 'PERMISO') {
-        statusText = 'Permiso Pagado';
-        statusCls = 'permiso';
-      }
+      const [allAsistencias, emps] = await Promise.all([
+        getAsistencias(desde, hasta),
+        empleados.length > 0 ? Promise.resolve(empleados) : getEmpleados(),
+      ]);
 
-      html += `<tr>
-        ${cell(r.emp.nombre, 'nombre')}
-        ${cell(r.emp.id)}
-        ${cell(r.emp.cargo)}
-        ${cell(statusText, statusCls)}
-        ${cell(e ? new Date(e.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
-        ${cell(ia ? new Date(ia.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
-        ${cell(fa ? new Date(fa.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
-        ${cell(s ? new Date(s.fechaHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
-        ${cell(r.almuerzo?.label ?? '')}
-        ${cell(lapsos.trabajo || (r.estado === 'PERMISO' ? 'Día Cobrado' : ''))}
-      </tr>`;
-    });
+      exportarAsistenciaMensualExcel({
+        year: currentYear,
+        monthIndex: currentMonthIndex,
+        empleados: emps,
+        asistencias: allAsistencias,
+        horariosConfig,
+      });
 
-    html += '</table></body></html>';
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `asistencia-${fechaFiltro}.xls`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+      toast.success(`¡Reporte de ${mesLabel} ${currentYear} exportado con éxito!`, { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al exportar la asistencia del mes', { id: toastId });
+    } finally {
+      setExportingMonth(false);
+    }
   };
 
-
+  const handleExportarDia = () => {
+    try {
+      exportarAsistenciaDiaExcel({
+        fechaStr: fechaFiltro,
+        rows,
+        horarioLabel,
+      });
+      toast.success(`Reporte del día ${fechaFiltro} exportado.`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al exportar el reporte del día');
+    }
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-slide-up w-full" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -1415,13 +1414,41 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             <p className="text-sm text-slate-500 mt-0.5">Supervisión diaria, control de ausencias y asignación de permisos.</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={descargarExcel}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-gray-50 transition-all shadow-sm cursor-pointer border-solid">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          <button
+            onClick={handleExportarDia}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            title={`Exportar solo el día seleccionado (${fechaFiltro})`}
+          >
+            <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             Exportar Día
+          </button>
+
+          <button
+            onClick={handleExportarMes}
+            disabled={exportingMonth || loading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 transition-all shadow-sm hover:shadow cursor-pointer disabled:opacity-50"
+            title={`Exportar matriz completa 1 al 31 con horarios y horas extras de ${mesLabel} ${currentYear}`}
+          >
+            {exportingMonth ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Exportando {mesLabel}...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar Mes ({mesLabel})
+              </>
+            )}
           </button>
         </div>
       </div>
