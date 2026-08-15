@@ -34,6 +34,7 @@ import { toast } from '../../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
+import { todayDateInputValue } from '../../../../shared/utils/dateOnly';
 
 const FRECUENCIAS = [
   { key: 'MENSUAL', label: 'Mensual' },
@@ -232,7 +233,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
     setPayForm({
       monto: String(item.montoEstimado),
       metodoPagoId: metodosPago[0]?.id || '',
-      fecha: new Date().toISOString().slice(0, 10),
+      fecha: todayDateInputValue(),
       concepto: `Pago Gasto Fijo: ${item.nombre}`,
       notas: `Pago recurrente programado (${item.frecuencia})`,
       proveedor: item.proveedor || '',
