@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Car, Wrench, ClipboardCheck, Clock, User, Gauge, CheckSquare, Plus, AlertCircle, Sparkles, Camera, Image as ImageIcon, X, Loader2, Fuel, Flag } from 'lucide-react';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
+import { CameraCaptureModal } from '../../../../shared/ui/components/CameraCaptureModal.jsx';
 import {
   getVehiculos, saveVehiculo, deleteVehiculo, saveMantenimiento, deleteMantenimiento,
   getVehiculoControles, addVehiculoControl, uploadControlFoto,
@@ -77,6 +78,15 @@ export const GastosCarrosTab = () => {
   const [uploadStatus, setUploadStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [cameraModal, setCameraModal] = useState({ isOpen: false, targetKey: '', title: '' });
+
+  const handleOpenLiveCamera = (key, label) => {
+    setCameraModal({
+      isOpen: true,
+      targetKey: key,
+      title: `Tomar foto: ${label}`,
+    });
+  };
 
   const [controles, setControles] = useState([]);
   const [loadingControles, setLoadingControles] = useState(false);
@@ -726,12 +736,12 @@ export const GastosCarrosTab = () => {
                   {/* Sección de Registro Fotográfico Opcional */}
                   <div className="border-t border-gray-100 pt-6">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                        <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
-                        Registro Fotográfico (Opcional)
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
+                        Registro Fotográfico
                       </h3>
-                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                        4 fotos opcionales
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full shrink-0">
+                        Opcional (4 fotos)
                       </span>
                     </div>
 
@@ -744,8 +754,8 @@ export const GastosCarrosTab = () => {
                             key={pf.key}
                             className={`relative rounded-xl border p-3 transition-all ${
                               currentPhoto
-                                ? 'border-blue-300 bg-blue-50/40'
-                                : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300'
+                                ? 'border-blue-300 bg-blue-50/40 shadow-2xs'
+                                : 'border-slate-200 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300'
                             }`}
                           >
                             <div className="flex items-start justify-between gap-2">
@@ -754,7 +764,7 @@ export const GastosCarrosTab = () => {
                                   <div className={`w-6 h-6 rounded-lg flex items-center justify-center border shrink-0 ${pf.color}`}>
                                     <IconComponent size={13} />
                                   </div>
-                                  <span className="text-xs font-bold text-slate-700 truncate">{pf.label}</span>
+                                  <span className="text-xs font-bold text-slate-800 truncate">{pf.label}</span>
                                 </div>
                                 <p className="text-[10px] text-slate-400 mt-0.5 truncate">{pf.subtitle}</p>
                               </div>
@@ -771,36 +781,47 @@ export const GastosCarrosTab = () => {
                             </div>
 
                             {currentPhoto ? (
-                              <div className="mt-2.5 flex items-center gap-3 bg-white p-2 rounded-lg border border-blue-100">
+                              <div className="mt-2.5 flex items-center gap-2.5 bg-white p-2 rounded-xl border border-blue-100 shadow-2xs">
                                 <img
                                   src={currentPhoto.preview}
                                   alt={pf.label}
-                                  className="w-12 h-12 rounded-md object-cover border border-slate-200 shrink-0"
+                                  className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0"
                                 />
                                 <div className="min-w-0 flex-1">
                                   <p className="text-[11px] font-bold text-slate-700 truncate">{currentPhoto.name}</p>
                                   <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                                    ✓ Lista para subir ({(currentPhoto.size / 1024).toFixed(0)} KB)
+                                    ✓ Foto lista ({(currentPhoto.size / 1024).toFixed(0)} KB)
                                   </p>
                                 </div>
                               </div>
                             ) : (
-                              <label className="mt-2.5 flex items-center justify-center gap-2 p-2.5 rounded-lg border border-dashed border-slate-300 bg-white hover:bg-blue-50/50 hover:border-blue-300 cursor-pointer transition-all group">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handlePhotoSelect(pf.key, file);
-                                    e.target.value = '';
-                                  }}
-                                />
-                                <Camera size={15} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
-                                <span className="text-xs font-semibold text-slate-600 group-hover:text-blue-600 transition-colors">
-                                  Subir o Tomar Foto
-                                </span>
-                              </label>
+                              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                                {/* Botón Cámara (Abre el visor de cámara en vivo directamente) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenLiveCamera(pf.key, pf.label)}
+                                  className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 text-blue-700 font-bold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-2xs group"
+                                >
+                                  <Camera size={14} className="text-blue-600 group-hover:scale-110 transition-transform" />
+                                  <span>Cámara</span>
+                                </button>
+
+                                {/* Botón Galería / Archivos */}
+                                <label className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-2xs group">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handlePhotoSelect(pf.key, file);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                  <ImageIcon size={14} className="text-slate-500 group-hover:scale-110 transition-transform" />
+                                  <span>Galería</span>
+                                </label>
+                              </div>
                             )}
                           </div>
                         );
@@ -841,6 +862,18 @@ export const GastosCarrosTab = () => {
         </>,
         document.body
       )}
+
+      {/* Live Camera Capture Modal */}
+      <CameraCaptureModal
+        isOpen={cameraModal.isOpen}
+        onClose={() => setCameraModal({ isOpen: false, targetKey: '', title: '' })}
+        title={cameraModal.title}
+        onCapture={(capturedFile) => {
+          if (cameraModal.targetKey && capturedFile) {
+            handlePhotoSelect(cameraModal.targetKey, capturedFile);
+          }
+        }}
+      />
     </>
   );
 };

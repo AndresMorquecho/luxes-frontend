@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Car, Clock, User, Plus, Eye, FileDown, Camera, Image as ImageIcon, X, Loader2, Fuel, Gauge, Flag } from 'lucide-react';
-import { getVehiculos, getVehiculoControles, addVehiculoControl, uploadControlFoto } from '../../application/gastosService';
+import { Car, Clock, User, Plus, Eye, FileDown, Camera, Image as ImageIcon, X, Loader2, Fuel, Gauge, Flag, Pencil, Trash2 } from 'lucide-react';
+import {
+  getVehiculos, getVehiculoControles, addVehiculoControl, updateVehiculoControl, deleteVehiculoControl, uploadControlFoto
+} from '../../application/gastosService';
 import { compressImage } from '../../../../shared/utils/imageCompressor';
 import { MediaPreviewModal } from '../../../../shared/ui/components/MediaPreviewModal.jsx';
+import { CameraCaptureModal } from '../../../../shared/ui/components/CameraCaptureModal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 import { ControlVehiculoPDFModal } from '../components/ControlVehiculoPDFModal';
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 const COMBUSTIBLE_OPTIONS = [
   { value: 'bajo', label: 'Bajo', color: 'text-red-700 bg-red-50 border-red-200' },
@@ -51,6 +55,8 @@ const INITIAL_FORM = {
 
 export const TallerControlPage = () => {
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = isAdminUser(storedUser);
+
   const [vehiculos, setVehiculos] = useState([]);
   const [selectedVehId, setSelectedVehId] = useState('');
   const [controles, setControles] = useState([]);
@@ -58,12 +64,16 @@ export const TallerControlPage = () => {
   const [loadingLogs, setLoadingLogs] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingControl, setEditingControl] = useState(null);
   const [viewingControl, setViewingControl] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [selectedPhotos, setSelectedPhotos] = useState(INITIAL_PHOTOS);
   const [saving, setSaving] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [formError, setFormError] = useState('');
+
+  // Live camera viewfinder modal state
+  const [cameraModal, setCameraModal] = useState({ isOpen: false, targetKey: '', title: '' });
 
   // Media preview lightbox modal
   const [previewModal, setPreviewModal] = useState({ isOpen: false, files: [], index: 0 });
@@ -72,6 +82,14 @@ export const TallerControlPage = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   // PDF modal state
   const [pdfOpen, setPdfOpen] = useState(false);
+
+  const handleOpenLiveCamera = (key, label) => {
+    setCameraModal({
+      isOpen: true,
+      targetKey: key,
+      title: `Tomar foto: ${label}`,
+    });
+  };
 
   // Fetch active vehicles
   useEffect(() => {
@@ -204,6 +222,7 @@ export const TallerControlPage = () => {
       toast.error('Selecciona un vehículo primero');
       return;
     }
+    setEditingControl(null);
     resetPhotos();
     setForm({
       ...INITIAL_FORM,
@@ -213,6 +232,74 @@ export const TallerControlPage = () => {
     setFormError('');
     setUploadStatus('');
     setModalOpen(true);
+  };
+
+  const openEditControl = (log) => {
+    if (!log) return;
+    setEditingControl(log);
+    resetPhotos();
+
+    const d = new Date(log.fecha);
+    const pad = (n) => String(n).padStart(2, '0');
+    const fechaStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+    setForm({
+      fecha: fechaStr,
+      kilometraje: log.kilometraje ?? '',
+      combustible: log.combustible || 'bueno',
+      nivelAceite: Boolean(log.nivelAceite),
+      nivelAgua: Boolean(log.nivelAgua),
+      aceiteHidraulico: Boolean(log.aceiteHidraulico),
+      liquidoFrenos: Boolean(log.liquidoFrenos),
+      gataLlave: Boolean(log.gataLlave),
+      extintorBotiquin: Boolean(log.extintorBotiquin),
+      bandas: Boolean(log.bandas),
+      otroCheckNombre: log.otroCheckNombre || '',
+      otroCheckValor: Boolean(log.otroCheckValor),
+      observacion: log.observacion || '',
+      sugerencia: log.sugerencia || '',
+    });
+
+    const initialPhotos = {};
+    ['fotoGasolinaInicio', 'fotoKmInicio', 'fotoKmFin', 'fotoGasolinaFin'].forEach((k) => {
+      if (log[k]) {
+        initialPhotos[k] = {
+          file: null,
+          preview: log[k],
+          name: 'Foto actual',
+          size: null,
+          existingUrl: log[k],
+        };
+      } else {
+        initialPhotos[k] = null;
+      }
+    });
+    setSelectedPhotos(initialPhotos);
+    setFormError('');
+    setUploadStatus('');
+    setModalOpen(true);
+  };
+
+  const handleDeleteControl = async (log) => {
+    if (!isAdmin) {
+      toast.error('Solo los administradores pueden eliminar controles');
+      return;
+    }
+    const ok = await confirmDialog({
+      title: 'Eliminar Control Diario',
+      message: `¿Estás seguro de eliminar el registro de control del ${new Date(log.fecha).toLocaleDateString()} (${log.kilometraje} km)? Esta acción no se puede deshacer.`,
+      confirmText: 'Sí, eliminar',
+      variant: 'danger',
+    });
+    if (!ok) return;
+
+    try {
+      await deleteVehiculoControl(log.id);
+      setControles(prev => prev.filter(c => c.id !== log.id));
+      toast.success('Control eliminado correctamente');
+    } catch (err) {
+      toast.error(err.message || 'Error al eliminar control');
+    }
   };
 
   const handleInputChange = (e) => {
@@ -250,12 +337,14 @@ export const TallerControlPage = () => {
           });
           const url = await uploadControlFoto(compressed);
           uploadedUrls[k] = url;
+        } else if (photoItem?.existingUrl) {
+          uploadedUrls[k] = photoItem.existingUrl;
         } else {
           uploadedUrls[k] = null;
         }
       }
 
-      setUploadStatus('Guardando registro de control...');
+      setUploadStatus(editingControl ? 'Guardando cambios...' : 'Guardando registro de control...');
 
       const payload = {
         ...form,
@@ -263,21 +352,29 @@ export const TallerControlPage = () => {
         ...uploadedUrls,
       };
 
-      const saved = await addVehiculoControl(selectedVehId, payload);
-      toast.success('Control registrado correctamente');
+      if (editingControl) {
+        const updated = await updateVehiculoControl(editingControl.id, payload);
+        toast.success('Control actualizado correctamente');
+        setControles(prev => prev.map(c => c.id === editingControl.id ? updated : c));
+      } else {
+        const saved = await addVehiculoControl(selectedVehId, payload);
+        toast.success('Control registrado correctamente');
+        setControles(prev => [saved, ...prev]);
+      }
 
       // Update local vehicle mileage
-      setVehiculos(prev => prev.map(v => {
-        if (v.id === selectedVehId) {
-          return { ...v, kilometraje: Math.max(v.kilometraje, Number(form.kilometraje)) };
-        }
-        return v;
-      }));
+      if (Number(form.kilometraje) > (selectedVeh?.kilometraje || 0)) {
+        setVehiculos(prev => prev.map(v => {
+          if (v.id === selectedVehId) {
+            return { ...v, kilometraje: Math.max(v.kilometraje, Number(form.kilometraje)) };
+          }
+          return v;
+        }));
+      }
 
-      // Prepend to logs list
-      setControles(prev => [saved, ...prev]);
       resetPhotos();
       setModalOpen(false);
+      setEditingControl(null);
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -477,24 +574,55 @@ export const TallerControlPage = () => {
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
-                            {photoCount > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => openControlPhotos(log, 0)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold transition-colors cursor-pointer"
-                                title={`Ver ${photoCount} foto(s) adjunta(s)`}
-                              >
-                                <Camera size={12} />
-                                {photoCount}
-                              </button>
-                            )}
+                            {/* 1. Botón Ver Fotos (Cámara) */}
+                            <button
+                              type="button"
+                              disabled={photoCount === 0}
+                              onClick={() => photoCount > 0 && openControlPhotos(log, 0)}
+                              className={`inline-flex items-center justify-center gap-1 w-11 h-7 rounded-lg text-[10px] font-bold transition-all border ${
+                                photoCount > 0
+                                  ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 cursor-pointer shadow-2xs'
+                                  : 'bg-slate-50 text-slate-300 border-slate-200/60 cursor-not-allowed opacity-40'
+                              }`}
+                              title={photoCount > 0 ? `Ver ${photoCount} foto(s) adjunta(s)` : 'Sin fotos adjuntas'}
+                            >
+                              <Camera size={12} />
+                              <span>{photoCount}</span>
+                            </button>
+
+                            {/* 2. Botón Ver Detalles (Ojo) */}
                             <button
                               type="button"
                               onClick={() => setViewingControl(log)}
-                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
-                              title="Ver detalles"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition-colors border border-slate-200 cursor-pointer shadow-2xs"
+                              title="Ver detalles del control"
                             >
                               <Eye size={13} />
+                            </button>
+
+                            {/* 3. Botón Editar (Lápiz) */}
+                            <button
+                              type="button"
+                              onClick={() => openEditControl(log)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 text-slate-500 hover:text-amber-600 hover:border-amber-200 transition-colors border border-slate-200 cursor-pointer shadow-2xs"
+                              title="Editar control y agregar fotos finales"
+                            >
+                              <Pencil size={13} />
+                            </button>
+
+                            {/* 4. Botón Eliminar (Papelera - Solo Admin) */}
+                            <button
+                              type="button"
+                              disabled={!isAdmin}
+                              onClick={() => isAdmin && handleDeleteControl(log)}
+                              className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors border shadow-2xs ${
+                                isAdmin
+                                  ? 'hover:bg-red-50 text-slate-500 hover:text-red-600 hover:border-red-200 border-slate-200 cursor-pointer'
+                                  : 'text-slate-300 border-slate-200/60 cursor-not-allowed opacity-25 bg-slate-50'
+                              }`}
+                              title={isAdmin ? 'Eliminar control' : 'Solo administradores pueden eliminar controles'}
+                            >
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>
@@ -516,14 +644,24 @@ export const TallerControlPage = () => {
             <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-modal-in flex flex-col border border-slate-100 max-h-[min(820px,94vh)] overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 shrink-0 bg-white">
                 <div>
-                  <h2 className="text-base font-bold text-slate-800">Registrar Control de Vehículo</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">{selectedVeh?.placa} — checklist de control circular</p>
+                  <h2 className="text-base font-bold text-slate-800">
+                    {editingControl ? 'Editar Control de Vehículo' : 'Registrar Control de Vehículo'}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {editingControl
+                      ? `${selectedVeh?.placa} — Editar registro y fotos finales`
+                      : `${selectedVeh?.placa} — checklist de control circular`}
+                  </p>
                 </div>
                 <button
                   type="button"
                   disabled={saving}
-                  onClick={() => setModalOpen(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200 disabled:opacity-50"
+                  onClick={() => {
+                    setModalOpen(false);
+                    setEditingControl(null);
+                    resetPhotos();
+                  }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200 disabled:opacity-50 cursor-pointer"
                 >
                   <X size={16} />
                 </button>
@@ -574,12 +712,18 @@ export const TallerControlPage = () => {
                     </div>
                   </div>
 
-                  {/* Checkbox Matrix */}
+                  {/* Checklist Section */}
                   <div className="border-t border-slate-100 pt-5">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
-                      Niveles y Herramientas (OK)
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+                        Niveles y Herramientas (OK)
+                      </h3>
+                      <span className="text-[11px] font-semibold text-slate-400">
+                        Marca los ítems conformes
+                      </span>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {[
                         { name: 'nivelAceite', label: 'Nivel de Aceite' },
@@ -654,12 +798,12 @@ export const TallerControlPage = () => {
                   {/* Sección de Registro Fotográfico Opcional */}
                   <div className="border-t border-slate-100 pt-5">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                        <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
-                        Registro Fotográfico (Opcional)
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-1.5 h-3.5 bg-blue-600 rounded-full" />
+                        Registro Fotográfico
                       </h3>
-                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                        4 fotos opcionales
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full shrink-0">
+                        Opcional (4 fotos)
                       </span>
                     </div>
 
@@ -672,8 +816,8 @@ export const TallerControlPage = () => {
                             key={pf.key}
                             className={`relative rounded-xl border p-3 transition-all ${
                               currentPhoto
-                                ? 'border-blue-300 bg-blue-50/40 shadow-xs'
-                                : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300'
+                                ? 'border-blue-300 bg-blue-50/40 shadow-2xs'
+                                : 'border-slate-200 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300'
                             }`}
                           >
                             <div className="flex items-start justify-between gap-2">
@@ -682,7 +826,7 @@ export const TallerControlPage = () => {
                                   <div className={`w-6 h-6 rounded-lg flex items-center justify-center border shrink-0 ${pf.color}`}>
                                     <IconComponent size={13} />
                                   </div>
-                                  <span className="text-xs font-bold text-slate-700 truncate">{pf.label}</span>
+                                  <span className="text-xs font-bold text-slate-800 truncate">{pf.label}</span>
                                 </div>
                                 <p className="text-[10px] text-slate-400 mt-0.5 truncate">{pf.subtitle}</p>
                               </div>
@@ -699,36 +843,74 @@ export const TallerControlPage = () => {
                             </div>
 
                             {currentPhoto ? (
-                              <div className="mt-2.5 flex items-center gap-3 bg-white p-2 rounded-lg border border-blue-100">
-                                <img
-                                  src={currentPhoto.preview}
-                                  alt={pf.label}
-                                  className="w-12 h-12 rounded-md object-cover border border-slate-200 shrink-0"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[11px] font-bold text-slate-700 truncate">{currentPhoto.name}</p>
-                                  <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                                    ✓ Lista para subir ({(currentPhoto.size / 1024).toFixed(0)} KB)
-                                  </p>
+                              <div className="mt-2.5 flex items-center justify-between gap-2.5 bg-white p-2 rounded-xl border border-blue-100 shadow-2xs">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <img
+                                    src={currentPhoto.preview}
+                                    alt={pf.label}
+                                    className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] font-bold text-slate-700 truncate">{currentPhoto.name}</p>
+                                    <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                                      {currentPhoto.existingUrl ? '✓ Foto guardada' : `✓ Foto lista (${(currentPhoto.size / 1024).toFixed(0)} KB)`}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {/* Botón para cambiar foto con cámara en vivo */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenLiveCamera(pf.key, pf.label)}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Tomar otra foto con cámara"
+                                  >
+                                    <Camera size={14} />
+                                  </button>
+                                  {/* Botón para cambiar foto con galería */}
+                                  <label className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" title="Elegir otra foto de galería">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handlePhotoSelect(pf.key, file);
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                    <ImageIcon size={14} />
+                                  </label>
                                 </div>
                               </div>
                             ) : (
-                              <label className="mt-2.5 flex items-center justify-center gap-2 p-2.5 rounded-lg border border-dashed border-slate-300 bg-white hover:bg-blue-50/50 hover:border-blue-300 cursor-pointer transition-all group">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handlePhotoSelect(pf.key, file);
-                                    e.target.value = '';
-                                  }}
-                                />
-                                <Camera size={15} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
-                                <span className="text-xs font-semibold text-slate-600 group-hover:text-blue-600 transition-colors">
-                                  Subir o Tomar Foto
-                                </span>
-                              </label>
+                              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                                {/* Botón Cámara (Abre el visor de cámara en vivo directamente) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenLiveCamera(pf.key, pf.label)}
+                                  className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 text-blue-700 font-bold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-2xs group"
+                                >
+                                  <Camera size={14} className="text-blue-600 group-hover:scale-110 transition-transform" />
+                                  <span>Cámara</span>
+                                </button>
+
+                                {/* Botón Galería / Archivos */}
+                                <label className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-2xs group">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handlePhotoSelect(pf.key, file);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                  <ImageIcon size={14} className="text-slate-500 group-hover:scale-110 transition-transform" />
+                                  <span>Galería</span>
+                                </label>
+                              </div>
                             )}
                           </div>
                         );
@@ -780,18 +962,22 @@ export const TallerControlPage = () => {
                   <button
                     type="button"
                     disabled={saving}
-                    onClick={() => setModalOpen(false)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50"
+                    onClick={() => {
+                      setModalOpen(false);
+                      setEditingControl(null);
+                      resetPhotos();
+                    }}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50 cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-xl text-sm transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-xl text-sm transition-all shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
                   >
                     {saving && <Loader2 size={14} className="animate-spin" />}
-                    {saving ? (uploadStatus || 'Guardando...') : 'Registrar Control'}
+                    {saving ? (uploadStatus || 'Guardando...') : (editingControl ? 'Guardar Cambios' : 'Registrar Control')}
                   </button>
                 </div>
               </form>
@@ -992,6 +1178,18 @@ export const TallerControlPage = () => {
         onClose={() => setPreviewModal({ isOpen: false, files: [], index: 0 })}
         files={previewModal.files}
         initialIndex={previewModal.index}
+      />
+
+      {/* Live Camera Capture Modal */}
+      <CameraCaptureModal
+        isOpen={cameraModal.isOpen}
+        onClose={() => setCameraModal({ isOpen: false, targetKey: '', title: '' })}
+        title={cameraModal.title}
+        onCapture={(capturedFile) => {
+          if (cameraModal.targetKey && capturedFile) {
+            handlePhotoSelect(cameraModal.targetKey, capturedFile);
+          }
+        }}
       />
     </div>
   );

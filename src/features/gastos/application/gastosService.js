@@ -242,5 +242,23 @@ export async function uploadControlFoto(file) {
   return data.data.url;
 }
 
+export async function updateVehiculoControl(controlId, payload) {
+  const res = await fetch(`/api/vehiculos/controles/${controlId}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al actualizar control del vehículo');
+  return data.data;
+}
 
-
+export async function deleteVehiculoControl(controlId) {
+  const res = await fetch(`/api/vehiculos/controles/${controlId}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar control del vehículo');
+  return data.data;
+}
