@@ -79,7 +79,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
     montoEstimado: '',
     frecuencia: 'MENSUAL',
     diaVencimiento: '1',
-    proximaFechaPago: new Date().toISOString().slice(0, 10),
+    proximaFechaPago: todayDateInputValue(),
     proveedor: '',
     notas: '',
   });
@@ -87,7 +87,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
   const [payForm, setPayForm] = useState({
     monto: '',
     metodoPagoId: '',
-    fecha: new Date().toISOString().slice(0, 10),
+    fecha: todayDateInputValue(),
     concepto: '',
     notas: '',
     proveedor: '',
@@ -148,7 +148,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
       montoEstimado: '',
       frecuencia: 'MENSUAL',
       diaVencimiento: '1',
-      proximaFechaPago: new Date().toISOString().slice(0, 10),
+      proximaFechaPago: todayDateInputValue(),
       proveedor: '',
       notas: '',
     });

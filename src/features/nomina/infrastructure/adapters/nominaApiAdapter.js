@@ -110,7 +110,14 @@ export class NominaApiAdapter extends NominaRepositoryPort {
       headers: getHeaders(),
       body: JSON.stringify(nomina),
     });
-    if (!response.ok) throw new Error('Error al guardar la nómina en el servidor.');
+    if (!response.ok) {
+      let msg = 'Error al guardar la nómina en el servidor.';
+      try {
+        const errJson = await response.json();
+        msg = errJson.error?.message || errJson.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
     const json = await response.json();
     const data = json.data || json;
     return new Nomina(data);

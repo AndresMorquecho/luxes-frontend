@@ -9,15 +9,22 @@ import {
   getMetodosPago,
 } from '../../application/gastosService';
 import { MODAL_HEADER_STYLE, MODAL_FORM_STYLES, fmt } from '../shared/gastosUi';
+import { todayDateInputValue } from '../../../../shared/utils/dateOnly';
+
+const getNowLocalDateTime = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 const EMPTY_VEHICULO = { placa: '', marca: '', modelo: '', anio: '', color: '', kilometraje: 0, responsable: '', notas: '', estado: 'activo' };
 const EMPTY_MANT = {
-  tipo: 'cambio_aceite', descripcion: '', fechaRealizado: new Date().toISOString().split('T')[0],
+  tipo: 'cambio_aceite', descripcion: '', fechaRealizado: todayDateInputValue(),
   fechaProxima: '', kilometraje: '', kmProximo: '', monto: 0, proveedor: '', notas: '',
   metodoPagoId: '',
 };
 const EMPTY_CONTROL = {
-  fecha: new Date().toISOString().slice(0, 16),
+  fecha: getNowLocalDateTime(),
   kilometraje: '',
   combustible: 'bueno',
   nivelAceite: false,
@@ -129,7 +136,7 @@ export const GastosCarrosTab = () => {
     setEditingMant(null);
     setMantForm({
       ...EMPTY_MANT,
-      fechaRealizado: new Date().toISOString().split('T')[0],
+      fechaRealizado: todayDateInputValue(),
       kilometraje: selected.kilometraje,
       metodoPagoId: '',
     });

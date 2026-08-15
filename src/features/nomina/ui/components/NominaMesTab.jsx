@@ -277,7 +277,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   };
 
   const handleStartEditAbono = (ab) => {
-    const fStr = (ab.fecha || (ab.fechaHora ? ab.fechaHora.split(' ')[0] : '') || new Date().toISOString().slice(0, 10)).slice(0, 10);
+    const fStr = (ab.fecha || (ab.fechaHora ? ab.fechaHora.split(' ')[0] : '') || getTodayLocalDate()).slice(0, 10);
     setEditingAbono(ab);
     setEditMonto(Number(ab.monto));
     setEditFecha(fStr);

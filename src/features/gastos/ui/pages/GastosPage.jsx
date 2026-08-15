@@ -531,6 +531,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     setForm({
       ...EMPTY_FORM,
       metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
+      fecha: getTodayString(),
     });
     setFormOpen(true);
   };
@@ -539,7 +540,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     setEditing(g);
     setForm({
       ...g,
-      fecha: g.fecha ? g.fecha.split('T')[0] : new Date().toISOString().split('T')[0],
+      fecha: g.fecha ? g.fecha.split('T')[0] : getTodayString(),
       monto: Number(g.monto),
       metodoPagoId: g.metodoPagoId || (metodosPago.length > 0 ? metodosPago[0].id : ''),
     });
@@ -674,7 +675,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       id: m.id,
       tipo: m.tipo,
       descripcion: m.descripcion || '',
-      fechaRealizado: m.fechaRealizado ? m.fechaRealizado.split('T')[0] : new Date().toISOString().split('T')[0],
+      fechaRealizado: m.fechaRealizado ? m.fechaRealizado.split('T')[0] : getTodayString(),
       fechaProxima: m.fechaProxima ? m.fechaProxima.split('T')[0] : '',
       kilometraje: m.kilometraje || '',
       kmProximo: m.kmProximo || '',

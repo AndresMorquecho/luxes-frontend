@@ -28,6 +28,7 @@ import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { ProyectoDetallesModal } from '../components/ProyectoDetallesModal.jsx';
 import { ProyectoEditModal } from '../components/ProyectoEditModal.jsx';
 import { PRIORIDADES_CONFIG, ESTADOS_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
+import { todayDateInputValue } from '../../../../shared/utils/dateOnly.js';
 import { getFaseConfig, FASES } from '../../domain/value-objects/FaseConfig.js';
 import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
 import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
@@ -529,7 +530,7 @@ const GastosComprasTab = React.memo(function GastosComprasTab({ proyecto, isAdmi
   const [showForm, setShowForm] = useState(false);
   const [concepto, setConcepto] = useState('');
   const [monto, setMonto] = useState('');
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState(todayDateInputValue());
   const [proveedor, setProveedor] = useState('');
   const [notas, setNotas] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('todos');

@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { getGastos, saveGasto, deleteGasto, CATEGORIAS } from '../../application/gastosService';
 import { MODAL_HEADER_STYLE, MODAL_FORM_STYLES, fmt } from '../shared/gastosUi';
+import { todayDateInputValue } from '../../../../shared/utils/dateOnly';
 
 const EMPTY_FORM = {
   concepto: '', categoria: 'oficina',
-  fecha: new Date().toISOString().split('T')[0], monto: 0, proveedor: '', notas: '',
+  fecha: todayDateInputValue(), monto: 0, proveedor: '', notas: '',
 };
 
 const CAT_BADGES = {
@@ -40,7 +41,7 @@ export const GastosGeneralesTab = () => {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ ...EMPTY_FORM, fecha: new Date().toISOString().split('T')[0] });
+    setForm({ ...EMPTY_FORM, fecha: todayDateInputValue() });
     setFormError('');
     setFormOpen(true);
   };

@@ -12,6 +12,7 @@ import { getProyectos } from '../../../proyectos/application/proyectosService';
 import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { isAdminUser, isTallerUser } from '../../../../shared/utils/userRoleHelpers.js';
+import { todayDateInputValue, toDateInputValue } from '../../../../shared/utils/dateOnly.js';
 import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
 import { fmtMoney, isOrdenEditable, getOrdenNoEditableMensaje, mergeOrdenDetalles, mapDetallesToFormRows } from '../../helpers/ordenCompraHelpers.js';
 import { ComprasPageHeader, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
@@ -46,7 +47,7 @@ export const FormOrdenCompraPage = () => {
   const [confirmPago, setConfirmPago] = useState({ monto: '', metodoPagoId: '', referencia: '' });
   const [form, setForm] = useState(() => {
     const defaultState = {
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: todayDateInputValue(),
       concepto: '',
       notas: '',
       detalles: [],
@@ -173,7 +174,7 @@ export const FormOrdenCompraPage = () => {
 
           const filas = mapDetallesToFormRows(ordenMerged);
           setForm({
-            fecha: ordenMerged.fecha ? new Date(ordenMerged.fecha).toISOString().split('T')[0] : '',
+            fecha: toDateInputValue(ordenMerged.fecha),
             concepto: ordenMerged.concepto || '',
             notas: ordenMerged.notas || '',
             detalles: filas,

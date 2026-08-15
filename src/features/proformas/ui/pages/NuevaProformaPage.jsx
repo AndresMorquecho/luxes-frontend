@@ -5,7 +5,17 @@ import { getConfiguracion } from '../../../configuracion/application/configuraci
 import { saveProforma, getProformaById } from '../../application/proformasService';
 import { ProformaPDF } from '../components/ProformaPDF';
 import { toast } from '../../../../shared/ui/components/Toast';
+import { todayDateInputValue } from '../../../../shared/utils/dateOnly';
 import '../../../compras/ui/pages/ComprasPage.css';
+
+const getOffsetDateStr = (baseDateStr, days) => {
+  const [y, m, d] = (baseDateStr || todayDateInputValue()).split('-').map(Number);
+  const target = new Date(y, m - 1, d + Number(days));
+  const ty = target.getFullYear();
+  const tm = String(target.getMonth() + 1).padStart(2, '0');
+  const td = String(target.getDate()).padStart(2, '0');
+  return `${ty}-${tm}-${td}`;
+};
 
 const EMPTY_PROFORMA = {
   clienteId: '',
@@ -13,7 +23,7 @@ const EMPTY_PROFORMA = {
   telefono: '',
   email: '',
   direccion: '',
-  fecha: new Date().toISOString().split('T')[0],
+  fecha: todayDateInputValue(),
   vencimiento: '',
   diasValidez: 3,
   medio: 'LUXES',
@@ -82,15 +92,14 @@ export const NuevaProformaPage = () => {
           }
         } else {
           // New Proforma - Apply Defaults
-          const today = new Date();
+          const todayStr = todayDateInputValue();
           const valDays = config?.diasValidez ?? 3;
-          const venc = new Date(today);
-          venc.setDate(today.getDate() + valDays);
+          const vencStr = getOffsetDateStr(todayStr, valDays);
 
           setForm({
             ...EMPTY_PROFORMA,
-            fecha: today.toISOString().split('T')[0],
-            vencimiento: venc.toISOString().split('T')[0],
+            fecha: todayStr,
+            vencimiento: vencStr,
             diasValidez: valDays,
             atiende: currentUser?.nombre || currentUser?.name || currentUser?.username || currentUser?.email || '',
             condiciones: config?.condicionesPago || '',
@@ -113,25 +122,23 @@ export const NuevaProformaPage = () => {
       setForm(prev => {
         const next = { ...prev, [name]: value };
         const days = next.diasValidez;
-        const emit = new Date(value);
-        emit.setDate(emit.getDate() + Number(days));
-        next.vencimiento = emit.toISOString().split('T')[0];
+        next.vencimiento = getOffsetDateStr(value, days);
         return next;
       });
     } else if (name === 'diasValidez') {
       const days = Number(value);
       setForm(prev => {
         const next = { ...prev, [name]: days };
-        const emit = new Date(next.fecha);
-        emit.setDate(emit.getDate() + days);
-        next.vencimiento = emit.toISOString().split('T')[0];
+        next.vencimiento = getOffsetDateStr(next.fecha, days);
         return next;
       });
     } else if (name === 'vencimiento') {
       setForm(prev => {
         const next = { ...prev, [name]: value };
-        const emit = new Date(next.fecha);
-        const venc = new Date(value);
+        const [y1, m1, d1] = (next.fecha || todayDateInputValue()).split('-').map(Number);
+        const [y2, m2, d2] = (value || todayDateInputValue()).split('-').map(Number);
+        const emit = new Date(y1, m1 - 1, d1);
+        const venc = new Date(y2, m2 - 1, d2);
         const diffTime = venc - emit;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         next.diasValidez = diffDays >= 0 ? diffDays : 0;
