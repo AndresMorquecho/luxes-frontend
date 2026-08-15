@@ -8,6 +8,6 @@ export const getVentas = async (filters = {}) => {
   });
 };
 
-export const registrarCobro = async (id, { monto, metodoPagoId, referencia, comprobanteUrl }) => {
-  return registrarAbonoProforma(id, { monto, metodoPagoId, referencia, comprobanteUrl });
+export const registrarCobro = async (id, { monto, fecha, metodoPagoId, referencia, comprobanteUrl }) => {
+  return registrarAbonoProforma(id, { monto, fecha, metodoPagoId, referencia, comprobanteUrl });
 };

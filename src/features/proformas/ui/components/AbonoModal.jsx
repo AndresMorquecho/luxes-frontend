@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { uploadComprobanteProforma } from '../../application/proformasService';
 import { toast } from '../../../../shared/ui/components/Toast';
-import { Upload, X, FileText, AlertCircle } from 'lucide-react';
+import { Upload, X, FileText, AlertCircle, Calendar } from 'lucide-react';
+import { todayDateInputValue } from '../../../../shared/utils/dateOnly';
 
 const formatUSD = (num) => '$' + Number(num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
@@ -16,6 +17,8 @@ export const AbonoModal = ({
   pending = 0,
   monto,
   setMonto,
+  fecha,
+  setFecha,
   metodoPagoId,
   setMetodoPagoId,
   metodosPago = [],
@@ -234,18 +237,36 @@ export const AbonoModal = ({
                   </div>
                 </div>
 
-                {/* Row 2: Referencia */}
-                <div>
-                  <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider mb-1.5 sm:mb-2 block">
-                    REFERENCIA / N° COMPROBANTE
-                  </label>
-                  <input
-                    type="text"
-                    value={referencia}
-                    onChange={(e) => setReferencia(e.target.value)}
-                    className="w-full px-3.5 py-2.5 sm:py-3 border border-slate-200 rounded-xl text-sm bg-white text-[#0f172a] placeholder-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-                    placeholder="Ej. Transferencia 88910, Depósito, Efectivo"
-                  />
+                {/* Row 2: Fecha del Abono & Referencia */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 items-start">
+                  {/* Fecha */}
+                  <div className="flex flex-col">
+                    <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider mb-1.5 sm:mb-2 flex items-center gap-1.5">
+                      <Calendar size={13} className="text-[#2563eb]" />
+                      FECHA DEL ABONO / COBRO *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={fecha || todayDateInputValue()}
+                      onChange={(e) => setFecha && setFecha(e.target.value)}
+                      className="w-full px-3.5 h-11 border border-slate-200 rounded-xl text-sm font-semibold text-[#1e293b] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Referencia */}
+                  <div className="flex flex-col">
+                    <label className="text-[#334155] font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider mb-1.5 sm:mb-2 block">
+                      REFERENCIA / N° COMPROBANTE
+                    </label>
+                    <input
+                      type="text"
+                      value={referencia}
+                      onChange={(e) => setReferencia(e.target.value)}
+                      className="w-full px-3.5 h-11 border border-slate-200 rounded-xl text-sm bg-white text-[#0f172a] placeholder-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                      placeholder="Ej. Transferencia 88910, Efectivo"
+                    />
+                  </div>
                 </div>
 
                 {/* Row 3: Comprobante Dropzone / Preview */}

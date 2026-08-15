@@ -101,11 +101,11 @@ export const uploadComprobanteProforma = async (file) => {
   return data.data; // { url }
 };
 
-export const aprobarProforma = async (id, { monto, metodoPagoId, referencia, aplicarIva, comprobanteUrl }) => {
+export const aprobarProforma = async (id, { monto, fecha, metodoPagoId, referencia, aplicarIva, comprobanteUrl }) => {
   const res = await fetch(`/api/proformas/${id}/aprobar`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ monto, metodoPagoId, referencia, aplicarIva, comprobanteUrl }),
+    body: JSON.stringify({ monto, fecha, metodoPagoId, referencia, aplicarIva, comprobanteUrl }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -138,11 +138,11 @@ export const enviarProforma = async (id) => {
   return data.data;
 };
 
-export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referencia, comprobanteUrl }) => {
+export const registrarAbonoProforma = async (id, { monto, fecha, metodoPagoId, referencia, comprobanteUrl }) => {
   const res = await fetch(`/api/proformas/${id}/abonos`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ monto, metodoPagoId, referencia, comprobanteUrl }),
+    body: JSON.stringify({ monto, fecha, metodoPagoId, referencia, comprobanteUrl }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -151,11 +151,11 @@ export const registrarAbonoProforma = async (id, { monto, metodoPagoId, referenc
   return data.data;
 };
 
-export const editarAbonoProforma = async (id, abonoId, { monto, metodoPagoId, referencia, comprobanteUrl }) => {
+export const editarAbonoProforma = async (id, abonoId, { monto, fecha, metodoPagoId, referencia, comprobanteUrl }) => {
   const res = await fetch(`/api/proformas/${id}/abonos/${abonoId}`, {
     method: 'PUT',
     headers: getHeaders(),
-    body: JSON.stringify({ monto, metodoPagoId, referencia, comprobanteUrl }),
+    body: JSON.stringify({ monto, fecha, metodoPagoId, referencia, comprobanteUrl }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {

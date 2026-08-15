@@ -10,6 +10,7 @@ import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
 import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft, Image as ImageIcon, Share2 } from 'lucide-react';
 import { AbonoModal } from '../components/AbonoModal';
 import { ComprobanteViewerModal } from '../components/ComprobanteViewerModal';
+import { todayDateInputValue, toDateInputValue } from '../../../../shared/utils/dateOnly';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -53,6 +54,7 @@ export const ProformaDetallePage = () => {
   const [viewComprobanteUrl, setViewComprobanteUrl] = useState(null);
   const [abonoForm, setAbonoForm] = useState({
     monto: '',
+    fecha: todayDateInputValue(),
     metodoPagoId: '',
     referencia: '',
     comprobanteUrl: null,
@@ -158,6 +160,7 @@ export const ProformaDetallePage = () => {
     setAbonoForm(prev => ({
       ...prev,
       monto: '',
+      fecha: todayDateInputValue(),
     }));
     setShowAbonoModal(true);
   };
@@ -166,6 +169,7 @@ export const ProformaDetallePage = () => {
     setAbonoForm(prev => ({
       ...prev,
       monto: '',
+      fecha: todayDateInputValue(),
     }));
     setShowAbonoModal(true);
   };
@@ -175,6 +179,7 @@ export const ProformaDetallePage = () => {
     setEditingAbono(null);
     setAbonoForm({
       monto: '',
+      fecha: todayDateInputValue(),
       metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
       referencia: '',
       comprobanteUrl: null,
@@ -185,6 +190,7 @@ export const ProformaDetallePage = () => {
     setEditingAbono(abono);
     setAbonoForm({
       monto: abono.monto.toString(),
+      fecha: toDateInputValue(abono.fecha) || todayDateInputValue(),
       metodoPagoId: abono.metodoPago?.id || '',
       referencia: abono.referencia || '',
       comprobanteUrl: abono.comprobanteUrl || null,
@@ -237,6 +243,7 @@ export const ProformaDetallePage = () => {
       if (editingAbono) {
         updated = await editarAbonoProforma(proforma.id, editingAbono.id, {
           monto: numericMonto,
+          fecha: abonoForm.fecha,
           metodoPagoId: abonoForm.metodoPagoId,
           referencia: abonoForm.referencia,
           comprobanteUrl: abonoForm.comprobanteUrl,
@@ -245,6 +252,7 @@ export const ProformaDetallePage = () => {
       } else if (proforma.estado === 'Pendiente') {
         updated = await aprobarProforma(proforma.id, {
           monto: numericMonto,
+          fecha: abonoForm.fecha,
           metodoPagoId: abonoForm.metodoPagoId,
           referencia: abonoForm.referencia,
           aplicarIva: abonoForm.aplicarIva,
@@ -254,6 +262,7 @@ export const ProformaDetallePage = () => {
       } else {
         updated = await registrarAbonoProforma(proforma.id, {
           monto: numericMonto,
+          fecha: abonoForm.fecha,
           metodoPagoId: abonoForm.metodoPagoId,
           referencia: abonoForm.referencia,
           comprobanteUrl: abonoForm.comprobanteUrl,
@@ -775,6 +784,8 @@ export const ProformaDetallePage = () => {
         }
         monto={abonoForm.monto}
         setMonto={(val) => setAbonoForm((prev) => ({ ...prev, monto: val }))}
+        fecha={abonoForm.fecha}
+        setFecha={(val) => setAbonoForm((prev) => ({ ...prev, fecha: val }))}
         metodoPagoId={abonoForm.metodoPagoId}
         setMetodoPagoId={(val) => setAbonoForm((prev) => ({ ...prev, metodoPagoId: val }))}
         metodosPago={metodosPago}

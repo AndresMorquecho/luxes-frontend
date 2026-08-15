@@ -6,6 +6,7 @@ import { getMetodosPago } from '../../../gastos/application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
 import { AbonoModal } from '../../../proformas/ui/components/AbonoModal.jsx';
+import { todayDateInputValue } from '../../../../shared/utils/dateOnly';
 import './VentasPage.css';
 
 const CO_PRIMARY = '#2b41b8';
@@ -89,6 +90,7 @@ export const VentasPage = () => {
     setAbonoForm({
       proformaId: proforma.id,
       monto: pendiente.toFixed(2),
+      fecha: todayDateInputValue(),
       metodoPagoId: metodosPago.length > 0 ? metodosPago[0].id : '',
       referencia: '',
       comprobanteUrl: null,
@@ -113,6 +115,7 @@ export const VentasPage = () => {
     try {
       await registrarCobro(abonoForm.proformaId, {
         monto: numericMonto,
+        fecha: abonoForm.fecha,
         metodoPagoId: abonoForm.metodoPagoId,
         referencia: abonoForm.referencia,
         comprobanteUrl: abonoForm.comprobanteUrl,
@@ -577,6 +580,8 @@ export const VentasPage = () => {
         pending={abonoForm.pending}
         monto={abonoForm.monto}
         setMonto={(val) => setAbonoForm((prev) => ({ ...prev, monto: val }))}
+        fecha={abonoForm.fecha}
+        setFecha={(val) => setAbonoForm((prev) => ({ ...prev, fecha: val }))}
         metodoPagoId={abonoForm.metodoPagoId}
         setMetodoPagoId={(val) => setAbonoForm((prev) => ({ ...prev, metodoPagoId: val }))}
         metodosPago={metodosPago}
