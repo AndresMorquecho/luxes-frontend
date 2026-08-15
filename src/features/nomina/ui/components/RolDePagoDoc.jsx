@@ -1,4 +1,4 @@
-// c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/ui/components/RolDePagoDoc.jsx
+﻿// c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/ui/components/RolDePagoDoc.jsx
 
 import React from 'react';
 
@@ -286,3 +286,4 @@ export const RolDePagoDoc = ({ empleado, calculatedPayroll, activePeriod }) => {
     </div>
   );
 };
+

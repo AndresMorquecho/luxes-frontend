@@ -1,4 +1,4 @@
-// c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/domain/entities/Nomina.js
+﻿// c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/domain/entities/Nomina.js
 
 /**
  * Entidad Nomina
@@ -17,6 +17,7 @@ export class Nomina {
    * @param {number} [data.ingresos.decimoTercero] - Décimo tercer sueldo mensualizado
    * @param {number} [data.ingresos.horasExtras] - Valor de horas extras
    * @param {number} [data.ingresos.trabajosEnEmpresa] - Valor de trabajos extras en empresa
+   * @param {number} [data.ingresos.otrosIngresos] - Valor de otros ingresos
    * @param {number} [data.ingresos.fondosReserva] - Fondos de reserva
    * @param {Object} [data.egresos] - Conceptos de egresos
    * @param {number} [data.egresos.iess] - Aporte personal IESS (9.45% base gravable)
@@ -70,6 +71,7 @@ export class Nomina {
       pagoDecimo4: Number(ingresosObj.pagoDecimo4 ?? 0),
       horasExtras: Number(ingresosObj.horasExtras ?? 0),
       trabajosEnEmpresa: Number(ingresosObj.trabajosEnEmpresa ?? 0),
+      otrosIngresos: Number(ingresosObj.otrosIngresos ?? 0),
       fondosReserva: Number(ingresosObj.fondosReserva ?? 0),
     };
 
@@ -111,3 +113,4 @@ export class Nomina {
     return true;
   }
 }
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
+﻿import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { NominaContext } from '../../application/context/NominaContext';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
@@ -3359,3 +3359,4 @@ export const NominaMesTab = () => {
     </div>
   );
 };
+
