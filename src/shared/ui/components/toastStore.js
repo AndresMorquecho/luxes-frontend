@@ -44,4 +44,7 @@ export const toast = {
   warning(message, duration) {
     toastStore.add(message, 'warning', duration ?? 2000);
   },
+  loading(message, duration) {
+    return toastStore.add(message, 'info', duration ?? 2500);
+  },
 };

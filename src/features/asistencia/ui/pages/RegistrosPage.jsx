@@ -1339,7 +1339,7 @@ const AdminView = () => {
 
   const handleExportarMes = async () => {
     setExportingMonth(true);
-    const toastId = toast.loading(`Generando reporte de asistencia de ${mesLabel} ${currentYear}...`);
+    toast.info(`Generando reporte de asistencia de ${mesLabel} ${currentYear}...`);
     try {
       const pad = (n) => String(n).padStart(2, '0');
       const totalDias = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
@@ -1359,10 +1359,10 @@ const AdminView = () => {
         horariosConfig,
       });
 
-      toast.success(`¡Reporte de ${mesLabel} ${currentYear} exportado con éxito!`, { id: toastId });
+      toast.success(`¡Reporte de ${mesLabel} ${currentYear} exportado con éxito!`);
     } catch (err) {
       console.error(err);
-      toast.error('Error al exportar la asistencia del mes', { id: toastId });
+      toast.error('Error al exportar la asistencia del mes');
     } finally {
       setExportingMonth(false);
     }
