@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Car, Clock, User, Plus, Eye, FileDown } from 'lucide-react';
-import { getVehiculos, getVehiculoControles, addVehiculoControl } from '../../application/gastosService';
+import { Car, Clock, User, Plus, Eye, FileDown, Camera, Image as ImageIcon, X, Loader2, Fuel, Gauge, Flag } from 'lucide-react';
+import { getVehiculos, getVehiculoControles, addVehiculoControl, uploadControlFoto } from '../../application/gastosService';
+import { compressImage } from '../../../../shared/utils/imageCompressor';
+import { MediaPreviewModal } from '../../../../shared/ui/components/MediaPreviewModal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { ComprasPageHeader } from '../../../compras/ui/components/ComprasPageHeader';
@@ -13,6 +15,20 @@ const COMBUSTIBLE_OPTIONS = [
   { value: 'medio', label: 'Medio', color: 'text-amber-700 bg-amber-50 border-amber-200' },
   { value: 'bueno', label: 'Bueno', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
 ];
+
+const PHOTO_FIELDS = [
+  { key: 'fotoGasolinaInicio', label: '1. Gasolina Inicial', subtitle: 'Nivel con el que empiezan', icon: Fuel, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  { key: 'fotoKmInicio', label: '2. KM Inicial', subtitle: 'Kilometraje con el que inicia', icon: Gauge, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  { key: 'fotoKmFin', label: '3. KM Final', subtitle: 'Kilometraje con el que queda', icon: Flag, color: 'text-purple-600 bg-purple-50 border-purple-200' },
+  { key: 'fotoGasolinaFin', label: '4. Gasolina Final', subtitle: 'Nivel de gasolina que queda', icon: Fuel, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+];
+
+const INITIAL_PHOTOS = {
+  fotoGasolinaInicio: null,
+  fotoKmInicio: null,
+  fotoKmFin: null,
+  fotoGasolinaFin: null,
+};
 
 const INITIAL_FORM = {
   fecha: '',
@@ -44,8 +60,13 @@ export const TallerControlPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [viewingControl, setViewingControl] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
+  const [selectedPhotos, setSelectedPhotos] = useState(INITIAL_PHOTOS);
   const [saving, setSaving] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
   const [formError, setFormError] = useState('');
+
+  // Media preview lightbox modal
+  const [previewModal, setPreviewModal] = useState({ isOpen: false, files: [], index: 0 });
 
   // Date range filter state — uses DateRangePicker format { start, end }
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -118,17 +139,79 @@ export const TallerControlPage = () => {
     return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
   };
 
+  const handlePhotoSelect = (key, file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten archivos de imagen');
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    setSelectedPhotos(prev => {
+      if (prev[key]?.preview) {
+        URL.revokeObjectURL(prev[key].preview);
+      }
+      return {
+        ...prev,
+        [key]: { file, preview, name: file.name, size: file.size },
+      };
+    });
+  };
+
+  const handlePhotoRemove = (key) => {
+    setSelectedPhotos(prev => {
+      if (prev[key]?.preview) {
+        URL.revokeObjectURL(prev[key].preview);
+      }
+      return {
+        ...prev,
+        [key]: null,
+      };
+    });
+  };
+
+  const resetPhotos = () => {
+    Object.values(selectedPhotos).forEach(item => {
+      if (item?.preview) {
+        URL.revokeObjectURL(item.preview);
+      }
+    });
+    setSelectedPhotos(INITIAL_PHOTOS);
+  };
+
+  const openControlPhotos = (control, initialIndex = 0) => {
+    if (!control) return;
+    const files = [
+      control.fotoGasolinaInicio && { name: '1. Nivel Gasolina Inicial', url: control.fotoGasolinaInicio },
+      control.fotoKmInicio && { name: '2. Kilometraje Inicial', url: control.fotoKmInicio },
+      control.fotoKmFin && { name: '3. Kilometraje Final', url: control.fotoKmFin },
+      control.fotoGasolinaFin && { name: '4. Nivel Gasolina Final', url: control.fotoGasolinaFin },
+    ].filter(Boolean);
+
+    if (files.length === 0) {
+      toast.info('Este control no tiene fotos registradas');
+      return;
+    }
+
+    setPreviewModal({
+      isOpen: true,
+      files,
+      index: Math.min(initialIndex, files.length - 1),
+    });
+  };
+
   const openNewControl = () => {
     if (!selectedVeh) {
       toast.error('Selecciona un vehículo primero');
       return;
     }
+    resetPhotos();
     setForm({
       ...INITIAL_FORM,
       fecha: getLocalDateTimeString(),
       kilometraje: selectedVeh.kilometraje || '',
     });
     setFormError('');
+    setUploadStatus('');
     setModalOpen(true);
   };
 
@@ -150,11 +233,36 @@ export const TallerControlPage = () => {
 
     setSaving(true);
     setFormError('');
+    setUploadStatus('Optimizando y subiendo fotos...');
+
     try {
+      const uploadedUrls = {};
+      const keys = ['fotoGasolinaInicio', 'fotoKmInicio', 'fotoKmFin', 'fotoGasolinaFin'];
+
+      for (const k of keys) {
+        const photoItem = selectedPhotos[k];
+        if (photoItem?.file) {
+          // Compresión ultrarrápida antes del upload (reduce 8MB a ~200KB)
+          const compressed = await compressImage(photoItem.file, {
+            maxWidth: 1600,
+            maxHeight: 1600,
+            quality: 0.82,
+          });
+          const url = await uploadControlFoto(compressed);
+          uploadedUrls[k] = url;
+        } else {
+          uploadedUrls[k] = null;
+        }
+      }
+
+      setUploadStatus('Guardando registro de control...');
+
       const payload = {
         ...form,
-        kilometraje: Number(form.kilometraje)
+        kilometraje: Number(form.kilometraje),
+        ...uploadedUrls,
       };
+
       const saved = await addVehiculoControl(selectedVehId, payload);
       toast.success('Control registrado correctamente');
 
@@ -168,11 +276,13 @@ export const TallerControlPage = () => {
 
       // Prepend to logs list
       setControles(prev => [saved, ...prev]);
+      resetPhotos();
       setModalOpen(false);
     } catch (err) {
       setFormError(err.message);
     } finally {
       setSaving(false);
+      setUploadStatus('');
     }
   };
 
@@ -305,7 +415,7 @@ export const TallerControlPage = () => {
                     <th className="px-4 py-3 text-center">Combustible</th>
                     <th className="px-4 py-3">Niveles Check</th>
                     <th className="px-4 py-3">Observación / Sugerencia</th>
-                    <th className="px-4 py-3 text-center w-16">Acciones</th>
+                    <th className="px-4 py-3 text-center w-20">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -316,6 +426,13 @@ export const TallerControlPage = () => {
                     ].filter(Boolean).length;
 
                     const fuelOpt = COMBUSTIBLE_OPTIONS.find(o => o.value === log.combustible);
+
+                    const photoCount = [
+                      log.fotoGasolinaInicio,
+                      log.fotoKmInicio,
+                      log.fotoKmFin,
+                      log.fotoGasolinaFin
+                    ].filter(Boolean).length;
 
                     const fechaFmt = new Date(log.fecha).toLocaleString('es-EC', {
                       day: '2-digit', month: '2-digit', year: 'numeric',
@@ -358,15 +475,28 @@ export const TallerControlPage = () => {
                           )}
                           {!log.observacion && !log.sugerencia && <span className="text-slate-400">Sin novedades</span>}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => setViewingControl(log)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
-                            title="Ver detalles"
-                          >
-                            <Eye size={13} />
-                          </button>
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {photoCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => openControlPhotos(log, 0)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold transition-colors cursor-pointer"
+                                title={`Ver ${photoCount} foto(s) adjunta(s)`}
+                              >
+                                <Camera size={12} />
+                                {photoCount}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setViewingControl(log)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-blue-600 transition-colors border border-slate-200"
+                              title="Ver detalles"
+                            >
+                              <Eye size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -381,21 +511,26 @@ export const TallerControlPage = () => {
       {/* Modal portal for registering new control */}
       {modalOpen && createPortal(
         <>
-          <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
+          <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm" onClick={() => !saving && setModalOpen(false)} />
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
-            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-modal-in flex flex-col border border-slate-100 max-h-[min(780px,92vh)] overflow-hidden">
+            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-modal-in flex flex-col border border-slate-100 max-h-[min(820px,94vh)] overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 shrink-0 bg-white">
                 <div>
                   <h2 className="text-base font-bold text-slate-800">Registrar Control de Vehículo</h2>
                   <p className="text-xs text-slate-400 mt-0.5">{selectedVeh?.placa} — checklist de control circular</p>
                 </div>
-                <button type="button" onClick={() => setModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => setModalOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200 disabled:opacity-50"
+                >
+                  <X size={16} />
                 </button>
               </div>
 
               <form onSubmit={handleRegister} className="flex flex-col flex-1 min-h-0">
-                <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+                <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 space-y-6">
                   {/* Row 1: Date/Time, Mileage, Fuel */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
@@ -516,6 +651,91 @@ export const TallerControlPage = () => {
                     </div>
                   </div>
 
+                  {/* Sección de Registro Fotográfico Opcional */}
+                  <div className="border-t border-slate-100 pt-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                        Registro Fotográfico (Opcional)
+                      </h3>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                        4 fotos opcionales
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {PHOTO_FIELDS.map((pf) => {
+                        const currentPhoto = selectedPhotos[pf.key];
+                        const IconComponent = pf.icon;
+                        return (
+                          <div
+                            key={pf.key}
+                            className={`relative rounded-xl border p-3 transition-all ${
+                              currentPhoto
+                                ? 'border-blue-300 bg-blue-50/40 shadow-xs'
+                                : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center border shrink-0 ${pf.color}`}>
+                                    <IconComponent size={13} />
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-700 truncate">{pf.label}</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-0.5 truncate">{pf.subtitle}</p>
+                              </div>
+                              {currentPhoto && (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePhotoRemove(pf.key)}
+                                  className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Eliminar foto"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+
+                            {currentPhoto ? (
+                              <div className="mt-2.5 flex items-center gap-3 bg-white p-2 rounded-lg border border-blue-100">
+                                <img
+                                  src={currentPhoto.preview}
+                                  alt={pf.label}
+                                  className="w-12 h-12 rounded-md object-cover border border-slate-200 shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[11px] font-bold text-slate-700 truncate">{currentPhoto.name}</p>
+                                  <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                                    ✓ Lista para subir ({(currentPhoto.size / 1024).toFixed(0)} KB)
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <label className="mt-2.5 flex items-center justify-center gap-2 p-2.5 rounded-lg border border-dashed border-slate-300 bg-white hover:bg-blue-50/50 hover:border-blue-300 cursor-pointer transition-all group">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handlePhotoSelect(pf.key, file);
+                                    e.target.value = '';
+                                  }}
+                                />
+                                <Camera size={15} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                                <span className="text-xs font-semibold text-slate-600 group-hover:text-blue-600 transition-colors">
+                                  Subir o Tomar Foto
+                                </span>
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Observations and suggestions */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-5">
                     <div>
@@ -542,6 +762,13 @@ export const TallerControlPage = () => {
                     </div>
                   </div>
 
+                  {uploadStatus && (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-700 flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-blue-600" />
+                      <span className="font-semibold">{uploadStatus}</span>
+                    </div>
+                  )}
+
                   {formError && (
                     <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                       {formError}
@@ -549,20 +776,22 @@ export const TallerControlPage = () => {
                   )}
                 </div>
 
-                <div className="flex justify-end gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                <div className="flex justify-end gap-3 px-6 sm:px-8 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={() => setModalOpen(false)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-all"
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-50"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-xl text-sm transition-all shadow-sm disabled:opacity-50"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-xl text-sm transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
                   >
-                    {saving ? 'Guardando...' : 'Registrar Control'}
+                    {saving && <Loader2 size={14} className="animate-spin" />}
+                    {saving ? (uploadStatus || 'Guardando...') : 'Registrar Control'}
                   </button>
                 </div>
               </form>
@@ -577,14 +806,14 @@ export const TallerControlPage = () => {
         <>
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm" onClick={() => setViewingControl(null)} />
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
-            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-modal-in flex flex-col border border-slate-100 overflow-hidden">
+            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-modal-in flex flex-col border border-slate-100 overflow-hidden max-h-[min(760px,90vh)]">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-150 shrink-0 bg-white">
                 <div>
                   <h2 className="text-base font-bold text-slate-800">Detalles de Control Diario</h2>
                   <p className="text-xs text-slate-400 mt-0.5">{selectedVeh?.placa} — {new Date(viewingControl.fecha).toLocaleDateString()}</p>
                 </div>
-                <button type="button" onClick={() => setViewingControl(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200">
-                  ✕
+                <button type="button" onClick={() => setViewingControl(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-all border border-slate-200 cursor-pointer">
+                  <X size={16} />
                 </button>
               </div>
 
@@ -660,6 +889,63 @@ export const TallerControlPage = () => {
                   </div>
                 </div>
 
+                {/* Registro Fotográfico Lazy-loaded con MediaPreviewModal */}
+                {(() => {
+                  const controlPhotos = [
+                    viewingControl.fotoGasolinaInicio && { name: '1. Nivel Gasolina Inicial', url: viewingControl.fotoGasolinaInicio, icon: Fuel, label: 'Gasolina Inicial', color: 'text-amber-600 bg-amber-50 border-amber-200' },
+                    viewingControl.fotoKmInicio && { name: '2. Kilometraje Inicial', url: viewingControl.fotoKmInicio, icon: Gauge, label: 'KM Inicial', color: 'text-blue-600 bg-blue-50 border-blue-200' },
+                    viewingControl.fotoKmFin && { name: '3. Kilometraje Final', url: viewingControl.fotoKmFin, icon: Flag, label: 'KM Final', color: 'text-purple-600 bg-purple-50 border-purple-200' },
+                    viewingControl.fotoGasolinaFin && { name: '4. Nivel Gasolina Final', url: viewingControl.fotoGasolinaFin, icon: Fuel, label: 'Gasolina Final', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+                  ].filter(Boolean);
+
+                  if (controlPhotos.length === 0) return null;
+
+                  return (
+                    <div className="border-t border-slate-100 pt-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <span className="w-1.5 h-3.5 bg-blue-500 rounded-full" />
+                          Registro Fotográfico ({controlPhotos.length})
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => openControlPhotos(viewingControl, 0)}
+                          className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <Eye size={13} />
+                          Ver {controlPhotos.length === 1 ? '1 foto' : `${controlPhotos.length} fotos`}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {controlPhotos.map((photo, idx) => {
+                          const IconComp = photo.icon;
+                          return (
+                            <button
+                              key={photo.name}
+                              type="button"
+                              onClick={() => openControlPhotos(viewingControl, idx)}
+                              className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 transition-all text-left group cursor-pointer"
+                            >
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center border shrink-0 transition-all group-hover:scale-105 ${photo.color}`}>
+                                <IconComp size={15} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="text-xs font-bold text-slate-700 block truncate group-hover:text-blue-700">
+                                  {photo.label}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                                  <ImageIcon size={10} /> Clic para ver
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Obs and suggestions */}
                 <div className="border-t border-slate-100 pt-4 space-y-3">
                   {viewingControl.observacion && (
@@ -681,7 +967,7 @@ export const TallerControlPage = () => {
               </div>
 
               <div className="flex justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
-                <button type="button" onClick={() => setViewingControl(null)} className="bg-slate-250 hover:bg-slate-300 text-slate-700 font-bold px-5 py-2 rounded-xl text-xs transition-all border border-slate-300 bg-white">
+                <button type="button" onClick={() => setViewingControl(null)} className="bg-slate-250 hover:bg-slate-300 text-slate-700 font-bold px-5 py-2 rounded-xl text-xs transition-all border border-slate-300 bg-white cursor-pointer">
                   Cerrar
                 </button>
               </div>
@@ -698,6 +984,14 @@ export const TallerControlPage = () => {
         controles={controlesFiltrados}
         desde={dateRange.start}
         hasta={dateRange.end}
+      />
+
+      {/* Media Preview Modal para fotos de control */}
+      <MediaPreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={() => setPreviewModal({ isOpen: false, files: [], index: 0 })}
+        files={previewModal.files}
+        initialIndex={previewModal.index}
       />
     </div>
   );

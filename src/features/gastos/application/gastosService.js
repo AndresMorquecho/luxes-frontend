@@ -225,4 +225,22 @@ export async function addVehiculoControl(vehiculoId, control) {
   return data.data;
 }
 
+export async function uploadControlFoto(file) {
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  formData.append('foto', file);
+
+  const res = await fetch('/api/vehiculos/controles/upload', {
+    method: 'POST',
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al subir foto del control');
+  return data.data.url;
+}
+
+
 

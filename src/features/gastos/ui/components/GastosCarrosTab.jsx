@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Car, Wrench, ClipboardCheck, Clock, User, Gauge, CheckSquare, Plus, AlertCircle, Sparkles } from 'lucide-react';
+import { Car, Wrench, ClipboardCheck, Clock, User, Gauge, CheckSquare, Plus, AlertCircle, Sparkles, Camera, Image as ImageIcon, X, Loader2, Fuel, Flag } from 'lucide-react';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import {
   getVehiculos, saveVehiculo, deleteVehiculo, saveMantenimiento, deleteMantenimiento,
-  getVehiculoControles, addVehiculoControl,
+  getVehiculoControles, addVehiculoControl, uploadControlFoto,
   TIPOS_MANTENIMIENTO, labelTipoMantenimiento, estadoMantenimiento,
   getMetodosPago,
 } from '../../application/gastosService';
+import { compressImage } from '../../../../shared/utils/imageCompressor';
 import { MODAL_HEADER_STYLE, MODAL_FORM_STYLES, fmt } from '../shared/gastosUi';
 import { todayDateInputValue } from '../../../../shared/utils/dateOnly';
 
@@ -15,6 +16,20 @@ const getNowLocalDateTime = () => {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const PHOTO_FIELDS = [
+  { key: 'fotoGasolinaInicio', label: '1. Gasolina Inicial', subtitle: 'Nivel con el que empiezan', icon: Fuel, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  { key: 'fotoKmInicio', label: '2. KM Inicial', subtitle: 'Kilometraje con el que inicia', icon: Gauge, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  { key: 'fotoKmFin', label: '3. KM Final', subtitle: 'Kilometraje con el que queda', icon: Flag, color: 'text-purple-600 bg-purple-50 border-purple-200' },
+  { key: 'fotoGasolinaFin', label: '4. Gasolina Final', subtitle: 'Nivel de gasolina que queda', icon: Fuel, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+];
+
+const INITIAL_PHOTOS = {
+  fotoGasolinaInicio: null,
+  fotoKmInicio: null,
+  fotoKmFin: null,
+  fotoGasolinaFin: null,
 };
 
 const EMPTY_VEHICULO = { placa: '', marca: '', modelo: '', anio: '', color: '', kilometraje: 0, responsable: '', notas: '', estado: 'activo' };
@@ -58,6 +73,8 @@ export const GastosCarrosTab = () => {
   const [vehForm, setVehForm] = useState(EMPTY_VEHICULO);
   const [mantForm, setMantForm] = useState(EMPTY_MANT);
   const [controlForm, setControlForm] = useState(EMPTY_CONTROL);
+  const [selectedPhotos, setSelectedPhotos] = useState(INITIAL_PHOTOS);
+  const [uploadStatus, setUploadStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -157,14 +174,54 @@ export const GastosCarrosTab = () => {
     setMantFormOpen(true);
   };
 
+  const handlePhotoSelect = (key, file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    setSelectedPhotos(prev => {
+      if (prev[key]?.preview) {
+        URL.revokeObjectURL(prev[key].preview);
+      }
+      return {
+        ...prev,
+        [key]: { file, preview, name: file.name, size: file.size },
+      };
+    });
+  };
+
+  const handlePhotoRemove = (key) => {
+    setSelectedPhotos(prev => {
+      if (prev[key]?.preview) {
+        URL.revokeObjectURL(prev[key].preview);
+      }
+      return {
+        ...prev,
+        [key]: null,
+      };
+    });
+  };
+
+  const resetPhotos = () => {
+    Object.values(selectedPhotos).forEach(item => {
+      if (item?.preview) {
+        URL.revokeObjectURL(item.preview);
+      }
+    });
+    setSelectedPhotos(INITIAL_PHOTOS);
+  };
+
   const openNewControl = () => {
     if (!selected) return;
+    resetPhotos();
     setControlForm({
       ...EMPTY_CONTROL,
       fecha: new Date().toISOString().slice(0, 16),
       kilometraje: selected.kilometraje,
     });
     setFormError('');
+    setUploadStatus('');
     setControlFormOpen(true);
   };
 
@@ -185,10 +242,32 @@ export const GastosCarrosTab = () => {
     }
     setSaving(true);
     setFormError('');
+    setUploadStatus('Optimizando y subiendo fotos...');
     try {
+      const uploadedUrls = {};
+      const keys = ['fotoGasolinaInicio', 'fotoKmInicio', 'fotoKmFin', 'fotoGasolinaFin'];
+
+      for (const k of keys) {
+        const photoItem = selectedPhotos[k];
+        if (photoItem?.file) {
+          const compressed = await compressImage(photoItem.file, {
+            maxWidth: 1600,
+            maxHeight: 1600,
+            quality: 0.82,
+          });
+          const url = await uploadControlFoto(compressed);
+          uploadedUrls[k] = url;
+        } else {
+          uploadedUrls[k] = null;
+        }
+      }
+
+      setUploadStatus('Guardando control...');
+
       const payload = {
         ...controlForm,
         kilometraje: Number(controlForm.kilometraje),
+        ...uploadedUrls,
       };
       const saved = await addVehiculoControl(selected.id, payload);
       setControles((prev) => [saved, ...prev]);
@@ -198,11 +277,13 @@ export const GastosCarrosTab = () => {
         }
         return v;
       }));
+      resetPhotos();
       setControlFormOpen(false);
     } catch (err) {
       setFormError(err.message);
     } finally {
       setSaving(false);
+      setUploadStatus('');
     }
   };
 
@@ -642,6 +723,91 @@ export const GastosCarrosTab = () => {
                     </div>
                   </div>
 
+                  {/* Sección de Registro Fotográfico Opcional */}
+                  <div className="border-t border-gray-100 pt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                        Registro Fotográfico (Opcional)
+                      </h3>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                        4 fotos opcionales
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {PHOTO_FIELDS.map((pf) => {
+                        const currentPhoto = selectedPhotos[pf.key];
+                        const IconComponent = pf.icon;
+                        return (
+                          <div
+                            key={pf.key}
+                            className={`relative rounded-xl border p-3 transition-all ${
+                              currentPhoto
+                                ? 'border-blue-300 bg-blue-50/40'
+                                : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center border shrink-0 ${pf.color}`}>
+                                    <IconComponent size={13} />
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-700 truncate">{pf.label}</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-0.5 truncate">{pf.subtitle}</p>
+                              </div>
+                              {currentPhoto && (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePhotoRemove(pf.key)}
+                                  className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Eliminar foto"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+
+                            {currentPhoto ? (
+                              <div className="mt-2.5 flex items-center gap-3 bg-white p-2 rounded-lg border border-blue-100">
+                                <img
+                                  src={currentPhoto.preview}
+                                  alt={pf.label}
+                                  className="w-12 h-12 rounded-md object-cover border border-slate-200 shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[11px] font-bold text-slate-700 truncate">{currentPhoto.name}</p>
+                                  <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                                    ✓ Lista para subir ({(currentPhoto.size / 1024).toFixed(0)} KB)
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <label className="mt-2.5 flex items-center justify-center gap-2 p-2.5 rounded-lg border border-dashed border-slate-300 bg-white hover:bg-blue-50/50 hover:border-blue-300 cursor-pointer transition-all group">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handlePhotoSelect(pf.key, file);
+                                    e.target.value = '';
+                                  }}
+                                />
+                                <Camera size={15} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                                <span className="text-xs font-semibold text-slate-600 group-hover:text-blue-600 transition-colors">
+                                  Subir o Tomar Foto
+                                </span>
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="border-t border-gray-100 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[11px] font-semibold text-gray-500 uppercase mb-1 block">Observación</label>
@@ -652,11 +818,22 @@ export const GastosCarrosTab = () => {
                       <textarea name="sugerencia" value={controlForm.sugerencia} onChange={handleControlChange} rows={2} className="input-field resize-none" placeholder="Recomendaciones o sugerencias..." />
                     </div>
                   </div>
+
+                  {uploadStatus && (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-700 flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-blue-600" />
+                      <span className="font-semibold">{uploadStatus}</span>
+                    </div>
+                  )}
+
                   {formError && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{formError}</div>}
                 </div>
                 <div className="flex justify-end gap-3 px-8 py-5 border-t border-gray-100 bg-gray-50/50 shrink-0">
-                  <button type="button" onClick={() => setControlFormOpen(false)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold text-gray-600">Cancelar</button>
-                  <button type="submit" disabled={saving} className="btn-primary px-6 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-60">Registrar Control</button>
+                  <button type="button" disabled={saving} onClick={() => setControlFormOpen(false)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 disabled:opacity-50">Cancelar</button>
+                  <button type="submit" disabled={saving} className="btn-primary px-6 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-60 flex items-center gap-2">
+                    {saving && <Loader2 size={14} className="animate-spin" />}
+                    {saving ? (uploadStatus || 'Guardando...') : 'Registrar Control'}
+                  </button>
                 </div>
               </form>
             </div>
