@@ -13,6 +13,7 @@ export function obtenerResumenNomina(calculadas) {
   let egresosTotal = 0;
   let netoTotal = 0;
   let abonadoTotal = 0;
+  let pendienteTotal = 0;
 
   let pendientes = 0;
   let abonosParciales = 0;
@@ -24,6 +25,7 @@ export function obtenerResumenNomina(calculadas) {
     egresosTotal += item.sumaEgresos;
     netoTotal += item.netoRecibir;
     abonadoTotal += item.totalAbonado;
+    pendienteTotal += Math.max(0, (item.netoRecibir || 0) - (item.totalAbonado || 0));
 
     if (item.estadoPago === "PAGADO") {
       pagados++;
@@ -42,7 +44,7 @@ export function obtenerResumenNomina(calculadas) {
     egresosTotal: roundTo2(egresosTotal),
     netoTotal: roundTo2(netoTotal),
     abonadoTotal: roundTo2(abonadoTotal),
-    pendienteTotal: roundTo2(netoTotal - abonadoTotal),
+    pendienteTotal: roundTo2(pendienteTotal),
     conteoEstados: {
       PENDIENTE: pendientes,
       ABONO_PARCIAL: abonosParciales,

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { NominaContext } from '../../application/context/NominaContext';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
@@ -3074,10 +3074,13 @@ export const NominaMesTab = () => {
     }
   };
 
-  const totalPagadoQ1 = q1Rows.reduce((s, r) => s + ((r.raw?.abonos ?? []).reduce((a, b) => a + b.monto, 0)), 0);
-  const totalPagadoQ2 = q2Rows.reduce((s, r) => s + ((r.raw?.abonos ?? []).reduce((a, b) => a + b.monto, 0)), 0);
+  const totalPagadoQ1 = q1Rows.reduce((s, r) => s + resolveAbonado(r.cp, r.raw), 0);
+  const totalPagadoQ2 = q2Rows.reduce((s, r) => s + resolveAbonado(r.cp, r.raw), 0);
   const totalQ1 = q1Rows.reduce((s, r) => s + computeSubtotal(r.emp, r.cp, false), 0);
   const totalQ2 = q2Rows.reduce((s, r) => s + computeSubtotal(r.emp, r.cp, true), 0);
+
+  const totalPendienteQ1 = q1Rows.reduce((s, r) => s + computePendientePago(r.cp, r.raw, 0), 0);
+  const totalPendienteQ2 = q2Rows.reduce((s, r) => s + computePendientePago(r.cp, r.raw, 0), 0);
 
   const mesNetoSplit = useMemo(() => {
     const allRows = [...q1Rows, ...q2Rows];
@@ -3100,7 +3103,7 @@ export const NominaMesTab = () => {
   }, [pendingOvertime, fechas1, fechas2]);
 
   const totalPagado = totalPagadoQ1 + totalPagadoQ2;
-  const totalPendiente = (totalQ1 + totalQ2) - totalPagado;
+  const totalPendiente = totalPendienteQ1 + totalPendienteQ2;
 
   if (loading && !employees.length) {
     return (
@@ -3242,7 +3245,7 @@ export const NominaMesTab = () => {
             <span className="text-xs uppercase tracking-wider">1ra Quincena (01 - 15)</span>
           </div>
           <span className="text-[10px] opacity-85 font-mono">
-            Subtotal: {formatUSD(totalQ1)} | Pendiente: {formatUSD(Math.max(0, totalQ1 - totalPagadoQ1))}
+            Subtotal: {formatUSD(totalQ1)} | Pendiente: {formatUSD(totalPendienteQ1)}
           </span>
         </button>
 
@@ -3261,7 +3264,7 @@ export const NominaMesTab = () => {
             <span className="text-xs uppercase tracking-wider">2da Quincena (16 - Fin)</span>
           </div>
           <span className="text-[10px] opacity-85 font-mono">
-            Subtotal: {formatUSD(totalQ2)} | Pendiente: {formatUSD(Math.max(0, totalQ2 - totalPagadoQ2))}
+            Subtotal: {formatUSD(totalQ2)} | Pendiente: {formatUSD(totalPendienteQ2)}
           </span>
         </button>
       </div>
