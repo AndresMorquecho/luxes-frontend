@@ -45,6 +45,18 @@ const formatDateWithTime = (dateStr) => {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    
+    // Si fue guardado como fecha de calendario pura (ej. 00:00:00Z o 12:00:00Z)
+    const isMidnightUtc = d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0;
+    const isNoonUtc = d.getUTCHours() === 12 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0;
+    const isOnlyDateString = /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr).trim());
+
+    if (isMidnightUtc || isNoonUtc || isOnlyDateString) {
+      const cleanDate = String(dateStr).split('T')[0];
+      const [, m, day] = cleanDate.split('-').map(Number);
+      return `${day}-${months[m - 1]}`;
+    }
+
     const dateFormatted = `${d.getDate()}-${months[d.getMonth()]}`;
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
