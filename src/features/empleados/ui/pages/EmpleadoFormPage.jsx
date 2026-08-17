@@ -895,8 +895,8 @@ export const EmpleadoFormPage = () => {
         .input-field { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.625rem 0.875rem; font-size: 0.875rem; font-weight: 500; color: #1e293b; outline: none; transition: all 0.15s ease; background: white; width: 100%; }
         .input-field:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
         .input-field::placeholder { color: #94a3b8; }
-        .btn-primary { background: #2563eb; color: white; transition: all 0.15s ease; }
-        .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+        .btn-primary { background: linear-gradient(135deg, #0b2d64 0%, #164e96 100%); border: 1px solid rgba(200,150,62,0.4); color: white; transition: all 0.15s ease; }
+        .btn-primary:hover { background: linear-gradient(135deg, #071f45 0%, #0b2d64 100%); border-color: #c8963e; box-shadow: 0 4px 14px rgba(11,45,100,0.35); }
         .btn-ghost { transition: all 0.15s ease; }
         .btn-ghost:hover { background: #f1f5f9; }
         @keyframes modal-in {

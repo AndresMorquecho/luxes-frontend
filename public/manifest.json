@@ -1,7 +1,7 @@
 {
-  "name": "Luxes - Sistema de Gestión",
-  "short_name": "Luxes",
-  "description": "Sistema de gestión interna de Luxes, incluyendo nómina, inventario y compras.",
+  "name": "Alux - Sistema de Gestión",
+  "short_name": "Alux",
+  "description": "Sistema de gestión interna de Alux.",
   "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -9,9 +9,9 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "/icon.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     }
   ]

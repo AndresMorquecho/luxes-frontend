@@ -5,8 +5,9 @@ import headerBg from '../../../assets/header-bg.png';
 import './AppHeader.css';
 
 const HEADER_STYLE = {
-  backgroundColor: '#02188E',
-  backgroundImage: `linear-gradient(90deg, rgba(1, 12, 72, 0.55) 0%, rgba(4, 51, 255, 0.25) 50%, rgba(1, 12, 72, 0.55) 100%), url(${headerBg})`,
+  backgroundColor: '#030d24',
+  backgroundImage: `linear-gradient(90deg, #030d24 0%, #081d3d 50%, #030d24 100%)`,
+  borderBottom: '1.5px solid rgba(200, 150, 62, 0.45)',
   backgroundPosition: 'center',
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',

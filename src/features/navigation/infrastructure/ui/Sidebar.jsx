@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { useUnreadNotifications } from '../../../../shared/hooks/useUnreadNotifications.js';
 import { isAdminUser, getDisplayRole } from '../../../../shared/utils/userRoleHelpers';
 import { isModuleHidden, normalizeHiddenModules } from '../../application/sidebarModules.js';
+import aluxBanner from '../../../../assets/aluxBanner1.png';
+import aluxIcon from '../../../../assets/icon.png';
 import './Sidebar.css';
 
 export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogout }) => {
@@ -107,13 +109,13 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
       {/* Sidebar Logo Panel */}
       <div className="sidebar-logo-box">
         <img 
-          src="/LogoGlobo.png" 
-          alt="Luxes Logo Icon" 
+          src={aluxIcon} 
+          alt="Alux Logo Icon" 
           className="sidebar-logo-img sidebar-logo-collapsed" 
         />
         <img 
-          src="/LogoBanner.png" 
-          alt="Luxes Logo Full" 
+          src={aluxBanner} 
+          alt="Alux Banner Full" 
           className="sidebar-logo-img sidebar-logo-expanded" 
         />
       </div>

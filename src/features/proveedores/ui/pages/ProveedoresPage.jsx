@@ -126,9 +126,9 @@ export const ProveedoresPage = () => {
         }
 
         .pr-btn-primary {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          background: linear-gradient(135deg, #0b2d64 0%, #164e96 100%);
           color: white;
-          border: none;
+          border: 1px solid rgba(200,150,62,0.4);
           border-radius: 12px;
           padding: 10px 20px;
           font-size: 13px;
@@ -138,10 +138,15 @@ export const ProveedoresPage = () => {
           align-items: center;
           gap: 8px;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(37,99,235,0.3);
+          box-shadow: 0 4px 14px rgba(11,45,100,0.25);
           letter-spacing: 0.01em;
         }
-        .pr-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(37,99,235,0.42); }
+        .pr-btn-primary:hover { 
+          transform: translateY(-1px); 
+          background: linear-gradient(135deg, #071f45 0%, #0b2d64 100%);
+          border-color: #c8963e;
+          box-shadow: 0 8px 24px rgba(11,45,100,0.35); 
+        }
         .pr-btn-primary:active { transform: translateY(0); }
         .pr-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
