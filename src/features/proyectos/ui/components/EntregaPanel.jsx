@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Image as ImageIcon, CheckCircle, UploadCloud, Trash2, PenTool, ShieldCheck, Loader2 } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
-import { uploadArchivoDiseno } from '../../application/proyectosService.js';
+import { uploadEvidenciaInstalacion } from '../../application/proyectosService.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
-import { getThumbnailMediaUrl, resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
+import { resolveMediaUrl } from '../../../../shared/utils/mediaUrl.js';
 
 export function EntregaPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
@@ -45,7 +45,7 @@ export function EntregaPanel({ proyectoId, soloLectura }) {
     try {
       const uploadedFiles = [];
       for (const file of fileList) {
-        const fileData = await uploadArchivoDiseno(proyectoId, file);
+        const fileData = await uploadEvidenciaInstalacion(proyectoId, file);
         uploadedFiles.push({
           name: file.name,
           url: fileData.url,
@@ -131,7 +131,7 @@ export function EntregaPanel({ proyectoId, soloLectura }) {
             {fotos.map((foto, idx) => (
               <div key={idx} className="relative group bg-slate-100 rounded-xl overflow-hidden aspect-square border border-slate-200">
                 <img
-                  src={getThumbnailMediaUrl(resolveMediaUrl(foto.url || foto.previewDataUrl || ''))}
+                  src={resolveMediaUrl(foto.url || foto.previewDataUrl || '')}
                   alt={`Evidencia ${idx + 1}`}
                   className="w-full h-full object-cover"
                   loading="lazy"
