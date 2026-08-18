@@ -384,8 +384,15 @@ export const UsuariosPage = () => {
   };
 
   return (
-    <div className="us-root p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="w-full pb-20 md:pb-6 animate-slide-up us-root" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        .us-root, .us-root * {
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+          box-sizing: border-box;
+        }
+
         .us-tabs-bar {
           display: flex;
           align-items: center;
@@ -422,9 +429,9 @@ export const UsuariosPage = () => {
         }
         
         .us-btn-primary-purple {
-          background: linear-gradient(135deg, #0b2d64 0%, #164e96 100%);
+          background: #0b2d64;
           color: white;
-          border: 1px solid rgba(200,150,62,0.4);
+          border: none;
           border-radius: 12px;
           padding: 10px 20px;
           font-size: 13px;
@@ -434,15 +441,13 @@ export const UsuariosPage = () => {
           align-items: center;
           gap: 8px;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(11,45,100,0.25);
-          letter-spacing: 0.01em;
+          box-shadow: 0 4px 12px rgba(11,45,100,0.28);
         }
         .us-btn-primary-purple:hover {
-          transform: translateY(-1px);
-          background: linear-gradient(135deg, #071f45 0%, #0b2d64 100%);
-          border-color: #c8963e;
-          box-shadow: 0 8px 24px rgba(11,45,100,0.35);
+          background: #071f45;
+          box-shadow: 0 6px 16px rgba(11,45,100,0.38);
         }
+        .us-btn-primary-purple:active { transform: translateY(0); }
 
         .action-button-desactivar {
           color: #ef4444;
@@ -623,9 +628,9 @@ export const UsuariosPage = () => {
         }
         .us-card {
           background: #ffffff;
-          border: 1px solid #e2e8f0;
+          border: 1px solid #f1f5f9;
           border-radius: 20px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
           overflow: hidden;
         }
         .us-btn-ghost {
@@ -668,44 +673,37 @@ export const UsuariosPage = () => {
         }
       `}</style>
 
-      {/* Unified Banner */}
-      <div className="us-card px-6 py-5 flex items-center justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Usuarios y Roles</h1>
-          <p className="text-sm text-slate-400 mt-0.5 font-medium">Administra el acceso y los permisos del sistema</p>
-        </div>
-        <div>
-          {activeTab === 'usuarios' && (
-            <button onClick={handleOpenNewUser} className="us-btn-primary-purple">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      {/* Header Card */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs mb-4 sm:mb-6 overflow-hidden">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-600">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z" />
               </svg>
-              Nuevo Usuario
-            </button>
-          )}
-        </div>
-      </div>
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Usuarios</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Lista
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">Registro y gestión de usuarios del sistema</p>
+            </div>
+          </div>
 
-      {/* Tabs Selector */}
-      <div className="us-tabs-bar">
-        <button
-          onClick={() => setActiveTab('usuarios')}
-          className={`us-tab-button ${activeTab === 'usuarios' ? 'active' : ''}`}
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0Zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0Z" />
-          </svg>
-          Usuarios
-        </button>
-        <button
-          onClick={() => setActiveTab('auditoria')}
-          className={`us-tab-button ${activeTab === 'auditoria' ? 'active' : ''}`}
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1" />
-          </svg>
-          Auditoría
-        </button>
+          <button
+            type="button"
+            onClick={handleOpenNewUser}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm whitespace-nowrap transition-all shadow-sm w-full sm:w-auto bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99]"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nuevo Usuario
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -713,12 +711,9 @@ export const UsuariosPage = () => {
           <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-purple-600" />
         </div>
       ) : (
-        <>
-          {/* TAB 1: USUARIOS */}
-          {activeTab === 'usuarios' && (
-            <div className="space-y-6">
-              {/* KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="space-y-6">
+              {/* KPI Cards (Una sola fila) */}
+              <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 <div className="us-card px-5 py-4 flex items-center gap-4">
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(124,58,237,0.1)' }}>
                     <svg className="w-5 h-5" style={{ color: '#7c3aed' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -756,16 +751,25 @@ export const UsuariosPage = () => {
 
               {/* Table Card */}
               <div className="us-card">
-                <div className="px-5 py-4 border-b border-slate-100/60 flex items-center gap-3">
-                  <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                  </svg>
-                  <input
-                    className="us-input max-w-xs !border-0 !bg-transparent !p-0 !shadow-none !text-sm !font-medium placeholder:!text-slate-400 focus:!ring-0"
-                    placeholder="Buscar usuario..."
-                    value={userSearch}
-                    onChange={e => setUserSearch(e.target.value)}
-                  />
+                <div className="px-5 py-3.5 border-b border-slate-100/60 flex items-center justify-end">
+                  <div className="flex items-center gap-2.5 w-full sm:max-w-xs px-3 py-1.5 rounded-xl bg-slate-50/80 border border-slate-200 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
+                    <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                    <input
+                      className="w-full bg-transparent border-0 p-0 shadow-none text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:ring-0"
+                      placeholder="Buscar usuario..."
+                      value={userSearch}
+                      onChange={e => setUserSearch(e.target.value)}
+                    />
+                    {userSearch && (
+                      <button onClick={() => setUserSearch('')} className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer" type="button" title="Limpiar búsqueda">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -828,7 +832,7 @@ export const UsuariosPage = () => {
                                     {u.ultimoAcceso ? new Date(u.ultimoAcceso).toLocaleString() : 'Nunca'}
                                   </td>
                                   <td className="px-5 py-4">
-                                    <div className="flex items-center justify-center gap-2">
+                                    <div className="flex items-center justify-center gap-1.5">
                                       {u.username !== 'asistencia' && (
                                         <button
                                           onClick={() => handleToggleUserStatus(u)}
@@ -839,7 +843,7 @@ export const UsuariosPage = () => {
                                       )}
                                       <button
                                         onClick={() => handleOpenPasswordModal(u)}
-                                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+                                        className="w-8 h-8 rounded-xl bg-amber-50/80 text-amber-600 hover:bg-amber-100 hover:text-amber-700 border border-amber-100/90 flex items-center justify-center transition-all cursor-pointer shadow-xs"
                                         title="Cambiar contraseña"
                                       >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -850,19 +854,20 @@ export const UsuariosPage = () => {
                                         <>
                                           <button
                                             onClick={() => handleOpenEditUser(u)}
-                                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors"
-                                            title="Editar"
+                                            className="w-8 h-8 rounded-xl bg-blue-50/80 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border border-blue-100/90 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                                            title="Editar usuario"
                                           >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                              <path d="M18 13.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.5" />
+                                              <path d="m15.5 2.5 3 3L9 15H6v-3l9.5-9.5z" />
                                             </svg>
                                           </button>
                                           <button
                                             onClick={() => handleDeleteUser(u.id)}
-                                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                                            title="Eliminar"
+                                            className="w-8 h-8 rounded-xl bg-rose-50/80 text-rose-600 hover:bg-rose-100 hover:text-rose-700 border border-rose-100/90 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                                            title="Eliminar usuario"
                                           >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                                             </svg>
                                           </button>
@@ -926,263 +931,121 @@ export const UsuariosPage = () => {
                 </div>
               </div>
             </div>
-          )}
-
-
-
-          {/* TAB 3: AUDITORÍA */}
-          {activeTab === 'auditoria' && (
-            <div className="space-y-6">
-              {/* Filter Panel */}
-              <div className="filter-panel">
-                {/* Search Text */}
-                <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-1.5 max-w-xs w-full">
-                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                  </svg>
-                  <input
-                    type="text"
-                    className="border-0 bg-transparent p-0 text-xs font-semibold focus:ring-0 outline-none w-full"
-                    placeholder="Buscar por detalle..."
-                    value={logSearch}
-                    onChange={e => setLogSearch(e.target.value)}
-                  />
-                </div>
-
-                {/* Users Dropdown */}
-                <select
-                  value={logFilterUser}
-                  onChange={e => setLogFilterUser(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">Todos los usuarios</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.nombre}</option>
-                  ))}
-                </select>
-
-                {/* Modulos Dropdown */}
-                <select
-                  value={logFilterModulo}
-                  onChange={e => setLogFilterModulo(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">Todos los módulos</option>
-                  <option value="Pedidos">Pedidos</option>
-                  <option value="Usuarios y Roles">Usuarios y Roles</option>
-                  <option value="Control de Caja">Control de Caja</option>
-                </select>
-
-                {/* Severity Dropdown */}
-                <select
-                  value={logFilterSeverity}
-                  onChange={e => setLogFilterSeverity(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">Todas las severidades</option>
-                  <option value="Critico">Crítico</option>
-                  <option value="Advertencia">Advertencia</option>
-                  <option value="Info">Info</option>
-                </select>
-
-                {/* Actions */}
-                <button
-                  onClick={cleanFilters}
-                  className="us-btn-ghost text-xs !py-2 !px-3 font-bold text-slate-500 hover:bg-slate-100 rounded-lg ml-auto border border-slate-200"
-                >
-                  Limpiar
-                </button>
-                <button
-                  onClick={exportCSV}
-                  className="bg-indigo-900 hover:bg-indigo-950 text-white rounded-lg px-4 py-2 text-xs font-bold transition-colors flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                  </svg>
-                  Exportar CSV
-                </button>
-              </div>
-
-              {/* Logs Table Card */}
-              <div className="us-card">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[13px]">
-                    <thead>
-                      <tr className="border-b border-slate-100/60 bg-slate-50/20">
-                        <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fecha y Hora</th>
-                        <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Usuario</th>
-                        <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Acción</th>
-                        <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Módulo</th>
-                        <th className="text-left px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Detalle</th>
-                        <th className="text-center px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severidad</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/40">
-                      {auditLogs.map((l) => {
-                        let severityClass = 'severity-info';
-                        const sev = l.severidad?.toLowerCase() || '';
-                        if (sev === 'critico') severityClass = 'severity-critico';
-                        if (sev === 'advertencia') severityClass = 'severity-advertencia';
-
-                        return (
-                          <tr key={l.id} className="us-tr">
-                            <td className="px-5 py-4 text-slate-500 font-medium">
-                              {new Date(l.fecha).toLocaleString()}
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="font-semibold text-slate-800">{l.user?.nombre || l.usuarioNom || 'Sistema'}</div>
-                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">{l.userId || 'N/A'}</div>
-                            </td>
-                            <td className="px-5 py-4 text-center">
-                              <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
-                                {l.accion}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 text-slate-600 font-semibold">{l.modulo}</td>
-                            <td className="px-5 py-4 text-slate-500 font-medium max-w-sm overflow-hidden text-ellipsis whitespace-nowrap" title={l.detalle}>
-                              {l.detalle}
-                            </td>
-                            <td className="px-5 py-4 text-center">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${severityClass}`}>
-                                {l.severidad}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {auditLogs.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="text-center py-16 text-slate-400 text-sm font-medium">
-                            No se encontraron registros de auditoría
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination Controls for Auditoría */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-slate-100 bg-slate-50/40">
-                  <div className="text-xs font-semibold text-slate-500">
-                    Mostrando {logTotal > 0 ? (logPage - 1) * logLimit + 1 : 0} a {Math.min(logPage * logLimit, logTotal)} de {logTotal} registros
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={logLimit}
-                      onChange={(e) => {
-                        setLogLimit(Number(e.target.value));
-                        setLogPage(1);
-                      }}
-                      className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none cursor-pointer"
-                    >
-                      <option value={10}>10 por pág.</option>
-                      <option value={20}>20 por pág.</option>
-                      <option value={50}>50 por pág.</option>
-                      <option value={100}>100 por pág.</option>
-                    </select>
-                    <button
-                      onClick={() => setLogPage((p) => Math.max(1, p - 1))}
-                      disabled={logPage <= 1}
-                      className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                    >
-                      Anterior
-                    </button>
-                    <span className="text-xs font-bold text-slate-700 px-2">
-                      {logPage} de {logTotalPages}
-                    </span>
-                    <button
-                      onClick={() => setLogPage((p) => Math.min(logTotalPages, p + 1))}
-                      disabled={logPage >= logTotalPages}
-                      className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                    >
-                      Siguiente
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+          )
+      }
 
       {/* --- MODAL CREAR/EDITAR USUARIO --- */}
       <ModalPortal open={userModalOpen}>
         <div className="us-modal-portal-root">
-          <div className="us-modal-overlay" onClick={() => deferClose(() => setUserModalOpen(false))} />
-          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-us-modal-in max-h-[95vh] flex flex-col border border-slate-100">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-                <h2 className="text-lg font-bold text-slate-800">{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', animation: 'overlay-in 0.2s ease' }}
+            onClick={() => deferClose(() => setUserModalOpen(false))} />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-3 sm:p-4">
+            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-us-modal-in flex flex-col border border-slate-100 overflow-hidden"
+              style={{ boxShadow: '0 20px 50px rgba(15,23,42,0.12), 0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
+                <h2 className="text-base sm:text-lg font-bold text-slate-800">{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
                 <button type="button" onClick={() => deferClose(() => setUserModalOpen(false))}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors cursor-pointer">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-              <div className="overflow-y-auto p-6">
-                <form onSubmit={handleSaveUser} className="space-y-4">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Nombre Completo</label>
-                    <div className="us-input-wrapper">
-                      <span className="us-input-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                      </span>
-                      <input
-                        name="nombre"
-                        value={userForm.nombre}
-                        onChange={e => setUserForm(prev => ({ ...prev, nombre: e.target.value }))}
-                        required
-                        placeholder="Ej. Ivette Morquecho"
-                        className="us-input us-input-with-icon"
-                      />
+              <div className="p-4 sm:p-5">
+                <form onSubmit={handleSaveUser} className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Nombre Completo</label>
+                      <div className="us-input-wrapper">
+                        <span className="us-input-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        </span>
+                        <input
+                          name="nombre"
+                          value={userForm.nombre}
+                          onChange={e => setUserForm(prev => ({ ...prev, nombre: e.target.value }))}
+                          required
+                          placeholder="Ej. Ivette Morquecho"
+                          className="us-input us-input-with-icon !py-2 !text-xs sm:!text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Usuario (Login)</label>
+                      <div className="us-input-wrapper">
+                        <span className="us-input-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                            <circle cx="12" cy="12" r="4" />
+                            <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94" />
+                          </svg>
+                        </span>
+                        <input
+                          name="username"
+                          value={userForm.username}
+                          onChange={e => setUserForm(prev => ({ ...prev, username: e.target.value }))}
+                          required
+                          placeholder="ej. MorquechoI"
+                          className="us-input us-input-with-icon !py-2 !text-xs sm:!text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Nombre de Usuario (Login)</label>
-                    <div className="us-input-wrapper">
-                      <span className="us-input-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                          <circle cx="12" cy="12" r="4" />
-                          <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94" />
-                        </svg>
-                      </span>
-                      <input
-                        name="username"
-                        value={userForm.username}
-                        onChange={e => setUserForm(prev => ({ ...prev, username: e.target.value }))}
-                        required
-                        placeholder="ej. MorquechoI"
-                        className="us-input us-input-with-icon"
-                      />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Correo Electrónico</label>
+                      <div className="us-input-wrapper">
+                        <span className="us-input-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                          </svg>
+                        </span>
+                        <input
+                          name="email"
+                          type="email"
+                          value={userForm.email}
+                          onChange={e => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                          required
+                          placeholder="usuario@luxes.com"
+                          className="us-input us-input-with-icon !py-2 !text-xs sm:!text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Rol de Acceso</label>
+                      <div className="us-input-wrapper">
+                        <span className="us-input-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          </svg>
+                        </span>
+                        <select
+                          name="roleId"
+                          value={userForm.roleId}
+                          onChange={e => setUserForm(prev => ({ ...prev, roleId: e.target.value }))}
+                          className="us-input us-input-with-icon !py-2 !text-xs sm:!text-sm cursor-pointer"
+                          style={{ appearance: 'none' }}
+                        >
+                          {roles.map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                          ))}
+                        </select>
+                        <span className="absolute right-3 pointer-events-none text-slate-400">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Correo Electrónico</label>
-                    <div className="us-input-wrapper">
-                      <span className="us-input-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                          <polyline points="22,6 12,13 2,6" />
-                        </svg>
-                      </span>
-                      <input
-                        name="email"
-                        type="email"
-                        value={userForm.email}
-                        onChange={e => setUserForm(prev => ({ ...prev, email: e.target.value }))}
-                        required
-                        placeholder="usuario@luxes.com"
-                        className="us-input us-input-with-icon"
-                      />
-                    </div>
-                  </div>
+
                   {!editingUser && (
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Contraseña</label>
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Contraseña</label>
                       <div className="us-input-wrapper">
                         <span className="us-input-icon">
                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -1197,12 +1060,12 @@ export const UsuariosPage = () => {
                           onChange={e => setUserForm(prev => ({ ...prev, password: e.target.value }))}
                           required
                           placeholder="••••••••"
-                          className="us-input us-input-with-icon us-input-with-toggle"
+                          className="us-input us-input-with-icon us-input-with-toggle !py-2 !text-xs sm:!text-sm"
                         />
                         <button
                           type="button"
                           onClick={() => setShowUserPassword(!showUserPassword)}
-                          className="us-password-toggle-btn"
+                          className="us-password-toggle-btn cursor-pointer"
                           tabIndex="-1"
                         >
                           {showUserPassword ? (
@@ -1220,53 +1083,25 @@ export const UsuariosPage = () => {
                       </div>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Rol</label>
-                      <div className="us-input-wrapper">
-                        <span className="us-input-icon">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                          </svg>
-                        </span>
-                        <select
-                          name="roleId"
-                          value={userForm.roleId}
-                          onChange={e => setUserForm(prev => ({ ...prev, roleId: e.target.value }))}
-                          className="us-input us-input-with-icon"
-                          style={{ appearance: 'none' }}
-                        >
-                          {roles.map(r => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
-                          ))}
-                        </select>
-                        <span className="absolute right-3.5 pointer-events-none text-slate-400">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                          </svg>
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 pt-6 pl-2">
+
+                  <div className="pt-1">
+                    <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         id="user-active-checkbox"
                         checked={userForm.estado === 'activo'}
                         onChange={e => setUserForm(prev => ({ ...prev, estado: e.target.checked ? 'activo' : 'inactivo' }))}
-                        className="w-4 h-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500 cursor-pointer"
+                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                       />
                       <label htmlFor="user-active-checkbox" className="text-xs font-semibold text-slate-600 select-none cursor-pointer">
-                        Usuario activo
+                        Usuario activo en el sistema
                       </label>
                     </div>
                   </div>
-                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" onClick={() => deferClose(() => setUserModalOpen(false))} className="us-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={saving} className="us-btn-primary-purple">
-                      <span
-                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
-                        aria-hidden={!saving}
-                      />
+
+                  <div className="flex items-center justify-end gap-2.5 pt-2.5 border-t border-slate-100">
+                    <button type="button" onClick={() => deferClose(() => setUserModalOpen(false))} className="us-btn-ghost !py-2 !text-xs sm:!text-sm">Cancelar</button>
+                    <button type="submit" disabled={saving} className="us-btn-primary-purple !py-2 !text-xs sm:!text-sm">
                       {editingUser ? 'Guardar cambios' : 'Crear Usuario'}
                     </button>
                   </div>
@@ -1280,23 +1115,24 @@ export const UsuariosPage = () => {
       {/* --- MODAL CAMBIAR CONTRASEÑA --- */}
       <ModalPortal open={passwordModalOpen}>
         <div className="us-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => deferClose(() => setPasswordModalOpen(false))} />
-          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl animate-us-modal-in flex flex-col border border-slate-100">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-3 sm:p-4">
+            <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl animate-us-modal-in flex flex-col border border-slate-100 overflow-hidden"
+              style={{ boxShadow: '0 20px 50px rgba(15,23,42,0.12), 0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
                 <h2 className="text-sm font-bold text-slate-800">Cambiar Contraseña</h2>
                 <button type="button" onClick={() => deferClose(() => setPasswordModalOpen(false))}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors cursor-pointer">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-              <div className="p-6">
-                <form onSubmit={handleSavePassword} className="space-y-4">
+              <div className="p-4 sm:p-5">
+                <form onSubmit={handleSavePassword} className="space-y-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
                       Nueva contraseña para {passwordUser?.nombre}
                     </label>
                     <div className="us-input-wrapper">
@@ -1312,12 +1148,12 @@ export const UsuariosPage = () => {
                         onChange={e => setNewPassword(e.target.value)}
                         required
                         placeholder="Mínimo 6 caracteres"
-                        className="us-input us-input-with-icon us-input-with-toggle"
+                        className="us-input us-input-with-icon us-input-with-toggle !py-2 !text-xs sm:!text-sm"
                       />
                       <button
                         type="button"
                         onClick={() => setShowUserPassword(!showUserPassword)}
-                        className="us-password-toggle-btn"
+                        className="us-password-toggle-btn cursor-pointer"
                         tabIndex="-1"
                       >
                         {showUserPassword ? (
@@ -1334,9 +1170,9 @@ export const UsuariosPage = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-center justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => deferClose(() => setPasswordModalOpen(false))} className="us-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={saving} className="us-btn-primary-purple">
+                  <div className="flex items-center justify-end gap-2.5 pt-2">
+                    <button type="button" onClick={() => deferClose(() => setPasswordModalOpen(false))} className="us-btn-ghost !py-2 !text-xs sm:!text-sm">Cancelar</button>
+                    <button type="submit" disabled={saving} className="us-btn-primary-purple !py-2 !text-xs sm:!text-sm">
                       Actualizar
                     </button>
                   </div>
@@ -1350,45 +1186,46 @@ export const UsuariosPage = () => {
       {/* --- MODAL CREAR/EDITAR ROL --- */}
       <ModalPortal open={roleModalOpen}>
         <div className="us-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)' }}
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => deferClose(() => setRoleModalOpen(false))} />
-          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-us-modal-in max-h-[90vh] flex flex-col border border-slate-100">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-                <h2 className="text-lg font-bold text-slate-800">{editingRole ? 'Editar Rol' : 'Nuevo Rol'}</h2>
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-3 sm:p-4">
+            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-us-modal-in max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden"
+              style={{ boxShadow: '0 20px 50px rgba(15,23,42,0.12), 0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
+                <h2 className="text-base sm:text-lg font-bold text-slate-800">{editingRole ? 'Editar Rol' : 'Nuevo Rol'}</h2>
                 <button type="button" onClick={() => deferClose(() => setRoleModalOpen(false))}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors cursor-pointer">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-              <div className="overflow-y-auto p-6">
-                <form onSubmit={handleSaveRole} className="space-y-4">
+              <div className="overflow-y-auto p-4 sm:p-5">
+                <form onSubmit={handleSaveRole} className="space-y-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Nombre del Rol</label>
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Nombre del Rol</label>
                     <input
                       value={roleForm.name}
                       onChange={e => setRoleForm(prev => ({ ...prev, name: e.target.value }))}
                       required
                       placeholder="Ej. Servicio al Cliente"
                       disabled={editingRole?.name === 'Administrador'}
-                      className="us-input"
+                      className="us-input !py-2 !text-xs sm:!text-sm"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Descripción</label>
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Descripción</label>
                     <input
                       value={roleForm.description}
                       onChange={e => setRoleForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Ej. Gestión operativa de cobros y pedidos"
-                      className="us-input"
+                      className="us-input !py-2 !text-xs sm:!text-sm"
                     />
                   </div>
                   
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Asignar Permisos</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border border-slate-100 rounded-xl p-4 bg-slate-50/40 max-h-60 overflow-y-auto">
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Asignar Permisos</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 border border-slate-100 rounded-xl p-3 bg-slate-50/40 max-h-56 overflow-y-auto">
                       {permissions.map((p) => {
                         const isChecked = roleForm.permissions.includes(p.key);
                         return (
@@ -1399,7 +1236,7 @@ export const UsuariosPage = () => {
                               checked={isChecked}
                               disabled={editingRole?.name === 'Administrador'}
                               onChange={() => handlePermissionToggle(p.key)}
-                              className="w-4 h-4 mt-0.5 text-purple-600 border-slate-300 rounded focus:ring-purple-500"
+                              className="w-4 h-4 mt-0.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                             />
                             <label htmlFor={`perm-${p.id}`} className="text-xs font-semibold text-slate-600 select-none cursor-pointer leading-tight">
                               {p.name}
@@ -1410,13 +1247,9 @@ export const UsuariosPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 shrink-0">
-                    <button type="button" onClick={() => deferClose(() => setRoleModalOpen(false))} className="us-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={saving} className="us-btn-primary-purple">
-                      <span
-                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
-                        aria-hidden={!saving}
-                      />
+                  <div className="flex items-center justify-end gap-2.5 pt-2.5 border-t border-slate-100 shrink-0">
+                    <button type="button" onClick={() => deferClose(() => setRoleModalOpen(false))} className="us-btn-ghost !py-2 !text-xs sm:!text-sm">Cancelar</button>
+                    <button type="submit" disabled={saving} className="us-btn-primary-purple !py-2 !text-xs sm:!text-sm">
                       {editingRole ? 'Guardar cambios' : 'Crear Rol'}
                     </button>
                   </div>

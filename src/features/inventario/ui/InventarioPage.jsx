@@ -31,13 +31,11 @@ const elapsed = (fechaSalida) => {
 };
 
 const TABS = [
-  { id: 'all',        label: 'Todos',          Icon: Layers },
-  { id: 'Oficina',    label: 'Inv. Oficina',   Icon: Monitor },
-  { id: 'Taller',     label: 'Inv. Taller',    Icon: Wrench },
-  { id: 'Impresión',  label: 'Inv. Impresión', Icon: Printer },
+  { id: 'all',         label: 'Todos',                    Icon: Layers },
+  { id: 'herramienta', label: 'Herramientas',            Icon: Wrench },
+  { id: 'consumible',  label: 'Productos y Materiales',  Icon: Package },
+  { id: 'low_stock',   label: 'Stock Bajo',              Icon: AlertTriangle },
 ];
-
-// MaterialModal removed — replaced by ProductoFormModal
 
 // ── Movimiento rápido (desde fila de tabla) ────────────────────────────────
 function MovimientoModal({ material, onClose, onSave }) {
@@ -73,7 +71,7 @@ function MovimientoModal({ material, onClose, onSave }) {
         </div>
         <form onSubmit={handleSubmit} className="inv-modal-body">
           <div className="inv-material-info">
-            <span className="inv-chip consumible">consumible</span>
+            <span className="inv-chip consumible">{material.tipo === 'herramienta' ? 'Herramienta' : 'Producto'}</span>
             <strong>{material.nombre}</strong>
             <span className="inv-stock-badge">Stock: {material.stockActual} {unidad}</span>
           </div>
@@ -105,63 +103,13 @@ function MovimientoModal({ material, onClose, onSave }) {
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────
-function PrestamoModal({ herramientas, onClose, onSave }) {
-  const userId = JSON.parse(localStorage.getItem('user') || '{}').id;
-  const [materialId, setMaterialId] = useState(herramientas[0]?.id || '');
-  const [responsableId, setResponsableId] = useState(userId || '');
-  const [cantidad, setCantidad] = useState(1);
-  const [comentarios, setComentarios] = useState('');
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    await onSave({ materialId, responsableId, cantidad, comentarios });
-  }
-
-  return (
-    <ModalPortal>
-      <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}>
-        <div className="inv-modal inv-modal-sm" onMouseDown={e => e.stopPropagation()}>
-        <div className="inv-modal-header">
-          <h3>Registrar Salida de Herramienta</h3>
-          <button type="button" className="inv-close" onClick={() => deferClose(onClose)}><X size={18}/></button>
-        </div>
-        <form onSubmit={handleSubmit} className="inv-modal-body">
-          <label>Herramienta *
-            <select required value={materialId} onChange={e=>setMaterialId(e.target.value)}>
-              {herramientas.map(h => (
-                <option key={h.id} value={h.id}>{h.nombre} (disp. {h.stockActual})</option>
-              ))}
-            </select>
-          </label>
-          <label>Cantidad *
-            <input type="number" min="1" required value={cantidad} onChange={e=>setCantidad(+e.target.value)} />
-          </label>
-          <label>Motivo / Instalación *
-            <textarea required rows={3} value={comentarios} onChange={e=>setComentarios(e.target.value)} placeholder="Ej: Instalación letras en Mall del Sol" />
-          </label>
-          <div className="inv-modal-footer">
-            <button type="button" className="inv-btn-ghost" onClick={() => deferClose(onClose)}>Cancelar</button>
-            <button type="submit" className="inv-btn-primary">Registrar Salida</button>
-          </div>
-        </form>
-        </div>
-      </div>
-    </ModalPortal>
-  );
-}
-
-// ── Main Page ──────────────────────────────────────────────────────────────
 export function InventarioPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (user?.rol || 'visor').toUpperCase();
-  const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
-  const isTaller = userRole === 'TALLER';
-  const lockedCategory = getInventarioCategoriaPorRol(user);
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
 
-  const [activeTab, setActiveTab] = useState(lockedCategory || 'all');
-  const [subTipoFilter, setSubTipoFilter] = useState('all'); // 'all' | 'consumible' | 'herramienta'
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'herramienta' | 'consumible' | 'low_stock'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -183,14 +131,14 @@ export function InventarioPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-    }, 400);
+    }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
   // Reset page to 1 when filters or tabs change
   useEffect(() => {
     setPage(1);
-  }, [activeTab, subTipoFilter, debouncedSearch]);
+  }, [activeTab, debouncedSearch]);
 
   // ── Loaders ──────────────────────────────────────────────────────────────
   const loadUnits = useCallback(async () => {
@@ -211,33 +159,32 @@ export function InventarioPage() {
     }
   }, []);
 
-  const visibleTabs = lockedCategory
-    ? TABS.filter(t => t.id === lockedCategory)
-    : TABS;
-
   const loadMaterials = useCallback(async () => {
     setLoading(true);
     try {
-      const categoriaQuery = activeTab === 'all' ? undefined : activeTab;
-      const tipoQuery = subTipoFilter === 'all' ? undefined : subTipoFilter;
+      let tipoQuery = undefined;
+      if (activeTab === 'herramienta') tipoQuery = 'herramienta';
+      else if (activeTab === 'consumible') tipoQuery = 'consumible';
 
       const res = await getMateriales(buildMaterialesQuery({
         tipo: tipoQuery,
         page,
         limit: ITEMS_PER_PAGE,
         search: debouncedSearch,
-        ...(lockedCategory ? {} : { categoria: categoriaQuery }),
-        // Vista de impresión: mostrar rollos individuales [R001],[R002]
-        ...(isImpresion || categoriaQuery === 'Impresión' ? { incluirDerivados: true } : {}),
       }));
-      setItems(res.items || []);
+      
+      let resItems = res.items || [];
+      if (activeTab === 'low_stock') {
+        resItems = resItems.filter(i => (i.stockActual || 0) <= (i.stockMinimo || 1));
+      }
+      setItems(resItems);
       setTotalItems(res.total || 0);
     } catch (e) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, subTipoFilter, page, debouncedSearch, lockedCategory]);
+  }, [activeTab, page, debouncedSearch]);
 
   useEffect(() => {
     loadMaterials();
@@ -260,10 +207,10 @@ export function InventarioPage() {
     try {
       if (matModal && matModal !== 'new') {
         await updateMaterial(matModal.id, form);
-        toast.success('Material actualizado correctamente.');
+        toast.success('Registro actualizado correctamente.');
       } else {
         await createMaterial(form);
-        toast.success('Material creado correctamente.');
+        toast.success('Registro creado correctamente.');
       }
       if (!keepOpen) {
         setMatModal(null);
@@ -277,7 +224,7 @@ export function InventarioPage() {
 
   async function handleDeleteMaterial(item) {
     const confirmed = await confirmDialog(
-      '¿Eliminar producto?',
+      '¿Eliminar registro?',
       `¿Eliminar "${item.nombre}" del inventario? Esta acción no se puede deshacer.`,
       { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', type: 'danger' },
     );
@@ -285,7 +232,7 @@ export function InventarioPage() {
     try {
       await deleteMaterial(item.id);
       deferClose(() => {
-        toast.success('Material eliminado.');
+        toast.success('Registro eliminado.');
         loadAll();
       });
     } catch (e) { toast.error(e.message); }
@@ -304,6 +251,7 @@ export function InventarioPage() {
   const handleViewHistory = useCallback((item) => {
     navigate(`/inventario/historial/${item.codigo || item.id}`);
   }, [navigate]);
+
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   const getPageNumbers = () => {
@@ -330,75 +278,105 @@ export function InventarioPage() {
               <RefreshCw size={14}/>
             </button>
           </div>
-          <p className="inv-page-sub" style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b', fontWeight: 500 }}>Consumibles, herramientas y préstamos de equipos</p>
+          <p className="inv-page-sub" style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b', fontWeight: 500 }}>Herramientas de trabajo y productos de fabricación</p>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%', maxWidth: 'max-content' }}>
           {isAdmin && (
-            <button type="button" className="inv-btn-primary" onClick={() => setMatModal('new')} style={{ padding: '0.6rem 1.25rem', whiteSpace: 'nowrap' }}>
-              <Plus size={16}/> Nuevo producto
+            <button type="button" className="inv-btn-primary" onClick={() => setMatModal('new')} style={{ padding: '0.6rem 1.25rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Plus size={16}/> Nuevo registro
             </button>
           )}
         </div>
       </div>
 
       {/* KPI Cards */}
-      {!isImpresion && (
-        <div className="inv-kpi-grid">
-          <div className="inv-kpi-card">
-            <div className="inv-kpi-icon blue"><Package size={20}/></div>
-            <div>
-              <span className="inv-kpi-value">{stats.totalMateriales}</span>
-              <span className="inv-kpi-label">Materiales</span>
-            </div>
-          </div>
-          <div className="inv-kpi-card">
-            <div className="inv-kpi-icon amber"><AlertTriangle size={20}/></div>
-            <div>
-              <span className="inv-kpi-value">{stats.totalLowStock}</span>
-              <span className="inv-kpi-label">Stock Bajo</span>
-            </div>
+      <div className="inv-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="inv-kpi-card">
+          <div className="inv-kpi-icon blue"><Layers size={20}/></div>
+          <div>
+            <span className="inv-kpi-value">{stats.totalMateriales}</span>
+            <span className="inv-kpi-label">Total en Inventario</span>
           </div>
         </div>
-      )}
-
-      {/* Filtros Avanzados */}
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '1rem', marginBottom: '1.5rem', position: 'relative', zIndex: 30, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid rgba(241, 245, 249, 0.8)', background: 'rgba(248, 250, 252, 0.6)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderTopLeftRadius: '1rem', borderTopRightRadius: '1rem' }}>
-          <Filter size={16} color="#94a3b8" />
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filtros Avanzados</span>
+        <div className="inv-kpi-card">
+          <div className="inv-kpi-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}><Wrench size={20}/></div>
+          <div>
+            <span className="inv-kpi-value">{items.filter(i => i.tipo === 'herramienta' || i.categoria === 'Taller').length || '—'}</span>
+            <span className="inv-kpi-label">Herramientas</span>
+          </div>
         </div>
-        <div style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          {/* Sección Dropdown */}
+        <div className="inv-kpi-card">
+          <div className="inv-kpi-icon" style={{ background: '#dcfce7', color: '#16a34a' }}><Package size={20}/></div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginLeft: '0.25rem' }}>Sección</label>
-            <select 
-              value={activeTab} 
-              onChange={e => { setActiveTab(e.target.value); setSearch(''); }}
-              style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem', outline: 'none', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}
-              onMouseOver={e => e.target.style.backgroundColor = '#fff'}
-              onMouseOut={e => e.target.style.backgroundColor = '#f8fafc'}
-            >
-              {visibleTabs.map(t => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
-            </select>
+            <span className="inv-kpi-value">{items.filter(i => i.tipo !== 'herramienta' && i.categoria !== 'Taller').length || '—'}</span>
+            <span className="inv-kpi-label">Productos y Materiales</span>
           </div>
+        </div>
+        <div className="inv-kpi-card">
+          <div className="inv-kpi-icon amber"><AlertTriangle size={20}/></div>
+          <div>
+            <span className="inv-kpi-value">{stats.totalLowStock}</span>
+            <span className="inv-kpi-label">Stock Bajo</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Clasificación Dropdown */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginLeft: '0.25rem' }}>Clasificación</label>
-            <select 
-              value={subTipoFilter} 
-              onChange={e => setSubTipoFilter(e.target.value)}
-              style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem', outline: 'none', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}
-              onMouseOver={e => e.target.style.backgroundColor = '#fff'}
-              onMouseOut={e => e.target.style.backgroundColor = '#f8fafc'}
-            >
-              <option value="all">Todos</option>
-              <option value="consumible">Consumibles</option>
-              <option value="herramienta">Herramientas</option>
-            </select>
-          </div>
+      {/* Simplified Filters & Search */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', background: '#fff', padding: '0.85rem 1.25rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        {/* Tab Pills */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center' }}>
+          {TABS.map(tab => {
+            const Icon = tab.Icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => { setActiveTab(tab.id); setPage(1); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: isActive ? '1px solid #02188e' : '1px solid #e2e8f0',
+                  background: isActive ? '#02188e' : '#f8fafc',
+                  color: isActive ? '#fff' : '#475569',
+                }}
+              >
+                <Icon size={14} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.625rem', padding: '0.45rem 0.85rem', width: '100%', maxWidth: '320px' }}>
+          <Search size={15} color="#94a3b8" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre o código…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              outline: 'none',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              color: '#1e293b',
+              width: '100%'
+            }}
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}>
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -411,23 +389,8 @@ export function InventarioPage() {
       ) : (
         <>
           <div className="inv-table-card" style={{ position: 'relative', zIndex: 10 }}>
-            {/* Buscador dentro del contenedor de la tabla */}
-            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(241, 245, 249, 0.8)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <svg style={{ width: '1rem', height: '1rem', color: '#94a3b8', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input 
-                placeholder="Buscar por nombre o código…" 
-                value={search}
-                onChange={e=>setSearch(e.target.value)} 
-                aria-label="Buscar en inventario"
-                style={{ border: 'none', background: 'transparent', padding: 0, outline: 'none', fontSize: '0.875rem', fontWeight: 500, color: '#334155', width: '100%', maxWidth: '320px' }}
-              />
-            </div>
-
             <InventoryTable 
               items={items}
-              activeTab={activeTab}
               isAdmin={isAdmin}
               onViewHistory={handleViewHistory}
               onEdit={setMatModal}
@@ -440,7 +403,7 @@ export function InventarioPage() {
                 <div className="inv-pagination-info">
                   Mostrando <strong>{Math.min(totalItems, (page - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
                   <strong>{Math.min(totalItems, page * ITEMS_PER_PAGE)}</strong> de{' '}
-                  <strong>{totalItems}</strong> materiales
+                  <strong>{totalItems}</strong> registros
                 </div>
                 <div className="inv-pagination-pages">
                   <button
@@ -483,7 +446,6 @@ export function InventarioPage() {
         <ProductoFormModal
           item={matModal === 'new' ? null : matModal}
           unidades={unidades}
-          lockedCategory={lockedCategory}
           onClose={() => setMatModal(null)}
           onSave={handleSaveMaterial}
           onImportComplete={loadAll}

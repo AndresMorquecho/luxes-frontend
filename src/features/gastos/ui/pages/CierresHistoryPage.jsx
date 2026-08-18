@@ -77,30 +77,39 @@ export const CierresHistoryPage = () => {
   });
 
   return (
-    <div className="p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link to="/cierre-caja" className="p-2 bg-white rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
-            <ArrowLeft size={18} />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Historial de Cierres de Caja</h1>
-            <p className="text-sm font-medium text-slate-500 mt-1">
-              Registro histórico de todos los arqueos y cuadres de caja del sistema.
-            </p>
+    <div className="w-full pb-20 md:pb-6 animate-slide-up" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
+      {/* Header Card */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs mb-4 sm:mb-6 overflow-hidden">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link to="/cierre-caja" className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center shrink-0">
+              <ArrowLeft size={18} />
+            </Link>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Historial de Cierres de Caja</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Bitácora
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Registro histórico de todos los arqueos y cuadres de caja del sistema
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center">
-          <DateRangePicker
-            value={{ start: dateRange.desde, end: dateRange.hasta }}
-            onChange={val => setDateRange({ desde: val.start, hasta: val.end })}
-            placeholder="Seleccionar rango"
-          />
+          <div className="w-56 sm:w-64 shrink-0">
+            <DateRangePicker
+              value={{ start: dateRange.desde, end: dateRange.hasta }}
+              onChange={val => setDateRange({ desde: val.start, hasta: val.end })}
+              placeholder="Seleccionar rango"
+              size="sm"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-xl border border-white/50 rounded-2xl shadow-xl overflow-hidden">
+      <div className="bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden">
         {loadingCierreHistory ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />

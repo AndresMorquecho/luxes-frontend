@@ -1,27 +1,35 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-
-const RI_PRIMARY = '#2b41b8';
+import { PackageCheck, History } from 'lucide-react';
 
 export function RecepcionNav({ basePath = '/compras/recepcion' }) {
   const { pathname } = useLocation();
   const isHistorial = pathname.startsWith(`${basePath}/historial`);
 
-  const tabClass = (active) =>
-    `px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-      active
-        ? 'border-[#2b41b8] text-[#2b41b8]'
-        : 'border-transparent text-slate-500 hover:text-slate-700'
-    }`;
-
   return (
-    <div className="flex gap-1 border-b border-slate-200 mb-5 md:mb-6 overflow-x-auto">
-      <Link to={basePath} className={tabClass(!isHistorial)} style={!isHistorial ? { color: RI_PRIMARY, borderColor: RI_PRIMARY } : undefined}>
+    <>
+      <Link
+        to={basePath}
+        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+          !isHistorial
+            ? 'bg-white text-blue-700 shadow-xs border border-blue-100 font-bold'
+            : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+        }`}
+      >
+        <PackageCheck className="w-4 h-4 shrink-0" />
         Pendientes por recibir
       </Link>
-      <Link to={`${basePath}/historial`} className={tabClass(isHistorial)} style={isHistorial ? { color: RI_PRIMARY, borderColor: RI_PRIMARY } : undefined}>
+      <Link
+        to={`${basePath}/historial`}
+        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+          isHistorial
+            ? 'bg-white text-blue-700 shadow-xs border border-blue-100 font-bold'
+            : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+        }`}
+      >
+        <History className="w-4 h-4 shrink-0" />
         Historial
       </Link>
-    </div>
+    </>
   );
 }

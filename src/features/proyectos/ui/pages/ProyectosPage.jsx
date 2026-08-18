@@ -27,6 +27,7 @@ export default function ProyectosPage() {
 
   const [vista, setVista] = useState('lista'); // 'lista' | 'kanban'
   const [proyectoAEliminar, setProyectoAEliminar] = useState(null);
+  const [eliminandoId, setEliminandoId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState('15'); // '15' | '25' | '50' | 'TODOS'
 
@@ -63,55 +64,71 @@ export default function ProyectosPage() {
 
   const kpiCards = [
     { label: 'Total proyectos', value: estadisticas.total, Icon: Layers, color: '#1e40af', bg: '#eff6ff' },
-    { label: 'En producción', value: estadisticas.enProduccion, Icon: Printer, color: '#3b82f6', bg: '#eff6ff' },
+    { label: 'En producción', value: estadisticas.enProduccion, Icon: Printer, color: '#2563eb', bg: '#eff6ff' },
     { label: 'En instalación', value: estadisticas.enInstalacion, Icon: Wrench, color: '#f97316', bg: '#fff7ed' },
     { label: 'Completados', value: estadisticas.completadosMes, Icon: CheckCircle, color: '#059669', bg: '#ecfdf5' },
   ];
 
   return (
-    <div className="pb-10">
+    <div className="w-full pb-20 md:pb-6 animate-slide-up pj-root" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .pj-root, .pj-root * {
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+          box-sizing: border-box;
+        }
+      `}</style>
+
       {/* Header de página */}
-      <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Gestión de Proyectos</h1>
-          <p className="text-sm text-slate-500">Seguimiento del ciclo de vida de los proyectos de la agencia</p>
-        </div>
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs mb-4 sm:mb-6 overflow-hidden">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-600">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Gestión de Proyectos</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Lista
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">Seguimiento del ciclo de vida de los proyectos de la agencia</p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={() => navigate('/proyectos/reclamos')}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-all shadow-sm"
-          >
-            <ShieldAlert size={16} />
-            Reclamos Post-Venta
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+            <button
+              onClick={() => navigate('/proyectos/reclamos')}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer"
+            >
+              <ShieldAlert className="w-4 h-4 text-amber-600" />
+              Reclamos Post-Venta
+            </button>
 
-          <button
-            onClick={() => navigate('/proyectos/nuevo')}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold text-sm transition-all duration-200 hover:brightness-110 shadow-sm border border-[rgba(200,150,62,0.4)]"
-            style={{
-              background: 'linear-gradient(135deg, #0b2d64 0%, #164e96 100%)',
-              boxShadow: '0 2px 8px rgba(11, 45, 100, 0.2)'
-            }}
-          >
-            <Plus size={15} />
-            Nuevo Proyecto
-          </button>
+            <button
+              onClick={() => navigate('/proyectos/nuevo')}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99]"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo Proyecto
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4 sm:space-y-6">
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI Cards estrictamente en una sola línea */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
           {kpiCards.map(({ label, value, Icon, color, bg }) => (
-            <div key={label} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4 proj-kpi-card">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 proj-kpi-icon" style={{ backgroundColor: bg }}>
-                <Icon size={20} style={{ color }} />
+            <div key={label} className="bg-white rounded-2xl border border-slate-100 shadow-xs p-3 sm:p-4 lg:p-5 flex items-center gap-2.5 sm:gap-4 min-w-0">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 border border-slate-100/90" style={{ backgroundColor: bg }}>
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-800">{value}</p>
-                <p className="text-xs text-slate-500">{label}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-800 tabular-nums leading-tight truncate">{value}</p>
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500 truncate mt-0.5">{label}</p>
               </div>
             </div>
           ))}
@@ -388,7 +405,10 @@ export default function ProyectosPage() {
 
       {/* Modal de Confirmación de Eliminación */}
       {proyectoAEliminar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+          style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
+        >
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6">
               <div className="flex items-center gap-3 text-red-600 mb-4">

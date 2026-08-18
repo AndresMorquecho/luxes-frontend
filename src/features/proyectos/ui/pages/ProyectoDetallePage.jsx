@@ -5,7 +5,7 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import {
   ArrowLeft, ChevronRight, ChevronLeft, AlertTriangle,
   DollarSign, Calendar, Tag, User, Eye, X, Edit3, Info,
-  Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package
+  Plus, Trash2, FileText, CheckCircle, CheckCircle2, Check, Ban, ShoppingCart, Clock, HelpCircle, Wrench, Package, Layers
 } from 'lucide-react';
 import { useProyecto, enrichValidacionConImpresion } from '../../application/hooks/useProyecto.js';
 import { useAutoAvanceInstalacionAdmin } from '../../application/hooks/useAutoAvanceInstalacionAdmin.js';
@@ -16,6 +16,9 @@ import { getMetodosPago } from '../../../gastos/application/gastosService.js';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 
 import { FaseTimeline } from '../components/FaseTimeline.jsx';
+import { DynamicFaseTimeline } from '../components/DynamicFaseTimeline.jsx';
+import { DynamicFasePanel } from '../components/DynamicFasePanel.jsx';
+import { DynamicFaseModal } from '../components/DynamicFaseModal.jsx';
 import { FaseBadge } from '../components/FaseBadge.jsx';
 import { ProgressBar } from '../components/ProgressBar.jsx';
 import { InstalacionPanel } from '../components/InstalacionPanel.jsx';
@@ -28,6 +31,7 @@ import { AluxFasesPanel } from '../components/AluxFasesPanel.jsx';
 import { AluxGastosResumenPanel } from '../components/AluxGastosResumenPanel.jsx';
 import { AluxCotizacionTab } from '../components/AluxCotizacionTab.jsx';
 import { generateAluxFasesWithDates } from '../../domain/value-objects/aluxFasesTemplate.js';
+import { getTodayDateISO } from '../../domain/utils/proyectoDates.js';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { ProyectoDetallesModal } from '../components/ProyectoDetallesModal.jsx';
 import { ProyectoEditModal } from '../components/ProyectoEditModal.jsx';
@@ -122,6 +126,107 @@ export default function ProyectoDetallePage() {
   const handleSetFaseVista = (val) => {
     startTabTransition(() => setFaseVista(val));
   };
+
+  // Fases dinámicas del proyecto (Inicia únicamente con Cotización + bolita +)
+  const dynamicFases = React.useMemo(() => {
+    if (proyecto?.fasesAlux && Array.isArray(proyecto.fasesAlux)) {
+      return proyecto.fasesAlux;
+    }
+    return [];
+  }, [proyecto?.fasesAlux]);
+
+  const [activeFaseId, setActiveFaseId] = useState('fase-cotizacion');
+  const [showFaseModal, setShowFaseModal] = useState(false);
+  const [faseToEdit, setFaseToEdit] = useState(null);
+
+  const cotizacionCompletada = Boolean(
+    proyecto?.fases?.COTIZACION?.completada ||
+    (proyecto?.fases?.COTIZACION?.datos?.cotizacionesSeleccionadas && proyecto.fases.COTIZACION.datos.cotizacionesSeleccionadas.length > 0)
+  );
+
+  const handleUpdateFases = (newFases) => {
+    const totalPasos = 1 + newFases.length;
+    let done = cotizacionCompletada ? 1 : 0;
+    newFases.forEach((f) => {
+      if (f.estado === 'COMPLETADA') done += 1;
+    });
+    const nuevoProgreso = Math.round((done / totalPasos) * 100);
+
+    updateProyecto({
+      fasesAlux: newFases,
+      progreso: nuevoProgreso,
+    });
+  };
+
+  const handleUpdateSingleFase = (updatedFase) => {
+    const updated = dynamicFases.map((f) => (f.id === updatedFase.id ? updatedFase : f));
+    handleUpdateFases(updated);
+  };
+
+  const handleSaveFaseModal = (faseData) => {
+    const exists = dynamicFases.some((f) => f.id === faseData.id);
+    let updated;
+    if (exists) {
+      updated = dynamicFases.map((f) => (f.id === faseData.id ? { ...f, ...faseData } : f));
+    } else {
+      updated = [...dynamicFases, faseData];
+      setActiveFaseId(faseData.id);
+    }
+    handleUpdateFases(updated);
+  };
+
+  const handleDeleteFase = (faseId) => {
+    const updated = dynamicFases.filter((f) => f.id !== faseId);
+    handleUpdateFases(updated);
+    if (activeFaseId === faseId) {
+      setActiveFaseId('fase-cotizacion');
+    }
+  };
+
+  const currentFaseIndex = dynamicFases.findIndex((f) => f.id === activeFaseId);
+  const isCotizacionActive = activeFaseId === 'fase-cotizacion' || activeFaseId === 'COTIZACION';
+  const isCompletadoActive = activeFaseId === 'fase-completado' || activeFaseId === 'COMPLETADO';
+  const currentDynamicFase = dynamicFases.find((f) => f.id === activeFaseId) || dynamicFases[0];
+
+  const handleDynamicAvanzar = () => {
+    if (isCotizacionActive) {
+      if (dynamicFases.length > 0) {
+        setActiveFaseId(dynamicFases[0].id);
+      } else {
+        setActiveFaseId('fase-completado');
+      }
+    } else if (currentFaseIndex >= 0) {
+      const updated = dynamicFases.map((f, i) =>
+        i === currentFaseIndex
+          ? { ...f, estado: 'COMPLETADA', fechaCompletada: new Date().toISOString() }
+          : f
+      );
+      handleUpdateFases(updated);
+
+      if (currentFaseIndex + 1 < dynamicFases.length) {
+        setActiveFaseId(dynamicFases[currentFaseIndex + 1].id);
+      } else {
+        setActiveFaseId('fase-completado');
+      }
+    } else if (isCompletadoActive) {
+      updateProyecto({ estado: 'COMPLETADO', fechaCompletado: new Date().toISOString(), progreso: 100 });
+    }
+  };
+
+  const handleDynamicRetroceder = () => {
+    if (isCompletadoActive) {
+      if (dynamicFases.length > 0) {
+        setActiveFaseId(dynamicFases[dynamicFases.length - 1].id);
+      } else {
+        setActiveFaseId('fase-cotizacion');
+      }
+    } else if (currentFaseIndex > 0) {
+      setActiveFaseId(dynamicFases[currentFaseIndex - 1].id);
+    } else if (currentFaseIndex === 0) {
+      setActiveFaseId('fase-cotizacion');
+    }
+  };
+
   const [confirmAvanzar, setConfirmAvanzar] = useState(false);
   const [confirmRetroceder, setConfirmRetroceder] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -225,78 +330,105 @@ export default function ProyectoDetallePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-6 sm:pb-12">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20 shadow-sm">
-        <div className="w-full mx-auto space-y-3">
-          {/* Fila 1: navegación + título */}
-          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-            <button
-              onClick={() => navigate('/proyectos')}
-              className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors shrink-0 -ml-1 sm:ml-0"
-              aria-label="Volver a proyectos"
-            >
-              <ArrowLeft size={18} />
-            </button>
+    <div className="w-full pb-20 md:pb-6 animate-slide-up pd-root" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .pd-root, .pd-root * {
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+          box-sizing: border-box;
+        }
+      `}</style>
 
-            <div className="min-w-0 flex-1 flex items-start justify-between gap-2">
-              <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-snug min-w-0 truncate">
-                {proyecto.nombre}
-              </h1>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
-                  title="Editar información del proyecto"
-                >
-                  <Edit3 size={16} />
-                </button>
-                <button
-                  onClick={() => setIsDetailsModalOpen(true)}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
-                  title="Ver más detalles"
-                >
-                  <Eye size={16} />
-                </button>
+      {/* Header del Proyecto */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 sm:p-5 mb-4 sm:mb-6">
+        <div className="w-full mx-auto space-y-3">
+          {/* Fila 1: navegación + título + acciones */}
+          <div className="flex items-center justify-between gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => navigate('/proyectos')}
+                className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center shrink-0 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+                aria-label="Volver a proyectos"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+
+              <div className="min-w-0 flex items-center gap-2.5">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-800 leading-snug min-w-0 truncate">
+                  {proyecto.nombre}
+                </h1>
+                <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">
+                  {proyecto.id}
+                </span>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-slate-600 hover:text-blue-700 bg-slate-50 hover:bg-blue-50 border border-slate-200/80 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                title="Editar información del proyecto"
+              >
+                <Edit3 size={14} />
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDetailsModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-slate-600 hover:text-blue-700 bg-slate-50 hover:bg-blue-50 border border-slate-200/80 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                title="Ver más detalles"
+              >
+                <Eye size={14} />
+                Detalles
+              </button>
             </div>
           </div>
 
-          {/* Fila 2: metadatos + badges */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <div className="flex flex-col gap-1.5 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1 min-w-0">
+          {/* Fila 2: metadatos a la izquierda + badges a la derecha */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500 min-w-0">
               <span className="flex items-center gap-1.5 min-w-0" title="Cliente">
-                <User size={12} className="shrink-0 text-slate-400" />
-                <span className="min-w-0 truncate">
-                  <span className="font-medium text-slate-600">{proyecto.cliente.empresa}</span>
-                  <span className="mx-1.5 text-slate-300 hidden sm:inline">•</span>
-                  <span className="text-slate-500 sm:inline block sm:mt-0 mt-0.5">{proyecto.cliente.nombre}</span>
+                <User size={13} className="shrink-0 text-slate-400" />
+                <span className="min-w-0">
+                  <span className="font-semibold text-slate-700">{proyecto.cliente?.empresa || proyecto.cliente?.nombre || 'Sin cliente'}</span>
+                  {proyecto.cliente?.empresa && proyecto.cliente?.nombre && (
+                    <span className="text-slate-400 ml-1">({proyecto.cliente.nombre})</span>
+                  )}
                 </span>
               </span>
 
               <span
                 className={`flex items-center gap-1.5 shrink-0 ${
-                  estaVencido ? 'text-red-500' : 'text-slate-600'
+                  estaVencido ? 'text-red-500 font-semibold' : 'text-slate-600'
                 }`}
                 title="Entrega estimada"
               >
-                <Calendar size={12} className={`shrink-0 ${estaVencido ? 'text-red-500' : 'text-slate-400'}`} />
-                <span className={`whitespace-nowrap ${estaVencido ? 'font-semibold' : 'font-medium'}`}>
+                <Calendar size={13} className={`shrink-0 ${estaVencido ? 'text-red-500' : 'text-slate-400'}`} />
+                <span>
                   {proyecto.fechaEntregaEstimada ? `Entrega: ${proyecto.fechaEntregaEstimada}` : 'Sin fecha de entrega'}
                 </span>
               </span>
+
+              {proyecto.responsable && (
+                <span className="flex items-center gap-1.5 text-slate-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                  <span>Resp: <strong className="text-slate-700 font-semibold">{proyecto.responsable}</strong></span>
+                </span>
+              )}
             </div>
 
-            <div className="flex items-center gap-1.5 flex-wrap sm:justify-end sm:shrink-0">
+            <div className="flex items-center gap-2 flex-wrap sm:justify-end shrink-0">
               <span
-                className="text-[11px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full"
+                className="text-[11px] font-bold px-2.5 py-1 rounded-full"
                 style={{ backgroundColor: prioridadConfig.bgColor, color: prioridadConfig.textColor }}
               >
                 {prioridadConfig.label}
               </span>
               {mostrarEstadoProyecto && (
                 <span
-                  className="text-[11px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full"
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-full"
                   style={{ backgroundColor: estadoConfig.bgColor, color: estadoConfig.textColor }}
                 >
                   {estadoConfig.label}
@@ -308,219 +440,169 @@ export default function ProyectoDetallePage() {
         </div>
       </div>
 
-      <div className="w-full mx-auto px-4 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
+      {/* Tabs de navegación */}
+      <div className="flex gap-2 border-b border-slate-200 mb-6 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => handleSetSubTab('fases')}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+            subTab === 'fases'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Layers size={16} />
+          Flujo de Trabajo
+        </button>
 
-        {/* Selector de sub-pestañas principales */}
-        <div className="flex gap-1 sm:gap-2 border-b border-slate-200 pb-px overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => handleSetSubTab('cotizacion')}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+            subTab === 'cotizacion'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <FileText size={16} />
+          Cotización
+        </button>
+
+        {canViewGastos && (
           <button
-            onClick={() => handleSetSubTab('fases')}
-            className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
-              ${subTab === 'fases'
+            type="button"
+            onClick={() => handleSetSubTab('gastos')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              subTab === 'gastos'
                 ? 'border-blue-600 text-blue-700'
-                : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
           >
-            Flujo de Trabajo
+            <ShoppingCart size={16} />
+            Gastos y Compras
           </button>
-
-          <button
-            onClick={() => handleSetSubTab('cotizacion')}
-            className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
-              ${subTab === 'cotizacion'
-                ? 'border-blue-600 text-blue-700'
-                : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-          >
-            Cotización
-          </button>
-
-          {canViewGastos && (
-            <button
-              onClick={() => handleSetSubTab('gastos')}
-              className={`px-3 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0
-                ${subTab === 'gastos'
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              Gastos y Compras
-            </button>
-          )}
-        </div>
+        )}
+      </div>
 
         <div className={subTab === 'fases' ? 'block space-y-6' : 'hidden'}>
-          {/* Si NO es un proyecto Alux, muestra el timeline fijo tradicional de Luxes */}
-          {!(proyecto?.medio === 'ALUX' || proyecto?.fasesAlux) && (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 relative">
-              <FaseTimeline 
-                faseActual={proyecto.faseActual} 
-                fases={proyecto.fases} 
-                faseVista={faseActiva}
-                onFaseClick={handleSetFaseVista}
-                requiereInstalacion={proyecto.requiereInstalacion}
-              />
-              <div className="mt-3 sm:mt-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-slate-700">Progreso del proyecto</span>
-                  <span className="text-sm font-bold" style={{ color: faseConfig?.color }}>
-                    {proyecto.progreso}% — {faseConfig?.label}
+          {/* Stepper Horizontal estilo Imagen 2 con bolita + */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 relative">
+            <DynamicFaseTimeline
+              fases={dynamicFases}
+              activeFaseId={activeFaseId}
+              onSelectFase={(faseId) => setActiveFaseId(faseId)}
+              onAddFaseClick={() => {
+                setFaseToEdit(null);
+                setShowFaseModal(true);
+              }}
+              cotizacionCompletada={cotizacionCompletada}
+              proyectoCompletado={proyecto.estado === 'COMPLETADO'}
+            />
+          </div>
+
+          {/* Panel de la fase activa */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
+            {isCotizacionActive ? (
+              <>
+                <div
+                  className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50 rounded-t-2xl gap-2 sm:gap-3"
+                  style={{ borderLeftColor: '#6366f1', borderLeftWidth: 4 }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <h2 className="font-bold text-slate-800 text-sm sm:text-base">
+                      Fase actual: Cotización
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                      Propuesta, proforma y montos aprobados del proyecto
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700">
+                    Cotización
                   </span>
                 </div>
-                <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} height="h-4" />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Panel de fase actual / vista — SOLO visible en el tab Flujo de Trabajo */}
-        <div style={{ display: subTab === 'fases' ? 'block' : 'none' }} className="bg-white rounded-2xl border border-slate-200 shadow-sm relative">
-          {!(proyecto?.medio === 'ALUX' || proyecto?.fasesAlux) && (
-            <div
-              className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50 rounded-t-2xl gap-2 sm:gap-3"
-              style={{ borderLeftColor: faseConfig?.color, borderLeftWidth: 4 }}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                  <h2 className="font-bold text-slate-800 text-sm sm:text-base truncate">
-                    {esVistaSoloLectura ? `Historial: ${faseConfig?.label}` : `Fase actual: ${faseConfig?.label}`}
+                <div className="p-3 sm:p-6">
+                  <CotizacionPanel proyectoId={proyecto.id} />
+                </div>
+              </>
+            ) : isCompletadoActive ? (
+              <div className="p-6 sm:p-8 text-center space-y-4">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 size={32} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">
+                    Fase Final: Entrega y Cierre del Proyecto
                   </h2>
-                  {esVistaSoloLectura && (
-                    <button 
-                      onClick={() => setFaseVista(null)}
-                      className="text-[10px] font-bold bg-white text-slate-500 px-2 py-1 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors uppercase tracking-wider shrink-0"
+                  <p className="text-xs text-slate-500 max-w-lg mx-auto mt-1">
+                    Al finalizar todas las fases del proyecto, puedes marcar el estado general como COMPLETADO para cerrar la obra o entrega.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  {proyecto.estado === 'COMPLETADO' ? (
+                    <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-100 text-emerald-800 font-extrabold text-sm border border-emerald-300">
+                      <CheckCircle2 size={18} />
+                      ¡Proyecto Oficialmente Completado!
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => updateProyecto({ estado: 'COMPLETADO', fechaCompletado: new Date().toISOString(), progreso: 100 })}
+                      className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
                     >
-                      Ver actual
+                      ✓ Marcar Proyecto como COMPLETADO
                     </button>
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{faseConfig?.descripcion}</p>
               </div>
-              <FaseBadge faseId={faseActiva} />
-            </div>
-          )}
+            ) : currentDynamicFase ? (
+              <div className="p-3 sm:p-6">
+                <DynamicFasePanel
+                  proyecto={proyecto}
+                  fase={currentDynamicFase}
+                  faseIndex={currentFaseIndex >= 0 ? currentFaseIndex : 0}
+                  totalFases={dynamicFases.length}
+                  onUpdateFase={handleUpdateSingleFase}
+                  onDeleteFase={handleDeleteFase}
+                  onOpenEditModal={() => {
+                    setFaseToEdit(currentDynamicFase);
+                    setShowFaseModal(true);
+                  }}
+                  onAddGasto={(f) => navigate(`/gastos?proyectoId=${proyecto.id}&faseId=${f.id}`)}
+                  gastos={proyecto?.gastos || []}
+                />
+              </div>
+            ) : null}
 
-          <div className="p-3 sm:p-6">
-            {proyecto?.medio === 'ALUX' || proyecto?.fasesAlux ? (
-              <AluxFasesPanel
-                proyecto={proyecto}
-                fases={proyecto.fasesAlux || generateAluxFasesWithDates(proyecto.fechaCreacion || proyecto.fechaInicio)}
-                onUpdateFases={(updatedFases) => {
-                  updateProyecto({ fasesAlux: updatedFases });
-                }}
-                onAddGasto={(fase) => {
-                  navigate(`/gastos?proyectoId=${proyecto.id}&faseId=${fase.id}`);
-                }}
-                gastos={proyecto?.gastos || []}
-              />
-            ) : (
-              <>
-                {faseActiva === 'INSTALACION' && <InstalacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                {faseActiva === 'COTIZACION' && <CotizacionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                {faseActiva === 'DISEÑO' && <DisenoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                {faseActiva === 'PRODUCCION' && <ProduccionPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                {faseActiva === 'ENTREGA' && <EntregaPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                {faseActiva === 'COMPLETADO' && <CompletadoPanel proyectoId={proyecto.id} soloLectura={esVistaSoloLectura} />}
-                {!['INSTALACION','COTIZACION','DISEÑO','PRODUCCION','ENTREGA','COMPLETADO'].includes(faseActiva) && (
-                  <div
-                    className="rounded-xl p-4 text-sm"
-                    style={{ backgroundColor: faseConfig?.bgColor, color: faseConfig?.color }}
-                  >
-                    {faseConfig?.descripcion}
-                    {faseConfig?.camposRequeridos?.length > 0 && (
-                      <ul className="mt-3 space-y-1 text-slate-600">
-                        {faseConfig.camposRequeridos.map((campo) => (
-                          <li key={campo} className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full border-2 border-current inline-block" />
-                            {campo}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Acciones de fase (Footer como en EditarFasePage) */}
-          {!esVistaSoloLectura && (
+            {/* Acciones de fase (Footer: Retroceder / Avanzar) */}
             <div className="px-4 py-3 sm:px-6 sm:py-5 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-3 sm:gap-4 rounded-b-2xl">
-              
-              {/* Botón Retroceder (Izquierda) */}
               <div className="flex items-center">
-              {!esPrimeraFase && (
-                confirmRetroceder ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-600">¿Retroceder fase?</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfirmRetroceder(false)} className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors font-semibold">No</button>
-                      <button onClick={() => { retroceder(); setFaseVista(null); setConfirmRetroceder(false); }} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm hover:bg-slate-800 transition-colors shadow-sm font-bold">Sí, retroceder</button>
-                    </div>
-                  </div>
-                ) : (
+                {!isCotizacionActive && (
                   <button
-                    onClick={() => setConfirmRetroceder(true)}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors px-4 py-2 hover:bg-slate-200/50 rounded-xl"
+                    type="button"
+                    onClick={handleDynamicRetroceder}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors px-4 py-2 hover:bg-slate-200/50 rounded-xl cursor-pointer"
                   >
                     <ChevronLeft size={16} />
                     Retroceder a la fase anterior
                   </button>
-                )
-              )}
-            </div>
-
-            {/* Botón Avanzar (Derecha) */}
-            {!esUltimaFase && (
-              <div className="flex flex-col items-end gap-2 relative group">
-                {confirmAvanzar ? (
-                  <div className="flex items-center gap-4">
-                    <p className="text-sm text-slate-600 font-medium hidden sm:block">¿Confirmas avanzar?</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfirmAvanzar(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors font-semibold">No</button>
-                      <button
-                        onClick={handleAvanzar}
-                        className="px-6 py-2.5 rounded-xl text-sm text-white font-bold transition-colors shadow-sm"
-                        style={{ backgroundColor: faseConfig?.color }}
-                      >
-                        Sí, confirmar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setConfirmAvanzar(true)}
-                      disabled={!validacionFaseActual.valido}
-                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ backgroundColor: faseConfig?.color }}
-                    >
-                      Avanzar a siguiente fase
-                      <ChevronRight size={16} />
-                    </button>
-                    
-                    {/* Tooltip con campos faltantes */}
-                    {!validacionFaseActual.valido && validacionFaseActual.faltantes.length > 0 && (
-                      <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block z-20">
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-lg min-w-[200px]">
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <AlertTriangle size={14} className="text-amber-500" />
-                            <p className="text-xs font-bold text-amber-700">Faltan campos para avanzar:</p>
-                          </div>
-                          <ul className="text-[10px] text-amber-600 space-y-0.5 ml-1">
-                            {validacionFaseActual.faltantes.map((f) => (
-                              <li key={f} className="flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-amber-500"></span> {f}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    )}
-                  </>
                 )}
               </div>
-            )}
+
+              <div>
+                {!isCompletadoActive && (
+                  <button
+                    type="button"
+                    onClick={handleDynamicAvanzar}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] cursor-pointer shadow-blue-950/20 active:scale-[0.99]"
+                  >
+                    Avanzar a siguiente fase
+                    <ChevronRight size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          )}
         </div>
-      </div>
 
       {subTab === 'cotizacion' && (
         <div className="w-full mx-auto px-4 sm:px-6 py-3 sm:py-6">
@@ -570,6 +652,19 @@ export default function ProyectoDetallePage() {
           handleSaveProjectInfoWithData(data);
           setIsEditModalOpen(false);
         }}
+      />
+
+      {/* Modal de Creación / Edición de Fases Dinámicas */}
+      <DynamicFaseModal
+        isOpen={showFaseModal}
+        onClose={() => {
+          setShowFaseModal(false);
+          setFaseToEdit(null);
+        }}
+        onSave={handleSaveFaseModal}
+        faseToEdit={faseToEdit}
+        faseNumero={dynamicFases.length + 1}
+        currentUser={user}
       />
 
     </div>

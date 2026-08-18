@@ -20,12 +20,10 @@ export const Layout = ({ children, user, onLogout }) => {
     { name: 'Nómina: Credenciales', path: '/nomina/empleados?vista=credenciales' },
     { name: 'Nómina: Registro Asistencia', path: '/nomina/registro-asistencia' },
     { name: 'Nómina: Horas Extras', path: '/nomina/horas-extras' },
-    { name: 'Nómina: Vacaciones', path: '/nomina/vacaciones' },
     { name: 'Nómina: Nómina del Mes', path: '/nomina/nomina-del-mes' },
     { name: 'Proformas / Cotizaciones', path: '/proformas' },
     { name: 'Inventario de Materiales', path: '/inventario' },
     { name: 'Taller: Impresiones', path: '/impresiones' },
-    { name: 'Taller: Colas de Impresión', path: '/colas-impresion' },
     { name: 'Gastos y Egresos', path: '/gastos' },
     { name: 'Gestión de Proyectos', path: '/proyectos' },
     { name: 'Instalaciones de Equipos', path: '/instalaciones' },
@@ -160,25 +158,13 @@ export const Layout = ({ children, user, onLogout }) => {
 
   const handleMouseEnterSidebar = () => {
     if (isMobile) return;
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsCollapsed(false);
-    }, 120);
+    setIsCollapsed(false);
   };
 
   const handleMouseLeaveSidebar = () => {
     if (isMobile) return;
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsCollapsed(true);
-    }, 180);
+    setIsCollapsed(true);
   };
-
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    };
-  }, []);
 
   return (
     <div className={`layout-container ${isMobile ? 'mobile' : ''} ${isMobileOpen ? 'mobile-open' : ''} ${(!isMobile && isCollapsed) ? 'collapsed' : ''} ${isAsistenciaMode ? 'kiosk-layout' : ''} ${isBottomNavMobile ? 'mobile-taller-layout' : ''}`}>
@@ -452,13 +438,13 @@ export const Layout = ({ children, user, onLogout }) => {
                   <span className="mobile-nav-label">Instalac.</span>
                 </Link>
               ) : (
-                <Link to="/colas-impresion" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/colas-impresion') ? 'active' : ''}`}>
+                <Link to="/inventario" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/inventario') ? 'active' : ''}`}>
                   <div className="mobile-nav-fab-circle">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-nav-icon">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2m2 4h6a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                     </svg>
                   </div>
-                  <span className="mobile-nav-label">Cola Imp.</span>
+                  <span className="mobile-nav-label">Inventario</span>
                 </Link>
               )}
               

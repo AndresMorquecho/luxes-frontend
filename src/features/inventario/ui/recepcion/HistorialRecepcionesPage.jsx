@@ -143,16 +143,16 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
   ];
 
   const renderKpiCardDesktop = (kpi) => (
-    <div key={kpi.label} className="bg-white border border-slate-200/80 rounded-xl shadow-sm flex items-start gap-3 p-5 min-w-0 overflow-hidden">
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-5 h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <div key={kpi.label} className="bg-white border border-slate-100 rounded-2xl shadow-xs flex items-center gap-2.5 sm:gap-3.5 p-3.5 sm:p-4.5 min-w-0 overflow-hidden">
+      <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-4 h-4 sm:w-5 sm:h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
         </svg>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-500 leading-tight">{kpi.label}</p>
-        <p className="text-2xl font-bold mt-0.5 tabular-nums leading-none truncate" style={{ color: RI_NAVY }}>{kpi.value}</p>
-        <p className="text-[11px] text-slate-400 mt-0.5">{kpi.hint}</p>
+        <p className="text-xs font-medium text-slate-500 leading-tight truncate">{kpi.label}</p>
+        <p className="text-lg sm:text-2xl font-bold mt-0.5 tabular-nums leading-tight truncate text-slate-800">{kpi.value}</p>
+        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">{kpi.hint}</p>
       </div>
     </div>
   );
@@ -160,18 +160,18 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
   const renderKpiCardMobile = (kpi) => (
     <div
       key={kpi.label}
-      className="co-kpi-mobile bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 p-3 min-w-0"
+      className="co-kpi-mobile bg-white rounded-2xl border border-slate-100 shadow-xs flex flex-col gap-2 p-3 min-w-0"
       style={{ borderBottomWidth: '3px', borderBottomColor: kpi.accent }}
     >
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-3.5 h-3.5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-4 h-4 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
         </svg>
       </div>
-      <div className="flex flex-col gap-1.5 min-w-0">
-        <p className="text-[9px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
-        <p className="text-sm font-semibold tabular-nums leading-none truncate" style={{ color: RI_NAVY }}>{kpi.value}</p>
-        <p className="text-[8px] text-slate-400 leading-tight line-clamp-2">{kpi.hint}</p>
+      <div className="flex flex-col gap-1 min-w-0">
+        <p className="text-[10px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
+        <p className="text-sm font-bold tabular-nums leading-none truncate text-slate-800">{kpi.value}</p>
+        <p className="text-[9px] text-slate-400 leading-tight line-clamp-1">{kpi.hint}</p>
       </div>
     </div>
   );
@@ -273,14 +273,13 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
         <ComprasPageHeader
           title="Historial recibidos"
           subtitle="Órdenes completas ingresadas al inventario."
+          tabs={<RecepcionNav basePath={basePath} />}
           aside={(
             <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
               <p className="text-sm font-bold text-emerald-600 whitespace-nowrap">{total} reg.</p>
             </div>
           )}
         />
-
-        <RecepcionNav basePath={basePath} />
 
         <div className={`grid gap-2 mb-4 ${isTaller ? 'grid-cols-3' : 'grid-cols-4'}`}>
           {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
@@ -304,7 +303,7 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
           {mobileFiltersOpen && renderFilters(true)}
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
+        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden mb-3">
           <div className="px-3 py-2.5 border-b border-slate-100">
             <h2 className="text-sm font-bold" style={{ color: RI_NAVY }}>Productos recibidos</h2>
           </div>
@@ -331,15 +330,14 @@ export const HistorialRecepcionesPage = ({ basePath = '/compras/recepcion' }) =>
         <ComprasPageHeader
           title="Historial de productos recibidos"
           subtitle="Órdenes completas con fecha de llegada, responsable e ítems ingresados al inventario."
+          tabs={<RecepcionNav basePath={basePath} />}
         />
 
-        <RecepcionNav basePath={basePath} />
-
-        <div className={`grid gap-4 mb-6 ${isTaller ? 'md:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-4'}`}>
+        <div className={`grid gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 ${isTaller ? 'grid-cols-3' : 'grid-cols-4'}`}>
           {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-slate-100 space-y-3">
             <div className="relative">
               <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

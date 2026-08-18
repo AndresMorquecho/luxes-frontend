@@ -174,30 +174,30 @@ const computeVehicleAlerts = (vehiculo) => {
 
 const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, trendText, sparklineSvg }) => {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] relative overflow-hidden flex flex-col justify-between min-h-[140px]">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{title}</h3>
-          <div className="text-[22px] font-black text-slate-800 tracking-tight leading-none">{amount}</div>
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[135px]">
+      <div className="flex justify-between items-start mb-3">
+        <div className="min-w-0 flex-1 mr-2">
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 truncate">{title}</h3>
+          <div className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight leading-none truncate">{amount}</div>
         </div>
-        <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0" style={{ backgroundColor: bg }}>
-          <Icon size={18} style={{ color: color }} strokeWidth={2.5} />
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: bg }}>
+          <Icon size={18} style={{ color: color }} strokeWidth={2} />
         </div>
       </div>
 
-      <div className="flex items-end justify-between mt-auto">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5">
+      <div className="flex items-end justify-between mt-auto pt-2 border-t border-slate-100/60">
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${trendUp ? 'bg-emerald-100/60 text-emerald-600' : 'bg-rose-100/60 text-rose-500'}`}>
               {trendUp ? '↑' : '↓'} {trendValue}
             </span>
-            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">vs mes anterior</span>
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">vs mes anterior</span>
           </div>
-          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{trendText}</div>
+          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">{trendText}</div>
         </div>
 
         {/* Sparkline */}
-        <div className="w-16 h-8 opacity-80 -mr-2 -mb-1">
+        <div className="w-14 h-7 opacity-80 -mr-1 shrink-0">
           <svg viewBox="0 0 100 30" className="w-full h-full overflow-visible" preserveAspectRatio="none">
             <path
               d={sparklineSvg}
@@ -809,56 +809,26 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
     , 0);
 
   return (
-    <div className="p-6 xl:p-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="w-full pb-20 md:pb-6 animate-slide-up gt-root" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
+        .gt-root, .gt-root * {
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+          box-sizing: border-box;
+        }
+
         .ga-card {
-          background: rgba(255,255,255,0.8);
-          backdrop-filter: blur(20px) saturate(160%);
-          -webkit-backdrop-filter: blur(20px) saturate(160%);
-          border: 1px solid rgba(255,255,255,0.5);
-          border-radius: 20px;
-          box-shadow: 0 8px 32px rgba(37,99,235,0.04), 0 1px 2px rgba(0,0,0,0.02);
+          background: #ffffff;
+          border: 1px solid #f1f5f9;
+          border-radius: 1rem;
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
           overflow: hidden;
         }
 
-        .ga-tab-bar {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-          background: rgba(241,245,249,0.7);
-          padding: 4px;
-          border-radius: 12px;
-          border: 1px solid rgba(226,232,240,0.8);
-          width: 100%;
-          max-width: max-content;
-          margin-bottom: 24px;
-        }
-
-        .ga-tab-btn {
-          padding: 8px 20px;
-          font-size: 13px;
-          font-weight: 700;
-          border-radius: 9px;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          color: #64748b;
-          background: transparent;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .ga-tab-btn.active {
-          background: #ffffff;
-          color: #2563eb;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.04);
-        }
-
         .ga-btn-primary {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          background: #0b2d64;
           color: white;
           border: none;
           border-radius: 12px;
@@ -869,12 +839,11 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(37,99,235,0.25);
-          letter-spacing: 0.01em;
+          transition: all 0.15s ease;
+          box-shadow: 0 1px 2px rgba(11, 45, 100, 0.2);
         }
-        .ga-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(37,99,235,0.35); }
-        .ga-btn-primary:active { transform: translateY(0); }
+        .ga-btn-primary:hover { background: #071f45; }
+        .ga-btn-primary:active { transform: scale(0.99); }
         .ga-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
         .ga-btn-secondary {
@@ -908,21 +877,21 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
 
         .ga-input {
           width: 100%;
-          border: 1.5px solid rgba(226,232,240,0.8);
-          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
           padding: 9px 13px;
           font-size: 13px;
           font-weight: 500;
           color: #1e293b;
           outline: none;
           transition: all 0.2s ease;
-          background: rgba(255,255,255,0.9);
+          background: #ffffff;
         }
-        .ga-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.08); background: #fff; }
+        .ga-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
         .ga-input::placeholder { color: #94a3b8; }
 
         .ga-tr { transition: background 0.15s ease; }
-        .ga-tr:hover td { background: rgba(59,130,246,0.015); }
+        .ga-tr:hover td { background: rgba(11, 45, 100, 0.02); }
 
         .maint-alert-card {
           border-radius: 16px;
@@ -988,72 +957,91 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
         }
       `}</style>
 
-      {/* Título Principal */}
-      <div className="ga-card px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2.5">
-            {PAGE_META[activeTab]?.title || 'Finanzas'}
-          </h1>
-          <p className="text-sm text-slate-400 mt-0.5 font-medium">
-            {PAGE_META[activeTab]?.subtitle || ''}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          {activeTab === 'gastos' ? (
-            <button onClick={openNewGasto} className="ga-btn-primary whitespace-nowrap">
-              <Plus size={16} />
-              Registrar Gasto
-            </button>
-          ) : activeTab === 'vehiculos' && !selectedVehiculo ? (
-            <button onClick={openNewVehiculo} className="ga-btn-primary whitespace-nowrap">
-              <Plus size={16} />
-              Registrar Vehículo
-            </button>
-          ) : activeTab === 'cierre' ? (
-            <Link to="/cierre-caja/historial" className="ga-btn-secondary text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 shadow-sm whitespace-nowrap">
-              <Clock size={15} /> Historial de cierres
-            </Link>
-          ) : null}
-        </div>
-      </div>
+      {/* Header institucional con tabs integrados */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs mb-4 sm:mb-6 overflow-hidden">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-600">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800 leading-snug truncate">
+                  {PAGE_META[activeTab]?.title || 'Control de Gastos'}
+                </h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Finanzas
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-snug">
+                {PAGE_META[activeTab]?.subtitle || ''}
+              </p>
+            </div>
+          </div>
 
-      {/* Tabs (Solo visibles en Gastos Operativos, Gastos Fijos y Control de Vehículos) */}
-      {(activeTab === 'gastos' || activeTab === 'fijos' || activeTab === 'vehiculos') && (
-        <div className="ga-tab-bar">
-          <button
-            onClick={() => { setActiveTab('gastos'); setSelectedVehiculo(null); }}
-            className={`ga-tab-btn ${activeTab === 'gastos' ? 'active' : ''}`}
-          >
-            <DollarSign size={15} />
-            Gastos Operativos
-          </button>
-          <button
-            onClick={() => { setActiveTab('fijos'); setSelectedVehiculo(null); }}
-            className={`ga-tab-btn ${activeTab === 'fijos' ? 'active' : ''} relative`}
-          >
-            <RefreshCw size={15} />
-            Gastos Fijos
-            {deudasFijasCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white bg-rose-500 rounded-full animate-pulse shadow-sm">
-                {deudasFijasCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => { setActiveTab('vehiculos'); setSelectedVehiculo(null); }}
-            className={`ga-tab-btn ${activeTab === 'vehiculos' ? 'active' : ''}`}
-          >
-            <Car size={15} />
-            Control de Vehículos
-          </button>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto self-end sm:self-auto">
+            {activeTab === 'gastos' ? (
+              <button
+                type="button"
+                onClick={openNewGasto}
+                className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-white rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99]"
+              >
+                <Plus size={16} />
+                <span>Registrar Gasto</span>
+              </button>
+            ) : activeTab === 'cierre' ? (
+              <Link
+                to="/cierre-caja/historial"
+                className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-all shrink-0 cursor-pointer"
+              >
+                <Clock size={15} />
+                <span>Historial de cierres</span>
+              </Link>
+            ) : null}
+          </div>
         </div>
-      )}
+
+        {/* Tabs Bar at the bottom of Header Card */}
+        {(activeTab === 'gastos' || activeTab === 'fijos') && (
+          <div className="px-4 sm:px-5 pb-3.5 flex gap-1.5 border-t border-slate-100 pt-3 bg-slate-50/50 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => { setActiveTab('gastos'); setSelectedVehiculo(null); }}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'gastos'
+                  ? 'bg-white text-blue-700 shadow-xs border border-blue-100 font-bold'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+              }`}
+            >
+              <DollarSign size={15} className="shrink-0" />
+              Gastos Operativos
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab('fijos'); setSelectedVehiculo(null); }}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer relative ${
+                activeTab === 'fijos'
+                  ? 'bg-white text-blue-700 shadow-xs border border-blue-100 font-bold'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+              }`}
+            >
+              <RefreshCw size={15} className="shrink-0" />
+              Gastos Fijos
+              {deudasFijasCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white bg-rose-500 rounded-full animate-pulse shadow-sm">
+                  {deudasFijasCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* PESTAÑA 1: GASTOS OPERATIVOS */}
       {activeTab === 'gastos' && (
         <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+          {/* KPI Cards (Una sola fila) */}
+          <div className="grid grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <StatCard
               title="Total General"
               amount={fmt(totales.total || 0)}
@@ -1101,20 +1089,17 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             />
           </div>
 
-
-          {/* Contenedor de Filtros Avanzados */}
-          <div className="ga-card mb-4 relative z-30">
-            <div className="px-5 py-3 border-b border-slate-100/60 bg-slate-50/50 flex items-center gap-2 rounded-t-xl">
-              <Filter size={16} className="text-slate-400" />
-              <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Filtros Avanzados</span>
-            </div>
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Contenedor de Filtros y Buscador a la misma altura */}
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-xs mb-4 sm:mb-6 p-4 sm:p-5 relative z-30">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Tipo de Gasto</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-0.5">
+                  Tipo de Gasto
+                </label>
                 <select
                   value={filtroOrigen}
                   onChange={(e) => setFiltroOrigen(e.target.value)}
-                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                  className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-white focus:bg-white text-xs sm:text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
                 >
                   <option value="todos">Todos los Tipos</option>
                   <option value="otros_gastos">Otros Gastos</option>
@@ -1125,11 +1110,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Usuario</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-0.5">
+                  Usuario
+                </label>
                 <select
                   value={filtroUsuarioId}
                   onChange={(e) => setFiltroUsuarioId(e.target.value)}
-                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                  className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-white focus:bg-white text-xs sm:text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
                 >
                   <option value="">Cualquier Usuario</option>
                   {usuarios.map(u => (
@@ -1139,11 +1126,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Método de Pago</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-0.5">
+                  Método de Pago
+                </label>
                 <select
                   value={filtroMetodoPagoId}
                   onChange={(e) => setFiltroMetodoPagoId(e.target.value)}
-                  className="ga-input w-full !bg-slate-50 hover:!bg-white focus:!bg-white transition-colors"
+                  className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-white focus:bg-white text-xs sm:text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
                 >
                   <option value="">Cualquier Método de Pago</option>
                   {metodosPago.map(m => (
@@ -1153,7 +1142,9 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Fechas</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-0.5">
+                  Fechas
+                </label>
                 <div className="h-10 w-full">
                   <DateRangePicker
                     value={dateRange}
@@ -1163,32 +1154,47 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-0.5">
+                  Buscador
+                </label>
+                <div className="relative">
+                  <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
+                  <input
+                    className="w-full h-10 pl-10 pr-8 border border-slate-200 rounded-xl bg-white text-xs sm:text-sm font-medium text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400 transition-all"
+                    placeholder="Buscar por concepto…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+                      title="Limpiar búsqueda"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Tabla de Gastos */}
-          <div className="ga-card relative z-10">
-            <div className="px-5 py-4 border-b border-slate-100/60 flex items-center gap-3">
-              <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input
-                className="ga-input max-w-xs !border-0 !bg-transparent !p-0 !shadow-none !text-sm !font-medium placeholder:!text-slate-400 focus:!ring-0"
-                placeholder="Buscar por concepto, categoría o proveedor…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-
+          <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-xs relative z-10 mb-4 sm:mb-6">
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-blue-600" />
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-[#0b2d64]" />
               </div>
             ) : (
               <div className="overflow-x-auto overflow-y-hidden">
                 <table className="cc-desktop-table w-full text-[13px]">
                   <thead>
-                    <tr className="border-b border-slate-100/60 text-slate-400 bg-slate-50/20">
+                    <tr className="border-b border-slate-100 text-slate-400 bg-slate-50/50">
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-32">Fecha Hora</th>
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-40">Tipo</th>
                       <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider">Concepto</th>
@@ -1197,7 +1203,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       <th className="text-center px-5 py-3.5 text-[10px] font-bold uppercase tracking-wider w-24">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100/40">
+                  <tbody className="divide-y divide-slate-100/60">
                     {paginated.map((g) => {
                       const origenStyles = {
                         otros_gastos: { label: 'Otros Gastos', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
@@ -1381,14 +1387,24 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
             )}
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100/60 bg-slate-50/30">
-                <span className="text-[12px] font-medium text-slate-400">{totalCount} registro{totalCount !== 1 ? 's' : ''}</span>
-                <div className="flex items-center gap-1">
-                  <button disabled={page <= 1} onClick={() => setPage(Math.max(1, page - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold">‹</button>
-                  <span className="text-[12px] font-semibold text-slate-500 px-2">{page} / {totalPages}</span>
-                  <button disabled={page >= totalPages} onClick={() => setPage(Math.min(totalPages, page + 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold">›</button>
+              <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/40">
+                <span className="text-xs font-medium text-slate-500">{totalCount} registro{totalCount !== 1 ? 's' : ''}</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold bg-white cursor-pointer"
+                  >
+                    ‹
+                  </button>
+                  <span className="text-xs font-semibold text-slate-700 px-2">{page} / {totalPages}</span>
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                    className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 disabled:opacity-30 hover:bg-white hover:border-slate-300 transition-all text-xs font-bold bg-white cursor-pointer"
+                  >
+                    ›
+                  </button>
                 </div>
               </div>
             )}
@@ -1415,8 +1431,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           {!selectedVehiculo ? (
             /* --- LISTA DE VEHÍCULOS --- */
             <>
-              {/* KPI Cards de Vehículos */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              {/* KPI Cards de Vehículos (Una sola fila) */}
+              <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
                 <div className="ga-card px-5 py-4 flex items-center gap-4">
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
                     <Car size={20} style={{ color: '#3b82f6' }} />
@@ -2162,7 +2178,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* 1. MODAL CRUD GASTO */}
       <ModalPortal open={formOpen}>
         <div className="ga-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => deferClose(() => setFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100">
@@ -2236,7 +2252,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* 2. MODAL REGISTRO/EDICION VEHICULO */}
       <ModalPortal open={vehiculoFormOpen}>
         <div className="ga-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => deferClose(() => setVehiculoFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100">
@@ -2315,7 +2331,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* 3. MODAL REGISTRO/EDICION MANTENIMIENTO */}
       <ModalPortal open={maintFormOpen}>
         <div className="ga-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => deferClose(() => setMaintFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100">
@@ -2411,7 +2427,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* Modal para Visualizar Detalles del Control */}
       <ModalPortal open={!!viewingControl}>
         <div className="ga-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => deferClose(() => setViewingControl(null))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden">
@@ -2530,7 +2546,7 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* 5. MODAL REGISTRO CONTROL DE VEHÍCULO */}
       <ModalPortal open={controlFormOpen}>
         <div className="ga-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(10px) saturate(130%)', WebkitBackdropFilter: 'blur(10px) saturate(130%)' }}
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => deferClose(() => setControlFormOpen(false))} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl animate-ga-modal-in max-h-[90vh] flex flex-col border border-slate-100 overflow-hidden">

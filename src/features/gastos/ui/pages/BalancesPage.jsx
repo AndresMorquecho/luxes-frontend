@@ -1671,79 +1671,97 @@ export function BalancesPage() {
   ];
 
   return (
-    <div className="p-6 space-y-8 max-w-7xl mx-auto">
-      {/* HEADER */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-blue-100">
-              Módulo Financiero
-            </span>
-          </div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Balances de Gestión</h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">
-            Control unificado de rentabilidad, cuentas por cobrar/pagar e índices de satisfacción.
-          </p>
-        </div>
+    <div className="w-full pb-20 md:pb-6 animate-slide-up bl-root" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .bl-root, .bl-root * {
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+          box-sizing: border-box;
+        }
+      `}</style>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <select
-              value={periodo}
-              onChange={(e) => setPeriodo(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold px-4 py-2.5 pr-8 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
-            >
-              <option value="2026">2026</option>
-              <option value="2025">2025</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-              <ChevronDown size={14} />
+      {/* HEADER CARD CON TABS INTEGRADAS */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs mb-4 sm:mb-6 overflow-hidden">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-600 shadow-xs">
+              <TrendingUp size={22} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Balances de Gestión</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Finanzas
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Control consolidado de rentabilidad, cuentas por cobrar/pagar e índices de satisfacción
+              </p>
             </div>
           </div>
-          <div className="relative">
-            <select
-              value={selectedHeaderMonth}
-              onChange={(e) => setSelectedHeaderMonth(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold px-4 py-2.5 pr-8 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
-            >
-              {MONTHS_LIST.map(m => (
-                <option key={m} value={m}>{MONTH_FULL_NAMES[m]}</option>
-              ))}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-              <ChevronDown size={14} />
+
+          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto shrink-0">
+            <div className="relative">
+              <select
+                value={periodo}
+                onChange={(e) => setPeriodo(e.target.value)}
+                className="appearance-none bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2 pr-8 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
+              >
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <ChevronDown size={14} />
+              </div>
+            </div>
+            <div className="relative">
+              <select
+                value={selectedHeaderMonth}
+                onChange={(e) => setSelectedHeaderMonth(e.target.value)}
+                className="appearance-none bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2 pr-8 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-xs"
+              >
+                {MONTHS_LIST.map(m => (
+                  <option key={m} value={m}>{MONTH_FULL_NAMES[m]}</option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <ChevronDown size={14} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex overflow-x-auto gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const active = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${active
-                  ? 'bg-white text-slate-800 shadow-sm border border-slate-200/20'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
+        {/* TABS INTEGRADAS EN EL HEADER */}
+        <div className="border-t border-slate-100 bg-slate-50/50 px-4 sm:px-6 flex gap-2 overflow-x-auto">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 py-3 px-3.5 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? 'border-[#0b2d64] text-[#0b2d64] font-bold bg-white/60'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
-            >
-              <Icon size={16} className={active ? 'text-blue-600' : 'text-slate-400'} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+              >
+                <Icon size={15} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="bg-slate-50/50 border border-slate-100 p-1 rounded-3xl">
+      <div className="space-y-6">
 
         {activeTab === 'resumen' && (
           <div className="flex flex-col gap-6 p-4 animate-fadeIn">
-            <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 relative hover:shadow-md transition-all">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative hover:shadow-md transition-all">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="bg-emerald-50 text-emerald-500 p-3 rounded-2xl">
@@ -1842,7 +1860,7 @@ export function BalancesPage() {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 relative hover:shadow-md transition-all">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative hover:shadow-md transition-all">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-50 text-blue-500 p-3 rounded-2xl">
@@ -2032,7 +2050,7 @@ export function BalancesPage() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center gap-3">
@@ -2076,7 +2094,7 @@ export function BalancesPage() {
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center gap-3">
@@ -2186,7 +2204,7 @@ export function BalancesPage() {
 
           return (
             <div className="space-y-6 p-4 animate-fadeIn">
-              <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-black text-slate-805 tracking-tight leading-tight">Cuentas por cobrar (Clientes)</h3>
                   <p className="text-xs font-bold text-slate-400 mt-1">Detalle de facturación pendiente y saldos por cobrar de clientes.</p>
@@ -2203,7 +2221,7 @@ export function BalancesPage() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-                <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center gap-3">
@@ -2267,7 +2285,7 @@ export function BalancesPage() {
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-3 mb-6">
                       <div className="bg-blue-50 text-blue-500 p-3 rounded-2xl">
@@ -2347,7 +2365,7 @@ export function BalancesPage() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-4 hover:shadow-md transition-all">
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="bg-blue-50 text-blue-500 p-2 rounded-xl">
                     <FileText size={18} />
@@ -2522,7 +2540,7 @@ export function BalancesPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
 
                 {/* Gastos Devengados Card */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full">
                   <div>
                     {/* Header */}
                     <div className="mb-6">
@@ -2583,7 +2601,7 @@ export function BalancesPage() {
                 </div>
 
                 {/* Egresos Reales Card */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full">
                   <div>
                     {/* Header */}
                     <div className="mb-6">
@@ -2666,7 +2684,7 @@ export function BalancesPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
 
                 {/* Gastos Totales por Semana */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between h-full">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative hover:shadow-md transition-all flex flex-col justify-between h-full">
                   <div>
                     {/* Header */}
                     <div className="mb-4">
@@ -2702,7 +2720,7 @@ export function BalancesPage() {
                 </div>
 
                 {/* Nómina Liquidada por Cargo */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 hover:shadow-md transition-all flex flex-col justify-between h-full">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 hover:shadow-md transition-all flex flex-col justify-between h-full">
                   <div>
                     <div className="mb-6">
                       <h3 className="text-lg font-black text-slate-850 uppercase tracking-wider leading-tight">Nómina Liquidada por Empleado</h3>
@@ -2786,7 +2804,7 @@ export function BalancesPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
 
                 {/* Left Card: Calificaciones de Satisfacción */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-150 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full">
+                <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full">
                   <div>
                     <div className="mb-6">
                       <h3 className="text-lg font-black text-slate-805 uppercase tracking-wider leading-tight">Calificaciones de Satisfacción del Cliente</h3>
@@ -2910,7 +2928,7 @@ export function BalancesPage() {
                 </div>
 
                 {/* Right Card: Eficiencia de Entregas */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-all h-full">
                   <div>
                     <div className="mb-6">
                       <h3 className="text-lg font-black text-slate-850 uppercase tracking-wider leading-tight">Eficiencia de Entregas</h3>
@@ -2999,7 +3017,7 @@ export function BalancesPage() {
 
 
           return (
-            <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-8 animate-fadeIn">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-8 animate-fadeIn">
               {/* Header and top pink card */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>

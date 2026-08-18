@@ -13,8 +13,18 @@
   top: 0;
   z-index: 100;
   border-right: 1px solid #cbd5e1;
-  transform: translateZ(0);
+  transform: none !important;
   contain: layout paint style;
+  transition: none !important;
+  animation: none !important;
+}
+
+.sidebar,
+.sidebar *,
+.sidebar *::before,
+.sidebar *::after {
+  transition: none !important;
+  animation: none !important;
 }
 
 .sidebar.collapsed {
@@ -32,9 +42,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.35rem 0.75rem;
-  height: 70px;
-  min-height: 70px;
+  padding: 0.35rem 0.5rem;
+  height: 72px;
+  min-height: 72px;
   border-bottom: 1px solid #cbd5e1;
   position: relative;
   transition: all 0.3s ease;
@@ -54,27 +64,108 @@
 .sidebar-logo-collapsed {
   display: none;
 }
-.sidebar-logo-expanded {
-  display: block;
+
+.sidebar-logo-expanded-wrapper {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.sidebar.collapsed .sidebar-logo-expanded-wrapper {
+  display: none !important;
+}
+
+.sidebar-banner-left {
+  width: 42%;
+  background: linear-gradient(135deg, #030d24 0%, #061833 50%, #0a254a 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  position: relative;
+  z-index: 2;
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 0 100%);
+}
+
+.sidebar-banner-left::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #ecc674 0%, #c8963e 50%, #9e7226 100%);
+}
+
+.sidebar-banner-socials {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #eab308;
+  margin-bottom: 2px;
+}
+
+.sidebar-social-svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-banner-handle {
+  font-size: 8px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  font-family: var(--font-main);
+  opacity: 0.95;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.sidebar-banner-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  padding: 2px 4px 2px 2px;
+  overflow: hidden;
+}
+
+.sidebar-banner-logo-hq {
+  width: 100%;
+  height: 100%;
+  max-height: 56px;
+  object-fit: contain;
 }
 
 .sidebar.collapsed .sidebar-logo-box {
   justify-content: center;
   padding: 0.5rem;
-  height: 70px;
-  min-height: 70px;
+  height: 72px;
+  min-height: 72px;
   background-color: #ffffff;
 }
 
 .sidebar.collapsed .sidebar-logo-collapsed {
   display: block !important;
-  width: 42px;
-  height: 42px;
-  max-height: 42px;
-  max-width: 42px;
+  width: 44px;
+  height: 44px;
+  max-height: 44px;
+  max-width: 44px;
   object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #030d24 0%, #081d3d 50%, #0d2854 100%);
+  padding: 5px;
+  box-shadow: 0 3px 8px rgba(3, 13, 36, 0.25);
+  border: 1px solid rgba(200, 150, 62, 0.35);
 }
 
 .sidebar.collapsed .sidebar-logo-expanded {
@@ -239,11 +330,11 @@
 
 .sidebar-category-title {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: #64748b; /* Slate 500 */
-  letter-spacing: 0.05em;
-  padding: 0.85rem 1.25rem 0.35rem 1.25rem;
+  letter-spacing: 0.06em;
+  padding: 0.65rem 1rem 0.25rem 1rem;
   text-transform: uppercase;
 }
 
@@ -257,7 +348,7 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .sidebar-nav li {
@@ -268,20 +359,20 @@
 .sidebar-nav a {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.65rem 1rem;
-  margin: 0.15rem 0.75rem;
+  gap: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  margin: 0.1rem 0.65rem;
   color: #475569; /* Slate 600 */
   font-weight: 500;
   border-radius: 8px;
   transition: color 0.15s ease, background-color 0.15s ease;
   white-space: nowrap;
-  font-size: 0.925rem;
+  font-size: 0.8125rem;
 }
 
 .sidebar-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   transition: transform 0.2s ease;
   color: #64748b; /* Slate 500 */
@@ -302,8 +393,8 @@
   color: #0b2d64; /* Azul Marino Alux */
   background-color: #ffffff;
   font-weight: 600;
-  border-left: 3.5px solid #c8963e; /* Indicador Dorado Alux */
-  box-shadow: 0 2px 8px rgba(11, 45, 100, 0.08);
+  border-left: 3px solid #c8963e; /* Indicador Dorado Alux */
+  box-shadow: 0 1px 4px rgba(11, 45, 100, 0.06);
 }
 
 .sidebar-nav li.active > a .sidebar-icon {
@@ -312,8 +403,8 @@
 
 /* Icono Chevron */
 .chevron-icon {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   margin-left: auto;
   color: #94a3b8; /* Slate 400 */
   transition: color 0.2s ease;
@@ -344,35 +435,35 @@
 
 .sidebar.collapsed .sidebar-nav a {
   justify-content: center;
-  padding: 0.65rem 0;
-  margin: 0.15rem 0.5rem;
+  padding: 0.55rem 0;
+  margin: 0.1rem 0.5rem;
   border-radius: 8px;
 }
 
 .sidebar.collapsed .sidebar-nav li.active > a {
   background-color: #ffffff;
   color: #0b2d64;
-  border-left: 3.5px solid #c8963e;
-  box-shadow: 0 2px 8px rgba(11, 45, 100, 0.08);
+  border-left: 3px solid #c8963e;
+  box-shadow: 0 1px 4px rgba(11, 45, 100, 0.06);
 }
 
 /* Botón de toggle para submenús */
 .sidebar-submenu-toggle {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.7rem 1rem;
-  margin: 0.15rem 0.75rem;
+  gap: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  margin: 0.1rem 0.65rem;
   color: #334155;
-  font-weight: 600;
-  font-size: 0.925rem;
-  border-radius: 10px;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  border-radius: 8px;
   transition: all 0.2s ease;
   white-space: nowrap;
-  width: calc(100% - 1.5rem);
+  width: calc(100% - 1.3rem);
   text-align: left;
   cursor: pointer;
-  border: 1.5px solid transparent;
+  border: 1px solid transparent;
   background: none;
 }
 
@@ -395,10 +486,10 @@
 .sidebar-has-submenu.active > .sidebar-submenu-toggle {
   color: #0b2d64;
   background-color: #ffffff;
-  font-weight: 700;
-  border-left: 3.5px solid #c8963e;
+  font-weight: 600;
+  border-left: 3px solid #c8963e;
   border-color: rgba(200, 150, 62, 0.3);
-  box-shadow: 0 2px 8px rgba(11, 45, 100, 0.06);
+  box-shadow: 0 1px 4px rgba(11, 45, 100, 0.05);
 }
 
 .sidebar-has-submenu.active > .sidebar-submenu-toggle .sidebar-icon {
@@ -413,8 +504,8 @@
 }
 
 .submenu-chevron {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   margin-left: auto;
   color: #94a3b8;
   transition: transform 0.25s ease, color 0.2s ease;
@@ -436,8 +527,8 @@
 /* Lista del submenú */
 .sidebar-submenu {
   list-style: none;
-  padding: 0.25rem 0 0.5rem 0;
-  margin: 0 0.75rem 0 1.75rem !important;
+  padding: 0.2rem 0 0.35rem 0;
+  margin: 0 0.65rem 0 1.5rem !important;
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
@@ -446,12 +537,12 @@
 .sidebar-submenu-link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.55rem 0.75rem;
+  gap: 0.65rem;
+  padding: 0.4rem 0.65rem;
   color: #64748b;
-  font-size: 0.9rem;
+  font-size: 0.775rem;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 6px;
   transition: all 0.2s ease;
   text-decoration: none;
 }
@@ -462,8 +553,8 @@
 }
 
 .sidebar-submenu-icon {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   color: #94a3b8;
   transition: transform 0.2s ease, color 0.2s ease;
   flex-shrink: 0;
@@ -503,7 +594,7 @@
 }
 
 .sidebar-submenu-link.is-secondary .sidebar-submenu-text {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #94a3b8;
 }
 
@@ -531,8 +622,8 @@
 /* Comportamiento del submenú cuando colapsa */
 .sidebar.collapsed .sidebar-submenu-toggle {
   justify-content: center !important;
-  padding: 0.65rem 0 !important;
-  margin: 0.15rem 0.5rem !important;
+  padding: 0.55rem 0 !important;
+  margin: 0.1rem 0.5rem !important;
   width: calc(100% - 1rem) !important;
   border: none !important;
   background: none !important;
@@ -542,7 +633,7 @@
 
 .sidebar.collapsed .sidebar-has-submenu.active .sidebar-submenu-toggle {
   background-color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
   border: none !important;
 }
 
@@ -561,7 +652,7 @@
 
 /* Footer / Perfil */
 .sidebar-footer {
-  padding: 1rem;
+  padding: 0.75rem 0.85rem;
   border-top: 1px solid #cbd5e1; /* Borde divisorio coincidente */
   background-color: #f0f4f8; /* Mismo color del fondo del sidebar */
   transition: padding 0.3s ease;
@@ -577,13 +668,13 @@
 .sidebar-profile-info-box {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
 }
 
 /* Círculo de Avatar */
 .avatar-circle {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background-color: #0d9488; /* Teal 600 - Color vibrante */
   color: #ffffff;
@@ -591,7 +682,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.875rem;
   flex-shrink: 0;
   box-shadow: 0 2px 4px rgba(13, 148, 136, 0.15);
 }
@@ -610,19 +701,19 @@
 }
 
 .profile-name {
-  font-size: 0.875rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: #1e293b; /* Slate 800 */
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .profile-role {
-  font-size: 0.65rem;
+  font-size: 0.625rem;
   font-weight: 700;
   color: #94a3b8; /* Slate 400 */
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* Botón de logout (icono de salida) */
@@ -630,8 +721,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   color: #94a3b8; /* Slate 400 */
   transition: all 0.2s ease;
@@ -819,187 +910,7 @@
   transform: translateX(16px);
 }
 
-/* ==========================================
-   Micro-animations for Sidebar Icons
-   ========================================== */
-
-/* Dashboard Grid Pulse */
-.sidebar-nav a:hover .sidebar-icon-dashboard,
-.sidebar-nav li.active > a .sidebar-icon-dashboard {
-  animation: dashboard-pulse 0.8s ease-in-out infinite alternate;
-}
-@keyframes dashboard-pulse {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.12); }
-}
-
-/* Bell Ringing */
-.sidebar-nav a:hover .sidebar-icon-bell,
-.sidebar-nav li.active > a .sidebar-icon-bell {
-  animation: bell-ring 0.6s ease-in-out infinite alternate;
-  transform-origin: top center;
-}
-@keyframes bell-ring {
-  0% { transform: rotate(-8deg); }
-  100% { transform: rotate(8deg); }
-}
-
-/* Payroll Dollar Bounce */
-.sidebar-submenu-toggle:hover .sidebar-icon-dollar,
-.sidebar-nav a:hover .sidebar-icon-dollar,
-.sidebar-nav li.active > a .sidebar-icon-dollar {
-  animation: dollar-bounce 0.8s ease-in-out infinite alternate;
-}
-@keyframes dollar-bounce {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-3px); }
-}
-
-/* Proformas Document Slide */
-.sidebar-nav a:hover .sidebar-icon-doc,
-.sidebar-nav li.active > a .sidebar-icon-doc {
-  animation: doc-slide 0.8s ease-in-out infinite alternate;
-}
-@keyframes doc-slide {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-2px); }
-}
-
-/* Inventory Box Bounce */
-.sidebar-submenu-toggle:hover .sidebar-icon-box,
-.sidebar-nav a:hover .sidebar-icon-box,
-.sidebar-nav li.active > a .sidebar-icon-box {
-  animation: box-bounce 0.8s ease-in-out;
-}
-@keyframes box-bounce {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-4px) scale(1.08); }
-}
-
-/* Print Shop Printer Wiggle */
-.sidebar-submenu-toggle:hover .sidebar-icon-printer,
-.sidebar-nav a:hover .sidebar-icon-printer,
-.sidebar-nav li.active > a .sidebar-icon-printer {
-  animation: printer-bounce 0.8s ease-in-out;
-}
-@keyframes printer-bounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: translateY(-2px) scale(1.05); }
-}
-
-/* Expenses Card Wiggle */
-.sidebar-nav a:hover .sidebar-icon-card,
-.sidebar-nav li.active > a .sidebar-icon-card {
-  animation: card-wiggle 0.6s ease-in-out;
-}
-@keyframes card-wiggle {
-  0%, 100% { transform: rotate(0); }
-  30% { transform: rotate(-5deg); }
-  70% { transform: rotate(5deg); }
-}
-
-/* Finance Coin Rotate/Pulse */
-.sidebar-submenu-toggle:hover .sidebar-icon-finance,
-.sidebar-nav a:hover .sidebar-icon-finance,
-.sidebar-nav li.active > a .sidebar-icon-finance {
-  animation: finance-spin 1.2s ease-in-out infinite alternate;
-}
-@keyframes finance-spin {
-  0% { transform: scale(1) rotate(0deg); }
-  100% { transform: scale(1.1) rotate(15deg); }
-}
-
-/* Tasks Clipboard Bounce */
-.sidebar-nav a:hover .sidebar-icon-tasks,
-.sidebar-nav li.active > a .sidebar-icon-tasks {
-  animation: tasks-bounce 0.6s ease-in-out;
-}
-@keyframes tasks-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
-}
-
-/* Projects Briefcase Bounce */
-.sidebar-nav a:hover .sidebar-icon-briefcase,
-.sidebar-nav li.active > a .sidebar-icon-briefcase {
-  animation: briefcase-bounce 0.8s ease-in-out;
-}
-@keyframes briefcase-bounce {
-  0%, 100% { transform: scale(1) translateY(0); }
-  50% { transform: scale(1.06) translateY(-2px); }
-}
-
-/* Installations Wrench Wiggle */
-.sidebar-nav a:hover .sidebar-icon-install,
-.sidebar-nav li.active > a .sidebar-icon-install {
-  animation: install-wiggle 0.8s ease-in-out;
-  transform-origin: bottom left;
-}
-@keyframes install-wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  30% { transform: rotate(-12deg); }
-  70% { transform: rotate(12deg); }
-}
-
-/* Purchases Bag Wasp */
-.sidebar-submenu-toggle:hover .sidebar-icon-bag,
-.sidebar-nav a:hover .sidebar-icon-bag,
-.sidebar-nav li.active > a .sidebar-icon-bag {
-  animation: bag-wiggle 0.8s ease-in-out;
-  transform-origin: top center;
-}
-@keyframes bag-wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-8deg); }
-  75% { transform: rotate(8deg); }
-}
-
-/* Sales Cart Roll */
-.sidebar-nav a:hover .sidebar-icon-cart,
-.sidebar-nav li.active > a .sidebar-icon-cart {
-  animation: cart-roll 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-@keyframes cart-roll {
-  0% { transform: translateX(0); }
-  30% { transform: translateX(-3px) rotate(-4deg); }
-  70% { transform: translateX(3px) rotate(4deg); }
-  100% { transform: translateX(0); }
-}
-
-/* Relations Users Bounce */
-.sidebar-submenu-toggle:hover .sidebar-icon-users,
-.sidebar-nav a:hover .sidebar-icon-users,
-.sidebar-nav li.active > a .sidebar-icon-users {
-  animation: users-bounce 0.8s ease-in-out;
-}
-@keyframes users-bounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: translateY(-3px) scale(1.04); }
-}
-
-/* Configurations Gear Spin — deshabilitado en hover para evitar layer permanente */
-.sidebar-nav li.active > a .sidebar-icon-gear {
-  /* Solo gira cuando está ACTIVO, no en hover (hover crea GPU layer infinita) */
-  animation: gear-spin 3s linear infinite;
-}
-@keyframes gear-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* ═══ CORRECCIÓN DE RENDIMIENTO DEL SIDEBAR ═══ */
-/* contain:layout style en carousel evita que los cambios de transform
-   del carrusel provoquen relayout en el resto de la página */
 .sidebar-carousel-viewport {
   contain: strict;
-}
-/* Reducir transiciones pesadas */
-.sidebar-carousel-btn,
-.sidebar-carousel-dot {
-  transition: background-color 0.15s ease, color 0.15s ease !important;
-}
-.sidebar-logo-box,
-.sidebar-logo-img {
-  transition: none !important;
 }
 

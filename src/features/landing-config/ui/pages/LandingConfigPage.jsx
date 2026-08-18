@@ -43,29 +43,26 @@ import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 const S = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-  .lcp-root { font-family: 'Inter', sans-serif; color: #0f172a; }
-  .lcp-header { margin-bottom: 28px; }
-  .lcp-title { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em; }
-  .lcp-subtitle { color: #64748b; font-size: 14px; margin: 0; line-height: 1.6; max-width: 600px; }
-
-  /* Tabs */
-  .lcp-tabs { display: flex; gap: 4px; background: #f1f5f9; border-radius: 14px; padding: 5px; margin-bottom: 28px; width: fit-content; }
-  .lcp-tab {
-    display: flex; align-items: center; gap: 7px;
-    padding: 9px 18px; border-radius: 10px; border: none; cursor: pointer;
-    font-size: 13px; font-weight: 600; color: #64748b; background: transparent; transition: all .2s;
+  .lcp-root, .lcp-root * {
+    font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+    box-sizing: border-box;
   }
-  .lcp-tab.active { background: white; color: #7c3aed; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
-  .lcp-tab:hover:not(.active) { color: #334155; background: rgba(255,255,255,.5); }
 
   /* Cards */
-  .lcp-section { background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(15,23,42,.04); }
-  .lcp-section-title { font-size: 16px; font-weight: 800; color: #1e293b; margin: 0 0 4px; }
+  .lcp-section {
+    background: white;
+    border: 1px solid rgba(226,232,240,0.85);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  .lcp-section-title { font-size: 15px; font-weight: 800; color: #1e293b; margin: 0 0 4px; }
   .lcp-section-desc { color: #64748b; font-size: 13px; margin: 0 0 18px; }
 
   /* Hero Image Grid */
   .lcp-img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
-  .lcp-img-card { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #f8fafc; }
+  .lcp-img-card { border: 1px solid rgba(226,232,240,0.85); border-radius: 14px; overflow: hidden; background: #f8fafc; }
   .lcp-img-preview { position: relative; aspect-ratio: 16/10; background: #e2e8f0; overflow: hidden; }
   .lcp-img-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .lcp-img-badge {
@@ -80,10 +77,17 @@ const S = `
   /* Buttons */
   .lcp-btn {
     flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-    border-radius: 9px; padding: 7px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s; border: none;
+    border-radius: 10px; padding: 8px 12px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s; border: none;
   }
-  .lcp-btn-primary { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; box-shadow: 0 3px 12px rgba(124,58,237,.25); }
-  .lcp-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,.3); }
+  .lcp-btn-primary {
+    background: #0b2d64;
+    color: white;
+    box-shadow: 0 4px 12px rgba(11,45,100,0.28);
+  }
+  .lcp-btn-primary:hover:not(:disabled) {
+    background: #071f45;
+    box-shadow: 0 6px 16px rgba(11,45,100,0.38);
+  }
   .lcp-btn-outline { background: white; color: #64748b; border: 1px solid #cbd5e1; }
   .lcp-btn-outline:hover:not(:disabled) { color: #ef4444; border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.05); }
   .lcp-btn-danger { background: rgba(239,68,68,.1); color: #dc2626; border: 1px solid rgba(239,68,68,.2); }
@@ -94,13 +98,13 @@ const S = `
 
   /* WhatsApp form */
   .lcp-form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
-  .lcp-label { font-size: 13px; font-weight: 700; color: #374151; display: flex; align-items: center; gap: 6px; }
+  .lcp-label { font-size: 12px; font-weight: 700; color: #374151; display: flex; align-items: center; gap: 6px; }
   .lcp-input, .lcp-textarea {
-    border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;
-    font-size: 14px; color: #0f172a; font-family: 'Inter', sans-serif;
-    transition: border-color .2s, box-shadow .2s; outline: none; background: #f8fafc;
+    border: 1.5px solid rgba(226,232,240,0.85); border-radius: 10px; padding: 10px 14px;
+    font-size: 13px; color: #0f172a; font-family: inherit;
+    transition: border-color .2s, box-shadow .2s; outline: none; background: #ffffff;
   }
-  .lcp-input:focus, .lcp-textarea:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.1); background: white; }
+  .lcp-input:focus, .lcp-textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); background: white; }
   .lcp-textarea { resize: vertical; min-height: 90px; line-height: 1.55; }
   .lcp-wa-preview { 
     display: flex; align-items: center; gap: 10px;
@@ -111,16 +115,16 @@ const S = `
   /* Categories */
   .lcp-cat-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
   .lcp-cat-list { display: flex; flex-direction: column; gap: 16px; }
-  .lcp-cat-card { border: 1.5px solid #e2e8f0; border-radius: 16px; background: white; overflow: hidden; }
+  .lcp-cat-card { border: 1.5px solid rgba(226,232,240,0.85); border-radius: 16px; background: white; overflow: hidden; }
   .lcp-cat-card-header {
     display: flex; align-items: center; gap: 10px; padding: 14px 18px;
-    background: linear-gradient(135deg, #fafafa, #f1f5f9); border-bottom: 1px solid #e2e8f0; cursor: pointer;
+    background: linear-gradient(135deg, #fafafa, #f1f5f9); border-bottom: 1px solid rgba(226,232,240,0.85); cursor: pointer;
   }
-  .lcp-cat-name { font-size: 15px; font-weight: 700; color: #1e293b; flex: 1; }
+  .lcp-cat-name { font-size: 14px; font-weight: 700; color: #1e293b; flex: 1; }
   .lcp-cat-slug { font-size: 11px; color: #94a3b8; font-family: monospace; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
-  .lcp-cat-count { font-size: 11px; font-weight: 700; color: #7c3aed; background: rgba(124,58,237,.1); padding: 3px 9px; border-radius: 999px; }
+  .lcp-cat-count { font-size: 11px; font-weight: 700; color: #0b2d64; background: rgba(11,45,100,.08); padding: 3px 9px; border-radius: 999px; }
   .lcp-cat-images { padding: 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-  .lcp-cat-img-card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #f8fafc; position: relative; }
+  .lcp-cat-img-card { border: 1px solid rgba(226,232,240,0.85); border-radius: 12px; overflow: hidden; background: #f8fafc; position: relative; }
   .lcp-cat-img-thumb { aspect-ratio: 4/3; overflow: hidden; background: #e2e8f0; }
   .lcp-cat-img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .lcp-cat-img-meta { padding: 8px 10px; }
@@ -139,14 +143,14 @@ const S = `
     cursor: pointer; color: #94a3b8; gap: 6px; font-size: 12px; font-weight: 600;
     transition: all .2s; background: #f8fafc;
   }
-  .lcp-cat-img-add:hover { border-color: #7c3aed; color: #7c3aed; background: rgba(124,58,237,.03); }
+  .lcp-cat-img-add:hover { border-color: #0b2d64; color: #0b2d64; background: rgba(11,45,100,.03); }
   .lcp-cat-img-add.disabled { cursor: not-allowed; opacity: .5; }
   .lcp-cat-actions { display: flex; gap: 6px; padding: 0 18px 14px; }
 
   /* Inline edit */
   .lcp-inline-input {
-    border: 1.5px solid #7c3aed; border-radius: 8px; padding: 4px 10px;
-    font-size: 14px; font-weight: 700; color: #1e293b; font-family: 'Inter', sans-serif;
+    border: 1.5px solid #0b2d64; border-radius: 8px; padding: 4px 10px;
+    font-size: 13px; font-weight: 700; color: #1e293b; font-family: inherit;
     outline: none; background: white; flex: 1; min-width: 0;
   }
   .lcp-inline-btns { display: flex; gap: 4px; }
@@ -174,14 +178,16 @@ const S = `
 
   /* Image meta edit modal */
   .lcp-img-edit-overlay {
-    position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px);
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.25); backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;
   }
   .lcp-img-edit-modal {
-    background: white; border-radius: 20px; padding: 28px; width: 100%; max-width: 480px;
-    box-shadow: 0 25px 60px rgba(15,23,42,.2);
+    background: white; border-radius: 20px; padding: 24px; width: 100%; max-width: 480px;
+    box-shadow: 0 20px 50px rgba(15,23,42,0.12), 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid #f1f5f9;
   }
-  .lcp-img-edit-title { font-size: 18px; font-weight: 800; margin: 0 0 20px; color: #1e293b; }
+  .lcp-img-edit-title { font-size: 16px; font-weight: 800; margin: 0 0 16px; color: #1e293b; }
 `;
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -685,7 +691,7 @@ function CategoriesTab({ categories, setCategories }) {
                             {(img.tags?.length > 0) && (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
                                 {img.tags.map((t, i) => (
-                                  <span key={i} style={{ fontSize: 9, background: 'rgba(124,58,237,.1)', color: '#7c3aed', padding: '1px 6px', borderRadius: 999, fontWeight: 700 }}>{t}</span>
+                                  <span key={i} style={{ fontSize: 9, background: 'rgba(11,45,100,.08)', color: '#0b2d64', padding: '1px 6px', borderRadius: 999, fontWeight: 700 }}>{t}</span>
                                 ))}
                               </div>
                             )}
@@ -704,7 +710,7 @@ function CategoriesTab({ categories, setCategories }) {
                       {/* Add image slot */}
                       <label className={`lcp-cat-img-add ${!canAddMore || isUploadingThis ? 'disabled' : ''}`}>
                         {isUploadingThis ? (
-                          <span style={{ fontSize: 12, color: '#7c3aed' }}>Subiendo...</span>
+                          <span style={{ fontSize: 12, color: '#0b2d64', fontWeight: 600 }}>Subiendo...</span>
                         ) : canAddMore ? (
                           <>
                             <Upload size={20} strokeWidth={1.5} />
@@ -804,22 +810,47 @@ export const LandingConfigPage = () => {
   ];
 
   return (
-    <div className="lcp-root p-6 xl:p-8 w-full animate-slide-up">
+    <div className="w-full pb-20 md:pb-6 animate-slide-up lcp-root" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
       <style>{S}</style>
 
-      <div className="lcp-header">
-        <h1 className="lcp-title">Landing Page</h1>
-        <p className="lcp-subtitle">
-          Gestiona el contenido público del sitio: carrusel principal, redes sociales, WhatsApp y catálogo de productos.
-        </p>
-      </div>
+      {/* Header Card */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs mb-4 sm:mb-6 overflow-hidden">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-600">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Landing Page</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Sitio Web
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Gestiona el contenido público del sitio: carrusel principal, redes sociales, WhatsApp y catálogo
+              </p>
+            </div>
+          </div>
+        </div>
 
-      <div className="lcp-tabs">
-        {tabs.map(({ key, label, Icon }) => (
-          <button key={key} type="button" className={`lcp-tab ${activeTab === key ? 'active' : ''}`} onClick={() => setActiveTab(key)}>
-            <Icon size={14} /> {label}
-          </button>
-        ))}
+        {/* Tabs Bar at the bottom of Header Card */}
+        <div className="px-4 sm:px-5 pb-3.5 flex gap-1.5 border-t border-slate-100 pt-3 bg-slate-50/50 overflow-x-auto">
+          {tabs.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === key
+                  ? 'bg-white text-blue-700 shadow-xs border border-blue-100'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+              }`}
+              onClick={() => setActiveTab(key)}
+            >
+              <Icon size={14} className="shrink-0" /> {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (

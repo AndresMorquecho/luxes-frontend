@@ -145,83 +145,110 @@ export default function NuevoProyectoPage() {
   }
 
   return (
-    <div className="w-full h-[calc(100vh-60px)] flex flex-col overflow-hidden pb-4">
-      {/* Header Fijo */}
-      <div className="flex items-center justify-between mb-4 shrink-0 px-2 pt-2">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/proyectos')}
-            className="p-2 rounded-xl hover:bg-slate-200 text-slate-500 transition-colors"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 leading-tight">Nuevo Proyecto</h1>
-          </div>
-        </div>
+    <div className="w-full pb-20 md:pb-6 animate-slide-up np-root" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .np-root, .np-root * {
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+          box-sizing: border-box;
+        }
+      `}</style>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/proyectos')}
-            className="px-5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-medium transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={guardando}
-            className="flex items-center gap-2 px-6 py-2 rounded-xl text-white font-semibold transition-all duration-200 hover:brightness-110 disabled:opacity-60 shadow-md border border-[rgba(200,150,62,0.4)]"
-            style={{
-              background: 'linear-gradient(135deg, #0b2d64 0%, #164e96 100%)',
-              boxShadow: '0 2px 8px rgba(11, 45, 100, 0.2)'
-            }}
-          >
-            {guardando ? 'Guardando...' : 'Crear Proyecto'}
-            <Check size={18} />
-          </button>
+      {/* Header Card */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs mb-4 sm:mb-6 overflow-hidden">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => navigate('/proyectos')}
+              className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center shrink-0 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+              title="Volver a proyectos"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Nuevo Proyecto</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Crear
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Registra un nuevo proyecto en el sistema ALUX con asignación de fases y responsables
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => navigate('/proyectos')}
+              className="px-4 sm:px-5 py-2.5 rounded-xl border border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50 font-semibold text-xs sm:text-sm transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={guardando}
+              className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 text-white rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {guardando ? 'Guardando...' : 'Crear Proyecto'}
+              <Check className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Grid de 2 Columnas para aprovechar el espacio */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-y-auto px-2">
+      {errors.submit && (
+        <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
+          {errors.submit}
+        </div>
+      )}
+
+      {/* Grid de 2 Columnas para Formulario */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         
-        {/* Columna Izquierda: Información General */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-6">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Info size={18} className="text-blue-600" />
-            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Información Principal</h2>
+        {/* Columna Izquierda: Información Principal */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 flex flex-col gap-5">
+          <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+              <Info className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Información Principal</h2>
+              <p className="text-[11px] text-slate-400">Datos generales del proyecto y cliente</p>
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Nombre del proyecto * {errors.nombre && <span className="text-red-500 font-normal ml-1">({errors.nombre})</span>}
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Nombre del proyecto <span className="text-red-500">*</span> {errors.nombre && <span className="text-red-500 font-normal lowercase ml-1">({errors.nombre})</span>}
             </label>
             <input
-              className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-slate-50 focus:bg-white transition-colors
-                ${errors.nombre ? 'border-red-400' : 'border-slate-200'}`}
-              placeholder="Ej: Letrero luminoso"
+              className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-slate-50/60 focus:bg-white focus:ring-2 focus:ring-blue-500/10 outline-none transition-all placeholder:text-slate-400 font-medium text-slate-800
+                ${errors.nombre ? 'border-red-400 focus:border-red-400' : 'border-slate-200/90 focus:border-blue-500'}`}
+              placeholder="Ej: Letrero luminoso acrílico 3D"
               value={form.nombre}
               onChange={(e) => set('nombre', e.target.value)}
             />
           </div>
 
           <div className="relative">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Cliente * {errors.clienteId && <span className="text-red-500 font-normal ml-1">({errors.clienteId})</span>}
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Cliente <span className="text-red-500">*</span> {errors.clienteId && <span className="text-red-500 font-normal lowercase ml-1">({errors.clienteId})</span>}
             </label>
             <div 
-              className={`flex items-center w-full border rounded-xl px-4 py-3 text-sm bg-slate-50 cursor-text transition-colors
-                ${errors.clienteId ? 'border-red-400' : 'border-slate-200'}
-                ${clientDropdownOpen ? 'ring-2 ring-blue-400 border-blue-400 bg-white' : ''}`}
+              className={`flex items-center w-full border rounded-xl px-4 py-2.5 text-sm bg-slate-50/60 cursor-text transition-all
+                ${errors.clienteId ? 'border-red-400' : 'border-slate-200/90'}
+                ${clientDropdownOpen ? 'ring-2 ring-blue-500/10 border-blue-500 bg-white' : ''}`}
               onClick={() => setClientDropdownOpen(true)}
             >
-              <Search size={16} className="text-slate-400 mr-2 shrink-0" />
+              <Search className="w-4 h-4 text-slate-400 mr-2.5 shrink-0" />
               <input
                 type="text"
-                placeholder="Buscar cliente…"
-                className="w-full bg-transparent outline-none text-slate-800 placeholder-slate-400"
+                placeholder="Buscar cliente por nombre o RUC…"
+                className="w-full bg-transparent outline-none text-slate-800 text-sm font-medium placeholder:text-slate-400"
                 value={clientSearch}
                 onChange={(e) => {
                   setClientSearch(e.target.value);
@@ -229,7 +256,7 @@ export default function NuevoProyectoPage() {
                 }}
                 onFocus={() => setClientDropdownOpen(true)}
               />
-              <ChevronDown size={16} className="text-slate-400 ml-2 shrink-0 cursor-pointer" onClick={(e) => {
+              <ChevronDown className="w-4 h-4 text-slate-400 ml-2 shrink-0 cursor-pointer" onClick={(e) => {
                 e.stopPropagation();
                 setClientDropdownOpen(!clientDropdownOpen);
               }} />
@@ -238,15 +265,15 @@ export default function NuevoProyectoPage() {
             {clientDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setClientDropdownOpen(false)} />
-                <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-60 overflow-y-auto overflow-hidden">
+                <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto overflow-hidden">
                   {clientesLoading ? (
-                    <div className="px-4 py-6 text-center text-slate-400 text-sm">Cargando clientes…</div>
+                    <div className="px-4 py-6 text-center text-slate-400 text-xs font-medium">Cargando clientes…</div>
                   ) : clientes.filter(c => c.nombre.toLowerCase().includes(clientSearch.toLowerCase())).length > 0 ? (
                     clientes.filter(c => c.nombre.toLowerCase().includes(clientSearch.toLowerCase())).map(c => (
                       <div
                         key={c.id}
-                        className={`px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0
-                          ${form.clienteId === c.id ? 'bg-blue-50' : ''}`}
+                        className={`px-4 py-3 hover:bg-blue-50/80 cursor-pointer transition-colors border-b border-slate-100 last:border-0
+                          ${form.clienteId === c.id ? 'bg-blue-50/90' : ''}`}
                         onClick={() => {
                           set('clienteId', c.id);
                           setClientSearch(c.nombre);
@@ -255,44 +282,55 @@ export default function NuevoProyectoPage() {
                       >
                         <div className="flex items-center justify-between">
                           <p className="font-semibold text-slate-800 text-sm">{c.nombre}</p>
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${c.tipo === 'Empresa' ? 'text-indigo-600 bg-indigo-50' : 'text-blue-600 bg-blue-50'}`}>{c.tipo}</span>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${c.tipo === 'Empresa' ? 'text-indigo-600 bg-indigo-50 border border-indigo-100' : 'text-blue-600 bg-blue-50 border border-blue-100'}`}>{c.tipo}</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">{c.cedulaRuc} · {c.telefono}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{c.cedulaRuc || 'Sin RUC'} · {c.telefono || 'Sin teléfono'}</p>
                       </div>
                     ))
                   ) : (
-                    <div className="px-4 py-6 text-center text-slate-500 text-sm">Sin resultados.</div>
+                    <div className="px-4 py-6 text-center text-slate-500 text-xs font-medium">Sin resultados coincidentes.</div>
                   )}
                 </div>
               </>
             )}
           </div>
 
-
-
           <div className="flex-1 flex flex-col">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Descripción del trabajo</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Descripción del trabajo
+            </label>
             <textarea
-              className="w-full h-full min-h-[120px] border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none transition-colors"
-              placeholder="Especificaciones, dimensiones, detalles técnicos..."
+              className="w-full h-full min-h-[140px] border border-slate-200/90 bg-slate-50/60 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 rounded-xl px-4 py-3 text-sm outline-none resize-none transition-all placeholder:text-slate-400 font-medium text-slate-800"
+              placeholder="Especificaciones, dimensiones, requerimientos técnicos y observaciones..."
               value={form.descripcion}
               onChange={(e) => set('descripcion', e.target.value)}
             />
           </div>
         </div>
 
-        {/* Columna Derecha: Detalles Adicionales y Configuración */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-6">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <ClipboardList size={18} className="text-blue-600" />
-            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Configuración y Asignación</h2>
+        {/* Columna Derecha: Configuración y Asignación */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 flex flex-col gap-5">
+          <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+              <ClipboardList className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Configuración y Asignación</h2>
+              <p className="text-[11px] text-slate-400">Responsables, instalación, prioridad y fechas</p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Tipo de proyecto *</label>
-              <div className="flex flex-col gap-3 mt-1">
-                <label className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 p-2.5 rounded-lg hover:border-blue-400 transition-colors">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Tipo de proyecto <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-col gap-2 mt-1">
+                <label className={`flex items-center gap-2.5 cursor-pointer border p-3 rounded-xl transition-all ${
+                  form.requiereInstalacion === true
+                    ? 'bg-blue-50/60 border-blue-200 text-blue-900 shadow-2xs'
+                    : 'bg-slate-50/60 border-slate-200/90 text-slate-700 hover:border-slate-300'
+                }`}>
                   <input
                     type="radio"
                     name="requiereInstalacion"
@@ -300,9 +338,13 @@ export default function NuevoProyectoPage() {
                     onChange={() => set('requiereInstalacion', true)}
                     className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-slate-700 font-semibold">Con instalación</span>
+                  <span className="text-xs font-bold">Con instalación</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 p-2.5 rounded-lg hover:border-blue-400 transition-colors">
+                <label className={`flex items-center gap-2.5 cursor-pointer border p-3 rounded-xl transition-all ${
+                  form.requiereInstalacion === false
+                    ? 'bg-blue-50/60 border-blue-200 text-blue-900 shadow-2xs'
+                    : 'bg-slate-50/60 border-slate-200/90 text-slate-700 hover:border-slate-300'
+                }`}>
                   <input
                     type="radio"
                     name="requiereInstalacion"
@@ -310,21 +352,25 @@ export default function NuevoProyectoPage() {
                     onChange={() => set('requiereInstalacion', false)}
                     className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-slate-700 font-semibold">Sin instalación</span>
+                  <span className="text-xs font-bold">Sin instalación</span>
                 </label>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Prioridad</label>
-              <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Prioridad
+              </label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
                 {PRIORIDADES.map((p) => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => set('prioridad', p)}
-                    className={`px-2 py-2.5 rounded-lg text-xs font-bold transition-all border text-center
-                      ${form.prioridad === p ? `${PRIORIDAD_COLORS[p]} border-current ring-1 ring-current shadow-sm` : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300'}`}
+                    className={`px-2 py-2.5 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer
+                      ${form.prioridad === p
+                        ? `${PRIORIDAD_COLORS[p]} border-current ring-1 ring-current shadow-2xs`
+                        : 'bg-slate-50/60 text-slate-500 border-slate-200/90 hover:border-slate-300'}`}
                   >
                     {p}
                   </button>
@@ -333,22 +379,22 @@ export default function NuevoProyectoPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="relative">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Responsable * {errors.responsable && <span className="text-red-500 font-normal ml-1">({errors.responsable})</span>}
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Responsable <span className="text-red-500">*</span> {errors.responsable && <span className="text-red-500 font-normal lowercase ml-1">({errors.responsable})</span>}
               </label>
               <div 
-                className={`flex items-center w-full border rounded-xl px-4 py-3 text-sm bg-slate-50 cursor-text transition-colors
-                  ${errors.responsable ? 'border-red-400' : 'border-slate-200'}
-                  ${responsableDropdownOpen ? 'ring-2 ring-blue-400 border-blue-400 bg-white' : ''}`}
+                className={`flex items-center w-full border rounded-xl px-4 py-2.5 text-sm bg-slate-50/60 cursor-text transition-all
+                  ${errors.responsable ? 'border-red-400' : 'border-slate-200/90'}
+                  ${responsableDropdownOpen ? 'ring-2 ring-blue-500/10 border-blue-500 bg-white' : ''}`}
                 onClick={() => setResponsableDropdownOpen(true)}
               >
-                <Search size={16} className="text-slate-400 mr-2 shrink-0" />
+                <Search className="w-4 h-4 text-slate-400 mr-2.5 shrink-0" />
                 <input
                   type="text"
-                  placeholder="Asignar a..."
-                  className="w-full bg-transparent outline-none text-slate-800 placeholder-slate-400"
+                  placeholder="Asignar empleado…"
+                  className="w-full bg-transparent outline-none text-slate-800 text-sm font-medium placeholder:text-slate-400"
                   value={responsableSearch}
                   onChange={(e) => {
                     setResponsableSearch(e.target.value);
@@ -356,7 +402,7 @@ export default function NuevoProyectoPage() {
                   }}
                   onFocus={() => setResponsableDropdownOpen(true)}
                 />
-                <ChevronDown size={16} className="text-slate-400 ml-2 shrink-0 cursor-pointer" onClick={(e) => {
+                <ChevronDown className="w-4 h-4 text-slate-400 ml-2 shrink-0 cursor-pointer" onClick={(e) => {
                   e.stopPropagation();
                   setResponsableDropdownOpen(!responsableDropdownOpen);
                 }} />
@@ -365,13 +411,13 @@ export default function NuevoProyectoPage() {
               {responsableDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setResponsableDropdownOpen(false)} />
-                  <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-60 overflow-y-auto overflow-hidden">
+                  <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto overflow-hidden">
                     {empleados.filter(e => e.nombre.toLowerCase().includes(responsableSearch.toLowerCase())).length > 0 ? (
                       empleados.filter(e => e.nombre.toLowerCase().includes(responsableSearch.toLowerCase())).map(emp => (
                         <div
                           key={emp.id}
-                          className={`px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0
-                            ${form.responsable === emp.nombre ? 'bg-blue-50' : ''}`}
+                          className={`px-4 py-3 hover:bg-blue-50/80 cursor-pointer transition-colors border-b border-slate-100 last:border-0
+                            ${form.responsable === emp.nombre ? 'bg-blue-50/90' : ''}`}
                           onClick={() => {
                             set('responsable', emp.nombre);
                             setResponsableSearch(emp.nombre);
@@ -379,11 +425,11 @@ export default function NuevoProyectoPage() {
                           }}
                         >
                           <p className="font-semibold text-slate-800 text-sm">{emp.nombre}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{emp.cargo}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{emp.cargo || 'Colaborador'}</p>
                         </div>
                       ))
                     ) : (
-                      <div className="px-4 py-6 text-center text-slate-500 text-sm">Sin resultados.</div>
+                      <div className="px-4 py-6 text-center text-slate-500 text-xs font-medium">Sin resultados coincidentes.</div>
                     )}
                   </div>
                 </>
@@ -391,34 +437,28 @@ export default function NuevoProyectoPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Fecha de inicio</label>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Fecha de inicio
+              </label>
               <input
                 type="date"
-                className="w-full border border-slate-200 bg-slate-100 rounded-xl px-4 py-3 text-sm text-slate-700 cursor-default"
+                className="w-full border border-slate-200/90 bg-slate-100/80 rounded-xl px-4 py-2.5 text-sm text-slate-600 font-medium cursor-default"
                 value={form.fechaInicio}
                 readOnly
                 title="Se registra automáticamente al crear el proyecto"
               />
-              <p className="text-[11px] text-slate-400 mt-1">Se guarda con la fecha de hoy al crear el proyecto.</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Entrega estimada</label>
-              <input
-                type="date"
-                className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                value={form.fechaEntregaEstimada}
-                onChange={(e) => set('fechaEntregaEstimada', e.target.value)}
-              />
+              <p className="text-[10px] text-slate-400 mt-1">Se asigna la fecha actual automáticamente.</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Etiquetas</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Etiquetas
+            </label>
             <div className="flex gap-2">
               <input
-                className="flex-1 border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
-                placeholder="Ej: urgente, acrílico..."
+                className="flex-1 border border-slate-200/90 bg-slate-50/60 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all placeholder:text-slate-400 font-medium text-slate-800"
+                placeholder="Ej: urgente, acrílico, letrero..."
                 value={form.etiquetaInput}
                 onChange={(e) => set('etiquetaInput', e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addEtiqueta())}
@@ -426,17 +466,24 @@ export default function NuevoProyectoPage() {
               <button
                 type="button"
                 onClick={addEtiqueta}
-                className="px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-600 transition-colors border border-blue-100"
+                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-700 font-semibold text-xs transition-colors border border-blue-100 flex items-center gap-1 cursor-pointer"
               >
-                <Plus size={18} />
+                <Plus className="w-4 h-4" />
+                Agregar
               </button>
             </div>
             {form.etiquetas.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap gap-1.5 mt-3">
                 {form.etiquetas.map((tag) => (
-                  <span key={tag} className="flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs px-3 py-1.5 rounded-full font-medium">
+                  <span key={tag} className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-100 text-xs px-3 py-1 rounded-full font-semibold">
                     {tag}
-                    <button type="button" onClick={() => set('etiquetas', form.etiquetas.filter((t) => t !== tag))} className="hover:text-red-500 bg-white/50 rounded-full w-4 h-4 flex items-center justify-center">×</button>
+                    <button
+                      type="button"
+                      onClick={() => set('etiquetas', form.etiquetas.filter((t) => t !== tag))}
+                      className="hover:text-red-500 text-slate-400 rounded-full w-4 h-4 flex items-center justify-center font-bold text-xs cursor-pointer"
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
               </div>
@@ -444,106 +491,17 @@ export default function NuevoProyectoPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Notas iniciales</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Notas iniciales
+            </label>
             <textarea
-              className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none transition-colors min-h-[80px]"
-              placeholder="Referencia de pago, observaciones..."
+              className="w-full border border-slate-200/90 bg-slate-50/60 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 rounded-xl px-4 py-2.5 text-sm outline-none resize-none transition-all min-h-[90px] placeholder:text-slate-400 font-medium text-slate-800"
+              placeholder="Observaciones iniciales, notas de cotización o detalles de entrega..."
               value={form.notasCotizacion}
               onChange={(e) => set('notasCotizacion', e.target.value)}
             />
           </div>
 
-        </div>
-
-        {/* CONFIGURADOR DE FASES DE PROYECTO (ALUX) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
-                Fases del Proyecto (Alux)
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Personaliza el número de fases, nombres y fechas estimadas para este proyecto
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                const nueva = {
-                  id: 'fase-' + Date.now(),
-                  orden: fasesAlux.length + 1,
-                  nombre: `Fase ${fasesAlux.length + 1}: `,
-                  descripcion: 'Fase personalizada',
-                  fechaInicioPlan: getTodayDateISO(),
-                  fechaFinPlan: getTodayDateISO(),
-                  estado: 'PENDIENTE',
-                  evidencias: [],
-                  notas: '',
-                };
-                setFasesAlux(prev => [...prev, nueva]);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs rounded-xl transition-colors"
-            >
-              <Plus size={14} />
-              + Agregar Fase
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {fasesAlux.map((fase, index) => (
-              <div key={fase.id} className="flex flex-wrap sm:flex-nowrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="w-6 h-6 rounded-full bg-slate-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                  {index + 1}
-                </span>
-
-                <div className="flex-1 min-w-[200px]">
-                  <input
-                    type="text"
-                    className="co-input font-bold text-xs w-full bg-white"
-                    placeholder="Nombre de la Fase"
-                    value={fase.nombre}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFasesAlux(prev => prev.map(f => f.id === fase.id ? { ...f, nombre: val } : f));
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0 text-xs">
-                  <input
-                    type="date"
-                    className="co-input text-xs bg-white"
-                    value={fase.fechaInicioPlan || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFasesAlux(prev => prev.map(f => f.id === fase.id ? { ...f, fechaInicioPlan: val } : f));
-                    }}
-                  />
-                  <span className="text-slate-400 font-bold">➔</span>
-                  <input
-                    type="date"
-                    className="co-input text-xs bg-white"
-                    value={fase.fechaFinPlan || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFasesAlux(prev => prev.map(f => f.id === fase.id ? { ...f, fechaFinPlan: val } : f));
-                    }}
-                  />
-                </div>
-
-                {fasesAlux.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setFasesAlux(prev => prev.filter(f => f.id !== fase.id))}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                    title="Eliminar esta fase"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
 
       </div>

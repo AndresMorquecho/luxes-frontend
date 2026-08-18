@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useUnreadNotifications } from '../../../../shared/hooks/useUnreadNotifications.js';
 import { isAdminUser, getDisplayRole } from '../../../../shared/utils/userRoleHelpers';
 import { isModuleHidden, normalizeHiddenModules } from '../../application/sidebarModules.js';
-import aluxBanner from '../../../../assets/aluxBanner1.png';
+import aluxLogoHQ from '../../../../assets/aluxLogoHQ.png';
 import aluxIcon from '../../../../assets/icon.png';
 import './Sidebar.css';
 
@@ -12,12 +12,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
   const userRole = getDisplayRole(user).toUpperCase();
   const userInitial = userName.charAt(0).toUpperCase();
   const isAdmin = isAdminUser(user);
-  const hasAprobacionPermission = user?.permissions?.includes('aprobacion_ordenes_compra') || isAdmin;
-
-  const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
-  const isVentas = userRole === 'VENTAS' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
-  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
-  const isTaller = userRole === 'TALLER';
+  const hasAprobacionPermission = true;
 
   const [showAll, setShowAll] = useState(() => {
     const saved = localStorage.getItem('luxes_sidebar_show_all');
@@ -39,22 +34,18 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
     }
   }
 
-  const canViewDashboard = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
-  const canViewNomina = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER';
-  const canViewProformas = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
-  const canViewInventario = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion;
-  const canViewTallerImpresion = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion || isVentas || isDisenador;
-  const canViewImpresionesList = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
-  const canViewGastos = (isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && !isVentas && !isDisenador;
-  const canViewCierreCaja = (isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && !isVentas && !isDisenador;
-  const canViewMovimientos = isAdmin && !isVentas && !isDisenador;
-  const canViewBalances = isAdmin || (!isImpresion && !isTaller && !isVentas && !isDisenador);
-  const canViewFinanzas = (canViewMovimientos || canViewCierreCaja || canViewBalances) && !isVentas && !isDisenador;
+  const canViewDashboard = isAdmin;
+  const canViewNomina = isAdmin;
+  const canViewProformas = isAdmin;
+  const canViewInventario = isAdmin;
+  const canViewGastos = isAdmin;
+  const canViewFinanzas = isAdmin;
   const canViewTareas = true;
-  const canViewProyectos = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador || isTaller;
-  const canViewInstalaciones = !isAdmin && (userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isTaller);
-  const canViewCompras = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isImpresion || isTaller;
-  const canViewRelaciones = isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER' || isVentas || isDisenador;
+  const canViewProyectos = true;
+  const canViewInstalaciones = false;
+  const canViewCompras = true;
+  const canViewRelaciones = isAdmin;
+  const canViewVentas = isAdmin;
 
   const shouldShowModule = (moduleKey, originalCanView) => {
     if (!originalCanView) return false;
@@ -113,11 +104,29 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
           alt="Alux Logo Icon" 
           className="sidebar-logo-img sidebar-logo-collapsed" 
         />
-        <img 
-          src={aluxBanner} 
-          alt="Alux Banner Full" 
-          className="sidebar-logo-img sidebar-logo-expanded" 
-        />
+        <div className="sidebar-logo-expanded-wrapper">
+          <div className="sidebar-banner-left">
+            <div className="sidebar-banner-socials">
+              <svg className="sidebar-social-svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.86 4.46V11.2a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.04-.63z"/>
+              </svg>
+              <svg className="sidebar-social-svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              <svg className="sidebar-social-svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.13-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+            </div>
+            <span className="sidebar-banner-handle">aluxconstrucciones</span>
+          </div>
+          <div className="sidebar-banner-right">
+            <img 
+              src={aluxLogoHQ} 
+              alt="Alux Constructores en Aluminio & Vidrio" 
+              className="sidebar-banner-logo-hq" 
+            />
+          </div>
+        </div>
       </div>
 
       {/* Navigation menu list */}
@@ -164,7 +173,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', padding: '0 0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b' }}>
                     {showAll ? 'Ver todo' : 'Módulos Principales'}
                   </span>
                   <button
@@ -189,16 +198,16 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                     border: '1px solid rgba(59, 130, 246, 0.2)',
                     background: 'rgba(59, 130, 246, 0.05)',
                     color: '#2563eb',
-                    fontSize: '0.7rem',
+                    fontSize: '0.65rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
-                    padding: '6px 10px',
-                    borderRadius: '8px',
+                    padding: '5px 8px',
+                    borderRadius: '7px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '6px',
+                    gap: '5px',
                     width: '100%',
                     transition: 'all 0.2s ease',
                   }}
@@ -235,6 +244,27 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                 </Link>
               </li>
             )}
+            {!isAdmin && (
+              <li className={currentPath.startsWith('/nomina/registro-asistencia') || currentPath === '/asistencia' ? 'active' : ''}>
+                <Link to="/nomina/registro-asistencia" onClick={() => {
+                  setIsComprasOpen(false);
+                  setIsNominaOpen(false);
+                  setIsPrintOpen(false);
+                  setIsRelacionesOpen(false);
+                  setIsInventarioOpen(false);
+                  setIsConfigOpen(false);
+                  setIsFinanzasOpen(false);
+                }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <span className="sidebar-link-text">Asistencia</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </Link>
+              </li>
+            )}
             <li className={currentPath === '/notificaciones' ? 'active' : ''}>
               <Link to="/notificaciones">
                 <div className="sidebar-icon-wrapper">
@@ -255,7 +285,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
           <span className="sidebar-category-title">MÓDULOS</span>
           <ul>
             {shouldShowModule('finanzas', canViewFinanzas) && (
-              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos') || (canViewBalances && currentPath === '/balances')) ? 'active' : ''}`}>
+              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos') || currentPath === '/balances') ? 'active' : ''}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -291,46 +321,38 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
                 {isFinanzasOpen && (
                   <ul className="sidebar-submenu">
-                    {canViewBalances && (
-                      <li className={currentPath === '/balances' ? 'submenu-active' : ''}>
-                        <Link to="/balances" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v5.25c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0 1 3 18.375v-5.25ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125v-9.75ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v14.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Balances</span>
-                        </Link>
-                      </li>
-                    )}
-                    {canViewMovimientos && (
-                      <li className={currentPath.startsWith('/movimientos') ? 'submenu-active' : ''}>
-                        <Link to="/movimientos" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 7l5-5 5 5M7 17l5 5 5-5M12 2v20" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Movimientos</span>
-                        </Link>
-                      </li>
-                    )}
-                    {(!isImpresion && !isTaller && !isVentas && !isDisenador) && (
-                      <li className={currentPath === '/compras/metodos-pago' ? 'submenu-active' : ''}>
-                        <Link to="/compras/metodos-pago" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Métodos de Pago</span>
-                        </Link>
-                      </li>
-                    )}
-                    {canViewCierreCaja && (
-                      <li className={currentPath.startsWith('/cierre-caja') ? 'submenu-active' : ''}>
-                        <Link to="/cierre-caja" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Cierre de Caja</span>
-                        </Link>
-                      </li>
-                    )}
+                    <li className={currentPath === '/balances' ? 'submenu-active' : ''}>
+                      <Link to="/balances" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v5.25c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0 1 3 18.375v-5.25ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125v-9.75ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v14.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Balances</span>
+                      </Link>
+                    </li>
+                    <li className={currentPath.startsWith('/movimientos') ? 'submenu-active' : ''}>
+                      <Link to="/movimientos" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 7l5-5 5 5M7 17l5 5 5-5M12 2v20" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Movimientos</span>
+                      </Link>
+                    </li>
+                    <li className={currentPath === '/compras/metodos-pago' ? 'submenu-active' : ''}>
+                      <Link to="/compras/metodos-pago" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Métodos de Pago</span>
+                      </Link>
+                    </li>
+                    <li className={currentPath.startsWith('/cierre-caja') ? 'submenu-active' : ''}>
+                      <Link to="/cierre-caja" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Cierre de Caja</span>
+                      </Link>
+                    </li>
                   </ul>
                 )}
               </li>
@@ -396,14 +418,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                         </svg>
                         <span className="sidebar-submenu-text">Horas Extras</span>
-                      </Link>
-                    </li>
-                    <li className={currentPath === '/nomina/vacaciones' ? 'submenu-active' : ''}>
-                      <Link to="/nomina/vacaciones" className="sidebar-submenu-link">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
-                        </svg>
-                        <span className="sidebar-submenu-text">Vacaciones</span>
                       </Link>
                     </li>
                     <li className={currentPath === '/nomina/nomina-del-mes' ? 'submenu-active' : ''}>
@@ -485,55 +499,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {shouldShowModule('tallerImpresion', canViewTallerImpresion) && (
-              <li className={`sidebar-has-submenu ${isPrintOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/impresiones') || currentPath.startsWith('/colas-impresion')) ? 'active' : ''}`}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsPrintOpen(!isPrintOpen);
-                    // Contraer los demás módulos
-                    if (!isPrintOpen) {
-                      setIsNominaOpen(false);
-                      setIsRelacionesOpen(false);
-                      setIsInventarioOpen(false);
-                      setIsComprasOpen(false);
-                      setIsConfigOpen(false);
-                      setIsFinanzasOpen(false);
-                    }
-                  }}
-                  className="sidebar-submenu-toggle"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-printer">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2m2 4h6a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2zm8-12V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4" />
-                  </svg>
-                  <span className="sidebar-link-text">Taller de Impresión</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    className={`chevron-icon submenu-chevron ${isPrintOpen ? 'rotated' : ''}`}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-
-                {isPrintOpen && (
-                  <ul className="sidebar-submenu">
-                    <li className={currentPath.startsWith('/colas-impresion') ? 'submenu-active' : ''}>
-                      <Link to="/colas-impresion" className="sidebar-submenu-link">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m3.375-3.375V18a2.25 2.25 0 0 0 2.25 2.25H18A2.25 2.25 0 0 0 20.25 18v-5.25A2.25 2.25 0 0 0 18 10.5h-5.25a2.25 2.25 0 0 0-2.25 2.25z" />
-                        </svg>
-                        <span className="sidebar-submenu-text">Colas de Impresión</span>
-                      </Link>
-                    </li>
-                  </ul>
-                )}
-              </li>
-            )}
-
             {shouldShowModule('gastos', canViewGastos) && (
               <li className={currentPath.startsWith('/gastos') ? 'active' : ''}>
                 <Link to="/gastos" onClick={() => {
@@ -555,8 +520,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                 </Link>
               </li>
             )}
-
-
 
             {shouldShowModule('tareas', canViewTareas) && (
               <li className={currentPath.startsWith('/tareas') ? 'active' : ''}>
@@ -582,49 +545,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {shouldShowModule('proyectos', canViewProyectos) && (
-              <li className={currentPath.startsWith('/proyectos') ? 'active' : ''}>
-                <Link to="/proyectos">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-briefcase">
-                    <rect x="2" y="7" width="20" height="14" rx="2" />
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                  </svg>
-                  <span className="sidebar-link-text">Gestion de Proyectos</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </Link>
-              </li>
-            )}
-
-
-            {shouldShowModule('controlVehiculos', isTaller || isAdmin || userRole === 'SERVICIO AL CLIENTE' || userRole === 'USER') && (
-              <li className={currentPath === '/taller/control' ? 'active' : ''}>
-                <Link to="/taller/control">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-install">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
-                  </svg>
-                  <span className="sidebar-link-text">Control de Vehículos</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </Link>
-              </li>
-            )}
-
-            {shouldShowModule('instalaciones', canViewInstalaciones) && (
-              <li className={currentPath.startsWith('/instalaciones') ? 'active' : ''}>
-                <Link to="/instalaciones">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-install">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                  </svg>
-                  <span className="sidebar-link-text">Instalaciones</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </Link>
-              </li>
-            )}
 
             {shouldShowModule('compras', canViewCompras) && (
               <li className={`sidebar-has-submenu ${isComprasOpen ? 'submenu-open' : ''} ${currentPath.startsWith('/compras') ? 'active' : ''}`}>
@@ -632,7 +552,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   type="button"
                   onClick={() => {
                     setIsComprasOpen(prev => !prev);
-                    // Contraer los demás módulos
                     if (!isComprasOpen) {
                       setIsNominaOpen(false);
                       setIsPrintOpen(false);
@@ -667,7 +586,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
                         </svg>
-                        <span className="sidebar-submenu-text">{isImpresion || isTaller ? 'Órdenes activas' : 'Órdenes de Compra'}</span>
+                        <span className="sidebar-submenu-text">Órdenes de Compra</span>
                       </Link>
                     </li>
 
@@ -676,10 +595,10 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                         </svg>
-        <span className="sidebar-submenu-text">Recibir productos</span>
+                        <span className="sidebar-submenu-text">Recibir productos</span>
                       </Link>
                     </li>
-                    {!isImpresion && !isTaller && (
+                    {isAdmin && (
                       <li className={currentPath === '/compras/cuentas-por-pagar' ? 'submenu-active' : ''}>
                         <Link to="/compras/cuentas-por-pagar" className="sidebar-submenu-link">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
@@ -694,7 +613,22 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
               </li>
             )}
 
-            {shouldShowModule('ventas', userRole !== 'TALLER' && !isImpresion) && (
+            {shouldShowModule('proyectos', canViewProyectos) && (
+              <li className={currentPath.startsWith('/proyectos') ? 'active' : ''}>
+                <Link to="/proyectos">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-briefcase">
+                    <rect x="2" y="7" width="20" height="14" rx="2" />
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                  </svg>
+                  <span className="sidebar-link-text">Gestion de Proyectos</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </Link>
+              </li>
+            )}
+
+            {shouldShowModule('ventas', canViewVentas) && (
               <li className={currentPath.startsWith('/ventas') ? 'active' : ''}>
                 <Link to="/ventas">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon sidebar-icon-cart">
@@ -717,7 +651,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   type="button"
                   onClick={() => {
                     setIsRelacionesOpen(!isRelacionesOpen);
-                    // Contraer los demás módulos
                     if (!isRelacionesOpen) {
                       setIsNominaOpen(false);
                       setIsPrintOpen(false);
@@ -758,45 +691,23 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         <span className="sidebar-submenu-text">Clientes</span>
                       </Link>
                     </li>
-                    {!isVentas && !isDisenador && (
-                      <li className={currentPath.startsWith('/proveedores') ? 'submenu-active' : ''}>
-                        <Link to="/proveedores" className="sidebar-submenu-link">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-                          </svg>
-                          <span className="sidebar-submenu-text">Proveedores</span>
-                        </Link>
-                      </li>
-                    )}
-
+                    <li className={currentPath.startsWith('/proveedores') ? 'submenu-active' : ''}>
+                      <Link to="/proveedores" className="sidebar-submenu-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                        </svg>
+                        <span className="sidebar-submenu-text">Proveedores</span>
+                      </Link>
+                    </li>
                   </ul>
                 )}
-              </li>
-            )}
-
-            {!isAdmin && (
-              <li className={currentPath === '/nomina/registro-asistencia' ? 'active' : ''}>
-                <a 
-                  href="/nomina/registro-asistencia?kiosk=true" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.open('/nomina/registro-asistencia?kiosk=true', '_blank');
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                  <span className="sidebar-link-text">Registrar Asistencia</span>
-                </a>
               </li>
             )}
 
           </ul>
         </div>
 
-        {userRole !== 'TALLER' && !isImpresion && !isVentas && !isDisenador && (
+        {isAdmin && (
           <div className="sidebar-category">
             <span className="sidebar-category-title">SISTEMA</span>
             <ul>
@@ -805,7 +716,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   type="button"
                   onClick={() => {
                     setIsConfigOpen(!isConfigOpen);
-                    // Contraer los demás módulos
                     if (!isConfigOpen) {
                       setIsNominaOpen(false);
                       setIsPrintOpen(false);
@@ -834,7 +744,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                   </svg>
                 </button>
 
-                {/* Submenu: Usuarios / General / Landing Page */}
                 {isConfigOpen && (
                   <ul className="sidebar-submenu">
                     <li className={currentPath.startsWith('/usuarios') ? 'submenu-active' : ''}>

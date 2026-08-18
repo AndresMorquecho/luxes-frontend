@@ -526,23 +526,23 @@ export const CuentasPorPagarPage = () => {
   const showingTo = Math.min(cxpPage * perPage, cxpTotal);
 
   const kpiItems = [
-    { label: 'Deuda total', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50', iconColor: 'text-red-500', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
-    { label: 'Órdenes pendientes', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Por aprobar o pagar', accent: '#f97316', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-    { label: 'Total gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-    { label: 'Cuentas listadas', mobileLabel: 'Cuentas', value: cxpTotal, hint: 'Según filtro actual', accent: '#2b41b8', iconBg: 'bg-[#eef1fc]', iconColor: 'text-[#2b41b8]', icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z' },
+    { label: 'Deuda total', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50 border border-red-100', iconColor: 'text-red-600', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
+    { label: 'Órdenes pendientes', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Por aprobar o pagar', accent: '#f97316', iconBg: 'bg-orange-50 border border-orange-100', iconColor: 'text-orange-600', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    { label: 'Total gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50 border border-emerald-100', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    { label: 'Cuentas listadas', mobileLabel: 'Cuentas', value: cxpTotal, hint: 'Según filtro actual', accent: '#0b2d64', iconBg: 'bg-blue-50 border border-blue-100', iconColor: 'text-[#0b2d64]', icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3h16.5a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5H4.5a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z' },
   ];
 
   const renderKpiCardDesktop = (kpi) => (
-    <div key={kpi.label} className="bg-white border border-slate-200/80 rounded-xl shadow-sm flex items-start gap-3 p-5 min-w-0 overflow-hidden">
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-5 h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <div key={kpi.label} className="bg-white border border-slate-100 rounded-2xl shadow-xs flex items-center gap-2.5 sm:gap-3.5 p-3.5 sm:p-4.5 min-w-0 overflow-hidden">
+      <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-4 h-4 sm:w-5 sm:h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
         </svg>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-500 leading-tight">{kpi.label}</p>
-        <p className="text-2xl font-bold mt-0.5 tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
-        <p className="text-[11px] text-slate-400 mt-0.5">{kpi.hint}</p>
+        <p className="text-xs font-medium text-slate-500 leading-tight truncate">{kpi.label}</p>
+        <p className="text-lg sm:text-2xl font-bold mt-0.5 tabular-nums leading-tight truncate text-slate-800">{kpi.value}</p>
+        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">{kpi.hint}</p>
       </div>
     </div>
   );
@@ -550,18 +550,18 @@ export const CuentasPorPagarPage = () => {
   const renderKpiCardMobile = (kpi) => (
     <div
       key={kpi.label}
-      className="co-kpi-mobile bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 p-3 min-w-0"
+      className="co-kpi-mobile bg-white rounded-2xl border border-slate-100 shadow-xs flex flex-col gap-2 p-3 min-w-0"
       style={{ borderBottomWidth: '3px', borderBottomColor: kpi.accent }}
     >
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-3.5 h-3.5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-4 h-4 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
         </svg>
       </div>
-      <div className="flex flex-col gap-1.5 min-w-0">
-        <p className="text-[9px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
-        <p className="text-sm font-semibold tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
-        <p className="text-[8px] text-slate-400 leading-tight line-clamp-2">{kpi.hint}</p>
+      <div className="flex flex-col gap-1 min-w-0">
+        <p className="text-[10px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
+        <p className="text-sm font-bold tabular-nums leading-none truncate text-slate-800">{kpi.value}</p>
+        <p className="text-[9px] text-slate-400 leading-tight line-clamp-1">{kpi.hint}</p>
       </div>
     </div>
   );
@@ -679,15 +679,24 @@ export const CuentasPorPagarPage = () => {
 
   return (
     <div
-      className="co-compras-page animate-slide-up overflow-x-hidden pb-6"
+      className="co-compras-page animate-slide-up overflow-x-hidden pb-10 cxp-root"
+      style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}
     >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .cxp-root, .cxp-root * {
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+          box-sizing: border-box;
+        }
+      `}</style>
+
       {/* ── Móvil ── */}
       <div className="md:hidden">
         <ComprasPageHeader
           title="Cuentas por Pagar"
           subtitle="Deudas y saldos pendientes a proveedores."
           aside={(
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
               <p className="text-sm font-bold text-red-600 whitespace-nowrap tabular-nums">{fmt(stats.totalDeuda)}</p>
             </div>
           )}
@@ -702,17 +711,16 @@ export const CuentasPorPagarPage = () => {
           <button
             type="button"
             onClick={handleOpenManualModal}
-            className="h-9 px-3 rounded-lg text-xs font-bold text-white flex items-center gap-1 shadow-sm shrink-0 cursor-pointer"
-            style={{ backgroundColor: CO_PRIMARY }}
+            className="h-9 px-3 rounded-xl text-xs font-bold text-white flex items-center gap-1 shadow-sm shrink-0 cursor-pointer bg-[#0b2d64] hover:bg-[#071f45]"
           >
             <Plus size={14} />
             <span>Registrar Cuenta</span>
           </button>
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
+        <div className="bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden mb-3">
           <div className="px-3 py-2.5 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-sm font-bold" style={{ color: CO_NAVY }}>Cuentas por pagar</h2>
+            <h2 className="text-sm font-bold text-slate-800">Cuentas por pagar</h2>
           </div>
           {cxpLoading && <div className="flex justify-center py-10"><div className="co-spinner" /></div>}
           {!cxpLoading && cxpItems.map((c) => renderMobileRow(c))}
@@ -726,7 +734,7 @@ export const CuentasPorPagarPage = () => {
           {cxpTotalPages > 1 && (
             <div className="flex items-center justify-center gap-1">
               <button type="button" disabled={cxpPage <= 1} onClick={() => setCxpPage((p) => p - 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&lt;</button>
-              <span className="text-xs font-semibold px-2 tabular-nums" style={{ color: CO_NAVY }}>{cxpPage} / {cxpTotalPages}</span>
+              <span className="text-xs font-semibold px-2 tabular-nums text-slate-800">{cxpPage} / {cxpTotalPages}</span>
               <button type="button" disabled={cxpPage >= cxpTotalPages} onClick={() => setCxpPage((p) => p + 1)} className="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 bg-white">&gt;</button>
             </div>
           )}
@@ -742,8 +750,7 @@ export const CuentasPorPagarPage = () => {
             <button
               type="button"
               onClick={handleOpenManualModal}
-              className="h-10 px-4 rounded-xl text-xs sm:text-sm font-bold text-white flex items-center gap-2 shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
-              style={{ backgroundColor: CO_PRIMARY }}
+              className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-white rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99]"
             >
               <Plus size={18} />
               <span>Registrar Cuenta por Pagar</span>
@@ -751,11 +758,11 @@ export const CuentasPorPagarPage = () => {
           )}
         />
 
-        <div className="grid gap-4 mb-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
           {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-xs">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
             <div className="w-48">{renderEstadoFilter('w-full')}</div>
             {chequesList.filter(c => c.estado === 'PENDIENTE').length > 0 && (
@@ -794,7 +801,7 @@ export const CuentasPorPagarPage = () => {
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-4 py-3">
-                        <div className="font-mono text-xs font-semibold" style={{ color: CO_PRIMARY }}>
+                        <div className="font-mono text-xs font-semibold text-blue-700">
                           {c.ordenCompra?.numero || '—'}
                         </div>
                         {pendingCheque && (
@@ -805,7 +812,7 @@ export const CuentasPorPagarPage = () => {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-medium" style={{ color: CO_NAVY }}>{c.ordenCompra?.proveedor?.nombre || '—'}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">{c.ordenCompra?.proveedor?.nombre || '—'}</td>
                       <td className="px-4 py-3 text-right text-slate-700 tabular-nums">{fmt(c.montoTotal)}</td>
                       <td className="px-4 py-3 text-right text-emerald-600 font-semibold tabular-nums">{fmt(c.montoPagado)}</td>
                       <td className="px-4 py-3 text-right text-red-600 font-bold tabular-nums">{fmt(c.saldo)}</td>
@@ -816,7 +823,7 @@ export const CuentasPorPagarPage = () => {
                           <button
                             type="button"
                             onClick={() => openVerModal(c)}
-                            className="h-8 px-2.5 inline-flex items-center justify-center gap-1 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors whitespace-nowrap cursor-pointer"
+                            className="h-8 px-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 transition-all cursor-pointer"
                             title="Ver historial de abonos y cheques posfechados"
                           >
                             <Eye size={14} />
@@ -826,10 +833,7 @@ export const CuentasPorPagarPage = () => {
                             type="button"
                             onClick={() => openAbonoModal(c)}
                             disabled={c.estado === 'pagado'}
-                            className="h-8 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                            style={{ backgroundColor: c.estado === 'pagado' ? '#94a3b8' : CO_PRIMARY }}
-                            onMouseEnter={(e) => { if (c.estado !== 'pagado') e.currentTarget.style.backgroundColor = CO_PRIMARY_HOVER; }}
-                            onMouseLeave={(e) => { if (c.estado !== 'pagado') e.currentTarget.style.backgroundColor = CO_PRIMARY; }}
+                            className="h-8 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-white whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             Registrar abono
                           </button>
@@ -852,7 +856,11 @@ export const CuentasPorPagarPage = () => {
       {/* Modal Registrar Abono */}
       <ModalPortal open={abonoModalOpen}>
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 animate-fade-in">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setAbonoModalOpen(false)} />
+          <div
+            className="fixed inset-0 transition-opacity"
+            style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
+            onClick={() => setAbonoModalOpen(false)}
+          />
           <div className="bg-white rounded-[24px] border border-slate-100 shadow-2xl w-full max-w-lg overflow-hidden relative z-[201] animate-slide-up">
             <div className="co-modal-header">
               <h2 className="text-lg font-bold text-slate-800">Registrar Abono</h2>
@@ -990,7 +998,8 @@ export const CuentasPorPagarPage = () => {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 animate-fade-in">
           {/* Backdrop Overlay with Blur */}
           <div
-            className="fixed inset-0 bg-slate-900/65 backdrop-blur-md transition-opacity"
+            className="fixed inset-0 transition-opacity"
+            style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => setVerModalOpen(false)}
           />
 
@@ -1027,7 +1036,7 @@ export const CuentasPorPagarPage = () => {
             <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5 flex-1 overflow-y-auto min-h-0 bg-white">
               {verCuenta && (
                 /* 4 KPI Cards ALWAYS in 1 single row */
-                <div className="grid grid-cols-4 gap-1.5 sm:gap-3.5 bg-slate-50/80 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80">
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-3.5 bg-slate-50/80 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-100">
                   <div className="bg-white p-2 sm:p-3.5 rounded-lg sm:rounded-xl border border-slate-100 shadow-2xs flex flex-col justify-center min-w-0">
                     <span className="text-[8px] sm:text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider truncate">Monto Total</span>
                     <span className="text-xs sm:text-base font-extrabold text-slate-800 font-mono mt-0.5 block truncate">{fmt(verCuenta.montoTotal)}</span>
@@ -1058,7 +1067,7 @@ export const CuentasPorPagarPage = () => {
               ) : (
                 <>
                   {/* Vista Escritorio: Tabla panorámica completa */}
-                  <div className="hidden sm:block border border-slate-200/80 rounded-2xl shadow-2xs bg-white overflow-x-auto min-w-full">
+                  <div className="hidden sm:block border border-slate-100 rounded-2xl shadow-2xs bg-white overflow-x-auto min-w-full">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-[#f8f9fc] text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
                         <tr>
@@ -1312,7 +1321,8 @@ export const CuentasPorPagarPage = () => {
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-fade-in">
           {/* Backdrop con Blur acumulativo sobre el primer modal */}
           <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+            className="fixed inset-0 transition-opacity"
+            style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
             onClick={() => setConfirmDeleteAbono(null)}
           />
 
@@ -1367,11 +1377,15 @@ export const CuentasPorPagarPage = () => {
       {/* Modal Registrar Cuenta por Pagar Manual */}
       <ModalPortal open={manualModalOpen}>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-fade-in">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setManualModalOpen(false)} />
+          <div
+            className="fixed inset-0 transition-opacity"
+            style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
+            onClick={() => setManualModalOpen(false)}
+          />
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl relative z-10 overflow-hidden flex flex-col my-auto max-h-[92vh] animate-slide-up">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-xs" style={{ backgroundColor: CO_PRIMARY }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-xs bg-[#0b2d64]">
                   <Plus size={18} />
                 </div>
                 <div>
@@ -1563,8 +1577,7 @@ export const CuentasPorPagarPage = () => {
                 <button
                   type="submit"
                   disabled={manualSaving}
-                  className="px-5 py-2.5 rounded-xl text-white font-bold text-xs transition-all shadow-md hover:shadow-lg inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  style={{ backgroundColor: CO_PRIMARY }}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99] disabled:opacity-50"
                 >
                   {manualSaving && <div className="co-spinner-sm" />}
                   Guardar Cuenta por Pagar

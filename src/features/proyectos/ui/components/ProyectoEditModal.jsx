@@ -97,7 +97,8 @@ export const ProyectoEditModal = React.memo(function ProyectoEditModal({
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[200] flex flex-col sm:items-center sm:justify-center sm:p-4 bg-slate-900/60"
+        className="fixed inset-0 z-[200] flex flex-col sm:items-center sm:justify-center sm:p-4"
+        style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
         onClick={onClose}
         role="presentation"
       >
@@ -319,7 +320,7 @@ export const ProyectoEditModal = React.memo(function ProyectoEditModal({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm"
+                className="px-5 py-2 bg-[#0b2d64] hover:bg-[#071f45] text-white rounded-xl text-sm font-bold transition-all shadow-sm shadow-blue-950/20 active:scale-[0.99] cursor-pointer"
               >
                 Guardar Cambios
               </button>

@@ -8,7 +8,7 @@ import { Layout } from '../shared/ui/components/Layout';
 import { PrintQueueProvider } from '../features/colas-impresion/context/PrintQueueContext';
 import { ProyectosProvider } from '../features/proyectos/application/context/ProyectosContext.jsx';
 import { ToastContainer } from '../shared/ui/components/Toast';
-import { isAsistenciaUser, isTallerUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
+import { isAdminUser, isTrabajadorUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
 import { ErrorBoundary } from '../shared/ui/components/ErrorBoundary';
 import './index.css';
@@ -241,11 +241,8 @@ function App() {
     );
   }
 
-  const isTallerMode = isTallerUser(user);
-  const userRole = (user?.rol || '').toUpperCase();
-  const isImpresion = userRole === 'IMPRESIÓN' || userRole === 'IMPRESION';
-  const isVentas = userRole === 'VENTAS' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
-  const isDisenador = userRole === 'DISEÑADOR' || userRole === 'DISENADOR' || userRole === 'VENTAS / DISEÑADOR' || userRole === 'VENTAS / DISENADOR';
+  const isAdmin = isAdminUser(user);
+  const isTrabajador = !isAdmin;
 
   return (
     <>
@@ -256,55 +253,45 @@ function App() {
       <ProyectosProvider>
         <Layout user={user} onLogout={handleLogout}>
           <Suspense fallback={<RouteLoading />}>
-            {isTallerMode ? (
+            {isTrabajador ? (
               <Routes>
                 <Route path="/" element={<Navigate to="/proyectos" replace />} />
                 <Route path="/proyectos/*" element={<ProyectosFeature />} />
                 <Route path="/notificaciones" element={<NotificacionesPage />} />
-                <Route path="/instalaciones" element={<InstalacionesPage />} />
-                <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
                 <Route path="/tareas/*" element={<TareasFeature />} />
                 <Route path="/compras/*" element={<ComprasFeature />} />
-                <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
-                <Route path="/inventario/*" element={<InventarioFeature />} />
-                <Route path="/inventario/recepcion" element={<Navigate to="/compras/recepcion" replace />} />
-                <Route path="/inventario/recepcion/:ordenId" element={<LegacyRecepcionRedirect />} />
                 <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
-                <Route path="/taller/control" element={<TallerControlPage />} />
+                <Route path="/asistencia" element={<Navigate to="/nomina/registro-asistencia" replace />} />
                 <Route path="*" element={<Navigate to="/proyectos" replace />} />
               </Routes>
             ) : (
               <Routes>
-                <Route path="/" element={
-                  isImpresion ? <Navigate to="/colas-impresion" replace /> :
-                  (isVentas || isDisenador) ? <Navigate to="/proformas" replace /> :
-                  <DashboardPage />
-                } />
+                <Route path="/" element={<DashboardPage />} />
                 <Route path="/catalogo/:categorySlug" element={<CategoryDetailPage />} />
                 <Route path="/notificaciones" element={<NotificacionesPage />} />
-                {!isImpresion && <Route path="/nomina/*" element={<NominaFeature />} />}
-                {!isImpresion && <Route path="/impresiones" element={<ImpresionesPage />} />}
-                <Route path="/colas-impresion" element={<ColasImpresionPage />} />
+                <Route path="/nomina/*" element={<NominaFeature />} />
+                <Route path="/impresiones" element={<ImpresionesPage />} />
+                <Route path="/colas-impresion" element={<Navigate to="/" replace />} />
                 <Route path="/instalaciones" element={<InstalacionesPage />} />
                 <Route path="/instalaciones/:id/materiales" element={<MaterialesRequestPage />} />
                 <Route path="/inventario/*" element={<InventarioFeature />} />
-                {!isImpresion && <Route path="/proyectos/*" element={<ProyectosFeature />} />}
-                {!isImpresion && <Route path="/proformas/*" element={<ProformasFeature />} />}
-                {!isImpresion && <Route path="/clientes/*" element={<ClientesFeature />} />}
-                {!isImpresion && <Route path="/proveedores/*" element={<ProveedoresFeature />} />}
-                {!isImpresion && !isVentas && !isDisenador && <Route path="/usuarios/*" element={<UsuariosFeature />} />}
-                {!isImpresion && !isVentas && !isDisenador && <Route path="/configuracion/*" element={<ConfiguracionFeature />} />}
+                <Route path="/proyectos/*" element={<ProyectosFeature />} />
+                <Route path="/proformas/*" element={<ProformasFeature />} />
+                <Route path="/clientes/*" element={<ClientesFeature />} />
+                <Route path="/proveedores/*" element={<ProveedoresFeature />} />
+                <Route path="/usuarios/*" element={<UsuariosFeature />} />
+                <Route path="/configuracion/*" element={<ConfiguracionFeature />} />
                 <Route path="/devoluciones" element={<Navigate to="/inventario/devoluciones" replace />} />
                 <Route path="/compras/*" element={<ComprasFeature />} />
-                {!isImpresion && <Route path="/ventas/*" element={<VentasFeature />} />}
-                {!isImpresion && !isVentas && !isDisenador && <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />}
-                {!isImpresion && !isVentas && !isDisenador && <Route path="/flota/*" element={<GastosFeature defaultTab="vehiculos" />} />}
-                {!isImpresion && !isVentas && !isDisenador && <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />}
-                {!isImpresion && !isVentas && !isDisenador && <Route path="/movimientos/*" element={<MovimientosPage />} />}
-                {!isImpresion && !isVentas && !isDisenador && <Route path="/balances" element={<BalancesPage />} />}
+                <Route path="/ventas/*" element={<VentasFeature />} />
+                <Route path="/gastos/*" element={<GastosFeature defaultTab="gastos" />} />
+                <Route path="/flota/*" element={<Navigate to="/gastos" replace />} />
+                <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />
+                <Route path="/movimientos/*" element={<MovimientosPage />} />
+                <Route path="/balances" element={<BalancesPage />} />
                 <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
                 <Route path="/tareas/*" element={<TareasFeature />} />
-                <Route path="/taller/control" element={<TallerControlPage />} />
+                <Route path="/taller/control" element={<Navigate to="/" replace />} />
                 {/* Redirección por defecto */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

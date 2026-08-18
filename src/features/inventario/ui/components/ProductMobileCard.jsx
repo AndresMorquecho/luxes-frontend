@@ -3,67 +3,57 @@ import { Package, Wrench, Eye, Edit2, Trash2 } from 'lucide-react';
 import { StatusBadge } from './StatusBadge.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
 
-const fmt = (n) => `$${Number(n).toFixed(2)}`;
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
 
-export function ProductMobileCard({ item, activeTab, isAdmin, onViewHistory, onEdit, onDelete }) {
-  const isTool = item.tipo === 'herramienta';
-  const tracksStock = item.descargaStock !== undefined ? item.descargaStock : !(item.categoria?.toLowerCase() === 'taller' || item.categoria?.toLowerCase() === 'oficina');
+export function ProductMobileCard({ item, isAdmin, onViewHistory, onEdit, onDelete }) {
+  const isTool = item.tipo === 'herramienta' || String(item.categoria || '').toLowerCase() === 'taller';
   const unidad = item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unid';
   
-  const estado = isTool ? item.estadoUso : (
-    !tracksStock ? 'Solo registro' :
+  const estado = isTool ? (item.estadoUso || 'En Stock') : (
     item.stockActual === 0 ? 'Agotado' :
-    item.stockActual <= item.stockMinimo ? 'Stock Bajo' : 'En Stock'
+    item.stockActual <= (item.stockMinimo || 1) ? 'Stock Bajo' : 'En Stock'
   );
-
-  const cpp = item.costoPromedioPonderado !== undefined ? item.costoPromedioPonderado : item.precioCosto;
 
   return (
     <div className="inv-mobile-card">
       <div className="inv-card-header">
         <div className="inv-card-title-group">
           {item.codigo && <span className="inv-card-code">{item.codigo}</span>}
-          <span className="inv-card-title">{item.nombre}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {isTool ? <Wrench size={14} color="#0284c7" /> : <Package size={14} color="#16a34a" />}
+            <span className="inv-card-title">{item.nombre}</span>
+          </div>
         </div>
         <StatusBadge status={estado} />
       </div>
       <div className="inv-card-body">
-        {activeTab === 'all' && (
-          <div className="inv-card-row">
-            <span className="inv-card-label">Sección</span>
-            <SectionBadge section={item.categoria} />
-          </div>
-        )}
         <div className="inv-card-row">
-          <span className="inv-card-label">Stock</span>
-          <span className="inv-card-value highlight" style={!tracksStock ? { color: '#64748b', fontWeight: 500 } : {}}>{item.stockActual} {unidad}</span>
+          <span className="inv-card-label">Tipo</span>
+          <SectionBadge section={item.categoria} tipo={item.tipo} />
+        </div>
+        <div className="inv-card-row">
+          <span className="inv-card-label">Stock Actual</span>
+          <span className="inv-card-value highlight" style={{ color: item.stockActual === 0 ? '#ef4444' : '#1e293b' }}>
+            {item.stockActual} {unidad}
+          </span>
         </div>
         <div className="inv-card-row">
           <span className="inv-card-label">Costo Unit.</span>
           <span className="inv-card-value">{fmt(item.precioCosto)}</span>
         </div>
-        <div className="inv-card-row">
-          <span className="inv-card-label">CPP</span>
-          <span className="inv-card-value cpp" style={{ fontWeight: 700, color: '#1d4ed8' }}>{fmt(cpp)}</span>
-        </div>
-        <div className="inv-card-row">
-          <span className="inv-card-label">Últ. Compra</span>
-          <span className="inv-card-value" style={{ color: '#64748b' }}>{item.ultimaFechaCompra ? fmtDate(item.ultimaFechaCompra) : '—'}</span>
-        </div>
       </div>
-      <div className="inv-card-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
-        <button type="button" onClick={() => onViewHistory(item)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0 }}>
-          <Eye size={18}/>
+      <div className="inv-card-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
+        <button type="button" onClick={() => onViewHistory(item)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', color: '#64748b', cursor: 'pointer', padding: '0.35rem' }}>
+          <Eye size={16}/>
         </button>
         {isAdmin && (
-          <button type="button" onClick={() => onEdit(item)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0 }}>
-            <Edit2 size={18}/>
+          <button type="button" onClick={() => onEdit(item)} style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', color: '#0284c7', cursor: 'pointer', padding: '0.35rem' }}>
+            <Edit2 size={16}/>
           </button>
         )}
         {isAdmin && (
-          <button type="button" onClick={() => onDelete(item)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}>
-            <Trash2 size={18}/>
+          <button type="button" onClick={() => onDelete(item)} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#ef4444', cursor: 'pointer', padding: '0.35rem' }}>
+            <Trash2 size={16}/>
           </button>
         )}
       </div>

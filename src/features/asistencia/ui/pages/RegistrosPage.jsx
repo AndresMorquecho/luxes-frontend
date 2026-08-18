@@ -11,7 +11,7 @@ import { getEmpleados } from '../../../empleados/application/empleadosService';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from '../../../../shared/ui/components/Toast';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
-import { isAsistenciaUser, normalizeUserForSession, isAdminUser } from '../../../../shared/utils/userRoleHelpers';
+import { isAsistenciaUser, isTrabajadorUser, normalizeUserForSession, isAdminUser } from '../../../../shared/utils/userRoleHelpers';
 import { useGeolocation, getGpsBadgeProps } from '../../../../shared/hooks/useGeolocation';
 import { OverlayPortal, ModalPortal } from '../../../../shared/ui/components/ModalPortal';
 import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
@@ -637,20 +637,25 @@ const KioskView = () => {
                   }
                   setIsProcessingScan(true);
                   try {
+                    const targetEmpId = userEmpleadoId || kioskSession?.empleadoId || currentUser?.empleadoId || currentUser?.id || 'EMP-001';
+                    const targetEmpNombre = kioskSession?.nombreEmpleado || currentUser?.nombre || 'Empleado';
                     const empTarget = {
-                      id: kioskSession?.empleadoId || userObj?.id || 'EMP-001',
-                      nombre: kioskSession?.nombreEmpleado || userObj?.nombre || 'Empleado'
+                      id: targetEmpId,
+                      nombre: targetEmpNombre
                     };
                     const res = await requestBiometricScan(empTarget);
                     if (res.success) {
-                      toast.success('👆 Huella biométrica verificada con éxito');
+                      toast.success('Huella biométrica verificada con éxito');
                       const ubicacionFinal = await resolveUbicacion();
                       const reg = await registrarAsistencia({
                         empleadoId: empTarget.id,
                         ubicacion: ubicacionFinal
                       });
                       toast.success(`Asistencia registrada: ${reg?.label || 'Marcación completada'}`);
-                      if (typeof reloadMarcaciones === 'function') reloadMarcaciones();
+                      if (empTarget.id) {
+                        await loadUserTodaySession(empTarget.id);
+                      }
+                      await loadRecentRegistros();
                     }
                   } catch (err) {
                     toast.error(err.message || 'Error en autenticación de huella');
@@ -685,20 +690,25 @@ const KioskView = () => {
                   }
                   setIsProcessingScan(true);
                   try {
+                    const targetEmpId = userEmpleadoId || kioskSession?.empleadoId || currentUser?.empleadoId || currentUser?.id || 'EMP-001';
+                    const targetEmpNombre = kioskSession?.nombreEmpleado || currentUser?.nombre || 'Empleado';
                     const empTarget = {
-                      id: kioskSession?.empleadoId || userObj?.id || 'EMP-001',
-                      nombre: kioskSession?.nombreEmpleado || userObj?.nombre || 'Empleado'
+                      id: targetEmpId,
+                      nombre: targetEmpNombre
                     };
                     const res = await requestBiometricScan(empTarget);
                     if (res.success) {
-                      toast.success('👆 Huella biométrica verificada con éxito');
+                      toast.success('Huella biométrica verificada con éxito');
                       const ubicacionFinal = await resolveUbicacion();
                       const reg = await registrarAsistencia({
                         empleadoId: empTarget.id,
                         ubicacion: ubicacionFinal
                       });
                       toast.success(`Asistencia registrada: ${reg?.label || 'Marcación completada'}`);
-                      if (typeof reloadMarcaciones === 'function') reloadMarcaciones();
+                      if (empTarget.id) {
+                        await loadUserTodaySession(empTarget.id);
+                      }
+                      await loadRecentRegistros();
                     }
                   } catch (err) {
                     toast.error(err.message || 'Error en autenticación de huella');
@@ -713,19 +723,7 @@ const KioskView = () => {
                     : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25 active:scale-98'
                 }`}
               >
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0 1 19.5 10.5c0 2.92-.556 5.709-1.568 8.258M4.75 10.5a7.489 7.489 0 0 1 2.24-5.303m-2.24 5.303C4.248 12.38 4 14.364 4 16.425" />
-                </svg>
-                {isProcessingScan ? 'Verificando Huella...' : '👆 Marcar Asistencia con Huella'}
-              </button>
-
-              {/* Opción secundaria: Escáner QR */}
-              <button
-                type="button"
-                onClick={() => setIsCameraActive(true)}
-                className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline mt-1 cursor-pointer flex items-center gap-1"
-              >
-                📷 O usar escáner de cámara QR
+                {isProcessingScan ? 'Verificando Huella...' : 'Marcar Asistencia con Huella'}
               </button>
 
               {gpsBadge.tone === 'amber' && (
@@ -991,9 +989,11 @@ export const RegistrosPage = () => {
 
   const queryParams = new URLSearchParams(window.location.search);
   const forceKiosk = queryParams.get('kiosk') === 'true' || queryParams.get('vista') === 'kiosk';
-  const isKioskMode = isAsistenciaUser(userObj) || forceKiosk;
+  const forceAdmin = queryParams.get('vista') === 'admin';
+  const isTrabajador = isTrabajadorUser(userObj);
+  const isKioskMode = isTrabajador || forceKiosk || !isAdminUser(userObj);
 
-  if (isKioskMode) {
+  if (isKioskMode && !forceAdmin) {
     return <KioskView />;
   }
 
@@ -1082,7 +1082,7 @@ const AsistenciaAcciones = ({ isPermiso, onConcederPermiso, onCancelarPermiso })
       <button
         type="button"
         onClick={onCancelarPermiso}
-        className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+        className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 hover:bg-rose-100 active:scale-[0.99] rounded-xl shadow-2xs transition-all shrink-0 cursor-pointer"
       >
         Cancelar Permiso
       </button>
@@ -1092,7 +1092,7 @@ const AsistenciaAcciones = ({ isPermiso, onConcederPermiso, onCancelarPermiso })
     <button
       type="button"
       onClick={onConcederPermiso}
-      className="w-full sm:w-auto px-3 py-1.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow transition-all shrink-0 cursor-pointer border-none"
+      className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-bold text-white bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] rounded-xl shadow-xs transition-all shrink-0 cursor-pointer border-none"
     >
       Conceder Permiso
     </button>
@@ -1444,24 +1444,22 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-slide-up w-full" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="space-y-4 sm:space-y-6 animate-slide-up w-full asistencia-page" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
       <style>{`
-        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
-        .kpi-card { position: relative; overflow: hidden; }
-        .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 2px 2px 0 0; }
-        .kpi-card.total::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-        .kpi-card.asistencias::before { background: linear-gradient(90deg, #10b981, #34d399); }
-        .kpi-card.faltas::before { background: linear-gradient(90deg, #ef4444, #f87171); }
-        .kpi-card.permisos::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .asistencia-page, .asistencia-page * { 
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important; 
+          box-sizing: border-box; 
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
       {/* Header Panel */}
-      <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-card">
+      <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
-            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100 text-blue-600 shadow-xs">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
           </div>
@@ -1472,13 +1470,16 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                 Activo
               </span>
             </div>
-            <p className="text-sm text-slate-500 mt-0.5">Supervisión diaria, control de ausencias y asignación de permisos.</p>
+            <p className="text-sm text-slate-500 mt-0.5">Supervisión diaria, control de ausencias y asignación de permisos</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={descargarExcel}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-gray-50 transition-all shadow-sm cursor-pointer border-solid">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button
+            type="button"
+            onClick={descargarExcel}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+          >
+            <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             Exportar Día
@@ -1486,33 +1487,32 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </div>
       </div>
 
-
-
-      {/* KPIs Grid - placed above calendar selector, in a single row */}
-      <div className="flex flex-wrap lg:flex-nowrap gap-3">
+      {/* KPIs Grid - en una sola fila */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
-          { label: 'Colaboradores', value: kpis.total, cssClass: 'total', color: 'text-blue-600' },
-          { label: 'Asistencias', value: kpis.asistieron, cssClass: 'asistencias', color: 'text-emerald-600' },
-          { label: 'Faltas', value: kpis.faltaron, cssClass: 'faltas', color: 'text-red-600' },
-          { label: 'Permisos', value: kpis.permisos, cssClass: 'permisos', color: 'text-indigo-600' },
-          { label: 'Sin almuerzo', value: kpis.sinAlmuerzo, cssClass: 'faltas', color: 'text-amber-600' },
+          { label: 'Colaboradores', value: kpis.total, color: 'text-blue-600', bg: 'bg-blue-50/50' },
+          { label: 'Asistencias', value: kpis.asistieron, color: 'text-emerald-600', bg: 'bg-emerald-50/50' },
+          { label: 'Faltas', value: kpis.faltaron, color: 'text-rose-600', bg: 'bg-rose-50/50' },
+          { label: 'Permisos', value: kpis.permisos, color: 'text-indigo-600', bg: 'bg-indigo-50/50' },
+          { label: 'Sin almuerzo', value: kpis.sinAlmuerzo, color: 'text-amber-600', bg: 'bg-amber-50/50' },
         ].map(s => (
-          <div key={s.label} className={`flex-1 min-w-[120px] bg-white shadow-card kpi-card ${s.cssClass} rounded-xl p-3 border border-gray-100`}>
-            <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider truncate">{s.label}</p>
-            <p className={`text-lg sm:text-2xl font-black mt-1 ${s.color}`}>{s.value}</p>
+          <div key={s.label} className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex flex-col justify-between">
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider truncate">{s.label}</p>
+            <p className={`text-xl sm:text-2xl font-mono font-extrabold mt-1 ${s.color}`}>{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* Selector de Semana / Fecha */}
-      <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm">
+      <div className="bg-white border border-slate-100 rounded-2xl px-3.5 py-3 shadow-xs">
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3">
           {/* Controles de semana */}
           <div className="flex items-center justify-between gap-2 lg:justify-start lg:shrink-0">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button
+                type="button"
                 onClick={handlePrevWeek}
-                className="w-7 h-7 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600 transition-all cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 transition-all cursor-pointer shadow-2xs"
                 title="Semana anterior"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1521,15 +1521,17 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
               </button>
 
               <button
+                type="button"
                 onClick={() => setFechaFiltro(getTodayEcuadorStr())}
-                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
+                className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-bold text-blue-700 hover:bg-blue-100 transition-all cursor-pointer shadow-2xs"
               >
                 Hoy
               </button>
 
               <button
+                type="button"
                 onClick={handleNextWeek}
-                className="w-7 h-7 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600 transition-all cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 transition-all cursor-pointer shadow-2xs"
                 title="Semana siguiente"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1537,7 +1539,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                 </svg>
               </button>
 
-              <span className="text-[11px] font-semibold text-slate-500 ml-1 hidden sm:inline whitespace-nowrap">
+              <span className="text-xs font-bold text-slate-500 ml-1.5 hidden sm:inline whitespace-nowrap">
                 {weekDays[0] && formatFecha(weekDays[0])} – {weekDays[6] && formatFecha(weekDays[6])}
               </span>
             </div>
@@ -1549,13 +1551,13 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                 type="date"
                 value={fechaFiltro}
                 onChange={e => setFechaFiltro(e.target.value)}
-                className="px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all bg-white cursor-pointer"
+                className="px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white cursor-pointer shadow-2xs"
               />
             </div>
           </div>
 
           {/* Días de la semana */}
-          <div className="flex gap-1 overflow-x-auto no-scrollbar flex-1 lg:justify-center min-w-0">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1 lg:justify-center min-w-0">
             {weekDays.map((d, i) => {
               const iso = toISODate(d);
               const isSelected = iso === fechaFiltro;
@@ -1563,23 +1565,24 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
 
               return (
                 <button
+                  type="button"
                   key={i}
                   onClick={() => setFechaFiltro(iso)}
-                  className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-lg text-[9px] font-bold transition-all min-w-[44px] shrink-0 border cursor-pointer ${isSelected
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                  className={`flex flex-col items-center justify-center px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all min-w-[46px] shrink-0 border cursor-pointer ${isSelected
+                      ? 'bg-[#0b2d64] border-[#0b2d64] text-white shadow-xs'
                       : isToday
                         ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
                         : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100'
                     }`}
                 >
-                  <span className={`uppercase tracking-wide leading-none ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                  <span className={`uppercase tracking-wide leading-none text-[9px] ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
                     {DIAS_LABEL[d.getDay() === 0 ? 6 : d.getDay() - 1]}
                   </span>
-                  <span className="text-sm font-black mt-0.5 leading-none">
+                  <span className="text-sm font-mono font-extrabold mt-0.5 leading-none">
                     {d.getDate()}
                   </span>
                   {isToday && (
-                    <span className={`text-[6px] font-bold mt-0.5 leading-none ${isSelected ? 'text-slate-300' : 'text-blue-500'}`}>
+                    <span className={`text-[8px] font-bold mt-0.5 leading-none uppercase ${isSelected ? 'text-blue-200' : 'text-blue-600'}`}>
                       hoy
                     </span>
                   )}
@@ -1589,31 +1592,38 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           </div>
 
           {/* Selector de fecha (escritorio) */}
-          <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
             <label htmlFor="fecha-filtro-desktop" className="text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Ir a fecha</label>
             <input
               id="fecha-filtro-desktop"
               type="date"
               value={fechaFiltro}
               onChange={e => setFechaFiltro(e.target.value)}
-              className="px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all bg-white cursor-pointer"
+              className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white cursor-pointer shadow-2xs"
             />
           </div>
         </div>
       </div>
 
       {/* Buscador y Filtros de Estado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <div className="relative flex-1 max-w-md">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
-          <input type="text" placeholder="Buscar empleado por nombre, ID o cargo..."
-            value={busqueda} onChange={e => setBusqueda(e.target.value)}
-            className="w-full border border-gray-200 bg-white rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-gray-400 shadow-sm" />
+          <input
+            type="text"
+            placeholder="Buscar empleado por nombre, ID o cargo..."
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            className="w-full border border-slate-200 bg-white rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium text-slate-800 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 shadow-xs"
+          />
           {busqueda && (
-            <button onClick={() => setBusqueda('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button
+              type="button"
+              onClick={() => setBusqueda('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+            >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
             </button>
           )}
@@ -1627,24 +1637,33 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
             { key: 'PERMISO', label: 'Permisos' },
             { key: 'SIN_ALMUERZO', label: 'Sin almuerzo' },
           ].map(t => (
-            <button key={t.key} onClick={() => setFiltroEstado(t.key)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${filtroEstado === t.key ? 'bg-blue-900 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}>{t.label}</button>
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setFiltroEstado(t.key)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                filtroEstado === t.key
+                  ? 'bg-[#0b2d64] text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {t.label}
+            </button>
           ))}
         </div>
       </div>
 
       {/* Main List Table */}
       {loading ? (
-        <div className="flex justify-center items-center py-16">
+        <div className="flex justify-center items-center py-20">
           <div className="flex flex-col items-center gap-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-500" />
-            <span className="text-xs font-medium text-slate-400">Cargando registros...</span>
+            <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-blue-600" />
+            <span className="text-xs font-bold text-slate-400">Cargando registros...</span>
           </div>
         </div>
       ) : rowsFiltrados.length === 0 ? (
-        <div className="bg-white border border-slate-100 rounded-2xl p-16 text-center shadow-card">
-          <svg className="w-12 h-12 text-slate-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <div className="bg-white border border-slate-100 rounded-2xl p-16 text-center shadow-xs">
+          <svg className="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
           </svg>
           <h3 className="text-base font-bold text-slate-700">No se encontraron colaboradores</h3>
@@ -1652,38 +1671,38 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         </div>
       ) : (
         <>
-          <div className="hidden md:block bg-white border border-slate-200 rounded-2xl shadow-card overflow-hidden">
+          <div className="hidden md:block bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left">
+                  <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left">
                     <th className="px-6 py-4" rowSpan={2}>Colaborador / Cargo</th>
                     <th className="px-6 py-4 text-center" rowSpan={2}>Estado</th>
-                    <th className="px-4 py-3 text-center border-l border-slate-200/80" colSpan={4}>Marcaciones por horario</th>
+                    <th className="px-4 py-3 text-center border-l border-slate-100" colSpan={4}>Marcaciones por horario</th>
                     <th className="px-4 py-4 text-center" rowSpan={2}>Almuerzo</th>
                     <th className="px-6 py-4 text-center" rowSpan={2}>Total Horas</th>
                     <th className="px-6 py-4 text-right" rowSpan={2}>Acción</th>
                   </tr>
-                  <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
-                    <th className="px-4 py-2 border-l border-slate-200/80">
+                  <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
+                    <th className="px-4 py-2 border-l border-slate-100">
                       Entrada
-                      {horarioDia.ENTRADA && <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.ENTRADA.label}</div>}
+                      {horarioDia.ENTRADA && <div className="text-[9px] font-mono text-blue-600 font-bold normal-case mt-0.5">ref. {horarioDia.ENTRADA.label}</div>}
                     </th>
                     <th className="px-4 py-2">
                       Sal. Almuerzo
                       {horarioDia.INICIO_ALMUERZO
-                        ? <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.INICIO_ALMUERZO.label}</div>
+                        ? <div className="text-[9px] font-mono text-blue-600 font-bold normal-case mt-0.5">ref. {horarioDia.INICIO_ALMUERZO.label}</div>
                         : <div className="text-[9px] text-slate-400 normal-case mt-0.5">opcional</div>}
                     </th>
                     <th className="px-4 py-2">
                       Reg. Almuerzo
                       {horarioDia.FIN_ALMUERZO
-                        ? <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.FIN_ALMUERZO.label}</div>
+                        ? <div className="text-[9px] font-mono text-blue-600 font-bold normal-case mt-0.5">ref. {horarioDia.FIN_ALMUERZO.label}</div>
                         : <div className="text-[9px] text-slate-400 normal-case mt-0.5">opcional</div>}
                     </th>
                     <th className="px-4 py-2">
                       Salida
-                      {horarioDia.SALIDA && <div className="text-[9px] font-mono text-blue-500 normal-case mt-0.5">ref. {horarioDia.SALIDA.label}</div>}
+                      {horarioDia.SALIDA && <div className="text-[9px] font-mono text-blue-600 font-bold normal-case mt-0.5">ref. {horarioDia.SALIDA.label}</div>}
                     </th>
                   </tr>
                 </thead>
@@ -1693,7 +1712,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                       buildAsistenciaRowMeta(marcaciones, estado);
 
                     return (
-                      <tr key={emp.id} className="hover:bg-slate-50/40 transition-colors">
+                      <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3 min-w-0">
                             <PersonInitialsAvatar name={emp.nombre} seed={emp.id} size="sm" image={emp.foto} />
@@ -1852,13 +1871,13 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
         {editingCellData && (
           <div className="fixed inset-0 z-[10020] flex items-center justify-center p-4">
             <div
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"
               onClick={() => setAdminCellModalOpen(false)}
             />
-            <div className="relative p-6 sm:p-7 max-w-lg w-full bg-white rounded-2xl shadow-2xl border border-slate-100 animate-modal-in z-10">
+            <div className="relative p-6 sm:p-7 max-w-lg w-full bg-white rounded-2xl shadow-2xl border border-slate-100 animate-modal-in z-10 overflow-hidden">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold shadow-xs">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
@@ -1868,18 +1887,16 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                       {editingCellData.marcacion ? 'Editar Marcación' : 'Agregar Marcación'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium">
-                      {editingCellData.empleado.nombre} • <span className="font-mono text-blue-600">{editingCellData.empleado.id}</span>
+                      {editingCellData.empleado.nombre} • <span className="font-mono text-blue-600 font-bold">{editingCellData.empleado.id}</span>
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAdminCellModalOpen(false)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                  </svg>
+                  ✕
                 </button>
               </div>
 
@@ -1896,7 +1913,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Fecha</span>
-                    <span className="text-xs font-semibold text-slate-600">{editingCellData.dateStr}</span>
+                    <span className="text-xs font-mono font-bold text-slate-600">{editingCellData.dateStr}</span>
                   </div>
                 </div>
 
@@ -1910,7 +1927,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                     required
                     value={horaFormVal}
                     onChange={(e) => setHoraFormVal(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-base font-bold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-base font-bold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
                   />
                   {editingCellData.esperado && (
                     <p className="text-[11px] font-medium text-slate-400 mt-1">
@@ -1947,19 +1964,19 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => setAdminCellModalOpen(false)}
                     disabled={savingAdminCell}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={savingAdminCell}
-                    className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2"
                   >
                     {savingAdminCell ? (
                       <>

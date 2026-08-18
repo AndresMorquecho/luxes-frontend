@@ -19,6 +19,7 @@ export const ClientesPage = () => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [tipoFilter, setTipoFilter] = useState('todos');
   const [page, setPage] = useState(1);
   const perPage = 8;
 
@@ -95,15 +96,17 @@ export const ClientesPage = () => {
   };
 
   const q = search.toLowerCase();
-  const filteredAll = clientes.filter(c =>
-    !q || c.nombre.toLowerCase().includes(q) ||
-    c.cedulaRuc.includes(q) || c.email?.toLowerCase().includes(q)
-  );
+  const filteredAll = clientes.filter(c => {
+    const matchesSearch = !q || c.nombre.toLowerCase().includes(q) ||
+      c.cedulaRuc.includes(q) || c.email?.toLowerCase().includes(q);
+    const matchesTipo = tipoFilter === 'todos' || c.tipo === tipoFilter;
+    return matchesSearch && matchesTipo;
+  });
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / perPage));
   const safePage = Math.min(page, totalPages);
   const paginated = filteredAll.slice((safePage - 1) * perPage, safePage * perPage);
 
-  useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => { setPage(1); }, [search, tipoFilter]);
 
   const totales = {
     total: clientes.length,
@@ -112,25 +115,26 @@ export const ClientesPage = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 xl:p-8 pb-24 md:pb-8 w-full animate-slide-up" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="w-full pb-20 md:pb-6 animate-slide-up cl-root" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-        .cl-root * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+        .cl-root, .cl-root * { 
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important; 
+          box-sizing: border-box; 
+        }
 
         .cl-card {
-          background: rgba(255,255,255,0.75);
-          backdrop-filter: blur(20px) saturate(160%);
-          -webkit-backdrop-filter: blur(20px) saturate(160%);
-          border: 1px solid rgba(255,255,255,0.5);
-          border-radius: 20px;
-          box-shadow: 0 8px 32px rgba(37,99,235,0.06), 0 1px 2px rgba(0,0,0,0.03);
+          background: #ffffff;
+          border: 1px solid #f1f5f9;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.03);
           overflow: hidden;
         }
 
         .cl-btn-primary {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          background: #0b2d64;
           color: white;
           border: none;
           border-radius: 12px;
@@ -142,10 +146,12 @@ export const ClientesPage = () => {
           align-items: center;
           gap: 8px;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(37,99,235,0.3);
-          letter-spacing: 0.01em;
+          box-shadow: 0 4px 12px rgba(11,45,100,0.28);
         }
-        .cl-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(37,99,235,0.42); }
+        .cl-btn-primary:hover { 
+          background: #071f45;
+          box-shadow: 0 6px 16px rgba(11,45,100,0.38); 
+        }
         .cl-btn-primary:active { transform: translateY(0); }
         .cl-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
@@ -173,7 +179,6 @@ export const ClientesPage = () => {
           outline: none;
           transition: all 0.2s ease;
           background: rgba(255,255,255,0.9);
-          backdrop-filter: blur(4px);
         }
         .cl-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); background: #fff; }
         .cl-input::placeholder { color: #94a3b8; }
@@ -193,18 +198,37 @@ export const ClientesPage = () => {
         }
       `}</style>
 
-      {/* Header */}
-      <div className="cl-card px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">Clientes</h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5 font-medium">Registro y gestión de clientes para envío de proformas</p>
+      {/* Header Card */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs mb-4 sm:mb-6 overflow-hidden">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-600">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-800">Clientes</h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
+                  Lista
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-0.5">Registro y gestión de clientes para proformas y proyectos</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={openNew}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm whitespace-nowrap transition-all shadow-sm w-full sm:w-auto bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99]"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nuevo Cliente
+          </button>
         </div>
-        <button onClick={openNew} className="cl-btn-primary w-full sm:w-auto justify-center shrink-0">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nuevo Cliente
-        </button>
       </div>
 
       {/* KPI Cards */}
@@ -246,13 +270,22 @@ export const ClientesPage = () => {
 
       {/* Table */}
       <div className="cl-card">
-        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100/60 flex items-center gap-3">
-          <svg className="w-4 h-4 shrink-0" style={{ color: '#94a3b8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input className="cl-input w-full sm:max-w-xs !border-0 !bg-transparent !p-0 !shadow-none !text-sm !font-medium placeholder:!text-slate-400 focus:!ring-0"
-            placeholder="Buscar por nombre, RUC o email…"
-            value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100/60 flex items-center justify-end">
+          <div className="flex items-center gap-2.5 w-full sm:max-w-xs px-3 py-1.5 rounded-xl bg-slate-50/80 border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
+            <svg className="w-4 h-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input className="w-full bg-transparent border-0 p-0 shadow-none text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:ring-0"
+              placeholder="Buscar por nombre, RUC o email…"
+              value={search} onChange={e => setSearch(e.target.value)} />
+            {search && (
+              <button onClick={() => setSearch('')} className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer" type="button" title="Limpiar búsqueda">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -305,16 +338,17 @@ export const ClientesPage = () => {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button onClick={() => openEdit(c)}
-                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors" title="Editar">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                            className="w-8 h-8 rounded-xl bg-blue-50/80 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border border-blue-100/90 flex items-center justify-center transition-all cursor-pointer shadow-xs" title="Editar cliente">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.5" />
+                              <path d="m15.5 2.5 3 3L9 15H6v-3l9.5-9.5z" />
                             </svg>
                           </button>
                           <button onClick={() => handleDelete(c.id)}
-                            className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            className="w-8 h-8 rounded-xl bg-rose-50/80 text-rose-600 hover:bg-rose-100 hover:text-rose-700 border border-rose-100/90 flex items-center justify-center transition-all cursor-pointer shadow-xs" title="Eliminar cliente">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                             </svg>
                           </button>
@@ -407,63 +441,59 @@ export const ClientesPage = () => {
 
       <ModalPortal open={formOpen}>
         <div className="cl-modal-portal-root">
-          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(14px) saturate(130%)', WebkitBackdropFilter: 'blur(14px) saturate(130%)', animation: 'overlay-in 0.2s ease' }}
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', animation: 'overlay-in 0.2s ease' }}
             onClick={() => deferClose(() => setFormOpen(false))} />
-          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-modal-in max-h-[90vh] flex flex-col border border-slate-100"
-              style={{ boxShadow: '0 25px 60px rgba(15,23,42,0.15), 0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-                <h2 className="text-lg font-bold text-slate-800">{editing ? 'Editar Cliente' : 'Nuevo Cliente'}</h2>
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-3 sm:p-4">
+            <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl animate-modal-in flex flex-col border border-slate-100 overflow-hidden"
+              style={{ boxShadow: '0 20px 50px rgba(15,23,42,0.12), 0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
+                <h2 className="text-base sm:text-lg font-bold text-slate-800">{editing ? 'Editar Cliente' : 'Nuevo Cliente'}</h2>
                 <button type="button" onClick={() => deferClose(() => setFormOpen(false))}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors cursor-pointer">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-              <div className="overflow-y-auto p-6">
-                <form onSubmit={handleSave} className="space-y-4">
+              <div className="p-4 sm:p-5">
+                <form onSubmit={handleSave} className="space-y-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Nombre / Razón Social</label>
-                    <input name="nombre" value={form.nombre} onChange={handleChange} required placeholder="Ej. Corporación Lojana S.A." className="cl-input" />
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Nombre / Razón Social</label>
+                    <input name="nombre" value={form.nombre} onChange={handleChange} required placeholder="Ej. Corporación Lojana S.A." className="cl-input !py-2 !text-xs sm:!text-sm" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">RUC / Cédula</label>
-                      <input name="cedulaRuc" value={form.cedulaRuc} onChange={handleChange} required placeholder="1790012345001" className="cl-input font-mono" />
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">RUC / Cédula</label>
+                      <input name="cedulaRuc" value={form.cedulaRuc} onChange={handleChange} required placeholder="1790012345001" className="cl-input font-mono !py-2 !text-xs sm:!text-sm" />
                     </div>
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Tipo</label>
-                      <select name="tipo" value={form.tipo} onChange={handleChange} className="cl-input">
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Tipo</label>
+                      <select name="tipo" value={form.tipo} onChange={handleChange} className="cl-input !py-2 !text-xs sm:!text-sm">
                         {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Teléfono</label>
-                      <input name="telefono" value={form.telefono} onChange={handleChange} placeholder="0991234567" className="cl-input" />
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Teléfono</label>
+                      <input name="telefono" value={form.telefono} onChange={handleChange} placeholder="0991234567" className="cl-input !py-2 !text-xs sm:!text-sm" />
                     </div>
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Correo electrónico</label>
-                      <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="cliente@ejemplo.com" className="cl-input" />
+                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Correo electrónico</label>
+                      <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="cliente@ejemplo.com" className="cl-input !py-2 !text-xs sm:!text-sm" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Dirección</label>
-                    <input name="direccion" value={form.direccion} onChange={handleChange} placeholder="Av. Principal y calle secundaria" className="cl-input" />
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Dirección</label>
+                    <input name="direccion" value={form.direccion} onChange={handleChange} placeholder="Av. Principal y calle secundaria" className="cl-input !py-2 !text-xs sm:!text-sm" />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Notas</label>
-                    <textarea name="notas" value={form.notas} onChange={handleChange} rows={2} placeholder="Información adicional…" className="cl-input resize-none" />
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Notas</label>
+                    <textarea name="notas" value={form.notas} onChange={handleChange} rows={1} placeholder="Información adicional…" className="cl-input resize-none !py-2 !text-xs sm:!text-sm" />
                   </div>
-                  <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => deferClose(() => setFormOpen(false))} className="cl-btn-ghost">Cancelar</button>
-                    <button type="submit" disabled={saving} className="cl-btn-primary">
-                      <span
-                        className={`inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-1.5 ${saving ? 'animate-spin' : 'hidden'}`}
-                        aria-hidden={!saving}
-                      />
+                  <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                    <button type="button" onClick={() => deferClose(() => setFormOpen(false))} className="cl-btn-ghost !py-2 !text-xs sm:!text-sm">Cancelar</button>
+                    <button type="submit" disabled={saving} className="cl-btn-primary !py-2 !text-xs sm:!text-sm">
                       {editing ? 'Guardar cambios' : 'Registrar Cliente'}
                     </button>
                   </div>

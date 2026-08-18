@@ -888,40 +888,44 @@ export const EmpleadoFormPage = () => {
   };
 
   return (
-    <div className="space-y-3 sm:space-y-5 animate-slide-up empleado-form-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="space-y-3 sm:space-y-5 animate-slide-up empleado-form-page" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
       <style>{`
-        .empleado-form-page, .empleado-form-page * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .empleado-form-page, .empleado-form-page * { 
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important; 
+          box-sizing: border-box; 
+        }
         .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
-        .input-field { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.625rem 0.875rem; font-size: 0.875rem; font-weight: 500; color: #1e293b; outline: none; transition: all 0.15s ease; background: white; width: 100%; }
-        .input-field:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .input-field { border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.625rem 0.875rem; font-size: 0.875rem; font-weight: 500; color: #1e293b; outline: none; transition: all 0.15s ease; background: white; width: 100%; }
+        .input-field:focus { border-color: #3b82f6; ring: 2px; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
         .input-field::placeholder { color: #94a3b8; }
-        .btn-primary { background: linear-gradient(135deg, #0b2d64 0%, #164e96 100%); border: 1px solid rgba(200,150,62,0.4); color: white; transition: all 0.15s ease; }
-        .btn-primary:hover { background: linear-gradient(135deg, #071f45 0%, #0b2d64 100%); border-color: #c8963e; box-shadow: 0 4px 14px rgba(11,45,100,0.35); }
-        .btn-ghost { transition: all 0.15s ease; }
+        .btn-primary { background: #0b2d64; color: white; transition: all 0.15s ease; border: none; font-weight: 700; }
+        .btn-primary:hover { background: #071f45; box-shadow: 0 4px 12px rgba(11,45,100,0.25); }
+        .btn-ghost { transition: all 0.15s ease; font-weight: 700; }
         .btn-ghost:hover { background: #f1f5f9; }
         @keyframes modal-in {
-          from { transform: scale(0.96) translateY(12px); opacity: 0; }
+          from { transform: scale(0.97) translateY(8px); opacity: 0; }
           to { transform: scale(1) translateY(0); opacity: 1; }
         }
-        .animate-modal-in { animation: modal-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .animate-modal-in { animation: modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
       `}</style>
 
       {/* Header + Tabs — same card as EmpleadosPage */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-4 sm:mb-6">
+      <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden mb-4 sm:mb-6 shadow-xs">
         <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => navigate('/nomina/empleados')}
-              className="w-9 h-9 rounded-lg flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0"
+              className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0 cursor-pointer shadow-2xs"
               title="Volver"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
               </svg>
             </button>
-            <div className="w-11 h-11 rounded-xl border bg-blue-50 border-blue-100 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="w-11 h-11 rounded-xl border bg-blue-50 border-blue-100 text-blue-600 flex items-center justify-center shrink-0 shadow-xs">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
               </svg>
             </div>
@@ -940,7 +944,7 @@ export const EmpleadoFormPage = () => {
         </div>
 
         {/* Tab bar — same style as EmpleadosPage */}
-        <div className="px-4 sm:px-5 pb-4 flex gap-1 border-t border-slate-100 pt-3 bg-slate-50/50">
+        <div className="px-4 sm:px-5 pb-3 flex gap-1.5 border-t border-slate-100 pt-3 bg-slate-50/50">
           {[
             { id: 'personal', label: 'Datos Personales', icon: 'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z' },
             { id: 'documentos', label: 'Documentos', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z' },
@@ -950,10 +954,10 @@ export const EmpleadoFormPage = () => {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
                 tab === t.id
-                  ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+                  ? 'bg-[#0b2d64] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
               }`}
             >
               <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1441,12 +1445,10 @@ export const EmpleadoFormPage = () => {
                   </div>
                 </div>
               )}
-
-
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-t border-gray-100 bg-gray-50/50 shrink-0">
+            <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
               <div className="flex gap-2">
                 {/* Botones de navegación movidos a la derecha */}
               </div>
@@ -1456,7 +1458,7 @@ export const EmpleadoFormPage = () => {
                   <button
                     type="button"
                     onClick={() => navigate('/nomina/empleados')}
-                    className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold text-slate-600"
+                    className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer bg-white border border-slate-200 shadow-2xs"
                   >
                     Cancelar
                   </button>
@@ -1467,7 +1469,7 @@ export const EmpleadoFormPage = () => {
                       if (tab === 'documentos') setTab('personal');
                       else if (tab === 'credenciales') setTab('documentos');
                     }}
-                    className="btn-ghost px-4 py-2 rounded-xl text-sm font-semibold text-slate-600"
+                    className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer bg-white border border-slate-200 shadow-2xs"
                   >
                     Atrás
                   </button>
@@ -1482,8 +1484,8 @@ export const EmpleadoFormPage = () => {
                         key="btn-submit"
                         type="submit"
                         disabled={saving || (isEdit && !isDirty)}
-                        className={`btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2 shadow-sm ${
-                          isEdit && isDirty ? '!bg-emerald-600 hover:!bg-emerald-700 !border-emerald-600 !text-white' : ''
+                        className={`px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold inline-flex items-center gap-2 shadow-xs bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white transition-all cursor-pointer border-none ${
+                          isEdit && isDirty ? '!bg-emerald-600 hover:!bg-emerald-700 !text-white' : ''
                         }`}
                       >
                         {saving && (
@@ -1502,7 +1504,7 @@ export const EmpleadoFormPage = () => {
                           type="submit"
                           name="quickSave"
                           disabled={saving}
-                          className="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2 shadow-sm !bg-emerald-600 hover:!bg-emerald-700 !border-emerald-600 !text-white"
+                          className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold inline-flex items-center gap-2 shadow-xs !bg-emerald-600 hover:!bg-emerald-700 text-white transition-all cursor-pointer border-none"
                           title="Guardar cambios ahora"
                         >
                           {saving && (
@@ -1518,7 +1520,7 @@ export const EmpleadoFormPage = () => {
                           if (tab === 'personal') setTab('documentos');
                           else if (tab === 'documentos') setTab('credenciales');
                         }}
-                        className="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2 shadow-sm"
+                        className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold inline-flex items-center gap-2 shadow-xs bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white transition-all cursor-pointer border-none"
                       >
                         Siguiente
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1537,12 +1539,12 @@ export const EmpleadoFormPage = () => {
       {/* Modal de Éxito */}
       {successInfo && (
         <ModalPortal>
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 sm:p-6 bg-slate-900/10 backdrop-blur-[5px] empleado-form-page">
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-xs empleado-form-page">
             <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full flex flex-col overflow-hidden animate-modal-in">
               {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
+                <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shadow-xs">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-7.5" />
                   </svg>
@@ -1554,53 +1556,51 @@ export const EmpleadoFormPage = () => {
               <button
                 type="button"
                 onClick={() => navigate('/nomina/empleados')}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none"
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer"
                 title="Cerrar"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
 
-            <div className="px-6 sm:px-8 pb-10 pt-8 text-center flex flex-col items-center">
-              <p className="text-sm text-slate-500 max-w-lg mb-8">
-                Los datos de <span className="font-semibold text-slate-700">{successInfo.nombre}</span> han sido registrados. Su cuenta ha sido creada con las credenciales a continuación.
+            <div className="px-6 sm:px-8 pb-8 pt-6 text-center flex flex-col items-center">
+              <p className="text-xs sm:text-sm text-slate-500 max-w-lg mb-6 leading-relaxed">
+                Los datos de <span className="font-bold text-slate-800">{successInfo.nombre}</span> han sido registrados. Su cuenta ha sido creada con las credenciales a continuación.
               </p>
 
-              <div className="w-full max-w-md bg-gray-50 border border-gray-100 rounded-xl p-6 text-left mb-8 shadow-sm">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
+              <div className="w-full max-w-md bg-slate-50 border border-slate-200/70 rounded-2xl p-5 text-left mb-6 shadow-2xs">
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-200/70">
                   <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center">
                     <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                     </svg>
                   </div>
-                  <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Credenciales de Acceso</h3>
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Credenciales de Acceso</h3>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-sm text-slate-500">Nombre de Usuario</span>
-                    <span className="font-semibold text-sm text-slate-800 font-mono bg-slate-100 px-2 py-0.5 rounded">{successInfo.username}</span>
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center py-1.5 border-b border-slate-200/60">
+                    <span className="text-xs font-medium text-slate-500">Usuario</span>
+                    <span className="font-mono font-bold text-xs text-slate-800 bg-white border border-slate-200/80 px-2 py-0.5 rounded-lg">{successInfo.username}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-sm text-slate-500">Correo Electrónico</span>
-                    <span className="font-medium text-sm text-slate-700">{successInfo.correo}</span>
+                  <div className="flex justify-between items-center py-1.5 border-b border-slate-200/60">
+                    <span className="text-xs font-medium text-slate-500">Correo</span>
+                    <span className="font-medium text-xs text-slate-700">{successInfo.correo}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-slate-500">Contraseña Temporal</span>
-                    <span className="font-bold text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-lg font-mono">
+                  <div className="flex justify-between items-center py-1.5">
+                    <span className="text-xs font-medium text-slate-500">Contraseña Temporal</span>
+                    <span className="font-mono font-bold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg">
                       {successInfo.contraseña}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-lg bg-amber-50 border border-amber-100 p-3 text-xs text-amber-800 flex gap-2">
-                  <svg className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                <div className="mt-3.5 rounded-xl bg-amber-50/80 border border-amber-200/80 p-3 text-[11px] text-amber-900 flex gap-2">
+                  <svg className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008z" />
                   </svg>
                   <span>
-                    El usuario ha sido habilitado con privilegios básicos (Visor). Por favor, comparta estas credenciales con el colaborador para que pueda registrar asistencia.
+                    El usuario ha sido habilitado con privilegios básicos (Visor). Comparte estas credenciales para el registro de asistencia.
                   </span>
                 </div>
               </div>
@@ -1608,9 +1608,9 @@ export const EmpleadoFormPage = () => {
               <button
                 type="button"
                 onClick={() => navigate('/nomina/empleados')}
-                className="inline-flex items-center justify-center min-w-[140px] px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold tracking-wide transition-all shadow-sm"
+                className="inline-flex items-center justify-center min-w-[140px] px-8 py-2.5 bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white rounded-xl text-xs sm:text-sm font-bold tracking-wide transition-all shadow-xs cursor-pointer border-none"
               >
-                ACEPTAR
+                Aceptar
               </button>
             </div>
           </div>
@@ -1621,11 +1621,11 @@ export const EmpleadoFormPage = () => {
       {/* Modal Visor de Documentos */}
       {activePreviewDoc && (
         <ModalPortal>
-          <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-[5px] z-[1100] flex items-center justify-center p-6 md:p-12 animate-fade-in">
-            <div className="relative w-full max-w-4xl max-h-[80vh] h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-modal-in">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[1100] flex items-center justify-center p-4 sm:p-6 md:p-12 animate-fade-in">
+            <div className="relative w-full max-w-4xl max-h-[85vh] h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-100 animate-modal-in">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -1643,7 +1643,7 @@ export const EmpleadoFormPage = () => {
                     download={activePreviewDoc.nombre}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-3.5 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors border border-blue-100"
+                    className="px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-blue-200 shadow-2xs"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -1652,12 +1652,11 @@ export const EmpleadoFormPage = () => {
                   </a>
 
                   <button
+                    type="button"
                     onClick={() => setActivePreviewDoc(null)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                    </svg>
+                    ✕
                   </button>
                 </div>
               </div>
@@ -1675,7 +1674,7 @@ export const EmpleadoFormPage = () => {
                     <img
                       src={activePreviewDoc.url}
                       alt={activePreviewDoc.nombre}
-                      className="max-w-full max-h-full object-contain rounded-lg shadow-lg border border-slate-200 bg-white"
+                      className="max-w-full max-h-full object-contain rounded-xl shadow-lg border border-slate-200 bg-white"
                     />
                   </div>
                 ) : (
@@ -1692,7 +1691,7 @@ export const EmpleadoFormPage = () => {
                     <a
                       href={activePreviewDoc.url}
                       download={activePreviewDoc.nombre}
-                      className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+                      className="px-5 py-2.5 bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white rounded-xl text-xs font-bold shadow-xs transition-all"
                     >
                       Descargar archivo
                     </a>
@@ -1703,8 +1702,9 @@ export const EmpleadoFormPage = () => {
               {/* Footer */}
               <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                 <button
+                  type="button"
                   onClick={() => setActivePreviewDoc(null)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+                  className="px-5 py-2.5 bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer border-none"
                 >
                   Cerrar Vista Previa
                 </button>

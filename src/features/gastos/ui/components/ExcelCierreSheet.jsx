@@ -109,21 +109,21 @@ export const ExcelCierreSheet = ({
   const diffCash = Math.abs(rawDiff) < 0.009 ? 0 : rawDiff;
 
   return (
-    <div className="w-full space-y-6 font-sans select-none my-2 animate-slide-up relative z-[90]">
+    <div className="w-full space-y-5 select-none my-2 animate-slide-up relative z-[90]" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
       {/* CABECERA UNIFICADA DE LA HOJA (UI/UX AMIGABLE Y ESTRUCTURADA EN 2 BLOQUES) */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-[100]">
+      <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-[100]">
         {/* BLOQUE IZQUIERDO: ETIQUETA + SELECTOR DE FECHA + TÍTULO DINÁMICO */}
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200 shrink-0">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0 shadow-xs">
             <FileText size={20} />
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                FECHA DE CIERRE A CONSULTAR:
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Fecha de Cierre a Consultar
               </label>
               {esCerrado && (
-                <span className="text-[10px] font-extrabold text-slate-600 flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
                   <Lock size={11} className="text-slate-600" />
                   DÍA CERRADO
                 </span>
@@ -141,11 +141,11 @@ export const ExcelCierreSheet = ({
                         setCierreDates({ desde: sel, hasta: sel });
                       }
                     }}
-                    className="bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-lg px-3 py-1 text-xs font-mono font-extrabold text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer shadow-2xs transition-colors"
+                    className="bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer shadow-xs transition-colors"
                   />
                 </div>
               )}
-              <span className="text-sm font-black text-slate-800 uppercase tracking-wide">
+              <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">
                 {formatDateLong(cierreData.fechaInicio)}
               </span>
             </div>
@@ -154,17 +154,17 @@ export const ExcelCierreSheet = ({
 
         {/* BLOQUE DERECHO: TOTALES INGRESOS Y EGRESOS + BOTÓN PDF */}
         <div className="flex flex-wrap items-center gap-3 shrink-0 self-start md:self-auto">
-          <div className="flex items-center gap-3 text-xs font-mono font-bold bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 text-slate-700">
-            <span>INGRESOS: <strong className="text-emerald-700 font-extrabold">{fmt(cierreData.totalIngresos)}</strong></span>
+          <div className="flex items-center gap-3 text-xs font-mono font-bold bg-slate-50/80 px-4 py-2.5 rounded-xl border border-slate-200/80 text-slate-700">
+            <span>INGRESOS: <strong className="text-emerald-600 font-extrabold">{fmt(cierreData.totalIngresos)}</strong></span>
             <span className="text-slate-300">|</span>
-            <span>EGRESOS: <strong className="text-rose-700 font-extrabold">{fmt(cierreData.totalEgresos)}</strong></span>
+            <span>EGRESOS: <strong className="text-rose-600 font-extrabold">{fmt(cierreData.totalEgresos)}</strong></span>
           </div>
 
           {handleExportPdf && (
             <button
               type="button"
               onClick={handleExportPdf}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+              className="px-4 py-2.5 bg-[#0b2d64] hover:bg-[#071f45] text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-[0.99]"
               title="Ver o Imprimir Reporte PDF en hoja horizontal"
             >
               <Printer size={15} />
@@ -175,9 +175,9 @@ export const ExcelCierreSheet = ({
       </div>
 
       {/* ── TABLA 1: INGRESOS DEL DÍA Y ARRASTRE INICIAL ── */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-        {/* BANNER ENCABEZADO DE SECCIÓN ESTILO NÓMINA DEL MES */}
-        <div className="bg-slate-700 text-white px-5 py-2.5 flex items-center justify-between">
+      <div className="bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden">
+        {/* BANNER ENCABEZADO DE SECCIÓN ESTILO CORPORATIVO */}
+        <div className="bg-[#0b2d64] text-white px-5 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ArrowUpRight size={16} className="text-emerald-400" />
             <h4 className="text-xs font-extrabold uppercase tracking-wider">
@@ -337,9 +337,9 @@ export const ExcelCierreSheet = ({
       </div>
 
       {/* ── TABLA 2: EGRESOS DEL DÍA (DIRECTAMENTE DEBAJO) ── */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-        {/* BANNER ENCABEZADO DE SECCIÓN ESTILO NÓMINA DEL MES */}
-        <div className="bg-slate-700 text-white px-5 py-2.5 flex items-center justify-between">
+      <div className="bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden">
+        {/* BANNER ENCABEZADO DE SECCIÓN ESTILO CORPORATIVO */}
+        <div className="bg-[#0b2d64] text-white px-5 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ArrowDownRight size={16} className="text-rose-400" />
             <h4 className="text-xs font-extrabold uppercase tracking-wider">
@@ -455,8 +455,8 @@ export const ExcelCierreSheet = ({
       </div>
 
       {/* ── CUADRO CONTROL DE SALDOS FINALES CON BOTÓN GUARDAR AL FINAL ── */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-        <div className="bg-slate-700 text-white px-4 py-2 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
+        <div className="bg-[#0b2d64] text-white px-4 py-2.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h4 className="text-xs font-extrabold uppercase tracking-wider">
             CUADRO CONTROL DE SALDOS FINALES AL CIERRE
           </h4>
@@ -467,7 +467,7 @@ export const ExcelCierreSheet = ({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* TABLA DE FILAS DE SALDOS CALCULADOS */}
-          <div className="lg:col-span-7 border border-slate-200 rounded-lg overflow-x-auto -webkit-overflow-scrolling-touch">
+          <div className="lg:col-span-7 border border-slate-200/80 rounded-xl overflow-x-auto -webkit-overflow-scrolling-touch">
             {/* BANNER INDICADOR PARA MÓVIL */}
             <div className="md:hidden bg-slate-100 text-slate-600 text-[10px] font-extrabold px-3 py-1 flex items-center justify-between border-b border-slate-200 uppercase tracking-wider">
               <span>Desliza horizontalmente para ver saldos</span>
@@ -476,23 +476,23 @@ export const ExcelCierreSheet = ({
 
             <table className="w-full text-xs text-left min-w-[460px]">
               <thead>
-                <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-black uppercase text-[10px] h-9">
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px] h-9">
                   <th className="py-2 px-3 min-w-[170px]">Cuenta / Método</th>
                   <th className="py-2 px-2 text-right min-w-[85px]">Ingresos</th>
                   <th className="py-2 px-2 text-right min-w-[85px]">Egresos</th>
-                  <th className="py-2 px-3 text-right font-black text-slate-900 min-w-[105px]">Saldo Final</th>
+                  <th className="py-2 px-3 text-right font-bold text-slate-900 min-w-[105px]">Saldo Final</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 font-semibold text-slate-800">
+              <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
                 {/* FILA CAJA CHICA / EFECTIVO */}
-                <tr className="hover:bg-amber-50/30 bg-amber-50/20 h-10">
-                  <td className="py-2 px-4 font-extrabold text-slate-900 uppercase flex items-center gap-2 truncate">
+                <tr className="hover:bg-amber-50/30 bg-amber-50/10 h-10">
+                  <td className="py-2 px-4 font-bold text-slate-900 uppercase flex items-center gap-2 truncate">
                     <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                     SALDO DE CAJA (EFECTIVO)
                   </td>
                   <td className="py-2 px-3 text-right font-mono text-slate-600 whitespace-nowrap">{fmt(totalIngresosEfectivoAcumulado)}</td>
                   <td className="py-2 px-3 text-right font-mono text-slate-600 whitespace-nowrap">{fmt(egresosEfectivoSum)}</td>
-                  <td className="py-2 px-4 text-right font-mono font-black text-slate-900 text-xs bg-amber-100/50 whitespace-nowrap">
+                  <td className="py-2 px-4 text-right font-mono font-bold text-slate-900 text-xs bg-amber-100/40 whitespace-nowrap">
                     {fmt(saldoFinalEfectivo)}
                   </td>
                 </tr>
@@ -505,14 +505,14 @@ export const ExcelCierreSheet = ({
                   const sFinalBank = sInit + sIng - sEgr;
 
                   return (
-                    <tr key={`res-row-${bIdx}`} className="hover:bg-slate-50 h-10">
-                      <td className="py-2 px-4 font-extrabold text-slate-800 uppercase flex items-center gap-2 truncate">
+                    <tr key={`res-row-${bIdx}`} className="hover:bg-slate-50/70 h-10">
+                      <td className="py-2 px-4 font-bold text-slate-800 uppercase flex items-center gap-2 truncate">
                         <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
                         SALDO {b.nombre}
                       </td>
                       <td className="py-2 px-3 text-right font-mono text-slate-600 whitespace-nowrap">{fmt(sInit + sIng)}</td>
                       <td className="py-2 px-3 text-right font-mono text-slate-600 whitespace-nowrap">{fmt(sEgr)}</td>
-                      <td className="py-2 px-4 text-right font-mono font-extrabold text-slate-900 whitespace-nowrap">
+                      <td className="py-2 px-4 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                         {fmt(sFinalBank)}
                       </td>
                     </tr>
@@ -524,10 +524,10 @@ export const ExcelCierreSheet = ({
 
           {/* CAMPO INTERACTIVO PARA DIGITAR EFECTIVO FÍSICO Y BOTÓN GUARDAR AL FINAL */}
           {setEfectivoFisicoContado && (
-            <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3.5">
+            <div className="lg:col-span-5 bg-slate-50/70 border border-slate-200/80 rounded-xl p-4 space-y-3.5">
               <div>
-                <label className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider block">
-                  ARQUEO FÍSICO DE EFECTIVO CONTADO EN CAJA
+                <label className="text-[11px] font-bold text-slate-800 uppercase tracking-wider block">
+                  Arqueo Físico de Efectivo Contado en Caja
                 </label>
                 <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                   Digita el valor contado para verificar el cuadre automático contra el sistema ({fmt(saldoFinalEfectivo)}).
@@ -543,11 +543,11 @@ export const ExcelCierreSheet = ({
                     value={efectivoFisicoContado}
                     onChange={(e) => setEfectivoFisicoContado(e.target.value)}
                     placeholder={saldoFinalEfectivo.toFixed(2)}
-                    className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-mono font-black text-slate-900 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs"
+                    className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-900 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-xs"
                   />
                 </div>
 
-                <div className={`px-3.5 py-2 rounded-lg border text-xs font-mono font-extrabold flex items-center justify-between shadow-xs ${efectivoFisicoContado === '' ? 'bg-amber-50/60 border-amber-200 text-amber-800' : (diffCash === 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : (diffCash < 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-amber-50 border-amber-200 text-amber-700'))}`}>
+                <div className={`px-3.5 py-2.5 rounded-xl border text-xs font-mono font-bold flex items-center justify-between shadow-xs ${efectivoFisicoContado === '' ? 'bg-amber-50/60 border-amber-200 text-amber-800' : (diffCash === 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : (diffCash < 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-amber-50 border-amber-200 text-amber-700'))}`}>
                   <span className="text-[10px] uppercase font-bold text-slate-500">DIAGNÓSTICO</span>
                   {efectivoFisicoContado === '' ? (
                     <span className="flex items-center gap-1.5 text-amber-800 font-bold text-[11px]"><AlertCircle size={15} /> DIGITA EL EFECTIVO FÍSICO CONTADO</span>
@@ -564,7 +564,7 @@ export const ExcelCierreSheet = ({
                     type="button"
                     onClick={handleSaveCierre}
                     disabled={savingCierre}
-                    className="w-full mt-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 uppercase tracking-wider"
+                    className="w-full mt-2 py-2.5 px-4 bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer uppercase tracking-wider"
                   >
                     {savingCierre ? (
                       <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" aria-hidden="true" />
@@ -576,7 +576,7 @@ export const ExcelCierreSheet = ({
                 )}
 
                 {esCerrado && (
-                  <div className="w-full mt-2 py-2 px-3 bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs rounded-lg text-center flex items-center justify-center gap-1.5">
+                  <div className="w-full mt-2 py-2.5 px-3 bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl text-center flex items-center justify-center gap-1.5">
                     <Lock size={14} className="text-slate-500" />
                     <span>DÍA CERRADO Y REGISTRADO</span>
                   </div>

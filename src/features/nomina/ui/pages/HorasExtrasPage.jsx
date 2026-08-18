@@ -179,17 +179,22 @@ export const HorasExtrasPage = () => {
   const periodoLabel = `${MESES[month - 1]} ${year}`;
 
   return (
-    <div className="space-y-3 sm:space-y-5 animate-slide-up horas-extras-page" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="w-full pb-20 md:pb-6 animate-slide-up horas-extras-page" style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)" }}>
       <style>{`
-        .horas-extras-page, .horas-extras-page * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
-        .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .horas-extras-page, .horas-extras-page * { 
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important; 
+          box-sizing: border-box; 
+        }
       `}</style>
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        {/* Top row: back + icon + title + period selectors */}
-        <div className="px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      
+      {/* Header Card */}
+      <div className="bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden mb-4 sm:mb-6">
+        {/* Top row: icon + title + period selectors */}
+        <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100">
-              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 bg-blue-50 border-blue-100 text-blue-600 shadow-xs">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
             </div>
@@ -209,13 +214,13 @@ export const HorasExtrasPage = () => {
           </div>
 
           {/* Period selectors — right side */}
-          <div className="flex w-full sm:w-auto rounded-xl border border-slate-200 bg-slate-50 overflow-hidden shrink-0">
+          <div className="flex w-full sm:w-auto rounded-xl border border-slate-200 bg-slate-50/80 overflow-hidden shrink-0 shadow-xs">
             <label className="sr-only" htmlFor="he-mes">Mes</label>
             <select
               id="he-mes"
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="flex-1 sm:flex-none h-10 pl-3 pr-2 text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
+              className="flex-1 sm:flex-none h-10 pl-3 pr-2 text-xs sm:text-sm font-bold text-slate-700 bg-transparent border-none outline-none cursor-pointer hover:bg-slate-100 transition-colors"
             >
               {MESES.map((m, i) => (
                 <option key={m} value={i + 1}>{m}</option>
@@ -227,7 +232,7 @@ export const HorasExtrasPage = () => {
               id="he-anio"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="w-24 h-10 pl-2 pr-3 text-sm font-semibold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
+              className="w-24 h-10 pl-2 pr-3 text-xs sm:text-sm font-bold text-slate-700 bg-transparent border-none outline-none cursor-pointer hover:bg-slate-100 transition-colors"
             >
               {[year - 1, year, year + 1].map((y) => (
                 <option key={y} value={y}>{y}</option>
@@ -236,14 +241,14 @@ export const HorasExtrasPage = () => {
           </div>
         </div>
 
-        {/* Tab bar — same style as EmpleadosPage */}
-        <div className="px-4 sm:px-5 pb-4 flex gap-1 border-t border-slate-100 pt-3 bg-slate-50/50">
+        {/* Tab bar en el header */}
+        <div className="px-4 sm:px-5 pb-3.5 flex gap-1.5 border-t border-slate-100 pt-3 bg-slate-50/50">
           <button
             type="button"
             onClick={() => setVista('planilla')}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
               vista === 'planilla'
-                ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                ? 'bg-[#0b2d64] text-white shadow-xs'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
             }`}
           >
@@ -252,15 +257,17 @@ export const HorasExtrasPage = () => {
             </svg>
             Planilla
             {approvedOvertime.length > 0 && (
-              <span className="text-[11px] font-bold text-slate-400 tabular-nums">{approvedOvertime.length}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${vista === 'planilla' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                {approvedOvertime.length}
+              </span>
             )}
           </button>
           <button
             type="button"
             onClick={() => setVista('resumen')}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
               vista === 'resumen'
-                ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                ? 'bg-[#0b2d64] text-white shadow-xs'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
             }`}
           >
@@ -270,7 +277,9 @@ export const HorasExtrasPage = () => {
             </svg>
             Resumen
             {resumenColaboradoresCount > 0 && (
-              <span className="text-[11px] font-bold text-slate-400 tabular-nums">{resumenColaboradoresCount}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${vista === 'resumen' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                {resumenColaboradoresCount}
+              </span>
             )}
           </button>
         </div>

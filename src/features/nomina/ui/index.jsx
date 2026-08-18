@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { NominaProvider } from '../application/context/NominaContext';
 import { NominaApiAdapter } from '../infrastructure/adapters/nominaApiAdapter';
 import { RegistrosPage } from '../../asistencia/ui/pages/RegistrosPage';
-import { VacacionesPage } from './pages/VacacionesPage';
 import { HorasExtrasPage } from './pages/HorasExtrasPage';
 import { RolDePagoPage } from './pages/RolDePagoPage';
 import { NominaMesPage } from './pages/NominaMesPage';
@@ -19,7 +18,7 @@ export default function NominaFeature() {
         <Route index element={<Navigate to="registro-asistencia" replace />} />
         <Route path="registro-asistencia" element={<RegistrosPage />} />
         <Route path="credenciales" element={<Navigate to="/nomina/empleados?vista=credenciales" replace />} />
-        <Route path="vacaciones" element={<VacacionesPage />} />
+        <Route path="vacaciones" element={<Navigate to="/nomina/nomina-del-mes" replace />} />
         <Route path="horas-extras" element={<HorasExtrasPage />} />
         <Route path="empleados/*" element={<EmpleadosFeature />} />
         <Route path="rol/:empleadoId" element={<RolDePagoPage />} />

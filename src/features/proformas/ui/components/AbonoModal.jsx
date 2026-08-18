@@ -87,7 +87,11 @@ export const AbonoModal = ({
     <ModalPortal open={open}>
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 animate-fade-in">
         {/* Backdrop */}
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+        <div
+          className="fixed inset-0"
+          style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
+          onClick={onClose}
+        />
 
         {/* Modal Container */}
         <div
@@ -360,11 +364,8 @@ export const AbonoModal = ({
               <button
                 type="submit"
                 disabled={submitting || uploading}
-                className="px-5 sm:px-7 py-2 sm:py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-500/20 flex items-center gap-2 disabled:opacity-50"
+                className="px-5 sm:px-7 py-2 sm:py-2.5 bg-[#0b2d64] hover:bg-[#071f45] text-white text-xs font-bold rounded-xl transition-all shadow-sm shadow-blue-950/20 flex items-center gap-2 disabled:opacity-50 cursor-pointer active:scale-[0.99]"
               >
-                {submitting && (
-                  <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white" />
-                )}
                 {submitting ? 'Procesando...' : submitText}
               </button>
             </div>

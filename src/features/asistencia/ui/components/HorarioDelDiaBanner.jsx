@@ -252,14 +252,20 @@ export function HorarioEditModal({ open, initialConfig, onClose, onSave, saving 
               </div>
             </div>
 
-            <div className="shrink-0 flex justify-end gap-2 px-5 py-3 border-t border-slate-100 bg-slate-50/80">
-              <button type="button" onClick={onClose}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer bg-white">
+            <div className="shrink-0 flex items-center justify-end gap-2.5 px-5 py-3.5 border-t border-slate-100 bg-slate-50/80">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs sm:text-sm font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer bg-white shadow-2xs"
+              >
                 Cancelar
               </button>
-              <button type="submit" disabled={saving}
-                className="px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-500 disabled:opacity-50 cursor-pointer border-none">
-                {saving ? 'Guardando…' : 'Guardar horarios'}
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-5 py-2 text-xs sm:text-sm font-bold text-white bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] rounded-xl transition-all disabled:opacity-50 cursor-pointer border-none shadow-xs"
+              >
+                {saving ? 'Guardando…' : 'Guardar Horarios'}
               </button>
             </div>
           </form>

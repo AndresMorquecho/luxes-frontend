@@ -148,12 +148,13 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
         </div>
 
         {/* Print Button */}
-        <div data-exclude="true" className="p-3 flex justify-center print-hidden border-t border-gray-100">
+        <div data-exclude="true" className="p-3 flex justify-center print-hidden border-t border-slate-100">
           <button
+            type="button"
             onClick={handleDownload}
-            className="bg-[#02188E] hover:bg-[#0433ff] active:scale-95 text-white text-[11px] font-bold py-1.5 px-4 rounded-full shadow-md transition-all flex items-center gap-1.5 cursor-pointer border-none"
+            className="bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white text-xs font-bold py-2 px-4 rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer border-none"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             Descargar carnet

@@ -346,9 +346,9 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* KPI Header Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+      {/* KPI Header Cards (Una sola fila) */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
             <RefreshCw size={22} />
           </div>
@@ -370,7 +370,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
             <DollarSign size={22} />
           </div>
@@ -383,14 +383,14 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
       </div>
 
       {/* Control Toolbar */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-1 flex-col sm:flex-row items-center gap-3">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
             <input
               type="text"
               placeholder="Buscar gasto o proveedor..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-purple-500 focus:bg-white transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -399,7 +399,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Filter size={15} className="text-slate-400" />
             <select
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:border-purple-500"
+              className="px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 cursor-pointer"
               value={filterFrecuencia}
               onChange={(e) => setFilterFrecuencia(e.target.value)}
             >
@@ -415,7 +415,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-purple-500/20 transition-all transform hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0b2d64] hover:bg-[#071f45] text-white text-sm font-bold rounded-xl shadow-xs transition-all active:scale-[0.99] cursor-pointer"
           >
             <Plus size={16} />
             Nuevo Gasto Fijo
@@ -424,7 +424,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-slate-400">
             <RefreshCw size={24} className="animate-spin mx-auto mb-2 text-purple-600" />
@@ -563,7 +563,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
       <ModalPortal open={modalFormOpen}>
         <div
           className="fixed inset-0 z-[200]"
-          style={{ background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(10px) saturate(120%)' }}
+          style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
           onClick={() => deferClose(() => setModalFormOpen(false))}
         />
         <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
@@ -592,7 +592,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                     type="text"
                     required
                     placeholder="Ej: Arriendo de Oficina Central"
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                     value={form.nombre}
                     onChange={(e) => setForm({ ...form, nombre: e.target.value })}
                   />
@@ -602,7 +602,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                   <div>
                     <label className="block text-[11px] font-extrabold uppercase text-slate-500 tracking-wider mb-1.5">Categoría</label>
                     <select
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                       value={form.categoria}
                       onChange={(e) => setForm({ ...form, categoria: e.target.value })}
                     >
@@ -619,7 +619,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                       step="0.01"
                       required
                       placeholder="450.00"
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-extrabold text-slate-900 outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-extrabold text-slate-900 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                       value={form.montoEstimado}
                       onChange={(e) => setForm({ ...form, montoEstimado: e.target.value })}
                     />
@@ -630,7 +630,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                   <div>
                     <label className="block text-[11px] font-extrabold uppercase text-slate-500 tracking-wider mb-1.5">Frecuencia</label>
                     <select
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                       value={form.frecuencia}
                       onChange={(e) => setForm({ ...form, frecuencia: e.target.value })}
                     >
@@ -645,7 +645,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                     <input
                       type="date"
                       required
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                       value={form.proximaFechaPago}
                       onChange={(e) => setForm({ ...form, proximaFechaPago: e.target.value })}
                     />
@@ -657,7 +657,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                   <input
                     type="text"
                     placeholder="Ej: Inmobiliaria XYZ"
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                     value={form.proveedor}
                     onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
                   />
@@ -668,7 +668,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                   <textarea
                     rows={2}
                     placeholder="Detalles sobre el contrato o cuenta..."
-                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-500/10 transition-all"
+                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                     value={form.notas}
                     onChange={(e) => setForm({ ...form, notas: e.target.value })}
                   />
@@ -679,14 +679,14 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                 <button
                   type="button"
                   onClick={() => deferClose(() => setModalFormOpen(false))}
-                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
+                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl shadow-md shadow-purple-500/20 transition-all disabled:opacity-50"
+                  className="px-5 py-2 text-sm font-bold bg-[#0b2d64] hover:bg-[#071f45] text-white rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? 'Guardando...' : 'Guardar Gasto Fijo'}
                 </button>
@@ -700,7 +700,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
       <ModalPortal open={modalPagoOpen && !!itemToPay}>
         <div
           className="fixed inset-0 z-[200]"
-          style={{ background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(10px) saturate(120%)' }}
+          style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
           onClick={() => deferClose(() => setModalPagoOpen(false))}
         />
         <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
@@ -722,10 +722,10 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
             <form onSubmit={handleSubmitPago} className="flex flex-col flex-1 overflow-hidden">
               <div className="p-6 overflow-y-auto space-y-4 flex-1">
                 {itemToPay && (
-                  <div className="bg-purple-50/80 border border-purple-100 p-3.5 rounded-xl">
-                    <p className="text-[10px] font-extrabold text-purple-900 uppercase tracking-wider">Gasto Programado</p>
+                  <div className="bg-blue-50/80 border border-blue-100 p-3.5 rounded-xl">
+                    <p className="text-[10px] font-extrabold text-blue-900 uppercase tracking-wider">Gasto Programado</p>
                     <p className="text-base font-extrabold text-slate-900 leading-tight mt-0.5">{itemToPay.nombre}</p>
-                    <p className="text-xs text-purple-700 font-semibold mt-1">Monto Estimado: <strong>${itemToPay.montoEstimado.toFixed(2)}</strong></p>
+                    <p className="text-xs text-blue-700 font-semibold mt-1">Monto Estimado: <strong>${itemToPay.montoEstimado.toFixed(2)}</strong></p>
                   </div>
                 )}
 
@@ -735,7 +735,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                     type="number"
                     step="0.01"
                     required
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-base font-extrabold text-slate-900 outline-none focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-base font-extrabold text-slate-900 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                     value={payForm.monto}
                     onChange={(e) => setPayForm({ ...payForm, monto: e.target.value })}
                   />
@@ -745,7 +745,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                   <label className="block text-[11px] font-extrabold uppercase text-slate-500 tracking-wider mb-1.5">Método de Pago (Cierre de caja) *</label>
                   <select
                     required
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                     value={payForm.metodoPagoId}
                     onChange={(e) => setPayForm({ ...payForm, metodoPagoId: e.target.value })}
                   >
@@ -767,7 +767,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                     <input
                       type="date"
                       required
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                       value={payForm.fecha}
                       onChange={(e) => setPayForm({ ...payForm, fecha: e.target.value })}
                     />
@@ -778,7 +778,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                     <input
                       type="text"
                       placeholder="Ej: CNT / Factura 001"
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                       value={payForm.proveedor}
                       onChange={(e) => setPayForm({ ...payForm, proveedor: e.target.value })}
                     />
@@ -789,7 +789,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                   <label className="block text-[11px] font-extrabold uppercase text-slate-500 tracking-wider mb-1.5">Notas / Observación</label>
                   <textarea
                     rows={2}
-                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all"
                     value={payForm.notas}
                     onChange={(e) => setPayForm({ ...payForm, notas: e.target.value })}
                   />
@@ -800,14 +800,14 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
                 <button
                   type="button"
                   onClick={() => deferClose(() => setModalPagoOpen(false))}
-                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
+                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 inline-flex items-center gap-1.5"
+                  className="px-5 py-2 text-sm font-bold bg-[#0b2d64] hover:bg-[#071f45] text-white rounded-xl shadow-xs transition-all disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <CheckCircle2 size={16} />
                   {submitting ? 'Procesando...' : 'Confirmar Pago'}
@@ -822,7 +822,7 @@ export function GastosFijosTab({ isAdmin = true, onPaymentSuccess }) {
       <ModalPortal open={modalHistorialOpen && !!itemHistorial}>
         <div
           className="fixed inset-0 z-[200]"
-          style={{ background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(10px) saturate(120%)' }}
+          style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
           onClick={() => deferClose(() => setModalHistorialOpen(false))}
         />
         <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">

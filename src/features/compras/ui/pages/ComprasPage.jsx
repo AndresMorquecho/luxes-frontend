@@ -260,16 +260,16 @@ export const ComprasPage = () => {
     : 'No se encontraron órdenes de compra';
 
   const renderKpiCardDesktop = (kpi) => (
-    <div key={kpi.label} className="bg-white border border-slate-200/80 rounded-xl shadow-sm flex items-start gap-3 p-5 min-w-0 overflow-hidden">
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-5 h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <div key={kpi.label} className="bg-white border border-slate-100 rounded-2xl shadow-xs flex items-center gap-2.5 sm:gap-3.5 p-3.5 sm:p-4.5 min-w-0 overflow-hidden">
+      <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-4 h-4 sm:w-5 sm:h-5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
         </svg>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-500 leading-tight">{kpi.label}</p>
-        <p className="text-2xl font-bold mt-0.5 tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
-        <p className="text-[11px] text-slate-400 mt-0.5">{kpi.hint}</p>
+        <p className="text-xs font-medium text-slate-500 leading-tight truncate">{kpi.label}</p>
+        <p className="text-lg sm:text-2xl font-bold mt-0.5 tabular-nums leading-tight truncate text-slate-800">{kpi.value}</p>
+        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">{kpi.hint}</p>
       </div>
     </div>
   );
@@ -277,18 +277,18 @@ export const ComprasPage = () => {
   const renderKpiCardMobile = (kpi) => (
     <div
       key={kpi.label}
-      className="co-kpi-mobile bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 p-3 min-w-0"
+      className="co-kpi-mobile bg-white rounded-2xl border border-slate-100 shadow-xs flex flex-col gap-2 p-3 min-w-0"
       style={{ borderBottomWidth: '3px', borderBottomColor: kpi.accent }}
     >
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
-        <svg className={`w-3.5 h-3.5 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+        <svg className={`w-4 h-4 ${kpi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d={kpi.icon} />
         </svg>
       </div>
-      <div className="flex flex-col gap-1.5 min-w-0">
-        <p className="text-[9px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
-        <p className="text-sm font-semibold tabular-nums leading-none truncate" style={{ color: CO_NAVY }}>{kpi.value}</p>
-        <p className="text-[8px] text-slate-400 leading-tight line-clamp-2">{kpi.hint}</p>
+      <div className="flex flex-col gap-1 min-w-0">
+        <p className="text-[10px] font-medium text-slate-600 leading-tight line-clamp-2">{kpi.mobileLabel || kpi.label}</p>
+        <p className="text-sm font-bold tabular-nums leading-none truncate text-slate-800">{kpi.value}</p>
+        <p className="text-[9px] text-slate-400 leading-tight line-clamp-1">{kpi.hint}</p>
       </div>
     </div>
   );
@@ -307,11 +307,11 @@ export const ComprasPage = () => {
   };
 
   const kpiItems = [
-    { label: 'Total Órdenes', mobileLabel: 'Total Órdenes', value: stats.totalOrdenes, hint: 'Todas las órdenes', accent: '#2b41b8', iconBg: 'bg-[#eef1fc]', iconColor: 'text-[#2b41b8]', icon: BAG_ICON_PATH },
-    { label: 'Pendientes Aprobación', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Esperando aprobación', accent: '#f97316', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    { label: 'Total Órdenes', mobileLabel: 'Total Órdenes', value: stats.totalOrdenes, hint: 'Todas las órdenes', accent: '#0b2d64', iconBg: 'bg-blue-50 border border-blue-100', iconColor: 'text-[#0b2d64]', icon: BAG_ICON_PATH },
+    { label: 'Pendientes Aprobación', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Esperando aprobación', accent: '#f97316', iconBg: 'bg-orange-50 border border-orange-100', iconColor: 'text-orange-600', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
     ...(isAdmin ? [
-      { label: 'Total Gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-      { label: 'Deuda Pendiente', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50', iconColor: 'text-red-500', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
+      { label: 'Total Gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50 border border-emerald-100', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+      { label: 'Deuda Pendiente', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50 border border-red-100', iconColor: 'text-red-600', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
     ] : []),
   ];
 
@@ -328,8 +328,7 @@ export const ComprasPage = () => {
           type="button"
           onClick={() => goToAprobacion(o)}
           disabled={!canRevisar}
-          className="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ backgroundColor: canRevisar ? CO_PRIMARY : '#94a3b8' }}
+          className="h-8 px-3.5 inline-flex items-center gap-1.5 rounded-xl text-xs font-bold text-white whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] cursor-pointer shadow-blue-950/20 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
           title={canRevisar ? "Revisar y aprobar solicitud" : "Orden procesada"}
         >
           Revisar
@@ -338,7 +337,7 @@ export const ComprasPage = () => {
         <button
           type="button"
           onClick={() => openPDFPreview(o)}
-          className="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-[#eef1fc] hover:text-[#2b41b8] hover:border-[#c7d0f5] transition-colors cursor-pointer"
+          className="w-8 h-8 inline-flex items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-500 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors cursor-pointer"
           title="Ver orden / PDF"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -351,7 +350,7 @@ export const ComprasPage = () => {
           type="button"
           onClick={() => handleOrdenDelete(o)}
           disabled={!canDelete}
-          className={`w-8 h-8 inline-flex items-center justify-center rounded-lg border transition-colors ${
+          className={`w-8 h-8 inline-flex items-center justify-center rounded-xl border transition-colors ${
             canDelete
               ? 'border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700 hover:border-red-300 cursor-pointer'
               : 'border-slate-200 text-slate-300 opacity-40 cursor-not-allowed'
@@ -444,9 +443,16 @@ export const ComprasPage = () => {
 
   return (
     <div
-      className="co-compras-page w-full min-h-full animate-slide-up pb-10"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: CO_PAGE_BG }}
+      className="co-compras-page w-full min-h-full animate-slide-up pb-10 cp-root"
+      style={{ fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)", backgroundColor: CO_PAGE_BG }}
     >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        .cp-root, .cp-root * {
+          font-family: var(--font-main, 'Inter', system-ui, -apple-system, sans-serif) !important;
+          box-sizing: border-box;
+        }
+      `}</style>
 
       {/* ── Móvil ── */}
       <div className="md:hidden">
@@ -457,6 +463,7 @@ export const ComprasPage = () => {
             : isImpresion || isTaller
             ? 'Solicitudes pendientes, aprobadas o en recepción'
             : 'Control y emisión de compras de materiales y activos.'}
+          tabs={showAdminNav ? <ComprasAdminNav /> : (isImpresion || isTaller) ? <ComprasOperativoNav /> : null}
           action={(
             <ComprasHeaderButton onClick={() => navigate('/compras/nueva')}>
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -466,9 +473,6 @@ export const ComprasPage = () => {
             </ComprasHeaderButton>
           )}
         />
-
-        {(isImpresion || isTaller) && <ComprasOperativoNav />}
-        {showAdminNav && <ComprasAdminNav />}
 
         <div className={`grid gap-2 mb-4 ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
           {kpiItems.map((kpi) => renderKpiCardMobile(kpi))}
@@ -512,7 +516,7 @@ export const ComprasPage = () => {
           )}
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden mb-3">
+        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden mb-3">
           <div className="px-3 py-2.5 flex items-center justify-between border-b border-slate-100">
             <h2 className="text-sm font-bold" style={{ color: CO_NAVY }}>Órdenes recientes</h2>
             {ordenTotalPages > 1 && (
@@ -553,6 +557,7 @@ export const ComprasPage = () => {
           : isImpresion || isTaller
           ? 'Solicitudes pendientes, aprobadas o en recepción de tu área'
           : 'Solicitud, control y emisión de compras de materiales y activos.'}
+        tabs={showAdminNav ? <ComprasAdminNav /> : (isImpresion || isTaller) ? <ComprasOperativoNav /> : null}
         action={(
           <ComprasHeaderButton onClick={() => navigate('/compras/nueva')} id="btn-nueva-orden">
             <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -563,17 +568,14 @@ export const ComprasPage = () => {
         )}
       />
 
-      {(isImpresion || isTaller) && <ComprasOperativoNav />}
-      {showAdminNav && <ComprasAdminNav />}
-
-      <div className={`grid gap-4 mb-6 ${isAdmin ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-2'}`}>
+      <div className={`grid gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
         {kpiItems.map((kpi) => renderKpiCardDesktop(kpi))}
       </div>
 
-      <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-xs">
         <div className="px-5 py-4 border-b border-slate-100 space-y-3">
           <div className="relative">
-            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
             <input
@@ -581,8 +583,21 @@ export const ComprasPage = () => {
               value={ordenSearchInput}
               onChange={handleOrdenSearchChange}
               placeholder="Buscar por número, proveedor o concepto…"
-              className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
+              className="w-full h-10 pl-10 pr-9 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
             />
+            {ordenSearchInput && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOrdenSearchInput('');
+                  setOrdenSearch('');
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer text-xs"
+                title="Limpiar búsqueda"
+              >
+                ✕
+              </button>
+            )}
           </div>
           {isAdmin && renderAdminFilters('lg:grid-cols-4')}
           {!isAdmin && (

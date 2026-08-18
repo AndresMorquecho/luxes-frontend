@@ -24,10 +24,10 @@ const formatFecha = (fechaStr) => {
 };
 
 const EDITABLE_CELL =
-  'w-full min-w-0 bg-sky-50 border border-sky-100 hover:bg-sky-100 hover:border-sky-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-400 rounded-md py-1 px-1.5 text-xs font-semibold text-slate-800 transition-all outline-none cursor-text';
+  'w-full min-w-0 bg-sky-50/70 border border-sky-100 hover:bg-sky-100/70 hover:border-sky-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-lg py-1 px-1.5 text-xs font-semibold text-slate-800 transition-all outline-none cursor-text';
 
 const EDITABLE_WRAP =
-  'inline-flex items-center gap-0.5 bg-sky-50 border border-sky-100 rounded-md px-1.5 py-0.5 hover:bg-sky-100 hover:border-sky-200 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-400 transition-all cursor-text';
+  'inline-flex items-center gap-0.5 bg-sky-50/70 border border-sky-100 rounded-lg px-1.5 py-0.5 hover:bg-sky-100/70 hover:border-sky-200 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition-all cursor-text';
 
 const EDITABLE_CELL_IN_WRAP =
   'w-full min-w-0 bg-transparent border-none outline-none py-0.5 px-0 text-xs font-semibold text-slate-800 cursor-text focus:ring-0';
@@ -578,29 +578,29 @@ export const HorasExtrasTable = ({
     ) : null;
 
   return (
-    <div className="space-y-3 sm:space-y-5">
+    <div className="space-y-4 sm:space-y-6">
       {activeView === 'planilla' && (
         <>
       {/* Pendientes de aprobación */}
       {pendingRows.length > 0 && (
-        <section className="rounded-2xl border border-amber-200 bg-white overflow-hidden shadow-sm">
-          <div className="px-3 sm:px-5 py-3 sm:py-3.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-2 sm:gap-3">
+        <section className="rounded-2xl border border-amber-200/80 bg-white overflow-hidden shadow-xs">
+          <div className="px-4 sm:px-5 py-3.5 bg-amber-50/80 border-b border-amber-200/80 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-xs sm:text-sm font-black text-amber-950 uppercase tracking-wide">
+              <h2 className="text-xs sm:text-sm font-bold text-amber-950 uppercase tracking-wide">
                 Pendientes de aprobación
               </h2>
               <p className="hidden sm:block text-xs text-amber-800 mt-0.5">
-                Edita y aprueba antes de sumar a la planilla. Se guarda al salir del campo.
+                Edita y aprueba antes de sumar a la planilla. Se guarda automáticamente al salir del campo.
               </p>
             </div>
-            <span className="text-xs font-black bg-amber-200 text-amber-950 px-2.5 py-1 rounded-lg shrink-0">
+            <span className="text-xs font-extrabold bg-amber-200 text-amber-950 px-2.5 py-1 rounded-xl shrink-0 shadow-2xs">
               {pendingRows.length}
             </span>
           </div>
 
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-amber-50/70 text-[10px] font-bold text-amber-900 uppercase">
+              <thead className="bg-amber-50/50 text-[10px] font-bold text-amber-900 uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-2.5">Fecha</th>
                   <th className="px-4 py-2.5">Colaborador</th>
@@ -623,8 +623,8 @@ export const HorasExtrasTable = ({
 
                   return (
                     <tr key={row.id} className="hover:bg-amber-50/40 transition-colors">
-                      <td className="px-4 py-2.5 text-xs whitespace-nowrap">{formatFecha(row.fecha)}</td>
-                      <td className="px-4 py-2.5 text-xs font-bold uppercase">
+                      <td className="px-4 py-2.5 text-xs font-mono font-bold text-slate-600 whitespace-nowrap">{formatFecha(row.fecha)}</td>
+                      <td className="px-4 py-2.5 text-xs font-bold uppercase text-slate-800">
                         {row.colaboradorNombre
                           || employees.find((e) => matchEmpleadoId(e.id, row.colaboradorId))?.nombre
                           || row.colaboradorId}
@@ -662,16 +662,16 @@ export const HorasExtrasTable = ({
                           onBlur={() => handlePendingBlur(row)}
                         />
                       </td>
-                      <td className="px-4 py-2.5 text-xs font-bold text-amber-900 whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-xs font-mono font-extrabold text-amber-900 whitespace-nowrap">
                         {formatUSD(totalCalc)}
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="flex justify-center gap-2">
+                        <div className="flex justify-center gap-1.5">
                           <button
                             type="button"
                             disabled={actingId === row.id}
                             onClick={() => handleApprove(row.id)}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-bold uppercase hover:bg-emerald-700 disabled:opacity-50 cursor-pointer border-none"
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white text-[10px] font-bold uppercase transition-all shadow-xs disabled:opacity-50 cursor-pointer border-none"
                           >
                             Aprobar
                           </button>
@@ -679,7 +679,7 @@ export const HorasExtrasTable = ({
                             type="button"
                             disabled={actingId === row.id}
                             onClick={() => handleReject(row.id)}
-                            className="px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-700 text-[10px] font-bold uppercase hover:bg-red-50 disabled:opacity-50 cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 active:scale-[0.99] text-[10px] font-bold uppercase transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                           >
                             Rechazar
                           </button>
@@ -705,14 +705,14 @@ export const HorasExtrasTable = ({
                 || row.colaboradorId;
 
               return (
-                <div key={row.id} className="bg-amber-50/40 border border-amber-200 rounded-xl p-3.5">
+                <div key={row.id} className="bg-amber-50/40 border border-amber-200 rounded-xl p-3.5 shadow-2xs">
                   <div className="flex justify-between items-start gap-2 mb-2">
                     <div>
-                      <p className="text-xs text-amber-800 font-medium">{formatFecha(row.fecha)}</p>
+                      <p className="text-xs text-amber-800 font-mono font-semibold">{formatFecha(row.fecha)}</p>
                       <p className="text-sm font-bold text-slate-800 uppercase">{empName}</p>
                       <SavingDot id={row.id} />
                     </div>
-                    <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2 py-1 rounded-lg">
+                    <span className="text-xs font-mono font-extrabold text-amber-900 bg-amber-100 px-2 py-1 rounded-lg">
                       {formatUSD(totalCalc)}
                     </span>
                   </div>
@@ -759,7 +759,7 @@ export const HorasExtrasTable = ({
                       type="button"
                       disabled={actingId === row.id}
                       onClick={() => handleApprove(row.id)}
-                      className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-[10px] font-bold uppercase disabled:opacity-50"
+                      className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white text-[10px] font-bold uppercase disabled:opacity-50 shadow-xs cursor-pointer"
                     >
                       Aprobar
                     </button>
@@ -767,7 +767,7 @@ export const HorasExtrasTable = ({
                       type="button"
                       disabled={actingId === row.id}
                       onClick={() => handleReject(row.id)}
-                      className="flex-1 py-2 rounded-lg bg-white border border-red-200 text-red-700 text-[10px] font-bold uppercase disabled:opacity-50"
+                      className="flex-1 py-2 rounded-xl bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 active:scale-[0.99] text-[10px] font-bold uppercase disabled:opacity-50 shadow-xs cursor-pointer"
                     >
                       Rechazar
                     </button>
@@ -780,18 +780,18 @@ export const HorasExtrasTable = ({
       )}
 
       {/* Planilla principal a ancho completo */}
-      <section className="bg-white rounded-xl shadow-xs border border-gray-100 overflow-hidden flex flex-col premium-card">
-        <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-gray-200 flex flex-col gap-2.5 sm:flex-row sm:justify-between sm:items-center sm:gap-3">
+      <section className="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden flex flex-col">
+        <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 flex flex-col gap-2.5 sm:flex-row sm:justify-between sm:items-center sm:gap-3 bg-slate-50/30">
           <div className="min-w-0">
-            <h2 className="text-sm sm:text-base font-extrabold text-blue-900 uppercase tracking-wide">Planilla de Horas Extras</h2>
-            <p className="hidden sm:block text-gray-500 text-xs mt-0.5">
-              Aprobadas en {periodoLabel || 'el período'}. Los campos en azul claro son editables.
+            <h2 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">Planilla de Horas Extras</h2>
+            <p className="hidden sm:block text-slate-500 text-xs mt-0.5">
+              Aprobadas en {periodoLabel || 'el período'}. Los campos resaltados son editables interactivamente.
             </p>
           </div>
           <button
             type="button"
             onClick={openModal}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg sm:rounded-xl text-xs font-bold transition-all duration-200 inline-flex items-center justify-center gap-2 cursor-pointer border-none shadow-sm shrink-0"
+            className="w-full sm:w-auto px-4 sm:px-5 py-2.5 bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white rounded-xl text-xs sm:text-sm font-bold transition-all inline-flex items-center justify-center gap-2 cursor-pointer border-none shadow-xs shadow-blue-950/20 shrink-0"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -803,28 +803,28 @@ export const HorasExtrasTable = ({
 
         {records.length === 0 ? (
           <div className="px-5 py-16 text-center">
-            <div className="mx-auto w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-3 text-blue-600">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
             </div>
-            <p className="text-sm font-semibold text-slate-600">Sin registros en esta planilla</p>
+            <p className="text-sm font-bold text-slate-700">Sin registros en esta planilla</p>
             <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              Usa &quot;Registrar horas&quot; para agregar una jornada o aprueba solicitudes del quiosco.
+              Usa &quot;Registrar horas extras&quot; para agregar una jornada o aprueba solicitudes pendientes.
             </p>
             <button
               type="button"
               onClick={openModal}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 text-xs font-bold hover:bg-blue-100 cursor-pointer"
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0b2d64] hover:bg-[#071f45] text-white text-xs font-bold shadow-xs cursor-pointer transition-all active:scale-[0.99]"
             >
               Registrar horas extras
             </button>
           </div>
         ) : (
           <>
-            <div className="hidden md:block overflow-x-auto max-h-[520px] sticky-scrollbar">
+            <div className="hidden md:block overflow-x-auto max-h-[520px]">
               <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
-                <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10 sticky-table-header">
+                <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10 border-b border-slate-100">
                   <tr>
                     <th className="px-4 py-3.5 w-[100px]">Fecha</th>
                     <th className="px-4 py-3.5 w-[160px]">Colaborador</th>
@@ -844,11 +844,11 @@ export const HorasExtrasTable = ({
                     const calculatedTotal = row.horas * row.valorPorHora;
 
                     return (
-                      <tr key={row.id} className="hover:bg-slate-50/60 transition-colors group">
-                        <td className="px-4 py-2 font-medium text-slate-600 text-xs whitespace-nowrap">
+                      <tr key={row.id} className="hover:bg-slate-50/70 transition-colors group">
+                        <td className="px-4 py-2.5 font-mono font-semibold text-slate-600 text-xs whitespace-nowrap">
                           {formatFecha(row.fecha)}
                         </td>
-                        <td className="px-4 py-2 font-bold text-slate-800 text-xs uppercase truncate max-w-[160px]">
+                        <td className="px-4 py-2.5 font-bold text-slate-800 text-xs uppercase truncate max-w-[160px]">
                           {empName}
                           <SavingDot id={row.id} />
                         </td>
@@ -885,27 +885,27 @@ export const HorasExtrasTable = ({
                             onBlur={() => handleApprovedBlur(row.id)}
                           />
                         </td>
-                        <td className="px-4 py-2 font-extrabold text-blue-900 text-xs whitespace-nowrap">
+                        <td className="px-4 py-2.5 font-mono font-bold text-slate-800 text-xs whitespace-nowrap">
                           {formatUSD(calculatedTotal)}
                         </td>
-                        <td className="px-4 py-2 text-center">
+                        <td className="px-4 py-2.5 text-center">
                           <button
                             type="button"
                             onClick={() => handleToggleEstado(row.id)}
-                            className={`px-2.5 py-1 rounded-xl text-[9px] font-extrabold uppercase tracking-wider cursor-pointer transition-all border border-solid ${
+                            className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all border shadow-2xs ${
                               row.estado === 'PAGADO'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 hover:bg-emerald-100'
-                                : 'bg-red-50 text-red-700 border-red-200/60 hover:bg-red-100'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                             }`}
                           >
                             {row.estado === 'PAGADO' ? 'Pagado' : 'Por Pagar'}
                           </button>
                         </td>
-                        <td className="px-4 py-2 text-center">
+                        <td className="px-4 py-2.5 text-center">
                           <button
                             type="button"
                             onClick={() => handleDelete(row.id)}
-                            className="text-red-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50 cursor-pointer border-none bg-transparent opacity-60 group-hover:opacity-100"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border-none bg-transparent opacity-60 group-hover:opacity-100 mx-auto"
                             title="Eliminar registro"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -927,14 +927,14 @@ export const HorasExtrasTable = ({
                 const calculatedTotal = row.horas * row.valorPorHora;
 
                 return (
-                  <div key={row.id} className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+                  <div key={row.id} className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-xs">
                     <div className="flex justify-between items-start gap-2 mb-2">
                       <div className="min-w-0">
-                        <p className="text-xs text-slate-500">{formatFecha(row.fecha)}</p>
+                        <p className="text-xs font-mono font-semibold text-slate-500">{formatFecha(row.fecha)}</p>
                         <p className="text-sm font-bold text-slate-800 uppercase truncate">{empName}</p>
                         <SavingDot id={row.id} />
                       </div>
-                      <span className="text-xs font-bold text-blue-900 bg-blue-50 px-2 py-1 rounded-lg shrink-0">
+                      <span className="text-xs font-mono font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg shrink-0">
                         {formatUSD(calculatedTotal)}
                       </span>
                     </div>
@@ -980,10 +980,10 @@ export const HorasExtrasTable = ({
                       <button
                         type="button"
                         onClick={() => handleToggleEstado(row.id)}
-                        className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase border ${
+                        className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${
                           row.estado === 'PAGADO'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-red-50 text-red-700 border-red-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
                         }`}
                       >
                         {row.estado === 'PAGADO' ? 'Pagado' : 'Por Pagar'}
@@ -991,7 +991,7 @@ export const HorasExtrasTable = ({
                       <button
                         type="button"
                         onClick={() => handleDelete(row.id)}
-                        className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-[10px] font-bold"
+                        className="px-3 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-[10px] font-bold transition-colors"
                       >
                         Eliminar
                       </button>
@@ -1007,51 +1007,51 @@ export const HorasExtrasTable = ({
       )}
 
       {activeView === 'resumen' && (
-      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-slate-200 flex items-center justify-between gap-2">
+      <section className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-xs">
+        <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/30">
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-slate-900">Resumen por colaborador</h2>
+            <h2 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">Resumen por colaborador</h2>
             <p className="hidden sm:block text-xs text-slate-500 mt-0.5">
               Horas acumuladas en {periodoLabel || 'el período'}
             </p>
           </div>
-          <div className="text-[11px] sm:text-xs text-slate-600 font-medium tabular-nums shrink-0">
+          <div className="text-xs font-mono font-bold bg-slate-100/80 px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 shrink-0">
             {formatHoras(totalHoras)} h · {formatUSD(totalMonto)}
           </div>
         </div>
 
         {summaryRows.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
+          <p className="px-5 py-12 text-center text-sm text-slate-400 font-medium">
             Aún no hay horas aprobadas para mostrar en el resumen.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-100">
                 <tr>
-                  <th className="px-4 md:px-6 py-3 w-12">#</th>
+                  <th className="px-4 md:px-6 py-3 w-12 text-center">#</th>
                   <th className="px-4 md:px-6 py-3">Colaborador</th>
                   <th className="px-4 md:px-6 py-3 text-right">Registros</th>
                   <th className="px-4 md:px-6 py-3 text-right">Horas</th>
-                  <th className="px-4 md:px-6 py-3 text-right">Monto</th>
+                  <th className="px-4 md:px-6 py-3 text-right">Monto Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {summaryRows.map((col, idx) => (
-                  <tr key={col.empleadoId} className="hover:bg-slate-50/70">
-                    <td className="px-4 md:px-6 py-3 text-xs text-slate-400 font-medium">{idx + 1}</td>
+                  <tr key={col.empleadoId} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-4 md:px-6 py-3 text-xs text-slate-400 font-mono text-center">{idx + 1}</td>
                     <td className="px-4 md:px-6 py-3">
-                      <span className="text-sm font-semibold text-slate-800 uppercase">
+                      <span className="text-xs sm:text-sm font-bold text-slate-800 uppercase">
                         {col.nombre}
                       </span>
                     </td>
-                    <td className="px-4 md:px-6 py-3 text-right text-sm text-slate-600 tabular-nums">
+                    <td className="px-4 md:px-6 py-3 text-right text-xs sm:text-sm font-mono text-slate-600">
                       {col.registros?.length || 0}
                     </td>
-                    <td className="px-4 md:px-6 py-3 text-right text-sm font-semibold text-slate-900 tabular-nums">
+                    <td className="px-4 md:px-6 py-3 text-right text-xs sm:text-sm font-mono font-bold text-slate-800">
                       {formatHoras(col.horas)} h
                     </td>
-                    <td className="px-4 md:px-6 py-3 text-right text-sm font-semibold text-slate-800 tabular-nums">
+                    <td className="px-4 md:px-6 py-3 text-right text-xs sm:text-sm font-mono font-bold text-slate-800">
                       {formatUSD(col.total)}
                     </td>
                   </tr>
@@ -1059,16 +1059,16 @@ export const HorasExtrasTable = ({
               </tbody>
               <tfoot>
                 <tr className="bg-slate-50 border-t border-slate-200">
-                  <td className="px-4 md:px-6 py-3" colSpan={2}>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Total</span>
+                  <td className="px-4 md:px-6 py-3 text-center" colSpan={2}>
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-600">Total</span>
                   </td>
-                  <td className="px-4 md:px-6 py-3 text-right text-sm font-semibold text-slate-700 tabular-nums">
+                  <td className="px-4 md:px-6 py-3 text-right text-xs sm:text-sm font-mono font-bold text-slate-700">
                     {summaryRows.reduce((s, r) => s + (r.registros?.length || 0), 0)}
                   </td>
-                  <td className="px-4 md:px-6 py-3 text-right text-sm font-bold text-slate-900 tabular-nums">
+                  <td className="px-4 md:px-6 py-3 text-right text-xs sm:text-sm font-mono font-extrabold text-slate-900">
                     {formatHoras(totalHoras)} h
                   </td>
-                  <td className="px-4 md:px-6 py-3 text-right text-sm font-bold text-slate-900 tabular-nums">
+                  <td className="px-4 md:px-6 py-3 text-right text-xs sm:text-sm font-mono font-extrabold text-slate-900">
                     {formatUSD(totalMonto)}
                   </td>
                 </tr>
@@ -1083,49 +1083,47 @@ export const HorasExtrasTable = ({
       <ModalPortal>
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
           <div
-            className="fixed inset-0 bg-black/40"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
             onMouseDown={() => deferClose(() => setIsModalOpen(false))}
           />
           <div
-            className="relative w-full max-w-xl bg-white rounded-xl shadow-xl border border-slate-200 max-h-[88dvh] sm:max-h-[92vh] flex flex-col animate-modal-in"
+            className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-[88dvh] sm:max-h-[92vh] flex flex-col animate-modal-in overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-4 sm:px-7 pt-4 pb-3 sm:pt-6 sm:pb-4 border-b border-slate-200 flex items-start justify-between gap-3 shrink-0">
+            <div className="px-5 sm:px-7 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between gap-3 shrink-0 bg-slate-50/50">
               <div className="min-w-0">
-                <h3 className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight">
-                  Registrar horas extras
+                <h3 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight">
+                  Registrar Horas Extras
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5 hidden sm:block">
-                  Complete los datos de la jornada laboral.
+                  Completa los datos correspondientes a la jornada laboral
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => deferClose(() => setIsModalOpen(false))}
-                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer bg-transparent border-0 outline-none"
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer bg-transparent border-0 outline-none"
                 aria-label="Cerrar"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
 
             <form onSubmit={handleAddSubmit} className="flex flex-col flex-1 min-h-0">
-              <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-7 py-3 sm:py-5 space-y-3 sm:space-y-5">
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2.5 sm:gap-4">
+              <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-7 py-4 sm:py-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-1 col-span-2 sm:col-span-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Fecha</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Fecha</label>
                     <input
                       type="date"
                       required
                       value={modalData.fecha}
                       onChange={(e) => setModalData((prev) => ({ ...prev, fecha: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                      className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs sm:text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-2xs"
                     />
                   </div>
                   <div className="space-y-1 col-span-2 sm:col-span-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Colaborador</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Colaborador</label>
                     <ColaboradorSearchSelect
                       employees={employees}
                       value={modalData.colaboradorId}
@@ -1134,40 +1132,40 @@ export const HorasExtrasTable = ({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Horario</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Horario</label>
                     <input
                       type="text"
                       required
                       placeholder="17:30 - 18:30"
                       value={modalData.detalleHorario}
                       onChange={(e) => setModalData((prev) => ({ ...prev, detalleHorario: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                      className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs sm:text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-2xs"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Estado</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Estado</label>
                     <select
                       value={modalData.estado}
                       onChange={(e) => setModalData((prev) => ({ ...prev, estado: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 cursor-pointer"
+                      className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs sm:text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 cursor-pointer shadow-2xs"
                     >
                       <option value="DEUDOR">Por pagar</option>
                       <option value="PAGADO">Pagado</option>
                     </select>
                   </div>
                   <div className="col-span-2 space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Descripción</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Descripción</label>
                     <input
                       type="text"
                       required
-                      placeholder="Ej. Soporte técnico"
+                      placeholder="Ej. Soporte técnico en taller"
                       value={modalData.descripcion}
                       onChange={(e) => setModalData((prev) => ({ ...prev, descripcion: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                      className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs sm:text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-2xs"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Horas</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Horas</label>
                     <input
                       type="number"
                       min="0.5"
@@ -1175,13 +1173,13 @@ export const HorasExtrasTable = ({
                       required
                       value={modalData.horas}
                       onChange={(e) => setModalData((prev) => ({ ...prev, horas: e.target.value }))}
-                      className="w-full h-9 sm:h-10 px-2.5 sm:px-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 text-center outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                      className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs sm:text-sm font-bold text-slate-800 text-center outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-2xs"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-700">Valor/h</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Valor/h</label>
                     <div className="relative">
-                      <span className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs sm:text-sm select-none">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">$</span>
                       <input
                         type="number"
                         step="0.01"
@@ -1189,15 +1187,15 @@ export const HorasExtrasTable = ({
                         required
                         value={modalData.valorPorHora}
                         onChange={(e) => setModalData((prev) => ({ ...prev, valorPorHora: e.target.value }))}
-                        className="w-full h-9 sm:h-10 pl-6 sm:pl-7 pr-2.5 sm:pr-3 border border-slate-300 rounded-md bg-white text-xs sm:text-sm text-slate-800 outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                        className="w-full h-10 pl-7 pr-3 border border-slate-200 rounded-xl bg-white text-xs sm:text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-2xs"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="h-9 sm:h-10 px-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-slate-500">Total estimado</span>
-                  <span className="text-xs sm:text-sm font-semibold text-slate-900 tabular-nums">
+                <div className="h-11 px-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between">
+                  <span className="text-xs sm:text-sm text-slate-500 font-semibold">Total Estimado</span>
+                  <span className="text-sm font-mono font-extrabold text-[#0b2d64]">
                     {formatUSD(
                       (Number(modalData.horas) || 0) * (Number(modalData.valorPorHora) || 0),
                     )}
@@ -1205,19 +1203,19 @@ export const HorasExtrasTable = ({
                 </div>
               </div>
 
-              <div className="shrink-0 flex gap-2 px-4 sm:px-7 py-3 sm:py-4 border-t border-slate-200 bg-white">
+              <div className="shrink-0 flex items-center justify-end gap-2.5 px-5 sm:px-7 py-3.5 sm:py-4 border-t border-slate-100 bg-slate-50/50">
                 <button
                   type="button"
                   onClick={() => deferClose(() => setIsModalOpen(false))}
-                  className="flex-1 sm:flex-none h-9 sm:h-10 px-4 rounded-md border border-slate-300 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-50 cursor-pointer transition-colors bg-white"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs sm:text-sm hover:bg-slate-100/80 cursor-pointer transition-colors bg-white shadow-2xs"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 sm:flex-none h-9 sm:h-10 px-5 rounded-md bg-slate-900 text-white font-medium text-xs sm:text-sm hover:bg-slate-800 cursor-pointer transition-colors border-none"
+                  className="px-5 py-2.5 rounded-xl bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white font-bold text-xs sm:text-sm cursor-pointer transition-all border-none shadow-xs"
                 >
-                  Registrar
+                  Registrar Horas Extras
                 </button>
               </div>
             </form>
@@ -1228,10 +1226,10 @@ export const HorasExtrasTable = ({
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes modal-in {
-          from { transform: scale(0.95) translateY(8px); opacity: 0; }
+          from { transform: scale(0.96) translateY(6px); opacity: 0; }
           to   { transform: scale(1) translateY(0); opacity: 1; }
         }
-        .animate-modal-in { animation: modal-in 0.22s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .animate-modal-in { animation: modal-in 0.2s cubic-bezier(0.16,1,0.3,1) forwards; }
       `}} />
     </div>
   );

@@ -22,7 +22,8 @@ export const ProyectoDetallesModal = React.memo(function ProyectoDetallesModal({
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[200] flex flex-col sm:items-center sm:justify-center sm:p-4 bg-slate-900/60"
+        className="fixed inset-0 z-[200] flex flex-col sm:items-center sm:justify-center sm:p-4"
+        style={{ background: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
         onClick={onClose}
         role="presentation"
       >

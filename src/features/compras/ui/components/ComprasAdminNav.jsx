@@ -1,35 +1,35 @@
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-
-const CO_PRIMARY = '#2b41b8';
+import { ShoppingBag, Clock } from 'lucide-react';
 
 export function ComprasAdminNav() {
   const [searchParams] = useSearchParams();
   const isAprobaciones = searchParams.get('vista') === 'aprobaciones';
 
-  const tabClass = (active) =>
-    `px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-      active
-        ? 'border-[#2b41b8] text-[#2b41b8]'
-        : 'border-transparent text-slate-500 hover:text-slate-700'
-    }`;
-
   return (
-    <div className="flex gap-1 border-b border-slate-200 mb-4 md:mb-5 overflow-x-auto">
+    <>
       <Link
         to="/compras"
-        className={tabClass(!isAprobaciones)}
-        style={!isAprobaciones ? { color: CO_PRIMARY, borderColor: CO_PRIMARY } : undefined}
+        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+          !isAprobaciones
+            ? 'bg-white text-blue-700 shadow-xs border border-blue-100 font-bold'
+            : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+        }`}
       >
+        <ShoppingBag className="w-4 h-4 shrink-0" />
         Todas las órdenes
       </Link>
       <Link
         to="/compras?vista=aprobaciones"
-        className={tabClass(isAprobaciones)}
-        style={isAprobaciones ? { color: CO_PRIMARY, borderColor: CO_PRIMARY } : undefined}
+        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+          isAprobaciones
+            ? 'bg-white text-blue-700 shadow-xs border border-blue-100 font-bold'
+            : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+        }`}
       >
+        <Clock className="w-4 h-4 shrink-0" />
         Pendientes de aprobación
       </Link>
-    </div>
+    </>
   );
 }
