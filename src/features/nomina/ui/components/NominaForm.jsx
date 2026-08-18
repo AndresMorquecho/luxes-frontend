@@ -67,7 +67,6 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
 
   // Manejo de abonos
   const handleAddAbono = () => {
-    if (formData.abonos.length >= 3) return;
     setFormData((prev) => ({
       ...prev,
       abonos: [...prev.abonos, { monto: 0, fecha: new Date().toISOString().split('T')[0] }],
@@ -392,17 +391,15 @@ export const NominaForm = ({ empleado, rawNomina, onSave, onCancel }) => {
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
               <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
-                  <span>💳</span> Abonos ({formData.abonos.length}/3)
+                  <span>💳</span> Abonos ({formData.abonos.length})
                 </h3>
-                {formData.abonos.length < 3 && (
-                  <button
-                    type="button"
-                    onClick={handleAddAbono}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
-                  >
-                    + Agregar
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleAddAbono}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
+                >
+                  + Agregar
+                </button>
               </div>
 
               {formData.abonos.length === 0 ? (

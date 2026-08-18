@@ -1,4 +1,4 @@
-﻿// c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/domain/entities/Nomina.js
+// c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/features/nomina/domain/entities/Nomina.js
 
 /**
  * Entidad Nomina
@@ -29,7 +29,7 @@ export class Nomina {
    * @param {number} [data.egresos.dctoFiesta] - Descuento por fiesta de la empresa
    * @param {number} [data.egresos.dctoHerramientas] - Descuento por herramientas
    * @param {number} [data.egresos.dctoGenerico] - Descuento genérico / otros
-   * @param {Array<{monto: number, fecha: string}>} [data.abonos] - Array de hasta 3 abonos realizados
+   * @param {Array<{monto: number, fecha: string}>} [data.abonos] - Array de abonos realizados
    * @param {string} [data.estado] - Estado de pago ("PENDIENTE" | "ABONO_PARCIAL" | "PAGADO")
    */
   constructor({
@@ -109,7 +109,6 @@ export class Nomina {
   validate() {
     if (!this.empleadoId) throw new Error("El ID del empleado es obligatorio en la nómina.");
     if (!this.fechaInicio || !this.fechaFin) throw new Error("Las fechas de período de nómina son obligatorias.");
-    if (this.abonos.length > 3) throw new Error("No se permiten más de 3 abonos por período de nómina.");
     return true;
   }
 }
