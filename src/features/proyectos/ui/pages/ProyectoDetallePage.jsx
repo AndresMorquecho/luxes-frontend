@@ -82,7 +82,8 @@ export default function ProyectoDetallePage() {
   const canAddFase = isAdmin || isTrabajador;
   const userRole = (user?.rol || '').toLowerCase();
 
-  const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual: validacionBase } = useProyecto(id);
+  const refreshKey = searchParams.get('refresh');
+  const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual: validacionBase } = useProyecto(id, { refreshKey });
   const { getJobsByProyectoId } = usePrintQueueStable();
   const [printQueueTick, setPrintQueueTick] = useState(0);
 
@@ -163,6 +164,12 @@ export default function ProyectoDetallePage() {
   const [activeFaseId, setActiveFaseId] = useState(() => {
     return isAdmin ? 'fase-cotizacion' : 'fase-pendiente';
   });
+
+  useEffect(() => {
+    setActiveFaseId(isAdmin ? 'fase-cotizacion' : 'fase-pendiente');
+    setFaseVista(null);
+    setSubTab('fases');
+  }, [id, isAdmin]);
   const [showFaseModal, setShowFaseModal] = useState(false);
   const [faseToEdit, setFaseToEdit] = useState(null);
   const [showValidationErrors, setShowValidationErrors] = useState(false);

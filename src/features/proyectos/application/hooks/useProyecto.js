@@ -1,6 +1,6 @@
 // src/features/proyectos/application/hooks/useProyecto.js
 
-import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
+import { useCallback, useMemo, useEffect, useState } from 'react';
 import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
 import { validarCamposFase, avanzarFase as avanzarFaseUseCase, retrocederFase as retrocederFaseUseCase } from '../../domain/use-cases/avanzarFase.js';
@@ -34,46 +34,45 @@ export function enrichValidacionConImpresion(validacion, jobs = []) {
 /**
  * Hook para gestionar un proyecto individual: detalle, avance de fases y edición.
  *
- * Los cambios se guardan automáticamente en el backend a través del adaptador.
+ * Siempre consulta GET /api/proyectos/:id al montar o cambiar de proyecto para
+ * traer la información actualizada del servidor.
  *
  * @param {string} id - ID del proyecto
+ * @param {{ refreshKey?: string|null }} [options] - Clave externa (ej. ?refresh=) para forzar recarga
  */
-export function useProyecto(id) {
+export function useProyecto(id, options = {}) {
+  const { refreshKey = null } = options;
   const { state, dispatch, adapter } = useProyectosContext();
-
-  // Referencia estable: solo devuelve un nuevo objeto si los datos del proyecto cambiaron
-  // Esto evita re-renders en DisenoPanel/ProduccionPanel cuando otros proyectos cambian
-  const proyectoFromState = state.proyectos.find((p) => p.id === id) ?? null;
-  const lastProyectoRef = useRef(proyectoFromState);
-  if (proyectoFromState !== lastProyectoRef.current) {
-    lastProyectoRef.current = proyectoFromState;
-  }
-  const proyecto = lastProyectoRef.current;
   const [fetchingProyecto, setFetchingProyecto] = useState(false);
-  const fetchAttemptedRef = useRef(false);
 
-  // Cargar proyecto por ID cuando se navega directo (ej. desde notificación /proyectos/PROY-002)
-  useEffect(() => {
-    fetchAttemptedRef.current = false;
-  }, [id]);
+  const proyecto = useMemo(() => {
+    const found = state.proyectos.find((p) => p.id === id);
+    return found?.id === id ? found : null;
+  }, [state.proyectos, id]);
+
+  const fetchProyecto = useCallback(async () => {
+    if (!id) return null;
+    const actualizado = await adapter.getById(id);
+    if (actualizado) {
+      dispatch({
+        type: ACTIONS.UPDATE_PROYECTO,
+        payload: { id, cambios: actualizado },
+      });
+    }
+    return actualizado;
+  }, [id, adapter, dispatch]);
 
   useEffect(() => {
-    if (!id || proyectoFromState || state.loading || fetchAttemptedRef.current) return;
+    if (!id) return undefined;
 
     let cancelled = false;
-    fetchAttemptedRef.current = true;
     setFetchingProyecto(true);
 
-    adapter.getById(id)
-      .then((actualizado) => {
-        if (cancelled || !actualizado) return;
-        dispatch({
-          type: ACTIONS.UPDATE_PROYECTO,
-          payload: { id, cambios: actualizado },
-        });
-      })
+    fetchProyecto()
       .catch((error) => {
-        console.error('[useProyecto] Error al cargar proyecto por ID:', error);
+        if (!cancelled) {
+          console.error('[useProyecto] Error al cargar proyecto:', error);
+        }
       })
       .finally(() => {
         if (!cancelled) setFetchingProyecto(false);
@@ -82,7 +81,7 @@ export function useProyecto(id) {
     return () => {
       cancelled = true;
     };
-  }, [id, proyectoFromState, state.loading, adapter, dispatch]);
+  }, [id, refreshKey, fetchProyecto]);
 
   const avanzar = useCallback(async () => {
     if (!proyecto) return;
@@ -163,19 +162,22 @@ export function useProyecto(id) {
   [proyecto]);
 
   const reloadProyecto = useCallback(async () => {
+    setFetchingProyecto(true);
     try {
-      const actualizado = await adapter.getById(id);
-      if (actualizado) {
-        dispatch({ type: ACTIONS.UPDATE_PROYECTO, payload: { id, cambios: actualizado } });
-      }
+      return await fetchProyecto();
     } catch (error) {
       console.error('[useProyecto] Error al recargar proyecto:', error);
+      return null;
+    } finally {
+      setFetchingProyecto(false);
     }
-  }, [id, adapter, dispatch]);
+  }, [fetchProyecto]);
+
+  const loading = fetchingProyecto || (state.loading && !proyecto);
 
   return {
     proyecto,
-    loading: state.loading || fetchingProyecto,
+    loading,
     avanzar,
     retroceder,
     updateFaseDatos,
