@@ -40,10 +40,36 @@ const fmtDateShort = (d) => {
   });
 };
 
+// Helper para extraer ID de proyecto desde metadatos o texto
+const extractProyectoId = (notification) => {
+  const msg = notification.message || '';
+  const title = notification.title || '';
+  return notification.proyectoId
+    || notification.data?.proyectoId
+    || msg.match(/\[PROYECTO_ID:(.+?)\]/)?.[1]
+    || msg.match(/\(PROY-\d+\)/i)?.[0]?.replace(/[()]/g, '')
+    || msg.match(/PROY-\d+/i)?.[0]
+    || title.match(/PROY-\d+/i)?.[0];
+};
+
 // Helper para determinar la ruta basada en el tipo de notificación
 const getNotificationRoute = (notification) => {
   const title = (notification.title || '').toLowerCase();
   const message = (notification.message || '').toLowerCase();
+
+  // Fases de proyecto (nueva fase, fase completada)
+  if (title.includes('fase') || message.includes(' fase ') || message.includes('fase "')) {
+    const proyectoId = extractProyectoId(notification);
+    if (proyectoId) return `/proyectos/${proyectoId}`;
+    return '/proyectos';
+  }
+
+  // Nuevo proyecto creado
+  if (title.includes('nuevo proyecto') || message.includes('nuevo proyecto') || message.includes('se ha creado el proyecto')) {
+    const proyectoId = extractProyectoId(notification);
+    if (proyectoId) return `/proyectos/${proyectoId}`;
+    return '/proyectos';
+  }
 
   // Proformas (aprobación, rechazo, nueva pendiente)
   if (title.includes('proforma') || message.includes('proforma')) {
@@ -105,11 +131,7 @@ const getNotificationRoute = (notification) => {
     const userRole = (user?.rol || '').toLowerCase();
     const isAdmin = userRole === 'admin' || userRole === 'administrador';
 
-    const proyectoId = notification.proyectoId
-      || notification.data?.proyectoId
-      || (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/)?.[1]
-      || (notification.message || '').match(/PROY-\d+/i)?.[0]
-      || (notification.message || '').match(/[0-9a-fA-F]{24}/)?.[0];
+    const proyectoId = extractProyectoId(notification);
 
     if (isAdmin) {
       if (proyectoId) return `/proyectos/${proyectoId}`;
@@ -121,6 +143,22 @@ const getNotificationRoute = (notification) => {
   }
 
   return null;
+};
+
+const getNotificationActionLabel = (notification) => {
+  const title = (notification.title || '').toLowerCase();
+  const message = (notification.message || '').toLowerCase();
+
+  if (title.includes('fase') || message.includes(' fase ') || message.includes('fase "')) {
+    return 'Ir a ver';
+  }
+  if (title.includes('nuevo proyecto') || message.includes('nuevo proyecto') || message.includes('se ha creado el proyecto')) {
+    return 'Ir a ver';
+  }
+  if (title.includes('impresi') || message.includes('impresi')) {
+    return 'Ver Producción';
+  }
+  return 'Ir al Módulo';
 };
 
 const getSenderName = (notification) =>
@@ -233,9 +271,7 @@ export const NotificacionesPage = () => {
     if (route) {
       const title = (notification.title || '').toLowerCase();
       if (title.includes('instalación completada') || title.includes('instalacion completada')) {
-        const proyectoId = (notification.message || '').match(/\[PROYECTO_ID:(.+?)\]/)?.[1]
-          || notification.proyectoId
-          || notification.data?.proyectoId;
+        const proyectoId = extractProyectoId(notification);
         window.dispatchEvent(new CustomEvent('instalacion-completada-admin', {
           detail: { proyectoId: proyectoId || null, notificationId: notification.id },
         }));
@@ -326,10 +362,7 @@ export const NotificacionesPage = () => {
           <div className="divide-y divide-slate-100">
             {notifications.map((n) => {
               const hasRoute = !!getNotificationRoute(n);
-              const actionLabel =
-                n.title?.toLowerCase().includes('impresi') || n.message?.toLowerCase().includes('impresi')
-                  ? 'Ver Producción'
-                  : 'Ir al Módulo';
+              const actionLabel = getNotificationActionLabel(n);
 
               return (
                 <article
