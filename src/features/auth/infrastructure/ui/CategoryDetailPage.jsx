@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLandingConfig } from '../../../landing-config/application/useLandingImages';
 import { ArrowLeft, X, MessageCircle, ChevronLeft, ChevronRight, Sparkles, Layers } from 'lucide-react';
 import { WhatsAppFloat } from './WhatsAppFloat';
+import aluxLogoHQ from '../../../../assets/aluxLogoHQ.png';
 import './CategoryDetailPage.css';
 
 const ITEMS_PER_PAGE = 12;
@@ -63,10 +64,10 @@ export const CategoryDetailPage = () => {
       <header className="cat-detail-header">
         <div className="cat-detail-header-inner">
           <Link to="/" className="cat-detail-logo-link">
-            <img src="/LogoGlobo.png" alt="Luxes" className="cat-detail-logo" />
+            <img src={aluxLogoHQ} alt="ALUX" className="cat-detail-logo" />
             <div className="cat-detail-logo-text">
-              <span className="cat-detail-brand">LUXES</span>
-              <span className="cat-detail-sub">DISEÑO Y PUBLICIDAD</span>
+              <span className="cat-detail-brand">ALUX</span>
+              <span className="cat-detail-sub">ALUMINIO & VIDRIO</span>
             </div>
           </Link>
 

@@ -130,15 +130,6 @@ export const LandingPage = () => {
           </nav>
 
           <div className="alux-header-actions">
-            <a
-              href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waDefaultMsg)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="alux-btn-wa-header"
-            >
-              <PhoneCall size={14} />
-              <span>WhatsApp</span>
-            </a>
             <button
               type="button"
               className="alux-btn-login"

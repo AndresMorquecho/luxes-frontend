@@ -1208,6 +1208,32 @@
 }
 
 @media (max-width: 768px) {
+  .landing-page-container .alux-header-wrapper {
+    padding: 0.65rem 0.85rem;
+  }
+  .landing-page-container .alux-header {
+    padding: 0.45rem 0.75rem 0.45rem 1rem;
+    gap: 0.5rem;
+  }
+  .landing-page-container .alux-logo-group {
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .landing-page-container .alux-header-logo-img {
+    height: 36px;
+  }
+  .landing-page-container .alux-brand-title-clean {
+    font-size: 1.05rem;
+  }
+  .landing-page-container .alux-brand-tagline {
+    font-size: 0.5rem;
+    letter-spacing: 0.06em;
+  }
+  .landing-page-container .alux-btn-login {
+    font-size: 0.78rem;
+    padding: 0.45rem 0.85rem;
+    white-space: nowrap;
+  }
   .landing-page-container .alux-nav {
     display: none;
   }

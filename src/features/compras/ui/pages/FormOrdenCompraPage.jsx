@@ -1,13 +1,7 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { getOrdenById, createOrden, updateOrden, editarOrden, getMetodosPago, getOrdenDetalles } from '../../application/comprasService';
-import { 
-  getMateriales, 
-  buildMaterialesQuery, 
-  normalizeMaterialesList,
-  getUnidadesMedida,
-  createMaterial
-} from '../../../inventario/application/inventarioService';
+import { getUnidadesMedida } from '../../../inventario/application/inventarioService';
 import { getProyectos } from '../../../proyectos/application/proyectosService';
 import './ComprasPage.css';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -16,10 +10,6 @@ import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos
 import { fmtMoney, isOrdenEditable, getOrdenNoEditableMensaje, mergeOrdenDetalles, mapDetallesToFormRows } from '../../helpers/ordenCompraHelpers.js';
 import { ComprasPageHeader, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
 import { Calendar, Package, Plus, CheckCircle2, FileText, Trash2, FolderKanban } from 'lucide-react';
-
-const MATERIAL_SEARCH_LIMIT = 5;
-const MIN_FILTER_CHARS = 2;
-const SEARCH_DEBOUNCE_MS = 350;
 
 export const FormOrdenCompraPage = () => {
   const navigate = useNavigate();
@@ -36,7 +26,6 @@ export const FormOrdenCompraPage = () => {
   const [saving, setSaving] = useState(false);
   const [proyectos, setProyectos] = useState([]);
   const [unidades, setUnidades] = useState([]);
-  const [creatingMaterial, setCreatingMaterial] = useState(false);
   const [ordenEstado, setOrdenEstado] = useState('');
   const [ordenNumero, setOrdenNumero] = useState('');
   const [totalAnterior, setTotalAnterior] = useState(0);
@@ -71,15 +60,9 @@ export const FormOrdenCompraPage = () => {
     return defaultState;
   });
   const [itemInput, setItemInput] = useState({
-    materialId: '',
     descripcion: '',
     cantidad: '1',
   });
-  const [matDropdownOpen, setMatDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchingMateriales, setSearchingMateriales] = useState(false);
-  const searchRequestRef = useRef(0);
 
   const proyectosAsociables = useMemo(
     () => filterProyectosAsociables(proyectos, { incluirProyectoId: form.proyectoId || null }),
@@ -124,7 +107,7 @@ export const FormOrdenCompraPage = () => {
   const hayCambioPrecio = Math.abs(diferenciaTotal) > 0.01;
 
   const tableColCount = useMemo(() => {
-    let cols = 4;
+    let cols = 3;
     if (adminVePrecios) cols += 2;
     if (!editBloqueado) cols += 1;
     return cols;
@@ -217,91 +200,7 @@ export const FormOrdenCompraPage = () => {
     }
   }, [loading, isEdit, proyectos, form.proyectoId]);
 
-  // Al abrir: muestra 5 productos. Al escribir 2+ caracteres: filtra en servidor.
-  useEffect(() => {
-    if (!matDropdownOpen) return undefined;
-
-    const query = itemInput.descripcion.trim();
-    const requestId = ++searchRequestRef.current;
-    const delay = query.length >= MIN_FILTER_CHARS ? SEARCH_DEBOUNCE_MS : 0;
-
-    const timer = setTimeout(async () => {
-      setSearchingMateriales(true);
-      try {
-        const res = await getMateriales(buildMaterialesQuery({
-          ...(query.length >= MIN_FILTER_CHARS ? { search: query } : {}),
-          limit: MATERIAL_SEARCH_LIMIT,
-          page: 1,
-          tipo: 'consumible',
-        }));
-        if (requestId !== searchRequestRef.current) return;
-        setSearchResults(normalizeMaterialesList(res).slice(0, MATERIAL_SEARCH_LIMIT));
-      } catch (err) {
-        if (requestId !== searchRequestRef.current) return;
-        console.error('Error al buscar inventario:', err);
-        setSearchResults([]);
-      } finally {
-        if (requestId === searchRequestRef.current) {
-          setSearchingMateriales(false);
-        }
-      }
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [itemInput.descripcion, matDropdownOpen]);
-
-  const handleQuickCreateMaterial = async (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    const nombreNuevo = itemInput.descripcion.trim();
-    if (!nombreNuevo) return;
-
-    // Obtener la categoría por defecto del usuario
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const rol = (user?.rol || 'visor').toLowerCase();
-    
-    let defaultCategory = 'Taller';
-    if (rol.includes('impresion') || rol.includes('impresión')) {
-      defaultCategory = 'Impresión';
-    }
-
-    // Buscar ID de unidad por defecto ('unidades' o el primero disponible)
-    const defaultUnit = unidades.find(u => u.nombre.toLowerCase() === 'unidades') || unidades[0];
-    const defaultUnitId = defaultUnit?.id || null;
-
-    setCreatingMaterial(true);
-    try {
-      const payload = {
-        nombre: nombreNuevo,
-        tipo: 'consumible',
-        categoria: defaultCategory,
-        unidadMedidaId: defaultUnitId,
-        stockActual: 0,
-        stockMinimo: 0,
-        precioCosto: 0,
-        codigo: `MAT_${Date.now().toString().slice(-6)}`
-      };
-
-      const newMat = await createMaterial(payload);
-      toast.success(`"${newMat.nombre}" ha sido registrado en el inventario.`);
-      
-      setItemInput({
-        materialId: newMat.id,
-        descripcion: newMat.nombre,
-        cantidad: '1',
-      });
-      setMatDropdownOpen(false);
-    } catch (err) {
-      toast.error('Error al registrar material: ' + err.message);
-    } finally {
-      setCreatingMaterial(false);
-    }
-  };
-
-  // Add Item from Top Line to Table - SIN PRECIOS
+  // Add Item from Top Line to Table - SIN PRECIOS (Texto Plano)
   const handleAddItem = () => {
     const qty = parseFloat(itemInput.cantidad) || 0;
 
@@ -314,30 +213,23 @@ export const FormOrdenCompraPage = () => {
       return;
     }
 
-    const isProyecto = !!form.proyectoId;
-    if (isProyecto && !itemInput.materialId) {
-      toast.error('Para compras asociadas a un proyecto, el material debe estar registrado en el inventario. Por favor, búscalo y elígelo o usa la opción rápida de registrar nuevo material.');
-      return;
-    }
-
     setForm(prev => ({
       ...prev,
       detalles: [
         ...prev.detalles,
         {
           lineId: `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          descripcion: itemInput.descripcion,
+          descripcion: itemInput.descripcion.trim(),
           cantidad: itemInput.cantidad,
           precioUnitario: adminEditaPrecios ? '0' : undefined,
-          materialId: itemInput.materialId || null,
-          isCustom: !itemInput.materialId
+          materialId: null,
+          isCustom: true,
         }
       ]
     }));
 
     // Reset top input fields
     setItemInput({
-      materialId: '',
       descripcion: '',
       cantidad: '1',
     });
@@ -388,10 +280,6 @@ export const FormOrdenCompraPage = () => {
     }
     if (form.detalles.length === 0) {
       toast.error('Debe agregar al menos un item a la orden.');
-      return false;
-    }
-    if (form.proyectoId && form.detalles.some((d) => d.isCustom || !d.materialId)) {
-      toast.error('Esta orden está asociada a un proyecto y no puede contener materiales libres. Registra los materiales o remuévelos de la lista.');
       return false;
     }
     if (adminEditaPrecios && form.detalles.some((d) => !parseFloat(d.precioUnitario) || parseFloat(d.precioUnitario) <= 0)) {
@@ -549,106 +437,29 @@ export const FormOrdenCompraPage = () => {
           </div>
         </div>
 
-        {/* Item Entry Bar */}
+        {/* Item Entry Bar (Texto Plano) */}
         {!editBloqueado && (
         <div className="p-5" style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px' }}>
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
             Agregar Item a la Orden
           </div>
           <div className="flex flex-wrap items-end gap-3">
-            
-            {/* Description with Autocomplete */}
-            <div className="relative flex-1 min-w-[280px]">
-              <label className="co-label">Descripción del Material/Recurso</label>
+            {/* Description as Plain Text Input */}
+            <div className="flex-1 min-w-[280px]">
+              <label className="co-label">Descripción del Material / Recurso</label>
               <input
                 type="text"
                 className="co-input"
-                placeholder="Escribe o busca en inventario..."
+                placeholder="Ej. Perfiles de aluminio, Planchas de alucobond, Vidrio templado, Silicona..."
                 value={itemInput.descripcion}
-                onChange={e => {
-                  const val = e.target.value;
-                  setItemInput(prev => ({
-                    ...prev,
-                    descripcion: val,
-                    materialId: ''
-                  }));
-                  setMatDropdownOpen(true);
-                }}
-                onFocus={() => setMatDropdownOpen(true)}
-                onBlur={() => {
-                  window.setTimeout(() => {
-                    if (dropdownRef.current?.contains(document.activeElement)) return;
-                    setMatDropdownOpen(false);
-                  }, 120);
+                onChange={e => setItemInput(prev => ({ ...prev, descripcion: e.target.value }))}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddItem();
+                  }
                 }}
               />
-              {matDropdownOpen && (
-                <div className="co-search-dropdown co-search-dropdown--compact" ref={dropdownRef}>
-                  {creatingMaterial ? (
-                    <div className="px-3 py-4 text-xs text-slate-500 font-semibold text-center flex flex-col items-center gap-2">
-                      <div className="co-spinner co-spinner-xs" style={{ width: '16px', height: '16px', borderTopColor: '#6366f1' }}></div>
-                      Registrando material en el catálogo...
-                    </div>
-                  ) : searchingMateriales ? (
-                    <div className="px-3 py-2 text-xs text-slate-400 text-center">
-                      Cargando productos...
-                    </div>
-                  ) : searchResults.length > 0 ? (
-                    <>
-                      {searchResults.map((m) => (
-                        <div
-                          key={m.id}
-                          className="co-search-item"
-                          onMouseDown={() => {
-                            setItemInput((prev) => ({
-                              ...prev,
-                              materialId: m.id,
-                              descripcion: m.nombre,
-                            }));
-                            setMatDropdownOpen(false);
-                          }}
-                        >
-                          <div className="font-semibold text-slate-800">{m.nombre}</div>
-                          <div className="text-slate-400 text-[10px]">
-                            Existencias: {m.stockActual ?? 0}
-                            {m.categoria ? ` · ${m.categoria}` : ''}
-                          </div>
-                        </div>
-                      ))}
-                      {itemInput.descripcion.trim().length >= MIN_FILTER_CHARS && (
-                        <div
-                          className="co-search-item co-search-item--create font-bold text-indigo-600 border-t border-slate-100"
-                          style={{ background: '#f8fafc', padding: '10px 12px' }}
-                          onMouseDown={handleQuickCreateMaterial}
-                        >
-                          <div>+ Registrar "{itemInput.descripcion.trim()}" en el Inventario</div>
-                          <div className="text-[9px] text-slate-400 font-normal">Crear automáticamente con stock 0</div>
-                        </div>
-                      )}
-                      {itemInput.descripcion.trim().length < MIN_FILTER_CHARS && (
-                        <div className="co-search-hint">
-                          Escribe para buscar entre más productos
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="px-3 py-4 text-center">
-                      <div className="text-xs text-slate-400 mb-2">Sin coincidencias en el catálogo.</div>
-                      {itemInput.descripcion.trim().length >= MIN_FILTER_CHARS ? (
-                        <button
-                          type="button"
-                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-xl text-xs font-bold cursor-pointer transition-colors"
-                          onMouseDown={handleQuickCreateMaterial}
-                        >
-                          + Registrar "{itemInput.descripcion.trim()}" en el Inventario
-                        </button>
-                      ) : (
-                        <div className="text-[10px] text-slate-400">Escribe al menos 2 caracteres para buscar o registrar</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="w-[110px]">
@@ -661,6 +472,12 @@ export const FormOrdenCompraPage = () => {
                 value={itemInput.cantidad}
                 onChange={e => setItemInput(prev => ({ ...prev, cantidad: e.target.value }))}
                 onWheel={e => e.target.blur()}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddItem();
+                  }
+                }}
               />
             </div>
 
@@ -681,7 +498,6 @@ export const FormOrdenCompraPage = () => {
             <thead>
               <tr>
                 <th className="text-center" style={{ width: '60px' }}>N°</th>
-                <th style={{ width: '130px' }}>Tipo</th>
                 <th>Descripción / Material</th>
                 <th className="text-center" style={{ width: '150px' }}>Cantidad</th>
                 {adminVePrecios && (
@@ -703,12 +519,7 @@ export const FormOrdenCompraPage = () => {
                 <tr key={rowKey}>
                   <td className="text-center font-bold text-slate-400">{index + 1}</td>
                   <td>
-                    <span className={`co-badge-pill ${d.isCustom ? 'co-badge-pill-slate' : 'co-badge-pill-blue'}`}>
-                      {d.isCustom ? 'Libre' : 'Inventario'}
-                    </span>
-                  </td>
-                  <td>
-                    {d.isCustom && !editBloqueado ? (
+                    {!editBloqueado ? (
                       <input
                         type="text"
                         className="co-table-input w-full"
