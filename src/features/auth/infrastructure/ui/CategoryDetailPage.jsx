@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLandingConfig } from '../../../landing-config/application/useLandingImages';
 import { ArrowLeft, X, MessageCircle, ChevronLeft, ChevronRight, Sparkles, Layers } from 'lucide-react';
 import { WhatsAppFloat } from './WhatsAppFloat';
+import aluxLogoHQ from '../../../../assets/aluxLogoHQ.png';
 import './CategoryDetailPage.css';
 
 const ITEMS_PER_PAGE = 12;
@@ -10,14 +11,15 @@ const ITEMS_PER_PAGE = 12;
 export const CategoryDetailPage = () => {
   const { categorySlug } = useParams();
   const navigate = useNavigate();
-  const { categories, whatsapp } = useLandingConfig();
+  const { categories, whatsapp, loading } = useLandingConfig();
 
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedImage, setSelectedImage] = useState(null);
 
-  // Find target category
+  // Find target category by slug or id
   const category = useMemo(() => {
-    return categories.find((c) => c.slug === categorySlug);
+    if (!categories || categories.length === 0) return null;
+    return categories.find((c) => c.slug === categorySlug || c.id === categorySlug);
   }, [categories, categorySlug]);
 
   const allImages = useMemo(() => {
@@ -37,7 +39,7 @@ export const CategoryDetailPage = () => {
     return allImages.slice(start, start + ITEMS_PER_PAGE);
   }, [allImages, currentPage]);
 
-  const waPhone = whatsapp?.phone || '593968982380';
+  const waPhone = whatsapp?.phone || '593985740242';
 
   const getWaLinkForItem = (item) => {
     const itemTitle = item?.title ? `"${item.title}"` : 'este trabajo';
@@ -45,7 +47,16 @@ export const CategoryDetailPage = () => {
     return `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
   };
 
-  if (!category && categories.length > 0) {
+  if (loading) {
+    return (
+      <div className="cat-detail-loading-screen">
+        <div className="cat-detail-spinner" />
+        <p>Cargando galería de proyectos...</p>
+      </div>
+    );
+  }
+
+  if (!category) {
     return (
       <div className="cat-detail-not-found">
         <h2>Categoría no encontrada</h2>
@@ -63,10 +74,10 @@ export const CategoryDetailPage = () => {
       <header className="cat-detail-header">
         <div className="cat-detail-header-inner">
           <Link to="/" className="cat-detail-logo-link">
-            <img src="/icon.png" alt="Alux" className="cat-detail-logo" />
+            <img src={aluxLogoHQ} alt="ALUX" className="cat-detail-logo" />
             <div className="cat-detail-logo-text">
-              <span className="cat-detail-brand">LUXES</span>
-              <span className="cat-detail-sub">DISEÑO Y PUBLICIDAD</span>
+              <span className="cat-detail-brand">ALUX</span>
+              <span className="cat-detail-sub">ALUMINIO & VIDRIO</span>
             </div>
           </Link>
 
@@ -218,7 +229,7 @@ export const CategoryDetailPage = () => {
 
       {/* FOOTER */}
       <footer className="cat-detail-footer">
-        <p>© {new Date().getFullYear()} LUXES Diseño y Publicidad. Todos los derechos reservados.</p>
+        <p>© {new Date().getFullYear()} ALUX Constructores en Aluminio & Vidrio. Todos los derechos reservados.</p>
       </footer>
     </div>
   );

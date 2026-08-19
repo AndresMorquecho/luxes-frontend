@@ -1,10 +1,10 @@
 // src/features/auth/infrastructure/ui/LandingPage.jsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   ShieldCheck, Award, Headphones, ArrowRight, PhoneCall,
-  MapPin, Phone, Sparkles
+  MapPin, Phone, Sparkles, ChevronLeft, ChevronRight, Layers, Eye
 } from 'lucide-react';
 import { WhatsAppFloat } from './WhatsAppFloat';
 import { ALUX_DATA } from './aluxLandingData';
@@ -12,6 +12,144 @@ import { useLandingConfig } from '../../../landing-config/application/useLanding
 import { HERO_DEFAULT_IMAGES } from '../../../landing-config/application/landingImageDefaults.js';
 import aluxLogoHQ from '../../../../assets/aluxLogoHQ.png';
 import './LandingPage.css';
+
+const CategoryProductCard = ({ prod, waPhone }) => {
+  const [currentImgIndex, setCurrentImgIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const images = prod.images || [];
+  const hasMultiple = images.length > 1;
+
+  // Auto-carrusel suave si hay más de 1 foto
+  useEffect(() => {
+    if (!hasMultiple || isHovered) return;
+    const timer = setInterval(() => {
+      setCurrentImgIndex((prev) => (prev + 1) % images.length);
+    }, 3800);
+    return () => clearInterval(timer);
+  }, [hasMultiple, isHovered, images.length]);
+
+  const prevImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImgIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const nextImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImgIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const currentImgObj = images[currentImgIndex] || {};
+  const currentImgUrl = currentImgObj.imageUrl || currentImgObj.url || (typeof currentImgObj === 'string' ? currentImgObj : 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80');
+  const itemWa = `https://wa.me/${waPhone}?text=${encodeURIComponent(`Hola ALUX, me interesa cotizar soluciones en ${prod.nombre}.`)}`;
+
+  return (
+    <div 
+      className="alux-nestoria-card"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="alux-card-image-wrap">
+        <img
+          src={currentImgUrl}
+          alt={`${prod.nombre} - ${currentImgIndex + 1}`}
+          className="alux-card-img"
+          loading="lazy"
+          onError={(e) => {
+            e.currentTarget.src = 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80';
+          }}
+        />
+        <span className={`alux-card-tag-badge ${prod.tagType}`}>
+          {prod.tag || 'A Medida'}
+        </span>
+
+        {/* Indicador de cantidad de fotos */}
+        {hasMultiple && (
+          <span className="alux-card-count-badge">
+            <Layers size={11} />
+            <span>{currentImgIndex + 1}/{images.length}</span>
+          </span>
+        )}
+
+        {/* Flechas de navegación en el carrusel de la tarjeta */}
+        {hasMultiple && (
+          <div className="alux-card-carousel-controls">
+            <button
+              type="button"
+              className="alux-card-arrow left"
+              onClick={prevImage}
+              aria-label="Foto anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              className="alux-card-arrow right"
+              onClick={nextImage}
+              aria-label="Siguiente foto"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* Puntos indicadores inferiores */}
+        {hasMultiple && (
+          <div className="alux-card-img-dots">
+            {images.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={`alux-card-img-dot ${idx === currentImgIndex ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCurrentImgIndex(idx);
+                }}
+                aria-label={`Ver foto ${idx + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="alux-card-body">
+        <span className="alux-card-category">{prod.categoria}</span>
+        <h3 className="alux-card-title">{prod.nombre}</h3>
+        <p className="alux-card-desc">{prod.desc}</p>
+
+        <div className="alux-card-footer">
+          <div className="alux-card-meta">
+            <span className="alux-card-meta-label">Fabricación</span>
+            <span className="alux-card-meta-val">A Medida</span>
+          </div>
+
+          <div className="alux-card-actions">
+            <Link
+              to={`/catalogo/${prod.categorySlug}`}
+              className="alux-btn-card-more"
+              title={`Ver todas las fotos de ${prod.nombre}`}
+            >
+              <span>Ver más</span>
+              <Eye size={13} />
+            </Link>
+
+            <a
+              href={itemWa}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="alux-btn-card-quote"
+            >
+              <span>Cotizar</span>
+              <ArrowRight size={13} />
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -56,58 +194,71 @@ export const LandingPage = () => {
   const waPhone = whatsapp?.phone || ALUX_DATA.whatsappPhone;
   const waDefaultMsg = whatsapp?.message || 'Hola ALUX, me interesa conocer más sobre sus servicios.';
 
-  // Build items from backend categories if available, else fallback to ALUX_DATA
-  const allCategoryItems = useMemo(() => {
+  // ── Construir exactamente 1 tarjeta por cada categoría configurada ──
+  const allCategoryCards = useMemo(() => {
     if (categories && categories.length > 0) {
-      const items = [];
-      categories.forEach((cat) => {
-        if (cat.images && cat.images.length > 0) {
-          cat.images.forEach((img) => {
-            items.push({
-              id: img.id,
-              categoryId: cat.id,
-              categorySlug: cat.slug,
-              categoria: cat.name,
-              nombre: img.title || cat.name,
-              desc: img.description || `Soluciones en ${cat.name.toLowerCase()} de alta resistencia y acabados arquitectónicos.`,
-              image: img.imageUrl,
-              tag: (img.tags && img.tags.length > 0) ? img.tags[0] : 'Diseño a Medida',
-            });
-          });
-        } else {
-          // If category has no images yet, create a placeholder card with fallback
-          items.push({
+      return categories
+        .filter((cat) => cat.active !== false)
+        .map((cat, index) => {
+          const catImages = Array.isArray(cat.images) && cat.images.length > 0
+            ? cat.images.map((img) => (typeof img === 'string' ? { imageUrl: img } : img))
+            : [
+                {
+                  imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+                  title: cat.name,
+                  description: `Soluciones en ${cat.name.toLowerCase()} de alta resistencia y acabados arquitectónicos.`,
+                },
+              ];
+
+          const firstImg = catImages[0] || {};
+          const tag = (firstImg.tags && firstImg.tags.length > 0) ? firstImg.tags[0] : 'Diseño a Medida';
+
+          return {
             id: cat.id,
             categoryId: cat.id,
-            categorySlug: cat.slug,
+            categorySlug: cat.slug || cat.id,
             categoria: cat.name,
             nombre: cat.name,
-            desc: `Diseño, corte y montaje a medida de ${cat.name.toLowerCase()} para hogares y comercios.`,
-            image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
-            tag: 'Garantizado',
-          });
-        }
-      });
-      if (items.length > 0) return items;
+            desc: cat.description || firstImg.description || `Soluciones en ${cat.name.toLowerCase()} de alta resistencia y acabados arquitectónicos.`,
+            images: catImages,
+            totalImages: cat.images?.length || 0,
+            tag,
+            tagType: index % 3 === 0 ? 'featured' : index % 3 === 1 ? 'new' : 'guaranteed',
+          };
+        });
     }
-    return ALUX_DATA.productos;
+
+    return ALUX_DATA.productos.map((p, index) => ({
+      id: p.id,
+      categoryId: p.id,
+      categorySlug: p.slug,
+      categoria: p.categoria || p.nombre,
+      nombre: p.nombre,
+      desc: p.desc,
+      images: [{ imageUrl: p.image, title: p.nombre, description: p.desc }],
+      totalImages: 1,
+      tag: p.tag || 'Diseño a Medida',
+      tagType: index % 3 === 0 ? 'featured' : index % 3 === 1 ? 'new' : 'guaranteed',
+    }));
   }, [categories]);
 
   // List of active tabs
   const categoryTabs = useMemo(() => {
     if (categories && categories.length > 0) {
-      return categories.map((c) => ({ id: c.id, slug: c.slug, name: c.name }));
+      return categories
+        .filter((c) => c.active !== false)
+        .map((c) => ({ id: c.id, slug: c.slug || c.id, name: c.name }));
     }
     return ALUX_DATA.productos.map((p) => ({ id: p.id, slug: p.slug, name: p.nombre }));
   }, [categories]);
 
   // Filtrado de productos para la sección destacada
   const productosFiltrados = useMemo(() => {
-    if (activeCategory === 'todos') return allCategoryItems;
-    return allCategoryItems.filter(
+    if (activeCategory === 'todos') return allCategoryCards;
+    return allCategoryCards.filter(
       (p) => p.categoryId === activeCategory || p.categorySlug === activeCategory || p.id === activeCategory
     );
-  }, [activeCategory, allCategoryItems]);
+  }, [activeCategory, allCategoryCards]);
 
   return (
     <div className="landing-page-container">
@@ -130,15 +281,6 @@ export const LandingPage = () => {
           </nav>
 
           <div className="alux-header-actions">
-            <a
-              href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waDefaultMsg)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="alux-btn-wa-header"
-            >
-              <PhoneCall size={14} />
-              <span>WhatsApp</span>
-            </a>
             <button
               type="button"
               className="alux-btn-login"
@@ -308,52 +450,13 @@ export const LandingPage = () => {
 
         {/* Grid de Tarjetas */}
         <div className="alux-cards-grid">
-          {productosFiltrados.map((prod, index) => {
-            const itemWa = `https://wa.me/${waPhone}?text=${encodeURIComponent(`Hola ALUX, me interesa cotizar: ${prod.nombre}.`)}`;
-            const tagType = index % 3 === 0 ? 'featured' : index % 3 === 1 ? 'new' : 'guaranteed';
-
-            return (
-              <div key={prod.id || index} className="alux-nestoria-card">
-                <div className="alux-card-image-wrap">
-                  <img
-                    src={prod.image}
-                    alt={prod.nombre}
-                    className="alux-card-img"
-                    loading="lazy"
-                    onError={(e) => {
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80';
-                    }}
-                  />
-                  <span className={`alux-card-tag-badge ${tagType}`}>
-                    {prod.tag || 'A Medida'}
-                  </span>
-                </div>
-
-                <div className="alux-card-body">
-                  <span className="alux-card-category">{prod.categoria}</span>
-                  <h3 className="alux-card-title">{prod.nombre}</h3>
-                  <p className="alux-card-desc">{prod.desc}</p>
-
-                  <div className="alux-card-footer">
-                    <div className="alux-card-meta">
-                      <span className="alux-card-meta-label">Fabricación</span>
-                      <span className="alux-card-meta-val">A Medida</span>
-                    </div>
-
-                    <a
-                      href={itemWa}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="alux-btn-card-quote"
-                    >
-                      <span>Cotizar</span>
-                      <ArrowRight size={13} />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {productosFiltrados.map((prod, index) => (
+            <CategoryProductCard
+              key={prod.id || prod.categoryId || index}
+              prod={prod}
+              waPhone={waPhone}
+            />
+          ))}
         </div>
       </section>
 

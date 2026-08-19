@@ -952,6 +952,103 @@
   color: #b45309;
 }
 
+.landing-page-container .alux-card-count-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(10, 25, 47, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Controles de flechas en carrusel de la tarjeta */
+.landing-page-container .alux-card-carousel-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 3;
+}
+
+.landing-page-container .alux-nestoria-card:hover .alux-card-carousel-controls {
+  opacity: 1;
+}
+
+.landing-page-container .alux-card-arrow {
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  color: var(--color-navy-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.landing-page-container .alux-card-arrow:hover {
+  background: var(--color-navy-dark);
+  color: #ffffff;
+  border-color: var(--color-navy-dark);
+  transform: scale(1.08);
+}
+
+/* Indicadores de puntos inferiores en la tarjeta */
+.landing-page-container .alux-card-img-dots {
+  position: absolute;
+  bottom: 0.65rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  z-index: 3;
+  background: rgba(10, 25, 47, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-pill);
+}
+
+.landing-page-container .alux-card-img-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.25s ease;
+}
+
+.landing-page-container .alux-card-img-dot.active {
+  width: 16px;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
 .landing-page-container .alux-card-body {
   padding: 1.5rem;
   display: flex;
@@ -991,6 +1088,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .landing-page-container .alux-card-meta {
@@ -1011,23 +1109,58 @@
   color: var(--color-navy-dark);
 }
 
-.landing-page-container .alux-btn-card-quote {
-  background: var(--bg-card-subtle);
+.landing-page-container .alux-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.landing-page-container .alux-btn-card-more {
+  background: rgba(2, 24, 142, 0.05);
   color: var(--color-navy-dark);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.55rem 1rem;
+  padding: 0.5rem 0.85rem;
   border-radius: var(--radius-pill);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  border: 1px solid rgba(2, 24, 142, 0.15);
   transition: var(--transition-fast);
+  cursor: pointer;
+}
+
+.landing-page-container .alux-btn-card-more:hover {
+  background: var(--color-navy-dark);
+  color: #ffffff;
+  border-color: var(--color-navy-dark);
+  transform: translateY(-1px);
+}
+
+.landing-page-container .alux-btn-card-quote {
+  background: #0b2d64;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.5rem 0.95rem;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(11, 45, 100, 0.2);
+  cursor: pointer;
 }
 
 .landing-page-container .alux-btn-card-quote:hover {
-  background: var(--color-navy-dark);
+  background: #071f45;
   color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 45, 100, 0.35);
 }
 
 /* ── PROCESO DE TRABAJO (5 PASOS) ── */
@@ -1208,6 +1341,32 @@
 }
 
 @media (max-width: 768px) {
+  .landing-page-container .alux-header-wrapper {
+    padding: 0.65rem 0.85rem;
+  }
+  .landing-page-container .alux-header {
+    padding: 0.45rem 0.75rem 0.45rem 1rem;
+    gap: 0.5rem;
+  }
+  .landing-page-container .alux-logo-group {
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .landing-page-container .alux-header-logo-img {
+    height: 36px;
+  }
+  .landing-page-container .alux-brand-title-clean {
+    font-size: 1.05rem;
+  }
+  .landing-page-container .alux-brand-tagline {
+    font-size: 0.5rem;
+    letter-spacing: 0.06em;
+  }
+  .landing-page-container .alux-btn-login {
+    font-size: 0.78rem;
+    padding: 0.45rem 0.85rem;
+    white-space: nowrap;
+  }
   .landing-page-container .alux-nav {
     display: none;
   }
