@@ -3,10 +3,10 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toPng } from 'html-to-image';
 import headerBg from '../../../../assets/header-bg.png';
 
-const LUXES_NAVY = '#02188E';
+const ALUX_NAVY = '#09152b';
 const HEADER_BG_STYLE = {
-  backgroundColor: LUXES_NAVY,
-  backgroundImage: `linear-gradient(90deg, rgba(1, 12, 72, 0.55) 0%, rgba(4, 51, 255, 0.25) 50%, rgba(1, 12, 72, 0.55) 100%), url(${headerBg})`,
+  backgroundColor: ALUX_NAVY,
+  backgroundImage: `linear-gradient(135deg, rgba(9, 21, 43, 0.95) 0%, rgba(14, 36, 77, 0.85) 50%, rgba(6, 13, 27, 0.95) 100%), url(${headerBg})`,
   backgroundPosition: 'center',
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
@@ -64,7 +64,7 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
       });
 
       const link = document.createElement('a');
-      link.download = `credencial-${emp.nombre.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.download = `credencial-alux-${emp.nombre.replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -75,7 +75,7 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
   return (
     <div className={`relative group w-full max-w-[275px] ${isPrinting ? 'print-target' : 'perspective'}`}>
       {/* Glow effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0433ff]/30 to-[#02188E]/40 rounded-2xl blur opacity-25 group-hover:opacity-45 transition duration-500" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0e244d]/30 to-[#09152b]/45 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500" />
 
       {/* Tarjeta con proporción exacta de 5.5 cm x 8.5 cm (1:1.545) */}
       <div
@@ -85,10 +85,10 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
       >
         {/* Card Header Band */}
         <div className="h-16 relative shrink-0 flex items-end px-4 pb-2 overflow-hidden" style={HEADER_BG_STYLE}>
-          <div className="absolute top-2.5 right-3 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-bold text-white/90 border border-white/20 tracking-widest">
-            LUXES · 2026
+          <div className="absolute top-2.5 right-3 bg-white/15 backdrop-blur-md px-2.5 py-0.5 rounded text-[9px] font-black text-white/95 border border-white/20 tracking-widest uppercase">
+            ALUX · 2026
           </div>
-          <span className="text-white/40 text-[9px] font-mono tracking-widest">CREDENCIAL</span>
+          <span className="text-white/45 text-[9px] font-mono font-semibold tracking-widest">CREDENCIAL</span>
         </div>
 
         {/* Avatar */}
@@ -128,9 +128,9 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
             <span className="block text-sm font-bold text-slate-800 tracking-tight">{nombres}</span>
             {apellidos && <span className="block text-sm font-extrabold text-slate-900 tracking-tight mt-0.5">{apellidos}</span>}
           </div>
-          {emp.cargo && <p className="text-[#02188E] font-semibold text-[11px] mt-1 truncate">{emp.cargo}</p>}
+          {emp.cargo && <p className="text-[#09152b] font-semibold text-[11px] mt-1 truncate">{emp.cargo}</p>}
           {emp.departamento && (
-            <span className="inline-block self-center mt-1 bg-[#f0f6ff] text-[#0433ff] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#c7d9ff] uppercase tracking-wide truncate max-w-[90%]">
+            <span className="inline-block self-center mt-1 bg-slate-100 text-slate-700 text-[9px] font-bold px-2 py-0.5 rounded-full border border-slate-200 uppercase tracking-wide truncate max-w-[90%]">
               {emp.departamento}
             </span>
           )}
@@ -142,7 +142,7 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
         {/* QR Section */}
         <div className="flex flex-col items-center py-3 shrink-0">
           <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100">
-            <QRCodeSVG value={emp.id} size={120} level="H" fgColor={LUXES_NAVY} />
+            <QRCodeSVG value={emp.id} size={120} level="H" fgColor={ALUX_NAVY} />
           </div>
           <p className="text-[9px] text-gray-400 mt-1 font-mono tracking-widest">{emp.id}</p>
         </div>
@@ -152,7 +152,7 @@ export const CredencialCard = ({ emp, isPrinting, onFotoUpload }) => {
           <button
             type="button"
             onClick={handleDownload}
-            className="bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] text-white text-xs font-bold py-2 px-4 rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer border-none"
+            className="bg-[#09152b] hover:bg-[#050d1b] active:scale-[0.99] text-white text-xs font-bold py-2 px-4 rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer border-none"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
