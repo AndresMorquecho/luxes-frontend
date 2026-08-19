@@ -7,10 +7,15 @@ import './PDFPreviewModal.css';
 /**
  * Reusable premium PDF-styled print preview modal.
  */
-export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden de Compra' }) {
+export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden de Compra', showPrices }) {
   const [zoom, setZoom] = useState(100);
   const shouldShow = Boolean(isOpen && oc);
   const visible = useModalVisibility(shouldShow);
+
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+  const userRole = (currentUser?.rol || '').toLowerCase();
+  const isAdmin = userRole === 'admin' || userRole === 'administrador';
+  const canSeePrices = showPrices !== undefined ? showPrices : isAdmin;
 
   if (!visible || !oc) return null;
 
@@ -113,35 +118,33 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
                   </div>
                 </div>
 
-                <div className="pdf-meta-grid">
-                  <div className="pdf-meta-box">
-                    <span className="pdf-box-title">DATOS DEL PROYECTO</span>
-                    <div className="pdf-box-content">
-                      <p><strong>Proyecto:</strong> {proyecto?.nombre || oc.proyectoNombre || 'No especificado'}</p>
-                      <p><strong>ID Proyecto:</strong> {proyecto?.id || oc.proyectoId || 'N/D'}</p>
-                      <p><strong>Responsable:</strong> {proyecto?.responsable || 'No asignado'}</p>
+                {/* Información básica de la solicitud (sin vincular a proyectos o instalaciones) */}
+                {(oc.concepto || (oc.proveedorNombre && oc.proveedorNombre !== '—') || oc.solicitadoPor) && (
+                  <div className="pdf-meta-grid" style={{ marginBottom: '1.25rem' }}>
+                    <div className="pdf-meta-box" style={{ gridColumn: 'span 2' }}>
+                      <span className="pdf-box-title">INFORMACIÓN DE LA SOLICITUD</span>
+                      <div className="pdf-box-content" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px 16px' }}>
+                        {oc.concepto && <p><strong>Motivo / Concepto:</strong> {oc.concepto}</p>}
+                        {oc.proveedorNombre && oc.proveedorNombre !== '—' && <p><strong>Proveedor:</strong> {oc.proveedorNombre}</p>}
+                        {oc.solicitadoPor && <p><strong>Solicitado por:</strong> {oc.solicitadoPor}</p>}
+                      </div>
                     </div>
                   </div>
-
-                  <div className="pdf-meta-box">
-                    <span className="pdf-box-title">DESTINATARIO / INSTALACIÓN</span>
-                    <div className="pdf-box-content">
-                      <p><strong>Cliente:</strong> {proyecto?.cliente?.empresa || proyecto?.clienteNombre || oc.clienteNombre || 'No especificado'}</p>
-                      <p><strong>Contacto:</strong> {proyecto?.cliente?.nombre || 'No especificado'}</p>
-                      <p><strong>Ubicación:</strong> {proyecto?.fases?.INSTALACION?.datos?.direccionInstalacion || proyecto?.cliente?.direccion || 'No especificada'}</p>
-                    </div>
-                  </div>
-                </div>
+                )}
 
                 <div className="pdf-table-container">
                   <table className="pdf-items-table">
                     <thead>
                       <tr>
-                        <th style={{ width: '15%' }}>SKU / CÓDIGO</th>
-                        <th style={{ width: '45%' }}>DESCRIPCIÓN DEL MATERIAL</th>
-                        <th style={{ width: '15%', textAlign: 'center' }}>CANTIDAD</th>
-                        <th style={{ width: '12%', textAlign: 'right' }}>P. UNIT.</th>
-                        <th style={{ width: '13%', textAlign: 'right' }}>TOTAL EST.</th>
+                        <th style={{ width: canSeePrices ? '15%' : '20%' }}>SKU / CÓDIGO</th>
+                        <th style={{ width: canSeePrices ? '45%' : '60%' }}>DESCRIPCIÓN DEL MATERIAL</th>
+                        <th style={{ width: canSeePrices ? '15%' : '20%', textAlign: 'center' }}>CANTIDAD</th>
+                        {canSeePrices && (
+                          <>
+                            <th style={{ width: '12%', textAlign: 'right' }}>P. UNIT.</th>
+                            <th style={{ width: '13%', textAlign: 'right' }}>TOTAL EST.</th>
+                          </>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -154,25 +157,31 @@ export function PDFPreviewModal({ isOpen, onClose, oc, proyecto, title = 'Orden 
                               <td className="font-mono text-xs">{item.sku}</td>
                               <td className="font-bold">{item.nombre}</td>
                               <td style={{ textAlign: 'center' }}>{cant} {item.unidad}s</td>
-                              <td style={{ textAlign: 'right' }}>${(item.precioUnitario || 0).toFixed(2)}</td>
-                              <td style={{ textAlign: 'right' }} className="font-bold">${totalItem.toFixed(2)}</td>
+                              {canSeePrices && (
+                                <>
+                                  <td style={{ textAlign: 'right' }}>${(item.precioUnitario || 0).toFixed(2)}</td>
+                                  <td style={{ textAlign: 'right' }} className="font-bold">${totalItem.toFixed(2)}</td>
+                                </>
+                              )}
                             </tr>
                           );
                         })
                       ) : (
                         <tr>
-                          <td colSpan="5" style={{ textAlign: 'center', fontStyle: 'italic', padding: '2rem' }}>
+                          <td colSpan={canSeePrices ? 5 : 3} style={{ textAlign: 'center', fontStyle: 'italic', padding: '2rem' }}>
                             Sin materiales enlistados en esta orden.
                           </td>
                         </tr>
                       )}
                     </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colSpan="4" className="pdf-total-label">COSTO TOTAL ESTIMADO (USD):</td>
-                        <td className="pdf-total-val">${totalEstimado.toFixed(2)}</td>
-                      </tr>
-                    </tfoot>
+                    {canSeePrices && (
+                      <tfoot>
+                        <tr>
+                          <td colSpan="4" className="pdf-total-label">COSTO TOTAL ESTIMADO (USD):</td>
+                          <td className="pdf-total-val">${totalEstimado.toFixed(2)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
 

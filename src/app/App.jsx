@@ -8,7 +8,7 @@ import { Layout } from '../shared/ui/components/Layout';
 import { PrintQueueProvider } from '../features/colas-impresion/context/PrintQueueContext';
 import { ProyectosProvider } from '../features/proyectos/application/context/ProyectosContext.jsx';
 import { ToastContainer } from '../shared/ui/components/Toast';
-import { isAdminUser, isTrabajadorUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
+import { isAdminUser, isTrabajadorUser, isAsistenciaUser, normalizeUserForSession } from '../shared/utils/userRoleHelpers';
 import { ConfirmDialogContainer } from '../shared/ui/components/ConfirmModal';
 import { ErrorBoundary } from '../shared/ui/components/ErrorBoundary';
 import './index.css';
@@ -35,7 +35,6 @@ const DashboardPage = lazy(() => import('../features/dashboard/ui/pages/Dashboar
 const NotificacionesPage = lazy(() => import('../features/notificaciones/ui/pages/NotificacionesPage').then(m => ({ default: m.NotificacionesPage })));
 const ConfiguracionFeature = lazy(() => import('../features/configuracion/ui'));
 const MovimientosPage = lazy(() => import('../features/gastos/ui/pages/MovimientosPage').then(m => ({ default: m.MovimientosPage })));
-const BalancesPage = lazy(() => import('../features/gastos/ui/pages/BalancesPage').then(m => ({ default: m.BalancesPage })));
 const TallerControlPage = lazy(() => import('../features/gastos/ui/pages/TallerControlPage').then(m => ({ default: m.TallerControlPage })));
 
 const RouteLoading = () => (
@@ -43,11 +42,6 @@ const RouteLoading = () => (
     <div style={{ width: '32px', height: '32px', border: '3px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
   </div>
 );
-
-function LegacyRecepcionRedirect() {
-  const { ordenId } = useParams();
-  return <Navigate to={`/compras/recepcion/${ordenId}`} replace />;
-}
 
 
 function App() {
@@ -225,7 +219,7 @@ function App() {
 
   // Render Kiosk view outside Layout for full-screen layout on tablets/screens
   const queryParams = new URLSearchParams(location.search);
-  const isKioskRoute = location.pathname === '/nomina/registro-asistencia' && queryParams.get('kiosk') === 'true';
+  const isKioskRoute = (location.pathname === '/nomina/registro-asistencia' && queryParams.get('kiosk') === 'true') || isAsistenciaUser(user);
 
   if (isKioskRoute) {
     return (
@@ -235,6 +229,7 @@ function App() {
         <ErrorBoundary>
           <Routes>
             <Route path="/nomina/registro-asistencia" element={<RegistrosPage />} />
+            <Route path="*" element={<Navigate to="/nomina/registro-asistencia" replace />} />
           </Routes>
         </ErrorBoundary>
       </>
@@ -288,7 +283,7 @@ function App() {
                 <Route path="/flota/*" element={<Navigate to="/gastos" replace />} />
                 <Route path="/cierre-caja/*" element={<GastosFeature defaultTab="cierre" />} />
                 <Route path="/movimientos/*" element={<MovimientosPage />} />
-                <Route path="/balances" element={<BalancesPage />} />
+                <Route path="/balances" element={<Navigate to="/movimientos" replace />} />
                 <Route path="/reportes-financieros/*" element={<Navigate to="/" replace />} />
                 <Route path="/tareas/*" element={<TareasFeature />} />
                 <Route path="/taller/control" element={<Navigate to="/" replace />} />

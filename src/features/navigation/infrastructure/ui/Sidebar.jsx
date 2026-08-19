@@ -20,7 +20,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
     return true;
   });
 
-  let hiddenModules = ['relaciones', 'instalaciones', 'inventario'];
+  let hiddenModules = ['relaciones', 'inventario'];
   if (user?.sidebarConfig) {
     try {
       const configObj = typeof user.sidebarConfig === 'string'
@@ -285,7 +285,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
           <span className="sidebar-category-title">MÓDULOS</span>
           <ul>
             {shouldShowModule('finanzas', canViewFinanzas) && (
-              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos') || currentPath === '/balances') ? 'active' : ''}`}>
+              <li className={`sidebar-has-submenu ${isFinanzasOpen ? 'submenu-open' : ''} ${(currentPath.startsWith('/cierre-caja') || currentPath === '/compras/metodos-pago' || currentPath.startsWith('/movimientos')) ? 'active' : ''}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -321,14 +321,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
 
                 {isFinanzasOpen && (
                   <ul className="sidebar-submenu">
-                    <li className={currentPath === '/balances' ? 'submenu-active' : ''}>
-                      <Link to="/balances" className="sidebar-submenu-link">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v5.25c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0 1 3 18.375v-5.25ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125v-9.75ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v14.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                        </svg>
-                        <span className="sidebar-submenu-text">Balances</span>
-                      </Link>
-                    </li>
                     <li className={currentPath.startsWith('/movimientos') ? 'submenu-active' : ''}>
                       <Link to="/movimientos" className="sidebar-submenu-link">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
@@ -589,15 +581,6 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                         <span className="sidebar-submenu-text">Órdenes de Compra</span>
                       </Link>
                     </li>
-
-                    <li className={currentPath.startsWith('/compras/recepcion') ? 'submenu-active' : ''}>
-                      <Link to="/compras/recepcion" className="sidebar-submenu-link">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="sidebar-submenu-icon">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                        </svg>
-                        <span className="sidebar-submenu-text">Recibir productos</span>
-                      </Link>
-                    </li>
                     {isAdmin && (
                       <li className={currentPath === '/compras/cuentas-por-pagar' ? 'submenu-active' : ''}>
                         <Link to="/compras/cuentas-por-pagar" className="sidebar-submenu-link">
@@ -620,7 +603,7 @@ export const Sidebar = ({ isCollapsed, onMouseEnter, onMouseLeave, user, onLogou
                     <rect x="2" y="7" width="20" height="14" rx="2" />
                     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                   </svg>
-                  <span className="sidebar-link-text">Gestion de Proyectos</span>
+                  <span className="sidebar-link-text">Proyectos</span>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="chevron-icon">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>

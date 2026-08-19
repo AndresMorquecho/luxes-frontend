@@ -316,66 +316,28 @@ export default function NuevoProyectoPage() {
             </div>
             <div>
               <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Configuración y Asignación</h2>
-              <p className="text-[11px] text-slate-400">Responsables, instalación, prioridad y fechas</p>
+              <p className="text-[11px] text-slate-400">Responsables, prioridad y fechas</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Tipo de proyecto <span className="text-red-500">*</span>
-              </label>
-              <div className="flex flex-col gap-2 mt-1">
-                <label className={`flex items-center gap-2.5 cursor-pointer border p-3 rounded-xl transition-all ${
-                  form.requiereInstalacion === true
-                    ? 'bg-blue-50/60 border-blue-200 text-blue-900 shadow-2xs'
-                    : 'bg-slate-50/60 border-slate-200/90 text-slate-700 hover:border-slate-300'
-                }`}>
-                  <input
-                    type="radio"
-                    name="requiereInstalacion"
-                    checked={form.requiereInstalacion === true}
-                    onChange={() => set('requiereInstalacion', true)}
-                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-xs font-bold">Con instalación</span>
-                </label>
-                <label className={`flex items-center gap-2.5 cursor-pointer border p-3 rounded-xl transition-all ${
-                  form.requiereInstalacion === false
-                    ? 'bg-blue-50/60 border-blue-200 text-blue-900 shadow-2xs'
-                    : 'bg-slate-50/60 border-slate-200/90 text-slate-700 hover:border-slate-300'
-                }`}>
-                  <input
-                    type="radio"
-                    name="requiereInstalacion"
-                    checked={form.requiereInstalacion === false}
-                    onChange={() => set('requiereInstalacion', false)}
-                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-xs font-bold">Sin instalación</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Prioridad
-              </label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {PRIORIDADES.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => set('prioridad', p)}
-                    className={`px-2 py-2.5 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer
-                      ${form.prioridad === p
-                        ? `${PRIORIDAD_COLORS[p]} border-current ring-1 ring-current shadow-2xs`
-                        : 'bg-slate-50/60 text-slate-500 border-slate-200/90 hover:border-slate-300'}`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Prioridad
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+              {PRIORIDADES.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => set('prioridad', p)}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer
+                    ${form.prioridad === p
+                      ? `${PRIORIDAD_COLORS[p]} border-current ring-1 ring-current shadow-2xs`
+                      : 'bg-slate-50/60 text-slate-500 border-slate-200/90 hover:border-slate-300'}`}
+                >
+                  {p}
+                </button>
+              ))}
             </div>
           </div>
 

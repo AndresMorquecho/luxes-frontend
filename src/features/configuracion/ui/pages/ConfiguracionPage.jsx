@@ -380,7 +380,7 @@ export const ConfiguracionPage = () => {
                     value={form.email}
                     onChange={handleChange}
                     required
-                    placeholder="Ej. administracion@luxes.com"
+                    placeholder="Ej. administracion@alux.com"
                     className="cf-input"
                   />
                 </div>
@@ -394,7 +394,7 @@ export const ConfiguracionPage = () => {
                   value={form.direccion}
                   onChange={handleChange}
                   required
-                  placeholder="Ej. Av. República de El Salvador y Naciones Unidas, Edificio Luxes"
+                  placeholder="Ej. Av. República de El Salvador y Naciones Unidas, Edificio Alux"
                   className="cf-input"
                 />
               </div>
@@ -444,49 +444,6 @@ export const ConfiguracionPage = () => {
                   Cada párrafo o condición en una línea separada se dibujará en las proformas generadas
                 </span>
               </div>
-
-              {/* Marcación Automática de Asistencia (Solo visible para EMP-001 / Ivette Morquecho) */}
-              {isTargetAutoUser && (
-                <div className="space-y-3 pt-4 border-t border-slate-100">
-                  <div className="flex items-center gap-2 pb-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Marcación de Asistencia Prioritaria
-                    </h2>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border border-blue-100 bg-blue-50/30 rounded-xl shadow-xs">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-bold text-slate-800">
-                          Marcación Automática de Asistencia
-                        </span>
-                        <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 uppercase tracking-wider">
-                          Exclusivo EMP-001
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
-                        Al estar <strong>ACTIVADO</strong>, el sistema registrará tus marcaciones (Entrada, Almuerzo y Salida) automáticamente a medida que transcurra tu jornada laboral.
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={togglingAuto}
-                      onClick={handleToggleAutoAsistencia}
-                      className={`relative w-12 h-7 rounded-full transition-colors flex items-center p-0.5 cursor-pointer shrink-0 border border-transparent ${
-                        autoAsistenciaEnabled ? 'bg-emerald-600' : 'bg-slate-300'
-                      }`}
-                    >
-                      <div
-                        className={`w-6 h-6 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
-                          autoAsistenciaEnabled ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
           </div>

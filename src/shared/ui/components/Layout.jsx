@@ -35,21 +35,14 @@ export const Layout = ({ children, user, onLogout }) => {
     { name: 'Configuración: General', path: '/configuracion' },
   ];
 
-  const isVentasOrDisenador = user?.rol?.toLowerCase().includes('ventas') || user?.rol?.toLowerCase().includes('diseñador') || user?.rol?.toLowerCase().includes('disenador');
-
-  const allowedModules = user?.rol?.toLowerCase() === 'taller'
-    ? [
-        { name: 'Notificaciones', path: '/notificaciones' },
-        { name: 'Instalaciones de Equipos', path: '/instalaciones' },
+  const allowedModules = isAdminUser(user)
+    ? modules
+    : [
+        { name: 'Gestión de Proyectos', path: '/proyectos' },
         { name: 'Tareas', path: '/tareas' },
-        { name: 'Recibir productos', path: '/compras/recepcion' },
-        { name: 'Compras de Materiales', path: '/compras' }
-      ]
-    : (user?.rol?.toLowerCase() === 'admin' || user?.rol?.toLowerCase() === 'administrador')
-      ? modules.filter(m => m.path !== '/instalaciones')
-      : isVentasOrDisenador
-        ? modules.filter(m => m.path !== '/proveedores' && m.path !== '/balances' && m.path !== '/gastos')
-        : modules;
+        { name: 'Nómina: Registro Asistencia', path: '/nomina/registro-asistencia' },
+        { name: 'Notificaciones', path: '/notificaciones' },
+      ];
 
   const filteredModules = searchQuery.trim() === ''
     ? []
@@ -115,10 +108,7 @@ export const Layout = ({ children, user, onLogout }) => {
 
   const isAsistenciaMode = user?.rol === 'asistencia';
   const isAdminMobile = isMobile && isAdminUser(user);
-  const isTallerMobile = isMobile && user?.rol?.toLowerCase() === 'taller';
-  const isImpresionMobile = isMobile && ['impresion', 'impresión'].includes(user?.rol?.toLowerCase());
-  const isVentasDisenadorMobile = isMobile && ['ventas / diseñador', 'ventas/diseñador', 'ventas', 'diseñador'].includes(user?.rol?.toLowerCase());
-  const isBottomNavMobile = isAdminMobile || isTallerMobile || isImpresionMobile || isVentasDisenadorMobile;
+  const isBottomNavMobile = isMobile && !isAsistenciaMode;
 
   const unreadCount = useUnreadNotifications(user, {
     enabled: isBottomNavMobile,
@@ -144,14 +134,7 @@ export const Layout = ({ children, user, onLogout }) => {
     return location.pathname.startsWith(path);
   };
 
-  const mobileBrandLabel = isAdminMobile
-    ? 'Admin'
-    : isTallerMobile
-      ? 'Taller'
-      : isImpresionMobile
-        ? 'Impresión'
-        : 'Diseño / Ventas';
-
+  const mobileBrandLabel = isAdminMobile ? 'Admin' : 'Trabajador';
   const mobileUserLabel = user?.nombre || mobileBrandLabel;
 
   const hoverTimeoutRef = React.useRef(null);
@@ -341,9 +324,9 @@ export const Layout = ({ children, user, onLogout }) => {
                 <span className="mobile-nav-label">Más</span>
               </button>
             </>
-          ) : isVentasDisenadorMobile ? (
+          ) : (
             <>
-              {/* Ventas / Diseñador Tabs */}
+              {/* Trabajador Tabs */}
               <Link to="/tareas" className={`mobile-nav-item ${isTabActive('/tareas') ? 'active' : ''}`}>
                 <div className="mobile-nav-icon-wrapper">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
@@ -353,16 +336,19 @@ export const Layout = ({ children, user, onLogout }) => {
                 <span className="mobile-nav-label">Tareas</span>
               </Link>
 
-              <Link to="/proformas" className={`mobile-nav-item ${isTabActive('/proformas') ? 'active' : ''}`}>
+              <Link to="/notificaciones" className={`mobile-nav-item ${isTabActive('/notificaciones') ? 'active' : ''}`}>
                 <div className="mobile-nav-icon-wrapper">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
                   </svg>
+                  {unreadCount > 0 && (
+                    <span className="mobile-nav-badge">{unreadCount}</span>
+                  )}
                 </div>
-                <span className="mobile-nav-label">Proformas</span>
+                <span className="mobile-nav-label">Avisos</span>
               </Link>
 
-              {/* Central FAB - Gestión de Proyectos ("Proyectos") */}
+              {/* Central FAB - Proyectos */}
               <Link to="/proyectos" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/proyectos') ? 'active' : ''}`}>
                 <div className="mobile-nav-fab-circle">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="mobile-nav-icon">
@@ -372,93 +358,17 @@ export const Layout = ({ children, user, onLogout }) => {
                 <span className="mobile-nav-label">Proyectos</span>
               </Link>
 
-              <Link to="/ventas" className={`mobile-nav-item ${isTabActive('/ventas') ? 'active' : ''}`}>
+              <Link to="/nomina/registro-asistencia" className={`mobile-nav-item ${isTabActive('/nomina/registro-asistencia') ? 'active' : ''}`}>
                 <div className="mobile-nav-icon-wrapper">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5M5.25 7.5h13.5m-12 3h10.5M7.5 13.5h9M9 16.5h6" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
                 </div>
-                <span className="mobile-nav-label">Ventas</span>
+                <span className="mobile-nav-label">Asistencia</span>
               </Link>
 
-              {/* Más menu button */}
-              <button 
-                type="button" 
-                onClick={() => setIsMobileOpen(true)}
-                className={`mobile-nav-item ${isMobileOpen ? 'active' : ''}`}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-              >
-                <div className="mobile-nav-icon-wrapper">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-nav-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                  </svg>
-                </div>
-                <span className="mobile-nav-label">Más</span>
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Taller / Impresion Tabs */}
-              <Link to="/tareas" className={`mobile-nav-item ${isTabActive('/tareas') ? 'active' : ''}`}>
-                <div className="mobile-nav-icon-wrapper">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-                  </svg>
-                </div>
-                <span className="mobile-nav-label">Tareas</span>
-              </Link>
-
-              {isTallerMobile ? (
-                <Link to="/compras/recepcion" className={`mobile-nav-item ${isTabActive('/compras/recepcion') ? 'active' : ''}`}>
-                  <div className="mobile-nav-icon-wrapper">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                    </svg>
-                  </div>
-                  <span className="mobile-nav-label">Recibir</span>
-                </Link>
-              ) : (
-                <Link to="/inventario" className={`mobile-nav-item ${isTabActive('/inventario') ? 'active' : ''}`}>
-                  <div className="mobile-nav-icon-wrapper">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                    </svg>
-                  </div>
-                  <span className="mobile-nav-label">Inventario</span>
-                </Link>
-              )}
-
-              {isTallerMobile ? (
-                <Link to="/instalaciones" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/instalaciones') ? 'active' : ''}`}>
-                  <div className="mobile-nav-fab-circle">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="mobile-nav-icon">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                    </svg>
-                  </div>
-                  <span className="mobile-nav-label">Instalac.</span>
-                </Link>
-              ) : (
-                <Link to="/inventario" className={`mobile-nav-item mobile-nav-item-fab ${isTabActive('/inventario') ? 'active' : ''}`}>
-                  <div className="mobile-nav-fab-circle">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25" className="mobile-nav-icon">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                    </svg>
-                  </div>
-                  <span className="mobile-nav-label">Inventario</span>
-                </Link>
-              )}
-              
-              <Link to="/compras/recepcion" className={`mobile-nav-item ${isTabActive('/compras/recepcion') ? 'active' : ''}`}>
-                <div className="mobile-nav-icon-wrapper">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="mobile-nav-icon">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                  </svg>
-                </div>
-                <span className="mobile-nav-label">Recibir</span>
-              </Link>
-              
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsMobileOpen(true)}
                 className={`mobile-nav-item ${isMobileOpen ? 'active' : ''}`}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -477,4 +387,5 @@ export const Layout = ({ children, user, onLogout }) => {
     </div>
   );
 };
+
 

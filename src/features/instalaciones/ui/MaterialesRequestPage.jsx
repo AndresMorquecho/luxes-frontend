@@ -1409,18 +1409,6 @@ export function MaterialesRequestPage() {
                                     <Eye size={12} />
                                     PDF
                                   </button>
-                                  {oc.estado === 'APROBADA' && (
-                                    <button
-                                      onClick={() => {
-                                        setIsComprasModalOpen(false);
-                                        navigate(`/compras/recepcion/${oc.id}`);
-                                      }}
-                                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
-                                    >
-                                      <Package size={12} />
-                                      Recibir
-                                    </button>
-                                  )}
                                 </div>
                               </td>
                             </tr>

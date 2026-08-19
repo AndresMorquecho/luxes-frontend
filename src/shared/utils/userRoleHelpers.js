@@ -1,10 +1,18 @@
 /**
- * Helpers para gestión de roles en Luxes.
- * Sistema simplificado a 2 roles: Administrador y Trabajador.
+ * Helpers para gestión de roles en Alux.
+ * Sistema simplificado a 3 perfiles: Administrador, Trabajador y Asistencia (Kiosco).
  */
+
+export function isAsistenciaUser(user) {
+  if (!user) return false;
+  const rol = (user.rol || '').toLowerCase().trim();
+  const username = (user.username || '').toLowerCase().trim();
+  return rol === 'asistencia' || username === 'asistencia';
+}
 
 export function isAdminUser(user) {
   if (!user) return false;
+  if (isAsistenciaUser(user)) return false;
   const rol = (user.rol || '').toLowerCase().trim();
   const username = (user.username || '').toLowerCase().trim();
   if (username === 'admin') return true;
@@ -13,13 +21,10 @@ export function isAdminUser(user) {
 
 export function isTrabajadorUser(user) {
   if (!user) return false;
-  return !isAdminUser(user);
+  return !isAdminUser(user) && !isAsistenciaUser(user);
 }
 
-export function isAsistenciaUser(user) {
-  return isTrabajadorUser(user);
-}
-
+// Aliases para compatibilidad durante transición
 export function isTallerUser(user) {
   return isTrabajadorUser(user);
 }
@@ -42,6 +47,7 @@ export function filterEmpleadosParaInstalacion(empleados) {
 
 export function getDisplayRole(user) {
   if (!user) return 'Usuario';
+  if (isAsistenciaUser(user)) return 'Asistencia';
   if (isAdminUser(user)) return 'Administrador';
   return 'Trabajador';
 }
@@ -49,6 +55,9 @@ export function getDisplayRole(user) {
 /** Normaliza el usuario guardado en sesión */
 export function normalizeUserForSession(user) {
   if (!user) return user;
+  if (isAsistenciaUser(user)) {
+    return { ...user, rol: 'asistencia' };
+  }
   if (isAdminUser(user)) {
     return { ...user, rol: 'Administrador' };
   }
@@ -58,7 +67,9 @@ export function normalizeUserForSession(user) {
 /** Ruta inicial según el rol efectivo tras login */
 export function getPostLoginPath(user) {
   const normalized = normalizeUserForSession(user);
+  if (isAsistenciaUser(normalized)) return '/nomina/registro-asistencia?kiosk=true';
   if (isAdminUser(normalized)) return '/';
   // Trabajador entra directo a Gestión de Proyectos
   return '/proyectos';
 }
+

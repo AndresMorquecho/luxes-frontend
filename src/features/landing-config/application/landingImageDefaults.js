@@ -1,7 +1,9 @@
-import heroImage1 from '../../../assets/images/LadingPage/header/1.webp';
-import heroImage2 from '../../../assets/images/LadingPage/header/2.webp';
-import heroImage3 from '../../../assets/images/LadingPage/header/3.webp';
-import heroImage4 from '../../../assets/images/LadingPage/header/4.webp';
+export const HERO_DEFAULT_IMAGES = {
+  'hero-1': 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2000&q=90',
+  'hero-2': 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=2000&q=90',
+  'hero-3': 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=2000&q=90',
+  'hero-4': 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=2000&q=90',
+};
 
 export const LANDING_IMAGE_SECTIONS = [
   {
@@ -9,10 +11,10 @@ export const LANDING_IMAGE_SECTIONS = [
     title: 'Carrusel principal',
     description: 'Imágenes del carrusel en la sección de inicio.',
     items: [
-      { id: 'hero-1', label: 'Imagen 1', defaultSrc: heroImage1 },
-      { id: 'hero-2', label: 'Imagen 2', defaultSrc: heroImage2 },
-      { id: 'hero-3', label: 'Imagen 3', defaultSrc: heroImage3 },
-      { id: 'hero-4', label: 'Imagen 4', defaultSrc: heroImage4 },
+      { id: 'hero-1', label: 'Banner Principal 1', defaultSrc: HERO_DEFAULT_IMAGES['hero-1'] },
+      { id: 'hero-2', label: 'Banner Principal 2', defaultSrc: HERO_DEFAULT_IMAGES['hero-2'] },
+      { id: 'hero-3', label: 'Banner Principal 3', defaultSrc: HERO_DEFAULT_IMAGES['hero-3'] },
+      { id: 'hero-4', label: 'Banner Principal 4', defaultSrc: HERO_DEFAULT_IMAGES['hero-4'] },
     ],
   },
 ];

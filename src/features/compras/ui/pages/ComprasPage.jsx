@@ -316,23 +316,26 @@ export const ComprasPage = () => {
   ];
 
   const renderOrdenActions = (o) => {
-    const canRevisar = o.estado === 'pendiente_aprobacion' && hasAprobacionPermission;
+    const canRevisar = o.estado === 'pendiente_aprobacion' && hasAprobacionPermission && showAdminNav;
     const canDelete =
       (isAdmin || hasAprobacionPermission) &&
+      showAdminNav &&
       o.estado !== 'recibida' &&
       o.estado !== 'parcialmente_recibida';
 
     return (
       <div className="flex items-center justify-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => goToAprobacion(o)}
-          disabled={!canRevisar}
-          className="h-8 px-3.5 inline-flex items-center gap-1.5 rounded-xl text-xs font-bold text-white whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] cursor-pointer shadow-blue-950/20 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-          title={canRevisar ? "Revisar y aprobar solicitud" : "Orden procesada"}
-        >
-          Revisar
-        </button>
+        {showAdminNav && (
+          <button
+            type="button"
+            onClick={() => goToAprobacion(o)}
+            disabled={!canRevisar}
+            className="h-8 px-3.5 inline-flex items-center gap-1.5 rounded-xl text-xs font-bold text-white whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] cursor-pointer shadow-blue-950/20 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
+            title={canRevisar ? "Revisar y aprobar solicitud" : "Orden procesada"}
+          >
+            Revisar
+          </button>
+        )}
 
         <button
           type="button"

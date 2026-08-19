@@ -139,19 +139,23 @@ export const mapOrdenToPDFFormat = (orden) => {
   if (!orden) return null;
   return {
     id: orden.numero,
+    numero: orden.numero,
+    fecha: orden.fecha,
     fechaCreacion: orden.fecha ? new Date(orden.fecha).toISOString().split('T')[0] : '',
     estado: (orden.estado || 'PENDIENTE').toUpperCase(),
+    concepto: orden.concepto || '',
+    proveedorNombre: orden.proveedor?.nombre || '—',
     proyectoNombre: getOrdenProyectoLabel(orden) || orden.concepto || 'Compra de Materiales',
     comentarios: orden.notas || 'Sin observaciones.',
     usuario: orden.usuario,
     solicitadoPor: orden.usuario?.nombre || orden.usuarioNombre || orden.solicitadoPor || 'Solicitante',
     aprobadoPor: orden.aprobadoPor?.nombre || orden.aprobadoPorNombre || (orden.estado === 'aprobada' || orden.estado === 'recibida' ? 'Administrador' : ''),
-    items: (orden.detalles || []).map((d) => ({
-      sku: d.material?.codigo || (d.materialId ? d.materialId.slice(-8).toUpperCase() : 'ESP-LIBRE'),
-      nombre: d.descripcion,
-      cantidad: d.cantidad,
+    items: (orden.detalles || orden.items || []).map((d) => ({
+      sku: d.material?.codigo || (d.materialId ? String(d.materialId).slice(-8).toUpperCase() : 'ESP-LIBRE'),
+      nombre: d.descripcion || d.nombre || 'Material',
+      cantidad: d.cantidadSolicitada !== undefined ? d.cantidadSolicitada : (d.cantidad || 0),
       precioUnitario: d.precioUnitario,
-      unidad: 'unidad',
+      unidad: d.material?.unidadMedida || d.unidad || 'unidad',
     })),
   };
 };

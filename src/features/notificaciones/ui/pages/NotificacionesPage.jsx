@@ -57,7 +57,7 @@ const getNotificationRoute = (notification) => {
 
   // Orden aprobada → lista de compras del solicitante
   if (title.includes('aprobada') || message.includes('ha sido aprobada')) {
-    return '/compras/recepcion';
+    return '/compras';
   }
 
   // Nueva orden pendiente → aprobaciones (admin) o compras (solicitante)

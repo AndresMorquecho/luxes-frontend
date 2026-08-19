@@ -174,11 +174,11 @@ const computeVehicleAlerts = (vehiculo) => {
 
 const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, trendText, sparklineSvg }) => {
   return (
-    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[135px]">
-      <div className="flex justify-between items-start mb-3">
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[125px] sm:min-h-[135px]">
+      <div className="flex justify-between items-start mb-2.5">
         <div className="min-w-0 flex-1 mr-2">
-          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 truncate">{title}</h3>
-          <div className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight leading-none truncate">{amount}</div>
+          <h3 className="text-[11px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 truncate">{title}</h3>
+          <div className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight leading-none truncate">{amount}</div>
         </div>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: bg }}>
           <Icon size={18} style={{ color: color }} strokeWidth={2} />
@@ -186,14 +186,14 @@ const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, t
       </div>
 
       <div className="flex items-end justify-between mt-auto pt-2 border-t border-slate-100/60">
-        <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex flex-col gap-0.5 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${trendUp ? 'bg-emerald-100/60 text-emerald-600' : 'bg-rose-100/60 text-rose-500'}`}>
               {trendUp ? '↑' : '↓'} {trendValue}
             </span>
             <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">vs mes anterior</span>
           </div>
-          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">{trendText}</div>
+          <div className="text-[10px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">{trendText}</div>
         </div>
 
         {/* Sparkline */}
@@ -1040,8 +1040,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
       {/* PESTAÑA 1: GASTOS OPERATIVOS */}
       {activeTab === 'gastos' && (
         <>
-          {/* KPI Cards (Una sola fila) */}
-          <div className="grid grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          {/* KPI Cards (Responsivo) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <StatCard
               title="Total General"
               amount={fmt(totales.total || 0)}
@@ -1431,8 +1431,8 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
           {!selectedVehiculo ? (
             /* --- LISTA DE VEHÍCULOS --- */
             <>
-              {/* KPI Cards de Vehículos (Una sola fila) */}
-              <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
+              {/* KPI Cards de Vehículos (Responsivo) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
                 <div className="ga-card px-5 py-4 flex items-center gap-4">
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.1)' }}>
                     <Car size={20} style={{ color: '#3b82f6' }} />

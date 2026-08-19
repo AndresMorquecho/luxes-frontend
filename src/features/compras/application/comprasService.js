@@ -254,16 +254,3 @@ export async function getComprasStats() {
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener estadísticas');
   return data.data;
 }
-
-// ── Recepción de Orden ──────────────────────────────────────────────────────
-
-export async function recepcionarOrden(id, body) {
-  const res = await fetch(`/api/compras/${id}/recepcion`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar productos recibidos');
-  return data.data;
-}

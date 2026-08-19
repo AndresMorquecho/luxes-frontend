@@ -3,96 +3,111 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ShieldCheck, Award, Headphones, ArrowRight, Search, PhoneCall,
-  MapPin, Phone, Sparkles, Check
+  ShieldCheck, Award, Headphones, ArrowRight, PhoneCall,
+  MapPin, Phone, Sparkles
 } from 'lucide-react';
 import { WhatsAppFloat } from './WhatsAppFloat';
 import { ALUX_DATA } from './aluxLandingData';
+import { useLandingConfig } from '../../../landing-config/application/useLandingImages.js';
+import { HERO_DEFAULT_IMAGES } from '../../../landing-config/application/landingImageDefaults.js';
 import aluxLogoHQ from '../../../../assets/aluxLogoHQ.png';
 import './LandingPage.css';
 
-// Imágenes de alta resolución para el carrusel del Hero
-const HERO_CAROUSEL_IMAGES = [
-  {
-    url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2000&q=90',
-    alt: 'Fachada Residencial en Vidrio y Aluminio ALUX'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=2000&q=90',
-    alt: 'Ventanería Moderna y Pérgolas de Aluminio'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=2000&q=90',
-    alt: 'Mamparas y Cerramientos de Cristal Templado'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=2000&q=90',
-    alt: 'Arquitectura Comercial en Paneles Alucobond'
-  }
-];
-
-// Imágenes para el carrusel de la sección "Por Qué Elegir ALUX"
-const WHY_CAROUSEL_IMAGES = [
-  {
-    url: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=90',
-    alt: 'Interiores con Ventanería y Mamparas de Cristal'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1200&q=90',
-    alt: 'Divisiones de Oficina en Vidrio Templado'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1200&q=90',
-    alt: 'Cubiertas y Cerramientos de Aluminio'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=90',
-    alt: 'Fachadas Corporativas en Alucobond ACM'
-  }
-];
-
 export const LandingPage = () => {
   const navigate = useNavigate();
+  const { images, whatsapp, social, categories, loading } = useLandingConfig();
   const [activeCategory, setActiveCategory] = useState('todos');
 
-  // Estado para la barra de cotización rápida (Estilo Nestoria)
-  const [quoteProduct, setQuoteProduct] = useState('Ventanas de Aluminio');
-  const [quoteSector, setQuoteSector] = useState('Residencial');
-  const [quoteCity, setQuoteCity] = useState('Milagro');
+  // Hero carousel slides derived dynamically from backend configuration
+  const heroSlides = useMemo(() => {
+    return [
+      {
+        url: images?.hero?.['hero-1'] || HERO_DEFAULT_IMAGES['hero-1'],
+        alt: 'Fachada Residencial en Vidrio y Aluminio ALUX',
+      },
+      {
+        url: images?.hero?.['hero-2'] || HERO_DEFAULT_IMAGES['hero-2'],
+        alt: 'Ventanería Moderna y Pérgolas de Aluminio',
+      },
+      {
+        url: images?.hero?.['hero-3'] || HERO_DEFAULT_IMAGES['hero-3'],
+        alt: 'Mamparas y Cerramientos de Cristal Templado',
+      },
+      {
+        url: images?.hero?.['hero-4'] || HERO_DEFAULT_IMAGES['hero-4'],
+        alt: 'Arquitectura Comercial en Paneles Alucobond',
+      },
+    ];
+  }, [images]);
 
-  // Estados de Carruseles Automáticos
+  // Estados de Carrusel Automático
   const [heroIndex, setHeroIndex] = useState(0);
-  const [whyIndex, setWhyIndex] = useState(0);
 
-  // Temporizadores para cambio automático de imágenes
+  // Temporizador para cambio automático de imágenes del hero
   useEffect(() => {
+    if (heroSlides.length === 0) return;
     const heroTimer = setInterval(() => {
-      setHeroIndex((prev) => (prev + 1) % HERO_CAROUSEL_IMAGES.length);
+      setHeroIndex((prev) => (prev + 1) % heroSlides.length);
     }, 5000);
 
-    const whyTimer = setInterval(() => {
-      setWhyIndex((prev) => (prev + 1) % WHY_CAROUSEL_IMAGES.length);
-    }, 4500);
+    return () => clearInterval(heroTimer);
+  }, [heroSlides.length]);
 
-    return () => {
-      clearInterval(heroTimer);
-      clearInterval(whyTimer);
-    };
-  }, []);
+  const waPhone = whatsapp?.phone || ALUX_DATA.whatsappPhone;
+  const waDefaultMsg = whatsapp?.message || 'Hola ALUX, me interesa conocer más sobre sus servicios.';
 
-  const waPhone = ALUX_DATA.whatsappPhone;
+  // Build items from backend categories if available, else fallback to ALUX_DATA
+  const allCategoryItems = useMemo(() => {
+    if (categories && categories.length > 0) {
+      const items = [];
+      categories.forEach((cat) => {
+        if (cat.images && cat.images.length > 0) {
+          cat.images.forEach((img) => {
+            items.push({
+              id: img.id,
+              categoryId: cat.id,
+              categorySlug: cat.slug,
+              categoria: cat.name,
+              nombre: img.title || cat.name,
+              desc: img.description || `Soluciones en ${cat.name.toLowerCase()} de alta resistencia y acabados arquitectónicos.`,
+              image: img.imageUrl,
+              tag: (img.tags && img.tags.length > 0) ? img.tags[0] : 'Diseño a Medida',
+            });
+          });
+        } else {
+          // If category has no images yet, create a placeholder card with fallback
+          items.push({
+            id: cat.id,
+            categoryId: cat.id,
+            categorySlug: cat.slug,
+            categoria: cat.name,
+            nombre: cat.name,
+            desc: `Diseño, corte y montaje a medida de ${cat.name.toLowerCase()} para hogares y comercios.`,
+            image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+            tag: 'Garantizado',
+          });
+        }
+      });
+      if (items.length > 0) return items;
+    }
+    return ALUX_DATA.productos;
+  }, [categories]);
 
-  // Generar link de WhatsApp dinámico según filtros seleccionados
-  const dynamicWaLink = useMemo(() => {
-    const message = `Hola ALUX, me gustaría cotizar: ${quoteProduct} para el sector ${quoteSector} en la ciudad de ${quoteCity}.`;
-    return `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
-  }, [quoteProduct, quoteSector, quoteCity, waPhone]);
+  // List of active tabs
+  const categoryTabs = useMemo(() => {
+    if (categories && categories.length > 0) {
+      return categories.map((c) => ({ id: c.id, slug: c.slug, name: c.name }));
+    }
+    return ALUX_DATA.productos.map((p) => ({ id: p.id, slug: p.slug, name: p.nombre }));
+  }, [categories]);
 
   // Filtrado de productos para la sección destacada
   const productosFiltrados = useMemo(() => {
-    if (activeCategory === 'todos') return ALUX_DATA.productos;
-    return ALUX_DATA.productos.filter((p) => p.slug === activeCategory || p.id === activeCategory);
-  }, [activeCategory]);
+    if (activeCategory === 'todos') return allCategoryItems;
+    return allCategoryItems.filter(
+      (p) => p.categoryId === activeCategory || p.categorySlug === activeCategory || p.id === activeCategory
+    );
+  }, [activeCategory, allCategoryItems]);
 
   return (
     <div className="landing-page-container">
@@ -111,13 +126,12 @@ export const LandingPage = () => {
             <a href="#inicio" className="alux-nav-link active">Inicio</a>
             <a href="#productos" className="alux-nav-link">Productos</a>
             <a href="#proceso" className="alux-nav-link">El Proceso</a>
-            <a href="#nosotros" className="alux-nav-link">Por Qué ALUX</a>
             <a href="#contacto" className="alux-nav-link">Contacto</a>
           </nav>
 
           <div className="alux-header-actions">
             <a
-              href={`https://wa.me/${waPhone}?text=${encodeURIComponent('Hola ALUX, deseo más información.')}`}
+              href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waDefaultMsg)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="alux-btn-wa-header"
@@ -140,7 +154,7 @@ export const LandingPage = () => {
       <section id="inicio" className="alux-hero-wrapper">
         <div className="alux-hero-banner">
           {/* Diapositivas de fondo con transición suave */}
-          {HERO_CAROUSEL_IMAGES.map((img, idx) => (
+          {heroSlides.map((img, idx) => (
             <div
               key={idx}
               className={`alux-hero-slide ${idx === heroIndex ? 'active' : ''}`}
@@ -151,32 +165,6 @@ export const LandingPage = () => {
 
           {/* Degradado lateral sutil para contraste del texto */}
           <div className="alux-hero-backdrop" />
-
-          {/* Fila Superior: Badge flotante de confianza */}
-          <div className="alux-hero-top-row">
-            <div className="alux-trusted-badge">
-              <div className="alux-avatar-stack">
-                <img 
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" 
-                  alt="Cliente" 
-                  className="alux-avatar-img"
-                />
-                <img 
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" 
-                  alt="Cliente" 
-                  className="alux-avatar-img"
-                />
-                <img 
-                  src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80" 
-                  alt="Cliente" 
-                  className="alux-avatar-img"
-                />
-              </div>
-              <span className="alux-trusted-text">
-                Garantía en <strong>+1.200 Proyectos</strong>
-              </span>
-            </div>
-          </div>
 
           {/* Contenido Principal con Sello de Marca ALUX */}
           <div className="alux-hero-content">
@@ -199,11 +187,30 @@ export const LandingPage = () => {
             <p className="alux-hero-desc">
               Especialistas en fachadas de Alucobond (ACM), ventanería acústica y vidrio templado a medida para hogares y comercios.
             </p>
+
+            <div className="alux-hero-actions-row">
+              <a
+                href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waDefaultMsg)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="alux-hero-btn-primary"
+              >
+                <PhoneCall size={16} />
+                <span>Cotizar por WhatsApp</span>
+                <ArrowRight size={15} />
+              </a>
+              <a
+                href="#productos"
+                className="alux-hero-btn-secondary"
+              >
+                <span>Ver Productos</span>
+              </a>
+            </div>
           </div>
 
           {/* Dots / Puntos de Navegación del Carrusel Hero */}
           <div className="alux-hero-dots">
-            {HERO_CAROUSEL_IMAGES.map((_, idx) => (
+            {heroSlides.map((_, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -215,65 +222,6 @@ export const LandingPage = () => {
           </div>
         </div>
       </section>
-
-      {/* ── BARRA FLOTANTE DE BÚSQUEDA / COTIZACIÓN (ESTILO NESTORIA) ── */}
-      <div className="alux-search-bar-wrapper">
-        <div className="alux-search-bar">
-          <div className="alux-search-field">
-            <label className="alux-search-label">Tipo de Proyecto</label>
-            <select
-              className="alux-search-select"
-              value={quoteProduct}
-              onChange={(e) => setQuoteProduct(e.target.value)}
-            >
-              <option value="Ventanas de Aluminio">Ventanas de Aluminio</option>
-              <option value="Fachadas en Alucobond (ACM)">Fachadas en Alucobond (ACM)</option>
-              <option value="Mamparas de Vidrio Templado">Mamparas de Vidrio Templado</option>
-              <option value="Pérgolas Modernas">Pérgolas Modernas</option>
-              <option value="Puertas Residenciales">Puertas Residenciales</option>
-              <option value="Vitrinas Comerciales">Vitrinas Comerciales</option>
-              <option value="Barandas de Vidrio">Barandas de Vidrio</option>
-            </select>
-          </div>
-
-          <div className="alux-search-field">
-            <label className="alux-search-label">Sector / Uso</label>
-            <select
-              className="alux-search-select"
-              value={quoteSector}
-              onChange={(e) => setQuoteSector(e.target.value)}
-            >
-              <option value="Residencial">Residencial / Hogar</option>
-              <option value="Comercial / Negocio">Comercial / Negocio</option>
-              <option value="Edificio / Industrial">Edificio / Industrial</option>
-            </select>
-          </div>
-
-          <div className="alux-search-field">
-            <label className="alux-search-label">Ubicación</label>
-            <select
-              className="alux-search-select"
-              value={quoteCity}
-              onChange={(e) => setQuoteCity(e.target.value)}
-            >
-              <option value="Milagro">Milagro</option>
-              <option value="Guayaquil">Guayaquil</option>
-              <option value="Durán / Samborondón">Durán / Samborondón</option>
-              <option value="Todo Ecuador">Todo el Ecuador</option>
-            </select>
-          </div>
-
-          <a
-            href={dynamicWaLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="alux-search-btn"
-          >
-            <Search size={16} className="alux-search-btn-icon" />
-            <span>Cotizar Proyecto</span>
-          </a>
-        </div>
-      </div>
 
       {/* ── ROW OF 4 VALUE PROPOSITION CARDS (PASTEL ICONS) ── */}
       <section className="alux-value-section">
@@ -320,85 +268,7 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── SECCIÓN "POR QUÉ ELEGIR ALUX" (SPLIT SECTION CON CARRUSEL) ── */}
-      <section id="nosotros" className="alux-why-section">
-        <div className="alux-why-grid">
-          <div>
-            <span className="alux-section-eyebrow">POR QUÉ ELEGIR ALUX</span>
-            <h2 className="alux-why-title">
-              Más Que Fabricación, Creamos Tu Visión
-            </h2>
-            <p className="alux-why-desc">
-              Nos apasiona transformar espacios residenciales y comerciales combinando ingeniería de precisión, acabados impecables y diseños arquitectónicos de vanguardia.
-            </p>
-
-            <div className="alux-checklist">
-              <div className="alux-check-item">
-                <div className="alux-check-badge">
-                  <Check size={14} />
-                </div>
-                <span>Amplia gama de perfiles anodizados y acabados Alucobond</span>
-              </div>
-              <div className="alux-check-item">
-                <div className="alux-check-badge">
-                  <Check size={14} />
-                </div>
-                <span>Aislamiento térmico, acústico y protección hermética</span>
-              </div>
-              <div className="alux-check-item">
-                <div className="alux-check-badge">
-                  <Check size={14} />
-                </div>
-                <span>Levantamiento en obra y cotizaciones detalladas a medida</span>
-              </div>
-              <div className="alux-check-item">
-                <div className="alux-check-badge">
-                  <Check size={14} />
-                </div>
-                <span>Más de 10 años de experiencia y respaldo comprobado</span>
-              </div>
-            </div>
-
-            <a
-              href={`https://wa.me/${waPhone}?text=${encodeURIComponent('Hola ALUX, deseo asesoría técnica para mi proyecto.')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="alux-btn-learn"
-            >
-              <span>Hablar con un Especialista</span>
-              <ArrowRight size={16} />
-            </a>
-          </div>
-
-          {/* Carrusel de Imágenes en Sección "Por Qué Elegir ALUX" */}
-          <div className="alux-why-image-box">
-            {WHY_CAROUSEL_IMAGES.map((img, idx) => (
-              <img
-                key={idx}
-                src={img.url}
-                alt={img.alt}
-                className={`alux-why-slide ${idx === whyIndex ? 'active' : ''}`}
-                loading="lazy"
-              />
-            ))}
-
-            {/* Dots / Puntos del Carrusel */}
-            <div className="alux-why-dots">
-              {WHY_CAROUSEL_IMAGES.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className={`alux-why-dot ${idx === whyIndex ? 'active' : ''}`}
-                  onClick={() => setWhyIndex(idx)}
-                  aria-label={`Ver diapositiva ${idx + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── PRODUCTOS Y SOLUCIONES DESTACADAS (CARDS NESTORIA) ── */}
+      {/* ── PRODUCTOS Y SOLUCIONES DESTACADAS (CARDS NESTORIA CONECTADAS AL BACKEND) ── */}
       <section id="productos" className="alux-featured-section">
         <div className="alux-featured-header">
           <div className="alux-featured-title-group">
@@ -406,8 +276,13 @@ export const LandingPage = () => {
             <h2>Soluciones y Productos Destacados</h2>
           </div>
 
-          <a href="#contacto" className="alux-view-all-link">
-            <span>Ver Catálogo Completo</span>
+          <a
+            href={`https://wa.me/${waPhone}?text=${encodeURIComponent('Hola ALUX, deseo consultar sobre su catálogo completo.')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="alux-view-all-link"
+          >
+            <span>Consultar Catálogo</span>
             <ArrowRight size={16} />
           </a>
         </div>
@@ -420,25 +295,25 @@ export const LandingPage = () => {
           >
             Todos los Productos
           </button>
-          {ALUX_DATA.productos.slice(0, 5).map((prod) => (
+          {categoryTabs.map((cat) => (
             <button
-              key={prod.id}
-              onClick={() => setActiveCategory(prod.id)}
-              className={`alux-tab-btn ${activeCategory === prod.id ? 'active' : ''}`}
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`alux-tab-btn ${activeCategory === cat.id ? 'active' : ''}`}
             >
-              {prod.nombre}
+              {cat.name}
             </button>
           ))}
         </div>
 
         {/* Grid de Tarjetas */}
         <div className="alux-cards-grid">
-          {productosFiltrados.slice(0, 6).map((prod, index) => {
-            const itemWa = `https://wa.me/${waPhone}?text=${encodeURIComponent(`Hola ALUX, me interesa cotizar ${prod.nombre}.`)}`;
+          {productosFiltrados.map((prod, index) => {
+            const itemWa = `https://wa.me/${waPhone}?text=${encodeURIComponent(`Hola ALUX, me interesa cotizar: ${prod.nombre}.`)}`;
             const tagType = index % 3 === 0 ? 'featured' : index % 3 === 1 ? 'new' : 'guaranteed';
 
             return (
-              <div key={prod.id} className="alux-nestoria-card">
+              <div key={prod.id || index} className="alux-nestoria-card">
                 <div className="alux-card-image-wrap">
                   <img
                     src={prod.image}
@@ -450,7 +325,7 @@ export const LandingPage = () => {
                     }}
                   />
                   <span className={`alux-card-tag-badge ${tagType}`}>
-                    {prod.tag}
+                    {prod.tag || 'A Medida'}
                   </span>
                 </div>
 
@@ -505,10 +380,11 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── FOOTER LIMPIO Y MODERNO ── */}
+      {/* ── FOOTER LIMPIO Y MODERNO CONECTADO A CONFIGURACIONES DE CONTACTO Y REDES ── */}
       <footer id="contacto" className="alux-footer">
         <div className="alux-footer-container">
           <div className="alux-footer-grid">
+            {/* Branding */}
             <div>
               <div className="alux-footer-brand-header">
                 <img src={aluxLogoHQ} alt="ALUX" className="alux-footer-logo-img" />
@@ -520,8 +396,52 @@ export const LandingPage = () => {
               <p className="alux-footer-brand-desc">
                 Constructores en Aluminio & Vidrio. Especialistas en fachadas de Alucobond, ventanería acústica, mamparas y vidrio templado.
               </p>
+
+              {/* Social Links from Backend Config */}
+              <div className="flex items-center gap-3 pt-3">
+                {social?.facebook && (
+                  <a
+                    href={social.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 flex items-center justify-center transition-colors"
+                    title="Facebook"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                  </a>
+                )}
+                {social?.instagram && (
+                  <a
+                    href={social.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-pink-600 hover:text-white text-slate-600 flex items-center justify-center transition-colors"
+                    title="Instagram"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.13-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                  </a>
+                )}
+                {social?.tiktok && (
+                  <a
+                    href={social.tiktok}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-black hover:text-white text-slate-600 flex items-center justify-center transition-colors"
+                    title="TikTok"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.86 4.46V11.2a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.04-.63z"/>
+                    </svg>
+                  </a>
+                )}
+              </div>
             </div>
 
+            {/* Contact Details */}
             <div>
               <h4 className="alux-footer-col-title">Contacto en Obra</h4>
               <ul className="alux-footer-list">
@@ -532,21 +452,36 @@ export const LandingPage = () => {
                   </span>
                 </li>
                 <li>
-                  <a href={`https://wa.me/${waPhone}`} className="alux-footer-link">
+                  <a
+                    href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waDefaultMsg)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="alux-footer-link"
+                  >
                     <Phone size={15} />
-                    <span>WhatsApp: {ALUX_DATA.phone}</span>
+                    <span>WhatsApp / Celular: +{waPhone}</span>
                   </a>
                 </li>
               </ul>
             </div>
 
+            {/* Enlaces */}
             <div>
               <h4 className="alux-footer-col-title">Enlaces Rápidos</h4>
               <ul className="alux-footer-list">
                 <li><a href="#inicio" className="alux-footer-link">Inicio</a></li>
                 <li><a href="#productos" className="alux-footer-link">Productos y Fachadas</a></li>
                 <li><a href="#proceso" className="alux-footer-link">Proceso de Fabricación</a></li>
-                <li><a href="#nosotros" className="alux-footer-link">Por Qué ALUX</a></li>
+                <li>
+                  <a
+                    href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waDefaultMsg)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="alux-footer-link"
+                  >
+                    Contactar por WhatsApp
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
@@ -563,3 +498,4 @@ export const LandingPage = () => {
     </div>
   );
 };
+

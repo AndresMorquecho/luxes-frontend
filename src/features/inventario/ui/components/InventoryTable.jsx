@@ -3,7 +3,15 @@ import { ArrowUpDown } from 'lucide-react';
 import { ProductRow } from './ProductRow.jsx';
 import { ProductMobileCard } from './ProductMobileCard.jsx';
 
-export function InventoryTable({ items, isAdmin, onViewHistory, onEdit, onDelete }) {
+export function InventoryTable({
+  items,
+  isAdmin,
+  onViewHistory,
+  onEntrada,
+  onSalida,
+  onEdit,
+  onDelete
+}) {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const sortedItems = useMemo(() => {
@@ -58,8 +66,8 @@ export function InventoryTable({ items, isAdmin, onViewHistory, onEdit, onDelete
         <table className="inv-table">
           <thead>
             <tr>
-              <SortableHeader label="Producto / Herramienta" sortKey="nombre" />
-              <th style={{ textAlign: 'center', padding: '1rem' }}>Tipo</th>
+              <SortableHeader label="Producto / Material" sortKey="nombre" />
+              <th style={{ textAlign: 'center', padding: '1rem' }}>Categoría</th>
               <SortableHeader label="Stock Actual" sortKey="stock" />
               <th style={{ textAlign: 'center', padding: '1rem' }}>Estado</th>
               <SortableHeader label="Costo Unitario" sortKey="costo" />
@@ -70,7 +78,7 @@ export function InventoryTable({ items, isAdmin, onViewHistory, onEdit, onDelete
             {sortedItems.length === 0 && (
               <tr>
                 <td colSpan={6} className="inv-empty" style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b' }}>
-                  No se encontraron productos ni herramientas registradas.
+                  No se encontraron productos registrados en inventario.
                 </td>
               </tr>
             )}
@@ -80,6 +88,8 @@ export function InventoryTable({ items, isAdmin, onViewHistory, onEdit, onDelete
                 item={item} 
                 isAdmin={isAdmin} 
                 onViewHistory={onViewHistory} 
+                onEntrada={onEntrada}
+                onSalida={onSalida}
                 onEdit={onEdit} 
                 onDelete={onDelete} 
               />
@@ -102,6 +112,8 @@ export function InventoryTable({ items, isAdmin, onViewHistory, onEdit, onDelete
               item={item} 
               isAdmin={isAdmin} 
               onViewHistory={onViewHistory} 
+              onEntrada={onEntrada}
+              onSalida={onSalida}
               onEdit={onEdit} 
               onDelete={onDelete} 
             />
@@ -111,3 +123,4 @@ export function InventoryTable({ items, isAdmin, onViewHistory, onEdit, onDelete
     </>
   );
 }
+

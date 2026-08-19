@@ -37,38 +37,6 @@ export const ProyectoEditModal = React.memo(function ProyectoEditModal({
     }
   }, [proyecto, isOpen]);
 
-  const isInstalacionLocked = useMemo(() => {
-    if (!proyecto) return { isLocked: false, reason: '' };
-
-    // 1. Proyecto ya completado o cancelado
-    if (proyecto.estado === 'COMPLETADO' || proyecto.estado === 'Cancelado' || proyecto.faseActual === 'COMPLETADO') {
-      return {
-        isLocked: true,
-        reason: 'No se puede modificar el tipo de instalación en proyectos finalizados.',
-      };
-    }
-
-    // 2. Si actualmente REQUIERE instalación, verificar si ya se inició trabajo o gastos
-    if (proyecto.requiereInstalacion !== false) {
-      const instalacionDatos = proyecto.fases?.INSTALACION?.datos || {};
-      const estadoInst = instalacionDatos.estadoInstalacion;
-      const tieneMateriales = Array.isArray(instalacionDatos.materiales) && instalacionDatos.materiales.length > 0;
-      const tieneEquipo = Array.isArray(instalacionDatos.instaladores) && instalacionDatos.instaladores.length > 0;
-      const tieneGastosInstalacion = Array.isArray(proyecto.gastos) && proyecto.gastos.some(
-        g => g.fase === 'INSTALACION' || (g.concepto || '').toLowerCase().includes('instalaci')
-      );
-
-      if (estadoInst === 'EN_PROCESO' || estadoInst === 'COMPLETADO' || tieneMateriales || tieneEquipo || tieneGastosInstalacion) {
-        return {
-          isLocked: true,
-          reason: 'No se puede cambiar a Sin Instalación porque el proyecto ya tiene trabajo en proceso, materiales o gastos de instalación registrados.',
-        };
-      }
-    }
-
-    return { isLocked: false, reason: '' };
-  }, [proyecto]);
-
   if (!isOpen || !proyecto) return null;
 
   const addEtiqueta = () => {
@@ -144,45 +112,6 @@ export const ProyectoEditModal = React.memo(function ProyectoEditModal({
                     value={editForm.nombre}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, nombre: e.target.value }))}
                   />
-                </div>
-
-                {/* Tipo de Proyecto (Instalación) */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                    Tipo de Proyecto
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      disabled={isInstalacionLocked.isLocked && !editForm.requiereInstalacion}
-                      onClick={() => setEditForm((prev) => ({ ...prev, requiereInstalacion: true }))}
-                      className={`px-4 py-2.5 rounded-xl border font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-                        editForm.requiereInstalacion
-                          ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                      } ${isInstalacionLocked.isLocked && !editForm.requiereInstalacion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      Con Instalación
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isInstalacionLocked.isLocked && editForm.requiereInstalacion}
-                      onClick={() => setEditForm((prev) => ({ ...prev, requiereInstalacion: false }))}
-                      className={`px-4 py-2.5 rounded-xl border font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-                        !editForm.requiereInstalacion
-                          ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                      } ${isInstalacionLocked.isLocked && editForm.requiereInstalacion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      Sin Instalación
-                    </button>
-                  </div>
-                  {isInstalacionLocked.isLocked && (
-                    <p className="text-[11px] text-amber-700 font-semibold mt-2 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-                      <Lock size={14} className="shrink-0 text-amber-600" />
-                      <span>{isInstalacionLocked.reason}</span>
-                    </p>
-                  )}
                 </div>
 
                 {/* Responsable */}

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import './WhatsAppFloat.css';
 
-const FALLBACK_NUMBER = '593968982380';
-const FALLBACK_MESSAGE = 'Hola, me interesa conocer más sobre los servicios de LUXES.';
+const FALLBACK_NUMBER = '593985740242';
+const FALLBACK_MESSAGE = 'Hola ALUX, me interesa conocer más sobre sus servicios de aluminio y vidrio.';
 
 const WhatsAppIcon = () => (
   <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false">

@@ -1,12 +1,20 @@
 import React from 'react';
-import { Package, Wrench, Eye, Edit2, Trash2 } from 'lucide-react';
+import { Package, Wrench, Eye, Edit2, Trash2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { StatusBadge } from './StatusBadge.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
 
 const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
 
-export function ProductRow({ item, isAdmin, onViewHistory, onEdit, onDelete }) {
-  const isTool = item.tipo === 'herramienta' || String(item.categoria || '').toLowerCase() === 'taller';
+export function ProductRow({
+  item,
+  isAdmin,
+  onViewHistory,
+  onEntrada,
+  onSalida,
+  onEdit,
+  onDelete
+}) {
+  const isTool = item.tipo === 'herramienta' || String(item.categoria || '').toLowerCase().includes('herramient');
   const unidad = item.unidadMedida?.abreviacion || item.unidadMedida?.nombre || 'unid';
   
   const estado = isTool ? (item.estadoUso || 'En Stock') : (
@@ -15,7 +23,7 @@ export function ProductRow({ item, isAdmin, onViewHistory, onEdit, onDelete }) {
   );
 
   return (
-    <tr>
+    <tr className="hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0">
       <td className="inv-td-name" style={{ fontSize: '0.875rem', padding: '1rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -24,7 +32,7 @@ export function ProductRow({ item, isAdmin, onViewHistory, onEdit, onDelete }) {
                 <Wrench size={14} />
               </div>
             ) : (
-              <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a', flexShrink: 0 }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', flexShrink: 0 }}>
                 <Package size={14} />
               </div>
             )}
@@ -32,7 +40,7 @@ export function ProductRow({ item, isAdmin, onViewHistory, onEdit, onDelete }) {
           </div>
           {item.codigo && (
             <span style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem', marginLeft: '2.25rem' }}>
-              Ref: {item.codigo}
+              Código: <strong className="text-slate-700">{item.codigo}</strong>
             </span>
           )}
         </div>
@@ -51,21 +59,112 @@ export function ProductRow({ item, isAdmin, onViewHistory, onEdit, onDelete }) {
       <td style={{ fontSize: '0.875rem', padding: '1rem', fontWeight: 600, color: '#334155' }}>
         {fmt(item.precioCosto)}
       </td>
-      <td className="inv-td-actions" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', padding: '1.25rem 1rem' }}>
-        <button className="inv-icon-btn" title="Ver Historial" onClick={() => onViewHistory(item)} style={{ color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', padding: '0.35rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Eye size={15}/>
+      <td className="inv-td-actions" style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center', padding: '1rem' }}>
+        {/* Entrada manual */}
+        <button
+          className="inv-icon-btn"
+          title="Registrar Entrada / Ingreso manual (+)"
+          onClick={() => onEntrada?.(item)}
+          style={{
+            color: '#16a34a',
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            padding: '0.4rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ArrowDownLeft size={15} />
         </button>
+
+        {/* Salida / Descarga manual */}
+        <button
+          className="inv-icon-btn"
+          title="Registrar Salida / Descarga manual (-)"
+          onClick={() => onSalida?.(item)}
+          style={{
+            color: '#ea580c',
+            background: '#fff7ed',
+            border: '1px solid #fed7aa',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            padding: '0.4rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ArrowUpRight size={15} />
+        </button>
+
+        {/* Ver historial */}
+        <button
+          className="inv-icon-btn"
+          title="Ver Historial de Movimientos"
+          onClick={() => onViewHistory(item)}
+          style={{
+            color: '#64748b',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            padding: '0.4rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Eye size={15} />
+        </button>
+
+        {/* Editar */}
         {isAdmin && (
-          <button className="inv-icon-btn" title="Editar" onClick={() => onEdit(item)} style={{ color: '#0284c7', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', cursor: 'pointer', padding: '0.35rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Edit2 size={15}/>
+          <button
+            className="inv-icon-btn"
+            title="Editar producto"
+            onClick={() => onEdit(item)}
+            style={{
+              color: '#0284c7',
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              padding: '0.4rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Edit2 size={15} />
           </button>
         )}
+
+        {/* Eliminar */}
         {isAdmin && (
-          <button className="inv-icon-btn" title="Eliminar" onClick={() => onDelete(item)} style={{ color: '#ef4444', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', padding: '0.35rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Trash2 size={15}/>
+          <button
+            className="inv-icon-btn"
+            title="Eliminar producto"
+            onClick={() => onDelete(item)}
+            style={{
+              color: '#ef4444',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              padding: '0.4rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Trash2 size={15} />
           </button>
         )}
       </td>
     </tr>
   );
 }
+

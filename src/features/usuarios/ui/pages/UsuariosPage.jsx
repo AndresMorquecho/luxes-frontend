@@ -24,11 +24,9 @@ const initial = (name) => name?.charAt(0)?.toUpperCase() ?? '?';
 
 const ROL_COLORS = {
   administrador: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1' },
-  taller: { bg: 'rgba(16,185,129,0.1)', color: '#10b981' },
-  'ventas / diseñador': { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
-  'ventas / disenador': { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
-  'impresión': { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
-  impresion: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+  admin: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1' },
+  trabajador: { bg: 'rgba(16,185,129,0.1)', color: '#10b981' },
+  asistencia: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
   default: { bg: 'rgba(148,163,184,0.1)', color: '#64748b' }
 };
 

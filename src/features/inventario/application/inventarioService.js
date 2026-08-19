@@ -6,11 +6,8 @@ const getHeaders = () => {
   };
 };
 
-/** Categoría de inventario según rol: Impresión, Taller o libre (admin). */
-export function getInventarioCategoriaPorRol(user) {
-  const rol = (user?.rol ?? JSON.parse(localStorage.getItem('user') || '{}')?.rol ?? '').toLowerCase();
-  if (rol === 'impresión' || rol === 'impresion') return 'Impresión';
-  if (rol === 'taller') return 'Taller';
+/** Categoría de inventario unificada para ALUX. */
+export function getInventarioCategoriaPorRol(_user) {
   return undefined;
 }
 
@@ -237,8 +234,18 @@ export async function devolverPrestamo(id, body = {}) {
   return data.data;
 }
 
-export async function getMaterialHistorial(id) {
-  const res = await fetch(`/api/inventario/${id}/historial`, { headers: getHeaders() });
+export async function getMaterialHistorial(id, options = {}) {
+  const params = new URLSearchParams();
+  if (options.page) params.append('page', options.page);
+  if (options.limit) params.append('limit', options.limit);
+  if (options.fechaInicio) params.append('fechaInicio', options.fechaInicio);
+  if (options.fechaFin) params.append('fechaFin', options.fechaFin);
+  if (options.tipo && options.tipo !== 'todos' && options.tipo !== 'all') params.append('tipo', options.tipo);
+  if (options.usuario) params.append('usuario', options.usuario);
+
+  const queryStr = params.toString();
+  const url = `/api/inventario/${id}/historial${queryStr ? `?${queryStr}` : ''}`;
+  const res = await fetch(url, { headers: getHeaders() });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al obtener historial del material');
   return data.data;

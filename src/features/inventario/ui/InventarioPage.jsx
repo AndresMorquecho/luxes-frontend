@@ -1,11 +1,11 @@
 // src/features/inventario/ui/InventarioPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Package, Wrench, ArrowRightLeft, Search, Plus, Edit2, Trash2,
   ArrowUp, ArrowDown, RefreshCw, AlertTriangle, CheckCircle2,
   Clock, X, Layers, User, ExternalLink, Filter, ChevronLeft, ChevronRight,
-  Monitor, Printer
+  Monitor, Printer, Tag
 } from 'lucide-react';
 import {
   getMateriales, createMaterial, updateMaterial, deleteMaterial,
@@ -30,31 +30,61 @@ const elapsed = (fechaSalida) => {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
-const TABS = [
-  { id: 'all',         label: 'Todos',                    Icon: Layers },
-  { id: 'herramienta', label: 'Herramientas',            Icon: Wrench },
-  { id: 'consumible',  label: 'Productos y Materiales',  Icon: Package },
-  { id: 'low_stock',   label: 'Stock Bajo',              Icon: AlertTriangle },
+const ALUX_CATEGORIAS_BASE = [
+  'Perfilería de Aluminio',
+  'Vidrio y Cristal Templado',
+  'Alucobond / ACM',
+  'Herrajes y Accesorios',
+  'Selladores, Siliconas e Insumos',
+  'Herramientas y Equipos',
+  'Tornillería y Anclajes',
+  'Policarbonato y Acrílicos',
+  'Consumibles de Taller',
+  'Otros / Varios',
 ];
 
 // ── Movimiento rápido (desde fila de tabla) ────────────────────────────────
-function MovimientoModal({ material, onClose, onSave }) {
-  const [tipo, setTipo] = useState('entrada');
+function MovimientoModal({ material, initialTipo = 'entrada', onClose, onSave }) {
+  const [tipo, setTipo] = useState(initialTipo);
   const [cantidad, setCantidad] = useState('');
   const [motivo, setMotivo] = useState('');
   const [saving, setSaving] = useState(false);
   const unidad = material.unidadMedida?.abreviacion || material.unidadMedida?.nombre || 'unid';
 
+  const numQty = parseFloat(cantidad) || 0;
+  const currentStock = Number(material.stockActual) || 0;
+  const newStock = tipo === 'entrada' ? currentStock + numQty : currentStock - numQty;
+  const isInvalidSalida = tipo === 'salida' && numQty > currentStock;
+
+  const PRESET_MOTIVOS = tipo === 'entrada' ? [
+    'Ingreso por Compra Manual',
+    'Ajuste por Conteo Físico',
+    'Devolución de Taller',
+    'Sobrante de Proyecto',
+  ] : [
+    'Descarga para Producción',
+    'Uso en Taller / Obra',
+    'Merma / Daño de Material',
+    'Ajuste por Conteo Físico',
+  ];
+
   async function handleSubmit(e) {
     e.preventDefault();
-    const qty = parseFloat(cantidad);
-    if (!qty || qty <= 0) return;
+    if (!numQty || numQty <= 0) {
+      toast.error('Ingresa una cantidad válida mayor a 0.');
+      return;
+    }
+    if (isInvalidSalida) {
+      toast.error(`Stock insuficiente. Disponible: ${currentStock} ${unidad}`);
+      return;
+    }
+
     setSaving(true);
     try {
       await onSave({
         tipo,
-        cantidad: qty,
-        motivo: motivo.trim() || (tipo === 'entrada' ? 'Ajuste de stock' : 'Salida de stock'),
+        cantidad: numQty,
+        motivo: motivo.trim() || (tipo === 'entrada' ? 'Ingreso de stock manual' : 'Descarga de stock manual'),
       });
     } finally {
       setSaving(false);
@@ -63,39 +93,171 @@ function MovimientoModal({ material, onClose, onSave }) {
 
   return (
     <ModalPortal>
-      <div className="inv-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}>
-        <div className="inv-modal inv-modal-sm" onMouseDown={e => e.stopPropagation()}>
-        <div className="inv-modal-header">
-          <h3>Ajustar stock</h3>
-          <button type="button" className="inv-close" onClick={() => deferClose(onClose)}><X size={18}/></button>
-        </div>
-        <form onSubmit={handleSubmit} className="inv-modal-body">
-          <div className="inv-material-info">
-            <span className="inv-chip consumible">{material.tipo === 'herramienta' ? 'Herramienta' : 'Producto'}</span>
-            <strong>{material.nombre}</strong>
-            <span className="inv-stock-badge">Stock: {material.stockActual} {unidad}</span>
-          </div>
-          <div className="inv-tipo-toggle">
-            <button type="button" className={`inv-tipo-btn ${tipo==='entrada'?'entrada':''}`} onClick={()=>setTipo('entrada')}>
-              <ArrowDown size={16}/> Entrada
-            </button>
-            <button type="button" className={`inv-tipo-btn ${tipo==='salida'?'salida':''}`} onClick={()=>setTipo('salida')}>
-              <ArrowUp size={16}/> Salida
-            </button>
-          </div>
-          <label>Cantidad ({unidad}) *
-            <input type="number" min="0.01" step="0.01" required placeholder="0" value={cantidad} onChange={e=>setCantidad(e.target.value)} />
-          </label>
-          <label>Motivo (opcional)
-            <textarea rows={2} value={motivo} onChange={e=>setMotivo(e.target.value)} placeholder="Ej: Ajuste por conteo físico" />
-          </label>
-          <div className="inv-modal-footer">
-            <button type="button" className="inv-btn-ghost" onClick={() => deferClose(onClose)} disabled={saving}>Cancelar</button>
-            <button type="submit" className="inv-btn-primary" disabled={saving}>
-              {saving ? 'Registrando…' : 'Registrar'}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+        style={{
+          background: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(5px)',
+          WebkitBackdropFilter: 'blur(5px)',
+          fontFamily: "var(--font-main, 'Inter', system-ui, -apple-system, sans-serif)",
+        }}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) deferClose(onClose); }}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <div>
+              <h3 className="text-base font-bold text-slate-800">
+                {tipo === 'entrada' ? 'Registrar Entrada de Stock' : 'Registrar Salida / Descarga'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">Ajusta el inventario manualmente</p>
+            </div>
+            <button
+              type="button"
+              className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 flex items-center justify-center transition-colors cursor-pointer"
+              onClick={() => deferClose(onClose)}
+            >
+              <X size={18} />
             </button>
           </div>
-        </form>
+
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            {/* Info del Producto */}
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {material.categoria || 'Producto'}
+                </p>
+                <p className="text-sm font-bold text-slate-800 truncate" title={material.nombre}>
+                  {material.nombre}
+                </p>
+                {material.codigo && (
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">{material.codigo}</p>
+                )}
+              </div>
+              <div className="text-right shrink-0">
+                <span className="text-[11px] text-slate-500 block font-medium">Stock Actual</span>
+                <strong className="text-sm font-bold text-slate-800">
+                  {currentStock} <span className="text-xs text-slate-500 font-normal">{unidad}</span>
+                </strong>
+              </div>
+            </div>
+
+            {/* Toggle Tipo (Entrada vs Salida) */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setTipo('entrada')}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  tipo === 'entrada'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ArrowDown size={14} /> Entrada (+)
+              </button>
+              <button
+                type="button"
+                onClick={() => setTipo('salida')}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  tipo === 'salida'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ArrowUp size={14} /> Salida / Descarga (-)
+              </button>
+            </div>
+
+            {/* Cantidad Input */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Cantidad a {tipo === 'entrada' ? 'Ingresar' : 'Descargar'} ({unidad}) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="0.01"
+                step="any"
+                required
+                autoFocus
+                placeholder="0"
+                value={cantidad}
+                onChange={(e) => setCantidad(e.target.value)}
+                className={`w-full px-3.5 py-2.5 bg-white border rounded-xl text-base font-bold text-slate-800 focus:outline-none transition-all shadow-xs ${
+                  isInvalidSalida
+                    ? 'border-red-400 bg-red-50/20 text-red-700 focus:ring-2 focus:ring-red-400/20'
+                    : 'border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+                }`}
+              />
+              {isInvalidSalida && (
+                <p className="text-xs font-semibold text-red-500 mt-1">
+                  ⚠️ No puedes descargar más de los {currentStock} {unidad} disponibles en stock.
+                </p>
+              )}
+            </div>
+
+            {/* Preview de Nuevo Stock */}
+            {numQty > 0 && !isInvalidSalida && (
+              <div className={`p-2.5 rounded-xl text-xs font-bold flex items-center justify-between border ${
+                tipo === 'entrada' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+              }`}>
+                <span>Proyección de Stock:</span>
+                <span>
+                  {currentStock} {unidad} ➔ <strong>{newStock} {unidad}</strong> ({tipo === 'entrada' ? `+${numQty}` : `-${numQty}`})
+                </span>
+              </div>
+            )}
+
+            {/* Motivo Input & Chips */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Motivo / Destino
+              </label>
+              <input
+                type="text"
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                placeholder={tipo === 'entrada' ? 'Ej: Compra manual, sobrante...' : 'Ej: Descarga para producción, uso en taller...'}
+                className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs mb-2"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {PRESET_MOTIVOS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMotivo(m)}
+                    className="text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => deferClose(onClose)}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className={`inline-flex items-center justify-center gap-1.5 px-5 py-2 text-white rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm cursor-pointer active:scale-[0.99] disabled:opacity-50 ${
+                  tipo === 'entrada' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-950/20' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-950/20'
+                }`}
+                disabled={saving || isInvalidSalida || !numQty}
+              >
+                {saving ? 'Registrando…' : tipo === 'entrada' ? 'Confirmar Entrada' : 'Confirmar Salida'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </ModalPortal>
@@ -109,7 +271,8 @@ export function InventarioPage() {
   const userRole = (user?.rol || 'visor').toUpperCase();
   const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
 
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'herramienta' | 'consumible' | 'low_stock'
+  const [selectedCategoria, setSelectedCategoria] = useState('');
+  const [selectedStockStatus, setSelectedStockStatus] = useState('all'); // 'all' | 'en_stock' | 'low_stock' | 'agotado'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -127,6 +290,15 @@ export function InventarioPage() {
   const [matModal, setMatModal] = useState(null);       // null | 'new' | item
   const [movModal, setMovModal] = useState(null);       // null | item
 
+  // Categorías disponibles (base ALUX + dinámicas de los productos registrados)
+  const availableCategorias = useMemo(() => {
+    const set = new Set(ALUX_CATEGORIAS_BASE);
+    items.forEach((i) => {
+      if (i.categoria && i.categoria.trim()) set.add(i.categoria.trim());
+    });
+    return Array.from(set);
+  }, [items]);
+
   // ── Debounce Search ──────────────────────────────────────────────────────
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -135,10 +307,10 @@ export function InventarioPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Reset page to 1 when filters or tabs change
+  // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [activeTab, debouncedSearch]);
+  }, [selectedCategoria, selectedStockStatus, debouncedSearch]);
 
   // ── Loaders ──────────────────────────────────────────────────────────────
   const loadUnits = useCallback(async () => {
@@ -162,29 +334,29 @@ export function InventarioPage() {
   const loadMaterials = useCallback(async () => {
     setLoading(true);
     try {
-      let tipoQuery = undefined;
-      if (activeTab === 'herramienta') tipoQuery = 'herramienta';
-      else if (activeTab === 'consumible') tipoQuery = 'consumible';
-
       const res = await getMateriales(buildMaterialesQuery({
-        tipo: tipoQuery,
+        categoria: selectedCategoria || undefined,
         page,
         limit: ITEMS_PER_PAGE,
         search: debouncedSearch,
       }));
       
-      let resItems = res.items || [];
-      if (activeTab === 'low_stock') {
-        resItems = resItems.filter(i => (i.stockActual || 0) <= (i.stockMinimo || 1));
+      let resItems = res.items || (Array.isArray(res) ? res : []);
+      if (selectedStockStatus === 'low_stock') {
+        resItems = resItems.filter(i => (i.stockActual || 0) <= (i.stockMinimo || 1) && (i.stockActual || 0) > 0);
+      } else if (selectedStockStatus === 'agotado') {
+        resItems = resItems.filter(i => (i.stockActual || 0) === 0);
+      } else if (selectedStockStatus === 'en_stock') {
+        resItems = resItems.filter(i => (i.stockActual || 0) > (i.stockMinimo || 1));
       }
       setItems(resItems);
-      setTotalItems(res.total || 0);
+      setTotalItems(res.total ?? resItems.length);
     } catch (e) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, debouncedSearch]);
+  }, [selectedCategoria, selectedStockStatus, page, debouncedSearch]);
 
   useEffect(() => {
     loadMaterials();
@@ -240,8 +412,9 @@ export function InventarioPage() {
 
   async function handleMovimiento(form) {
     try {
-      await registrarMovimiento(movModal.id, form);
-      toast.success(`Movimiento de ${form.tipo} registrado.`);
+      const targetId = movModal?.material?.id || movModal?.id;
+      await registrarMovimiento(targetId, form);
+      toast.success(`Movimiento de ${form.tipo} registrado con éxito.`);
       setMovModal(null);
       loadAll();
     } catch (e) { toast.error(e.message); }
@@ -278,7 +451,7 @@ export function InventarioPage() {
               <RefreshCw size={14}/>
             </button>
           </div>
-          <p className="inv-page-sub" style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b', fontWeight: 500 }}>Herramientas de trabajo y productos de fabricación</p>
+          <p className="inv-page-sub" style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b', fontWeight: 500 }}>Catálogo de perfilería, cristales, herrajes e insumos de fabricación</p>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%', maxWidth: 'max-content' }}>
           {isAdmin && (
@@ -289,73 +462,114 @@ export function InventarioPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards ALUX */}
       <div className="inv-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="inv-kpi-card">
           <div className="inv-kpi-icon blue"><Layers size={20}/></div>
           <div>
-            <span className="inv-kpi-value">{stats.totalMateriales}</span>
-            <span className="inv-kpi-label">Total en Inventario</span>
+            <span className="inv-kpi-value">{stats.totalMateriales || items.length}</span>
+            <span className="inv-kpi-label">Total en Catálogo</span>
           </div>
         </div>
         <div className="inv-kpi-card">
-          <div className="inv-kpi-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}><Wrench size={20}/></div>
+          <div className="inv-kpi-icon" style={{ background: '#f0fdf4', color: '#16a34a' }}><Package size={20}/></div>
           <div>
-            <span className="inv-kpi-value">{items.filter(i => i.tipo === 'herramienta' || i.categoria === 'Taller').length || '—'}</span>
-            <span className="inv-kpi-label">Herramientas</span>
+            <span className="inv-kpi-value">{items.filter(i => (i.stockActual || 0) > (i.stockMinimo || 1)).length}</span>
+            <span className="inv-kpi-label">En Stock Óptimo</span>
           </div>
         </div>
         <div className="inv-kpi-card">
-          <div className="inv-kpi-icon" style={{ background: '#dcfce7', color: '#16a34a' }}><Package size={20}/></div>
+          <div className="inv-kpi-icon" style={{ background: '#eff6ff', color: '#0b2d64' }}><Filter size={20}/></div>
           <div>
-            <span className="inv-kpi-value">{items.filter(i => i.tipo !== 'herramienta' && i.categoria !== 'Taller').length || '—'}</span>
-            <span className="inv-kpi-label">Productos y Materiales</span>
+            <span className="inv-kpi-value">{availableCategorias.length}</span>
+            <span className="inv-kpi-label">Categorías Activas</span>
           </div>
         </div>
         <div className="inv-kpi-card">
           <div className="inv-kpi-icon amber"><AlertTriangle size={20}/></div>
           <div>
-            <span className="inv-kpi-value">{stats.totalLowStock}</span>
-            <span className="inv-kpi-label">Stock Bajo</span>
+            <span className="inv-kpi-value">{stats.totalLowStock || items.filter(i => (i.stockActual || 0) <= (i.stockMinimo || 1)).length}</span>
+            <span className="inv-kpi-label">Stock Crítico / Bajo</span>
           </div>
         </div>
       </div>
 
-      {/* Simplified Filters & Search */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', background: '#fff', padding: '0.85rem 1.25rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        {/* Tab Pills */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center' }}>
-          {TABS.map(tab => {
-            const Icon = tab.Icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => { setActiveTab(tab.id); setPage(1); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.45rem 0.9rem',
-                  borderRadius: '9999px',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  border: isActive ? '1px solid #02188e' : '1px solid #e2e8f0',
-                  background: isActive ? '#02188e' : '#f8fafc',
-                  color: isActive ? '#fff' : '#475569',
-                }}
-              >
-                <Icon size={14} />
-                {tab.label}
-              </button>
-            );
-          })}
+      {/* Dropdown Filters & Search Bar */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '1rem', background: '#fff', padding: '0.85rem 1.25rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.625rem', alignItems: 'center', flex: 1, minWidth: '280px' }}>
+          {/* Dropdown de Categorías */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.625rem', padding: '0.45rem 0.75rem' }}>
+            <Tag size={15} color="#0b2d64" />
+            <select
+              value={selectedCategoria}
+              onChange={(e) => { setSelectedCategoria(e.target.value); setPage(1); }}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: selectedCategoria ? '#0b2d64' : '#475569',
+                cursor: 'pointer',
+                minWidth: '180px',
+              }}
+            >
+              <option value="">Todas las Categorías ({availableCategorias.length})</option>
+              {availableCategorias.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown de Estado de Stock */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.625rem', padding: '0.45rem 0.75rem' }}>
+            <AlertTriangle size={15} color="#d97706" />
+            <select
+              value={selectedStockStatus}
+              onChange={(e) => { setSelectedStockStatus(e.target.value); setPage(1); }}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: selectedStockStatus !== 'all' ? '#0b2d64' : '#475569',
+                cursor: 'pointer',
+                minWidth: '140px',
+              }}
+            >
+              <option value="all">Todos los Estados</option>
+              <option value="en_stock">En Stock</option>
+              <option value="low_stock">Stock Bajo (Crítico)</option>
+              <option value="agotado">Agotado (0)</option>
+            </select>
+          </div>
+
+          {/* Botón limpiar filtros */}
+          {(selectedCategoria || selectedStockStatus !== 'all' || search) && (
+            <button
+              type="button"
+              onClick={() => { setSelectedCategoria(''); setSelectedStockStatus('all'); setSearch(''); }}
+              style={{
+                border: 'none',
+                background: '#f1f5f9',
+                color: '#64748b',
+                padding: '0.45rem 0.75rem',
+                borderRadius: '0.5rem',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
 
         {/* Search Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.625rem', padding: '0.45rem 0.85rem', width: '100%', maxWidth: '320px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.625rem', padding: '0.45rem 0.85rem', width: '100%', maxWidth: '300px' }}>
           <Search size={15} color="#94a3b8" />
           <input
             type="text"
@@ -393,6 +607,8 @@ export function InventarioPage() {
               items={items}
               isAdmin={isAdmin}
               onViewHistory={handleViewHistory}
+              onEntrada={(item) => setMovModal({ material: item, initialTipo: 'entrada' })}
+              onSalida={(item) => setMovModal({ material: item, initialTipo: 'salida' })}
               onEdit={setMatModal}
               onDelete={handleDeleteMaterial}
             />
@@ -445,6 +661,7 @@ export function InventarioPage() {
       {matModal && (
         <ProductoFormModal
           item={matModal === 'new' ? null : matModal}
+          existingItems={items}
           unidades={unidades}
           onClose={() => setMatModal(null)}
           onSave={handleSaveMaterial}
@@ -453,7 +670,8 @@ export function InventarioPage() {
       )}
       {movModal && (
         <MovimientoModal
-          material={movModal}
+          material={movModal.material || movModal}
+          initialTipo={movModal.initialTipo || 'entrada'}
           onClose={() => setMovModal(null)}
           onSave={handleMovimiento}
         />

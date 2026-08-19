@@ -25,12 +25,13 @@ const formatTimelineDateTime = (val) => {
   return `${day} ${month} ${year}, ${hours}:${minutes}`;
 };
 
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
+
 export function CotizacionPanel({ proyectoId, soloLectura }) {
   const { proyecto, updateFaseDatos } = useProyecto(proyectoId);
   const isAdmin = useMemo(() => {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
-    const rol = (user?.rol || '').toLowerCase();
-    return rol === 'admin' || rol === 'administrador';
+    return isAdminUser(user);
   }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

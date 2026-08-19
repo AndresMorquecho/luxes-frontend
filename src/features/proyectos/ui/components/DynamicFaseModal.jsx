@@ -65,6 +65,9 @@ export function DynamicFaseModal({
       fechaFinPlan: fechaFinEstimada || getTodayDateISO(),
       estado: estado,
       evidencias: isEditing ? (faseToEdit.evidencias || []) : [],
+      notas: isEditing ? (faseToEdit.notas || faseToEdit.observaciones || '') : '',
+      observaciones: isEditing ? (faseToEdit.observaciones || faseToEdit.notas || '') : '',
+      fechaCompletada: isEditing ? (faseToEdit.fechaCompletada || null) : null,
       // Metadatos de auditoría
       creadoPor: isEditing ? (faseToEdit.creadoPor || userName) : userName,
       creadoEn: isEditing ? (faseToEdit.creadoEn || nowISO) : nowISO,
@@ -134,14 +137,14 @@ export function DynamicFaseModal({
               </p>
             </div>
 
-            {/* ¿Qué se hizo en esa fase? (Input / Textarea) */}
+            {/* Descripción de la fase */}
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                ¿Qué se hizo en esa fase? (Actividades / Tareas)
+                Descripción de la fase
               </label>
               <textarea
                 className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none min-h-[90px] text-slate-700"
-                placeholder="Detalla lo que se realizó o debe realizarse en esta fase..."
+                placeholder="Detalla lo que se realizará o las especificaciones de esta fase..."
                 value={queSeHizo}
                 onChange={(e) => setQueSeHizo(e.target.value)}
               />
@@ -175,48 +178,6 @@ export function DynamicFaseModal({
                     onChange={(e) => setFechaFinEstimada(e.target.value)}
                   />
                 </div>
-              </div>
-            </div>
-
-            {/* Selector de Estado */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Estado Inicial de la Fase
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEstado('PENDIENTE')}
-                  className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border text-center ${
-                    estado === 'PENDIENTE'
-                      ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  Pendiente
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEstado('EN_PROGRESO')}
-                  className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border text-center ${
-                    estado === 'EN_PROGRESO'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                      : 'bg-blue-50/50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                  }`}
-                >
-                  En Progreso
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEstado('COMPLETADA')}
-                  className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border text-center ${
-                    estado === 'COMPLETADA'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                      : 'bg-emerald-50/50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                  }`}
-                >
-                  ✓ Completada
-                </button>
               </div>
             </div>
 

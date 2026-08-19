@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Printer, X, ZoomIn, ZoomOut, FileText, Download } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import '../../../../shared/ui/components/PDFPreviewModal.css';
 import aluxBannerLogo from '../../../../assets/aluxBanner.png';
+import { getConfiguracion } from '../../../configuracion/application/configuracionService.js';
 
 const formatUSD = (val) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val ?? 0);
@@ -15,24 +16,24 @@ const parseNum = (v) => {
   return isNaN(num) ? 0 : num;
 };
 
-const getItemCalc = (item) => {
+const getItemCalc = (item, idx = 0) => {
   const cant = parseNum(item.cantidad) || 1;
   const ancho = parseNum(item.ancho);
   const alto = parseNum(item.alto);
-  const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : parseNum(item.metraje);
-  const metrajeTotal = (ancho > 0 && alto > 0) ? (cant * metraje) : (parseNum(item.metrajeTotal) || cant);
+  const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(item.metraje) || 0);
+  const metrajeTotal = (ancho > 0 && alto > 0) ? (cant * metraje) : (parseNum(item.metrajeTotal) || (metraje > 0 ? cant * metraje : cant));
   const precioUnitario = parseNum(item.precioUnitario);
   const valor = (item.valor !== undefined && item.valor !== null && !isNaN(parseNum(item.valor)) && parseNum(item.valor) > 0)
     ? parseNum(item.valor)
     : (metrajeTotal > 0 ? metrajeTotal * precioUnitario : cant * precioUnitario);
 
   return {
-    cod: item.cod || item.codigo || '—',
+    cod: item.cod || item.codigo || `V${idx + 1}`,
     cant,
-    ancho: ancho > 0 ? ancho : (item.ancho ? item.ancho : '—'),
-    alto: alto > 0 ? alto : (item.alto ? item.alto : '—'),
-    metraje: metraje > 0 ? metraje.toFixed(2) : (item.metraje ? Number(item.metraje).toFixed(2) : '—'),
-    metrajeTotal: metrajeTotal > 0 ? metrajeTotal.toFixed(2) : cant.toFixed(2),
+    ancho: ancho > 0 ? Number(ancho).toFixed(2) : (item.ancho ? Number(item.ancho).toFixed(2) : '—'),
+    alto: alto > 0 ? Number(alto).toFixed(2) : (item.alto ? Number(item.alto).toFixed(2) : '—'),
+    metraje: metraje > 0 ? Number(metraje).toFixed(2) : (item.metraje ? Number(item.metraje).toFixed(2) : '—'),
+    metrajeTotal: metrajeTotal > 0 ? Number(metrajeTotal).toFixed(2) : (item.metrajeTotal ? Number(item.metrajeTotal).toFixed(2) : cant.toFixed(2)),
     descripcion: item.descripcion || '',
     precioUnitario,
     valor
@@ -42,8 +43,19 @@ const getItemCalc = (item) => {
 export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
   const [zoom, setZoom] = useState(100);
   const contentRef = useRef(null);
+  const [config, setConfig] = useState(configuracion || null);
 
-  const itemsCalculated = (proforma.items || []).map(getItemCalc);
+  useEffect(() => {
+    if (!configuracion) {
+      getConfiguracion().then(c => setConfig(c)).catch(() => {});
+    } else {
+      setConfig(configuracion);
+    }
+  }, [configuracion]);
+
+  const termsText = proforma.condiciones || config?.condicionesPago || `60% de anticipo y 40% contra entrega, efectivo o transferencias bancarias\nEntrega en 15 días hábiles después de la confirmación de diseño\nEsta cotización es válida por 3 días después de su fecha de emisión\nNuestros productos cuentan con garantía mínimo de 12 meses, no cubre daños por mal uso o instalación incorrecta`;
+
+  const itemsCalculated = (proforma.items || []).map((it, idx) => getItemCalc(it, idx));
   const subTotal = itemsCalculated.reduce((s, i) => s + i.valor, 0);
   const descuento = parseFloat(proforma.descuento) || 0;
   const total = Math.max(0, subTotal - descuento);
@@ -216,20 +228,22 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
         .alux-terms-header {
           background: #009688;
           color: white;
-          font-size: 10px;
+          font-size: 9.5px;
           font-weight: 800;
           padding: 4px 10px;
           display: inline-block;
           border-radius: 2px 2px 0 0;
+          font-family: 'Inter', Arial, sans-serif;
           -webkit-print-color-adjust: exact;
         }
         .alux-terms-box {
           background: #e2e8f0;
           padding: 6px 12px;
-          font-size: 9px;
+          font-size: 9.5px;
           color: #1e293b;
-          font-weight: 700;
+          font-weight: 600;
           line-height: 1.5;
+          font-family: 'Inter', Arial, sans-serif;
           -webkit-print-color-adjust: exact;
         }
       `}</style>
@@ -344,14 +358,11 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                   <div>
                     <strong style={{ color: '#0f2537' }}>CELULAR:</strong> {proforma.telefono || proforma.celular || '—'}
                   </div>
-                  <div>
-                    <strong style={{ color: '#0f2537' }}>CIUDAD:</strong> {proforma.ciudad || '—'}
-                  </div>
-                  <div style={{ gridColumn: 'span 2' }}>
+                  <div style={{ gridColumn: proforma.email ? 'span 2' : 'span 3' }}>
                     <strong style={{ color: '#0f2537' }}>DIRECCIÓN:</strong> {proforma.direccion || '—'}
                   </div>
                   {proforma.email && (
-                    <div style={{ gridColumn: 'span 3' }}>
+                    <div>
                       <strong style={{ color: '#0f2537' }}>CORREO:</strong> {proforma.email}
                     </div>
                   )}
@@ -373,43 +384,6 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                     PROFORMA {proforma.id ? (proforma.id.toString().startsWith('PROFORMA') ? proforma.id : `${proforma.id}`) : ''}
                   </h2>
                 </div>
-
-                {/* ENCABEZADOS DE CATEGORÍA / SUBGRUPO SI EXISTEN */}
-                {(proforma.categoriaHeader || proforma.subcategoriaHeader) && (
-                  <div style={{ marginBottom: '6px' }}>
-                    {proforma.categoriaHeader && (
-                      <div style={{
-                        background: '#ebd5cf',
-                        color: '#1e293b',
-                        fontWeight: 800,
-                        fontSize: '9.5px',
-                        textAlign: 'center',
-                        padding: '4px',
-                        border: '1px solid #1f2937',
-                        textTransform: 'uppercase',
-                        WebkitPrintColorAdjust: 'exact'
-                      }}>
-                        {proforma.categoriaHeader}
-                      </div>
-                    )}
-                    {proforma.subcategoriaHeader && (
-                      <div style={{
-                        background: '#dce4ec',
-                        color: '#1e293b',
-                        fontWeight: 800,
-                        fontSize: '9px',
-                        textAlign: 'center',
-                        padding: '3px',
-                        border: '1px solid #1f2937',
-                        borderTop: 'none',
-                        textTransform: 'uppercase',
-                        WebkitPrintColorAdjust: 'exact'
-                      }}>
-                        {proforma.subcategoriaHeader}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* TABLA DE ÍTEMS */}
                 <table className="alux-table">
@@ -474,8 +448,8 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
 
                 {/* NOTAS LIBRES ADICIONALES */}
                 {(proforma.notes || proforma.notas) && (
-                  <div style={{ marginTop: '8px', fontSize: '9px', color: '#475569', fontStyle: 'italic' }}>
-                    <strong>Observación:</strong> {proforma.notes || proforma.notas}
+                  <div style={{ marginTop: '8px', fontSize: '9.5px', color: '#334155' }}>
+                    <strong style={{ color: '#0f2537' }}>Observación:</strong> {proforma.notes || proforma.notas}
                   </div>
                 )}
               </div>
@@ -497,15 +471,9 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                     CONDICIONES Y FORMAS DE PAGO
                   </div>
                   <div className="alux-terms-box">
-                    {proforma.condiciones ? (
-                      proforma.condiciones.split('\n').map((line, idx) => <div key={idx}>{line}</div>)
-                    ) : (
-                      <>
-                        <div>60% DE ANTICIPO Y 40% CONTRAENTREGA</div>
-                        <div>ENTREGA DE 7-8 DIAS LABORABLES DESPUES DE LA CONFIRMACION DE PAGO</div>
-                        <div>ESTA COTIZACION ES VALIDA POR 3 DÍAS DESPUÉS DE SU EMISIÓN</div>
-                      </>
-                    )}
+                    {termsText.split('\n').filter(Boolean).map((line, idx) => (
+                      <div key={idx}>{line}</div>
+                    ))}
                   </div>
                 </div>
               </div>

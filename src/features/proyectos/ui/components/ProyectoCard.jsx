@@ -8,14 +8,13 @@ import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js
 import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
 import { FaseBadge } from './FaseBadge.jsx';
-import { ProgressBar } from './ProgressBar.jsx';
 
 /**
  * Card de proyecto para la vista Kanban.
  *
  * @param {{ proyecto: object, onEditarFase?: function }} props
  */
-export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
+export function ProyectoCard({ proyecto, onEditarFase, onEliminar, isAdmin = true }) {
   const navigate = useNavigate();
   const faseConfig = getFaseConfig(proyecto.faseActual);
   const prioridadConfig = PRIORIDADES_CONFIG[proyecto.prioridad] || PRIORIDADES_CONFIG.MEDIA;
@@ -41,7 +40,7 @@ export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
             >
               {prioridadConfig.label}
             </span>
-            {onEliminar && (
+            {isAdmin && onEliminar && (
               <button
                 className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                 title="Eliminar proyecto"
@@ -57,10 +56,7 @@ export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
         </div>
 
         {/* Cliente */}
-        <p className="text-xs text-slate-500 mb-3 truncate">{proyecto.cliente.empresa}</p>
-
-        {/* Progreso */}
-        <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} showLabel />
+        <p className="text-xs text-slate-500 mb-2 truncate">{proyecto.cliente.empresa}</p>
 
         {/* Footer */}
         <div className="flex items-center justify-between mt-3">
@@ -77,7 +73,7 @@ export function ProyectoCard({ proyecto, onEditarFase, onEliminar }) {
       </div>
 
       {/* Acción editar fase */}
-      {onEditarFase && (
+      {isAdmin && onEditarFase && (
         <button
           className="w-full py-2 text-xs font-semibold text-center border-t border-slate-100 text-slate-500 hover:bg-slate-50 transition-colors"
           onClick={(e) => { e.stopPropagation(); onEditarFase(proyecto); }}

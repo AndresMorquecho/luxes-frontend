@@ -2,28 +2,22 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Eye, PenLine, Trash2, Wrench } from 'lucide-react';
+import { Eye, PenLine, Trash2, Calendar } from 'lucide-react';
 import { getFaseConfig } from '../../domain/value-objects/FaseConfig.js';
 import { PRIORIDADES_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
-import { calcularDiasDesde } from '../../domain/utils/proyectoDates.js';
-import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
 import { PersonInitialsAvatar } from '../../../../shared/ui/components/PersonInitialsAvatar.jsx';
-import { FaseBadge } from './FaseBadge.jsx';
-import { ProgressBar } from './ProgressBar.jsx';
+import { FaseBadge, getProyectoFaseInfo } from './FaseBadge.jsx';
 
 /**
  * Fila de proyecto para la vista de lista/tabla.
  *
  * @param {{ proyecto: object, onEditarFase?: function }} props
  */
-export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
+export function ProyectoRow({ proyecto, onEditarFase, onEliminar, isAdmin = true }) {
   const navigate = useNavigate();
   const faseConfig = getFaseConfig(proyecto.faseActual);
   const prioridadConfig = PRIORIDADES_CONFIG[proyecto.prioridad] || PRIORIDADES_CONFIG.MEDIA;
-
-  const estaVencido = proyectoEstaVencido(proyecto);
-
-  const diasTranscurridos = calcularDiasDesde(proyecto.fechaInicio || proyecto.fechaCreacion);
+  const faseInfo = getProyectoFaseInfo(proyecto);
 
   return (
     <tr
@@ -76,37 +70,11 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
         <FaseBadge faseId={proyecto.faseActual} proyecto={proyecto} />
       </td>
 
-      {/* Instalación */}
-      <td className="px-2 py-3 text-center">
-        <div className="flex items-center justify-center gap-1.5">
-          {proyecto.requiereInstalacion ? (
-            <span className="flex items-center gap-1 text-[11px] text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full font-semibold border border-orange-100" title="Requiere instalación en obra">
-              <Wrench size={12} className="text-orange-500 shrink-0" />
-              <span>Sí</span>
-            </span>
-          ) : (
-            <span className="text-[11px] text-slate-400 font-medium" title="No requiere instalación">
-              No
-            </span>
-          )}
-        </div>
-      </td>
-
-      {/* Progreso */}
+      {/* Fecha límite de fase */}
       <td className="px-2 py-3">
-        <ProgressBar progreso={proyecto.progreso} faseActual={proyecto.faseActual} showLabel />
-      </td>
-
-      {/* Días */}
-      <td className="px-2 py-3 text-center">
-        <span className="text-xs font-semibold text-slate-600">{diasTranscurridos}d</span>
-      </td>
-
-      {/* Fecha entrega */}
-      <td className="px-2 py-3">
-        <div className={`flex items-center gap-1 text-xs font-medium ${estaVencido ? 'text-red-500 font-bold' : 'text-slate-600'}`}>
-          {estaVencido && <AlertTriangle size={12} className="shrink-0" />}
-          <span className="truncate">{proyecto.fechaEntregaEstimada || '—'}</span>
+        <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+          <Calendar size={12} className="text-slate-400 shrink-0" />
+          <span className="truncate">{faseInfo.fechaLimite}</span>
         </div>
       </td>
 
@@ -122,26 +90,27 @@ export function ProyectoRow({ proyecto, onEditarFase, onEliminar }) {
 
       {/* Acciones */}
       <td className="pr-3 pl-2 py-3 text-right">
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-1.5">
           <button
-            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-colors"
-            title="Ver detalle"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors cursor-pointer"
+            title="Ingresar al proyecto"
             onClick={() => navigate(`/proyectos/${proyecto.id}`)}
           >
-            <Eye size={15} />
+            <Eye size={14} />
+            <span className="hidden sm:inline">Ingresar</span>
           </button>
-          {onEditarFase && (
+          {isAdmin && onEditarFase && (
             <button
-              className="p-1.5 rounded-lg hover:bg-orange-50 text-slate-500 hover:text-orange-500 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-orange-50 text-slate-500 hover:text-orange-500 transition-colors cursor-pointer"
               title="Editar fase"
               onClick={() => onEditarFase(proyecto)}
             >
               <PenLine size={15} />
             </button>
           )}
-          {onEliminar && (
+          {isAdmin && onEliminar && (
             <button
-              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-500 hover:text-red-600 transition-colors cursor-pointer"
               title="Eliminar proyecto"
               onClick={() => onEliminar(proyecto)}
             >

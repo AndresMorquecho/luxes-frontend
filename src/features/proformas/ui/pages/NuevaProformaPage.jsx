@@ -19,7 +19,6 @@ const EMPTY_PROFORMA = {
   telefono: '',
   email: '',
   direccion: '',
-  ciudad: '',
   fecha: new Date().toISOString().split('T')[0],
   vencimiento: '',
   diasValidez: 3,
@@ -28,8 +27,6 @@ const EMPTY_PROFORMA = {
   condiciones: `60% DE ANTICIPO Y 40% CONTRAENTREGA\nENTREGA DE 7-8 DIAS LABORABLES DESPUES DE LA CONFIRMACION DE PAGO\nESTA COTIZACION ES VALIDA POR 3 DIAS DESPUÉS DE SU EMISIÓN`,
   iva: 0,
   descuento: 0,
-  categoriaHeader: '',
-  subcategoriaHeader: '',
   notas: '',
   estado: 'Pendiente',
   items: [],
@@ -85,7 +82,6 @@ export const NuevaProformaPage = () => {
               ...existing,
               clienteId: related?.id || existing.clienteId || '',
               direccion: existing.direccion || related?.direccion || '',
-              ciudad: existing.ciudad || related?.ciudad || '',
               medio: existing.medio || 'ALUX',
               items: (existing.items || []).map(i => ({ ...i })),
             });
@@ -103,6 +99,7 @@ export const NuevaProformaPage = () => {
 
           setForm({
             ...EMPTY_PROFORMA,
+            condiciones: config?.condicionesPago || EMPTY_PROFORMA.condiciones,
             fecha: today.toISOString().split('T')[0],
             vencimiento: venc.toISOString().split('T')[0],
             diasValidez: valDays,
@@ -163,7 +160,6 @@ export const NuevaProformaPage = () => {
       telefono: c.telefono || prev.telefono,
       email: c.email || prev.email,
       direccion: c.direccion || prev.direccion || '',
-      ciudad: c.ciudad || prev.ciudad || '',
     }));
     setClienteSearch(c.nombre);
     setClienteDropdownOpen(false);
@@ -262,20 +258,31 @@ export const NuevaProformaPage = () => {
     try {
       const payload = {
         ...form,
+        condiciones: form.condiciones || configuracion?.condicionesPago || EMPTY_PROFORMA.condiciones,
         iva: parseNum(form.iva),
         descuento: parseNum(form.descuento),
         diasValidez: parseNum(form.diasValidez),
-        items: form.items.map(it => ({
-          cod: it.cod || '—',
-          descripcion: it.descripcion,
-          cantidad: parseNum(it.cantidad) || 1,
-          ancho: parseNum(it.ancho),
-          alto: parseNum(it.alto),
-          metraje: parseNum(it.metraje),
-          metrajeTotal: parseNum(it.metrajeTotal),
-          precioUnitario: parseNum(it.precioUnitario),
-          valor: parseNum(it.valor),
-        }))
+        items: form.items.map(it => {
+          const qty = parseNum(it.cantidad) || 1;
+          const ancho = parseNum(it.ancho);
+          const alto = parseNum(it.alto);
+          const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(it.metraje) || 0);
+          const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : (parseNum(it.metrajeTotal) || qty);
+          const precio = parseNum(it.precioUnitario);
+          const valor = parseNum(it.valor) || (metrajeTotal * precio);
+
+          return {
+            cod: it.cod || '',
+            descripcion: it.descripcion,
+            cantidad: qty,
+            ancho: ancho > 0 ? ancho : undefined,
+            alto: alto > 0 ? alto : undefined,
+            metraje: metraje > 0 ? metraje : undefined,
+            metrajeTotal: metrajeTotal > 0 ? metrajeTotal : undefined,
+            precioUnitario: precio,
+            valor,
+          };
+        })
       };
 
       if (form.estado === 'Rechazada') {
@@ -289,7 +296,7 @@ export const NuevaProformaPage = () => {
       if (action === 'abono') {
         navigate(`/proformas/detalle/${saved.id}?action=abono`);
       } else {
-        setPreview(saved);
+        setPreview({ ...saved, items: saved.items && saved.items.length > 0 ? saved.items : payload.items });
       }
     } catch (err) {
       console.error(err);
@@ -373,7 +380,7 @@ export const NuevaProformaPage = () => {
               Información de la Proforma Alux
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
               
               <div className="relative md:col-span-2 lg:col-span-2">
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Cliente *</label>
@@ -421,18 +428,6 @@ export const NuevaProformaPage = () => {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Ciudad</label>
-                <input
-                  name="ciudad"
-                  type="text"
-                  placeholder="Ej. Guayaquil"
-                  value={form.ciudad || ''}
-                  onChange={handleChange}
-                  className="co-input text-xs"
-                />
-              </div>
-
-              <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Fecha de Emisión *</label>
                 <input
                   name="fecha"
@@ -457,32 +452,6 @@ export const NuevaProformaPage = () => {
                 />
               </div>
 
-            </div>
-
-            {/* Categorías / Subcategorías de la proforma */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2 border-t border-slate-100 pt-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Encabezado Sección Principal (Ej: VENTANAS - HOGAR)</label>
-                <input
-                  name="categoriaHeader"
-                  type="text"
-                  placeholder="Ej. VENTANAS (HOGAR)"
-                  value={form.categoriaHeader || ''}
-                  onChange={handleChange}
-                  className="co-input text-xs font-bold uppercase"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Sub-encabezado Detalle (Ej: ALUMINIO CLARO...)</label>
-                <input
-                  name="subcategoriaHeader"
-                  type="text"
-                  placeholder="Ej. ALUMINIO CLARO + VIDRIO CLARO CON MALLAS"
-                  value={form.subcategoriaHeader || ''}
-                  onChange={handleChange}
-                  className="co-input text-xs font-semibold uppercase"
-                />
-              </div>
             </div>
 
             {/* Accordion Toggle */}
@@ -828,35 +797,21 @@ export const NuevaProformaPage = () => {
         </div>
 
         {/* Observaciones y Footer de acciones */}
-        <div className="flex flex-wrap md:flex-nowrap gap-4 pt-2">
-          <div className="flex-1 space-y-3">
-            <div>
-              <label className="text-[11px] font-bold text-slate-600 mb-1 block">Condiciones y Formas de Pago</label>
-              <textarea
-                className="co-input co-textarea font-mono text-xs"
-                style={{ borderRadius: '10px' }}
-                rows={3}
-                name="condiciones"
-                value={form.condiciones}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-600 mb-1 block">Observaciones Generales</label>
-              <textarea
-                className="co-input co-textarea text-xs"
-                style={{ borderRadius: '10px' }}
-                rows={2}
-                name="notas"
-                placeholder="Comentarios adicionales para la cotización…"
-                value={form.notas}
-                onChange={handleChange}
-              />
-            </div>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-3 border-t border-slate-100 mt-2">
+          <div className="flex-1 min-w-0">
+            <label className="text-[11px] font-bold text-slate-600 mb-1 block">Observaciones Generales</label>
+            <textarea
+              className="co-input co-textarea text-xs text-slate-700 font-medium w-full"
+              style={{ borderRadius: '10px' }}
+              rows={2}
+              name="notas"
+              placeholder="Comentarios o especificaciones adicionales para la cotización…"
+              value={form.notas}
+              onChange={handleChange}
+            />
           </div>
           
-          <div className="flex items-center justify-end gap-3 shrink-0 self-end mt-4">
+          <div className="flex items-center justify-end gap-3 shrink-0 pb-1">
             <button type="button" onClick={() => navigate('/proformas')} className="co-btn-ghost text-xs" style={{ fontWeight: 600 }}>
               Cancelar
             </button>
@@ -883,9 +838,8 @@ export const NuevaProformaPage = () => {
           proforma={preview}
           configuracion={configuracion}
           onClose={() => {
-            const savedId = preview.id;
             setPreview(null);
-            navigate(`/proformas/detalle/${savedId}`);
+            navigate('/proformas');
           }}
         />
       )}

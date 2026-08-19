@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plus, Search, LayoutList, LayoutGrid,
+  Plus, Search,
   Printer, Wrench, CheckCircle, Layers,
   AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import { useProyectos } from '../../application/hooks/useProyectos.js';
 import { alertDialog } from '../../../../shared/ui/components/ConfirmModal';
-import { FASES } from '../../domain/value-objects/FaseConfig.js';
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers';
 import { ProyectoRow } from '../components/ProyectoRow.jsx';
 import { ProyectoCard } from '../components/ProyectoCard.jsx';
 
@@ -17,6 +17,9 @@ const PRIORIDADES = ['TODAS', 'BAJA', 'MEDIA', 'ALTA', 'URGENTE'];
 
 export default function ProyectosPage() {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const isAdmin = isAdminUser(user);
+
   const {
     proyectos,
     filtros, setFiltros,
@@ -25,7 +28,6 @@ export default function ProyectosPage() {
     deleteProyecto,
   } = useProyectos();
 
-  const [vista, setVista] = useState('lista'); // 'lista' | 'kanban'
   const [proyectoAEliminar, setProyectoAEliminar] = useState(null);
   const [eliminandoId, setEliminandoId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,32 +90,34 @@ export default function ProyectosPage() {
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold text-slate-800">Gestión de Proyectos</h1>
+                <h1 className="text-xl font-bold text-slate-800">Proyectos</h1>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700">
                   Lista
                 </span>
               </div>
-              <p className="text-sm text-slate-500 mt-0.5">Seguimiento del ciclo de vida de los proyectos de la agencia</p>
+              <p className="text-sm text-slate-500 mt-0.5">Seguimiento del ciclo de vida de los proyectos</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
-            <button
-              onClick={() => navigate('/proyectos/reclamos')}
-              className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer"
-            >
-              <ShieldAlert className="w-4 h-4 text-amber-600" />
-              Reclamos Post-Venta
-            </button>
+          {isAdmin && (
+            <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+              <button
+                onClick={() => navigate('/proyectos/reclamos')}
+                className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer"
+              >
+                <ShieldAlert className="w-4 h-4 text-amber-600" />
+                Reclamos Post-Venta
+              </button>
 
-            <button
-              onClick={() => navigate('/proyectos/nuevo')}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99]"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo Proyecto
-            </button>
-          </div>
+              <button
+                onClick={() => navigate('/proyectos/nuevo')}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99]"
+              >
+                <Plus className="w-4 h-4" />
+                Nuevo Proyecto
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -134,7 +138,7 @@ export default function ProyectosPage() {
           ))}
         </div>
 
-        {/* Barra de filtros */}
+        {/* Barra de filtros simplificada sin fases fijas ni switchers de vista */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-4">
           <div className="proj-filters-container">
             {/* Buscador */}
@@ -146,21 +150,6 @@ export default function ProyectosPage() {
                 value={filtros.busqueda}
                 onChange={(e) => updateFiltro('busqueda', e.target.value)}
               />
-            </div>
-
-            {/* Filtro fase */}
-            <div className="flex flex-col gap-1 proj-filter-select proj-filter-fase">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Fase</label>
-              <select
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-full"
-                value={filtros.fase}
-                onChange={(e) => updateFiltro('fase', e.target.value)}
-              >
-                <option value="TODAS">Todas las fases</option>
-                {FASES.map((f) => (
-                  <option key={f.id} value={f.id}>{f.label}</option>
-                ))}
-              </select>
             </div>
 
             {/* Filtro responsable */}
@@ -191,89 +180,52 @@ export default function ProyectosPage() {
                 ))}
               </select>
             </div>
-
-
-
-            {/* Filtro instalación */}
-            <div className="flex flex-col gap-1 proj-filter-select proj-filter-instalacion">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Instalación</label>
-              <select
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-full"
-                value={filtros.instalacion}
-                onChange={(e) => updateFiltro('instalacion', e.target.value)}
-              >
-                <option value="TODOS">Todos</option>
-                <option value="SI">Con instalación</option>
-                <option value="NO">Sin instalación</option>
-              </select>
-            </div>
-
-            {/* Toggle vista */}
-            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 ml-auto proj-filter-views">
-              <button
-                onClick={() => setVista('lista')}
-                className={`p-2 rounded-md transition-colors ${vista === 'lista' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
-                title="Vista lista"
-              >
-                <LayoutList size={16} />
-              </button>
-              <button
-                onClick={() => setVista('kanban')}
-                className={`p-2 rounded-md transition-colors ${vista === 'kanban' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
-                title="Vista kanban"
-              >
-                <LayoutGrid size={16} />
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* ── VISTA LISTA ── */}
-        {vista === 'lista' && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
-              <p className="text-sm font-semibold text-slate-600">
-                {proyectos.length} proyecto{proyectos.length !== 1 ? 's' : ''}
-              </p>
+        {/* ── VISTA LISTA (TABLA SIN SCROLL HORIZONTAL) ── */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
+            <p className="text-sm font-semibold text-slate-600">
+              {proyectos.length} proyecto{proyectos.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          {proyectos.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-slate-400 font-medium">No se encontraron proyectos</p>
+              <p className="text-sm text-slate-300 mt-1">Prueba ajustando los filtros</p>
             </div>
-            {proyectos.length === 0 ? (
-              <div className="py-16 text-center">
-                <p className="text-slate-400 font-medium">No se encontraron proyectos</p>
-                <p className="text-sm text-slate-300 mt-1">Prueba ajustando los filtros</p>
-              </div>
-            ) : (
-              <>
-                <div className="proj-desktop-only">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
-                      <thead>
-                        <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/70">
-                          <th className="text-left pl-3 pr-2 py-3 w-[25%]">Proyecto</th>
-                          <th className="text-left px-2 py-3 w-[15%]">Responsable</th>
-                          <th className="text-left px-2 py-3 w-[13%]">Fase</th>
-                          <th className="text-center px-2 py-3 w-[9%]">Instalación</th>
-                          <th className="text-left px-2 py-3 w-[15%]">Progreso</th>
-                          <th className="text-center px-2 py-3 w-[6%]">Días</th>
-                          <th className="text-left px-2 py-3 w-[9%]">Entrega</th>
-                          <th className="text-center px-2 py-3 w-[8%]">Prioridad</th>
-                          <th className="pr-3 pl-2 py-3 w-[10%] text-right">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {proyectosPaginados.map((p) => (
-                          <ProyectoRow
-                            key={p.id}
-                            proyecto={p}
-                            onEditarFase={(p) => navigate(`/proyectos/${p.id}`)}
-                            onEliminar={(p) => setProyectoAEliminar(p)}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+          ) : (
+            <>
+              <div className="proj-desktop-only">
+                <div className="w-full">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/70">
+                        <th className="text-left pl-4 pr-2 py-3 w-[32%]">Proyecto</th>
+                        <th className="text-left px-3 py-3 w-[20%]">Responsable</th>
+                        <th className="text-left px-3 py-3 w-[26%]">Fase</th>
+                        <th className="text-left px-3 py-3 w-[14%]">Límite Fase</th>
+                        <th className="text-center px-2 py-3 w-[4%]">Prioridad</th>
+                        <th className="pr-4 pl-2 py-3 w-[4%] text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {proyectosPaginados.map((p) => (
+                        <ProyectoRow
+                          key={p.id}
+                          proyecto={p}
+                          onEditarFase={(p) => navigate(`/proyectos/${p.id}`)}
+                          onEliminar={(p) => setProyectoAEliminar(p)}
+                          isAdmin={isAdmin}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
+              </div>
 
-                <div className="proj-mobile-only p-4">
+              <div className="proj-mobile-only p-4">
                   <div className="grid grid-cols-1 gap-4">
                     {proyectosPaginados.map((p) => (
                       <ProyectoCard
@@ -281,6 +233,7 @@ export default function ProyectosPage() {
                         proyecto={p}
                         onEditarFase={(p) => navigate(`/proyectos/${p.id}`)}
                         onEliminar={(p) => setProyectoAEliminar(p)}
+                        isAdmin={isAdmin}
                       />
                     ))}
                   </div>
@@ -352,56 +305,7 @@ export default function ProyectosPage() {
               </>
             )}
           </div>
-        )}
-
-        {/* ── VISTA KANBAN ── */}
-        {vista === 'kanban' && (
-          <div className="overflow-x-auto pb-4">
-            <div className="flex gap-4 min-w-max">
-              {FASES.map((fase) => {
-                const proyectosFase = proyectos.filter((p) => p.faseActual === fase.id);
-                return (
-                  <div key={fase.id} className="w-64 flex-shrink-0">
-                    {/* Header columna */}
-                    <div
-                      className="flex items-center justify-between px-3 py-2.5 rounded-xl mb-3"
-                      style={{ backgroundColor: fase.bgColor }}
-                    >
-                      <span className="text-sm font-bold" style={{ color: fase.color }}>
-                        {fase.label}
-                      </span>
-                      <span
-                        className="text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center text-white"
-                        style={{ backgroundColor: fase.color }}
-                      >
-                        {proyectosFase.length}
-                      </span>
-                    </div>
-
-                    {/* Cards */}
-                    <div className="space-y-3">
-                      {proyectosFase.length === 0 ? (
-                        <div className="py-8 text-center text-xs text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                          Sin proyectos
-                        </div>
-                      ) : (
-                        proyectosFase.map((p) => (
-                          <ProyectoCard
-                            key={p.id}
-                            proyecto={p}
-                            onEditarFase={(p) => navigate(`/proyectos/${p.id}`)}
-                            onEliminar={(p) => setProyectoAEliminar(p)}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
 
       {/* Modal de Confirmación de Eliminación */}
       {proyectoAEliminar && (
@@ -432,14 +336,14 @@ export default function ProyectosPage() {
               <button
                 onClick={() => setProyectoAEliminar(null)}
                 disabled={!!eliminandoId}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-white transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-white transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleConfirmEliminar}
                 disabled={!!eliminandoId}
-                className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {eliminandoId ? 'Eliminando...' : 'Sí, eliminar'}
               </button>
@@ -467,38 +371,10 @@ export default function ProyectosPage() {
           flex: 1;
           min-width: 140px;
         }
-        .proj-filter-views {
-          flex-shrink: 0;
-        }
 
         @media (max-width: 768px) {
           .proj-desktop-only { display: none !important; }
           .proj-mobile-only { display: block !important; }
-          
-          /* KPI Cards responsive style */
-          .proj-kpi-card {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 6px !important;
-            padding: 10px !important;
-          }
-          .proj-kpi-icon {
-            width: 32px !important;
-            height: 32px !important;
-            border-radius: 8px !important;
-          }
-          .proj-kpi-icon svg {
-            width: 16px !important;
-            height: 16px !important;
-          }
-          .proj-kpi-card p.text-2xl {
-            font-size: 1.15rem !important;
-            line-height: 1.1 !important;
-          }
-          .proj-kpi-card p.text-xs {
-            font-size: 10px !important;
-            margin-top: 2px !important;
-          }
           
           /* Filters responsive grid */
           .proj-filters-container {
@@ -514,29 +390,11 @@ export default function ProyectosPage() {
             width: 100% !important;
             min-width: 0 !important;
           }
-          .proj-filter-fase {
-            grid-column: 1 / -1 !important;
-          }
           .proj-filter-responsable {
             grid-column: 1 / -1 !important;
           }
           .proj-filter-prioridad {
             grid-column: span 1 !important;
-          }
-          .proj-filter-instalacion {
-            grid-column: 1 / -1 !important;
-          }
-          .proj-filter-views {
-            grid-column: 1 / -1 !important;
-            display: flex !important;
-            justify-content: center !important;
-            width: 100% !important;
-            margin-top: 4px !important;
-          }
-          .proj-filter-views button {
-            flex: 1 !important;
-            display: flex !important;
-            justify-content: center !important;
           }
         }
       `}</style>

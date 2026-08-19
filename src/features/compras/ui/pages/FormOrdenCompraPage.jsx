@@ -15,6 +15,7 @@ import { isAdminUser, isTallerUser } from '../../../../shared/utils/userRoleHelp
 import { filterProyectosAsociables, isProyectoEnCurso } from '../../../proyectos/domain/proyectoDisplayUtils.js';
 import { fmtMoney, isOrdenEditable, getOrdenNoEditableMensaje, mergeOrdenDetalles, mapDetallesToFormRows } from '../../helpers/ordenCompraHelpers.js';
 import { ComprasPageHeader, ComprasHeaderGhostButton } from '../components/ComprasPageHeader';
+import { Calendar, Package, Plus, CheckCircle2, FileText, Trash2, FolderKanban } from 'lucide-react';
 
 const MATERIAL_SEARCH_LIMIT = 5;
 const MIN_FILTER_CHARS = 2;
@@ -507,32 +508,44 @@ export const FormOrdenCompraPage = () => {
           </div>
         )}
         
-        {/* Encabezado Card */}
-        <div className="co-card p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
-            Información de la Orden
+        {/* Encabezado Card - Distribución Equilibrada sin espacios vacíos */}
+        <div className="co-card p-4 sm:p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3.5 border-b border-slate-100 pb-2">
+            <span className="flex items-center gap-1.5 text-slate-700">
+              <Calendar size={13} className="text-blue-600" />
+              Información de la Orden
+            </span>
+            <span className="text-slate-400 font-medium lowercase hidden sm:inline">
+              solicitud de compra
+            </span>
           </div>
-          <div className="max-w-xs">
-            <label className="co-label">Fecha de Solicitud</label>
-            <input
-              type="date"
-              className="co-input"
-              value={form.fecha}
-              onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))}
-              required
-              disabled={editBloqueado}
-            />
-          </div>
-          <div className="mt-4">
-            <label className="co-label">Concepto / Motivo de la Compra</label>
-            <input
-              type="text"
-              className="co-input"
-              placeholder="Ej. Materiales para proyecto X, Reposición de stock..."
-              value={form.concepto}
-              onChange={e => setForm(p => ({ ...p, concepto: e.target.value }))}
-              disabled={editBloqueado}
-            />
+
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-end">
+            {/* Fecha de Solicitud */}
+            <div className="sm:col-span-4 lg:col-span-3">
+              <label className="co-label">Fecha de Solicitud</label>
+              <input
+                type="date"
+                className="co-input"
+                value={form.fecha}
+                onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))}
+                required
+                disabled={editBloqueado}
+              />
+            </div>
+
+            {/* Concepto / Motivo de la Compra */}
+            <div className="sm:col-span-8 lg:col-span-9">
+              <label className="co-label">Concepto / Motivo de la Compra</label>
+              <input
+                type="text"
+                className="co-input"
+                placeholder="Ej. Materiales para producción, insumos, herramientas, reposición de stock..."
+                value={form.concepto}
+                onChange={e => setForm(p => ({ ...p, concepto: e.target.value }))}
+                disabled={editBloqueado}
+              />
+            </div>
           </div>
         </div>
 
@@ -831,39 +844,55 @@ export const FormOrdenCompraPage = () => {
           </div>
         )}
 
-        {/* Notes and Submit */}
-        <div className="flex flex-wrap md:flex-nowrap gap-6">
-          <div className="flex-1">
-            <label className="co-label">Observaciones</label>
-            <textarea
-              className="co-input co-textarea"
-              style={{ borderRadius: '10px' }}
-              rows={3}
-              placeholder="Notas adicionales sobre la orden..."
-              value={form.notas}
-              onChange={e => setForm(p => ({ ...p, notas: e.target.value }))}
-              disabled={editBloqueado}
-            />
-          </div>
-          <div className="flex items-center justify-end gap-3 shrink-0 self-end mt-4">
-            <button 
-              type="button" 
-              onClick={() => navigate('/compras')} 
-              className="co-btn-ghost" 
-              style={{ fontWeight: 600 }}
-            >
-              Cancelar
-            </button>
-            {!editBloqueado && (
-            <button
-              type="submit"
-              disabled={saving}
-              className="co-btn-primary"
-              style={{ padding: '12px 30px', borderRadius: '10px' }}
-            >
-              {saving ? 'Guardando...' : 'Guardar Orden'}
-            </button>
-            )}
+        {/* Notes and Submit - Distribución Armoniosa */}
+        <div className="co-card p-4 sm:p-5" style={{ background: '#fff', border: '1.5px solid #e2e8f0' }}>
+          <div className="flex flex-col md:flex-row items-stretch md:items-end gap-4 justify-between">
+            <div className="flex-1 min-w-0">
+              <label className="co-label flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-700">
+                  <FileText size={13} className="text-blue-600" />
+                  Observaciones y Notas
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal lowercase">(opcional)</span>
+              </label>
+              <textarea
+                className="co-input co-textarea"
+                style={{ borderRadius: '10px' }}
+                rows={2}
+                placeholder="Notas adicionales o instrucciones para compras..."
+                value={form.notas}
+                onChange={e => setForm(p => ({ ...p, notas: e.target.value }))}
+                disabled={editBloqueado}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 shrink-0 pt-2 md:pt-0">
+              <button 
+                type="button" 
+                onClick={() => navigate('/compras')} 
+                className="co-btn-ghost px-4 py-2.5" 
+                style={{ fontWeight: 600 }}
+              >
+                Cancelar
+              </button>
+              {!editBloqueado && (
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="co-btn-primary"
+                  style={{ padding: '12px 28px', borderRadius: '10px' }}
+                >
+                  {saving ? (
+                    'Guardando...'
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      {isEdit ? 'Guardar Cambios' : 'Guardar Orden'}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

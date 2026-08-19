@@ -10,6 +10,7 @@ import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
 import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft, Image as ImageIcon, Share2 } from 'lucide-react';
 import { AbonoModal } from '../components/AbonoModal';
 import { ComprobanteViewerModal } from '../components/ComprobanteViewerModal';
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -60,12 +61,9 @@ export const ProformaDetallePage = () => {
   });
   const [submittingAbono, setSubmittingAbono] = useState(false);
   const isMobileSm = useIsMobileSm();
-  
   // User auth state
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const userRole = (loggedInUser?.rol || '').toUpperCase();
-  const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
-  const isVentasODisenador = ['VENTAS', 'DISEÑADOR', 'DISENADOR'].includes(userRole);
+  const isAdmin = isAdminUser(loggedInUser);
 
   useEffect(() => {
     const loadDetails = async () => {
@@ -374,13 +372,6 @@ const parseNum = (v) => {
           {/* Action buttons */}
           <div className="flex items-center gap-3 flex-wrap">
             <button
-              onClick={() => navigate(`/proyectos/nuevo?proformaId=${proforma.id}`)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center gap-1.5"
-            >
-              🚀 Convertir a Proyecto Alux
-            </button>
-
-            <button
               onClick={() => setPreview(proforma)}
               className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
             >
@@ -466,9 +457,8 @@ const parseNum = (v) => {
               <div className="min-w-0">
                 <span className="block font-extrabold text-slate-800 text-sm">{proforma.cliente}</span>
                 <span className="block text-xs text-slate-500 font-medium mt-1">
-                  {proforma.ciudad ? `Ciudad: ${proforma.ciudad} | ` : ''}
                   {proforma.telefono ? `Tel: ${proforma.telefono}` : ''}
-                  {proforma.direccion ? ` | Dir: ${proforma.direccion}` : ''}
+                  {proforma.direccion ? `${proforma.telefono ? ' | ' : ''}Dir: ${proforma.direccion}` : ''}
                 </span>
               </div>
             </div>

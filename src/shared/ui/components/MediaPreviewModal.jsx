@@ -1,7 +1,5 @@
-/* c:/Users/Morqu/OneDrive/Documentos/JAIMS/Luxes/luxes-frontend/src/shared/ui/components/MediaPreviewModal.jsx */
-
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, ExternalLink, Download, FileText, FileImage } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ExternalLink, Download, FileText, FileImage, User, Clock } from 'lucide-react';
 import { resolveMediaUrl } from '../../utils/mediaUrl.js';
 
 export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 0 }) {
@@ -23,12 +21,15 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
 
   const fullUrl = resolveMediaUrl(rawTarget);
 
-  let fileName = typeof currentFile === 'object' && currentFile?.name ? currentFile.name : '';
+  let fileName = typeof currentFile === 'object' && currentFile?.name ? currentFile.name : (currentFile?.nombre || '');
   if (!fileName && rawTarget) {
     const cleanPath = rawTarget.split('?')[0].split('#')[0];
     fileName = cleanPath.split('/').pop() || 'Archivo de Diseño';
   }
   if (!fileName) fileName = 'Archivo de Diseño';
+
+  const subidoPor = typeof currentFile === 'object' ? (currentFile?.subidoPor || currentFile?.uploadedBy || currentFile?.usuario || '') : '';
+  const fechaSubida = typeof currentFile === 'object' ? (currentFile?.fechaHora || currentFile?.fecha || currentFile?.createdAt || '') : '';
 
   const checkString = `${fileName} ${rawTarget} ${fullUrl}`.toLowerCase();
   const isImage =
@@ -70,11 +71,27 @@ export function MediaPreviewModal({ isOpen, onClose, files = [], initialIndex = 
               <h3 className="text-sm font-bold text-slate-800 truncate" title={fileName}>
                 {fileName}
               </h3>
-              {files.length > 1 && (
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Archivo {currentIndex + 1} de {files.length}
-                </p>
-              )}
+              <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 font-medium mt-0.5">
+                {files.length > 1 && (
+                  <span>Archivo {currentIndex + 1} de {files.length}</span>
+                )}
+                {subidoPor && (
+                  <>
+                    {files.length > 1 && <span>•</span>}
+                    <span className="inline-flex items-center gap-1 font-semibold text-blue-700">
+                      <User size={11} /> {subidoPor}
+                    </span>
+                  </>
+                )}
+                {fechaSubida && (
+                  <>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 text-slate-500">
+                      <Clock size={11} /> {new Date(fechaSubida).toLocaleString('es-EC')}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 

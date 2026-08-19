@@ -3,14 +3,14 @@ import { getLandingConfig } from './landingConfigService';
 import { mergeLandingImageOverrides } from './landingImageDefaults';
 
 const DEFAULT_WHATSAPP = {
-  phone: '593968982380',
-  message: 'Hola, me interesa conocer más sobre los servicios de LUXES.',
+  phone: '593985740242',
+  message: 'Hola ALUX, me interesa conocer más sobre sus servicios de aluminio y vidrio.',
 };
 
 const DEFAULT_SOCIAL = {
-  facebook: 'https://www.facebook.com',
-  instagram: 'https://www.instagram.com',
-  tiktok: 'https://www.tiktok.com',
+  facebook: 'https://www.facebook.com/aluxconstrucciones',
+  instagram: 'https://www.instagram.com/alux_ec',
+  tiktok: 'https://www.tiktok.com/@alux_ec',
 };
 
 export function useLandingConfig() {
