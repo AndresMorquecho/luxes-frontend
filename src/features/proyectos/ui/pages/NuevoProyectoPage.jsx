@@ -6,8 +6,6 @@ import { ArrowLeft, Plus, Check, Search, ChevronDown, Info, ClipboardList, Trash
 import { useProyectos } from '../../application/hooks/useProyectos.js';
 import { getClientes } from '../../../clientes/application/clientesService.js';
 import { getTodayDateISO } from '../../domain/utils/proyectoDates.js';
-import { generateAluxFasesWithDates } from '../../domain/value-objects/aluxFasesTemplate.js';
-import { useSearchParams } from 'react-router-dom';
 
 const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'URGENTE'];
 const PRIORIDAD_COLORS = {
@@ -34,12 +32,9 @@ const EMPTY_FORM = {
 
 export default function NuevoProyectoPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const proformaId = searchParams.get('proformaId');
 
   const { addProyecto } = useProyectos();
   const [form, setForm] = useState(EMPTY_FORM);
-  const [fasesAlux, setFasesAlux] = useState(() => generateAluxFasesWithDates(getTodayDateISO(), proformaId));
   const [errors, setErrors] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [clientes, setClientes] = useState([]);
@@ -126,7 +121,7 @@ export default function NuevoProyectoPage() {
         requiereInstalacion: form.requiereInstalacion,
         clienteId: form.clienteId,
         medio: 'ALUX',
-        fasesAlux: fasesAlux,
+        fasesAlux: [],
         cliente: {
           nombre: clienteObj.nombre,
           empresa: clienteObj.tipo === 'Empresa' ? clienteObj.nombre : '',

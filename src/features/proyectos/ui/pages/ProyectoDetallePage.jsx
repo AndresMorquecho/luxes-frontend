@@ -30,7 +30,7 @@ import { EntregaPanel } from '../components/EntregaPanel.jsx';
 import { CompletadoPanel } from '../components/CompletadoPanel.jsx';
 import { AluxFasesPanel } from '../components/AluxFasesPanel.jsx';
 import { AluxGastosResumenPanel } from '../components/AluxGastosResumenPanel.jsx';
-import { generateAluxFasesWithDates } from '../../domain/value-objects/aluxFasesTemplate.js';
+import { isPreloadedDefaultAluxFases } from '../../domain/value-objects/aluxFasesTemplate.js';
 import { getTodayDateISO } from '../../domain/utils/proyectoDates.js';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { ProyectoDetallesModal } from '../components/ProyectoDetallesModal.jsx';
@@ -130,10 +130,33 @@ export default function ProyectoDetallePage() {
   // Fases dinámicas del proyecto (Inicia únicamente con Cotización + bolita +)
   const dynamicFases = React.useMemo(() => {
     if (proyecto?.fasesAlux && Array.isArray(proyecto.fasesAlux)) {
+      if (
+        proyecto.faseActual === 'COTIZACION' &&
+        isPreloadedDefaultAluxFases(proyecto.fasesAlux)
+      ) {
+        return [];
+      }
       return proyecto.fasesAlux;
     }
     return [];
-  }, [proyecto?.fasesAlux]);
+  }, [proyecto?.fasesAlux, proyecto?.faseActual]);
+
+  const cleanedPreloadedFasesRef = useRef(false);
+  useEffect(() => {
+    cleanedPreloadedFasesRef.current = false;
+  }, [proyecto?.id]);
+
+  useEffect(() => {
+    if (!proyecto || cleanedPreloadedFasesRef.current) return;
+    if (
+      proyecto.faseActual === 'COTIZACION' &&
+      Array.isArray(proyecto.fasesAlux) &&
+      isPreloadedDefaultAluxFases(proyecto.fasesAlux)
+    ) {
+      cleanedPreloadedFasesRef.current = true;
+      updateProyecto({ fasesAlux: [], progreso: 0 });
+    }
+  }, [proyecto?.id, proyecto?.faseActual, proyecto?.fasesAlux, updateProyecto]);
 
   const [activeFaseId, setActiveFaseId] = useState(() => {
     return isAdmin ? 'fase-cotizacion' : 'fase-completado';
