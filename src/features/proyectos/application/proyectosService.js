@@ -257,3 +257,25 @@ export const removeArchivoFromBatch = async (proyectoId, batchId, fileUrl) => {
   return data.data;
 };
 
+/**
+ * Elimina físicamente un archivo individual del proyecto en disco.
+ */
+export const deleteArchivoProyecto = async (proyectoId, fileUrlOrName) => {
+  if (!proyectoId || !fileUrlOrName) return;
+  const filename = fileUrlOrName.split('/').pop().split('?')[0];
+  if (!filename) return;
+
+  const token = localStorage.getItem('token');
+  try {
+    const res = await fetch(`/api/proyectos/${proyectoId}/archivos/${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+    });
+    return await res.json();
+  } catch (err) {
+    console.warn('[proyectosService] Error eliminando archivo físico:', err);
+  }
+};
+

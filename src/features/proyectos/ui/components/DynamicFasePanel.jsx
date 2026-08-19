@@ -5,7 +5,7 @@ import {
   Camera, Plus, Trash2, Calendar, Image as ImageIcon, FileImage,
   Edit3, Eye, X, CheckCircle2, Clock, User, AlertCircle, ArrowRight
 } from 'lucide-react';
-import { uploadEvidenciaInstalacion } from '../../application/proyectosService.js';
+import { uploadEvidenciaInstalacion, deleteArchivoProyecto } from '../../application/proyectosService.js';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { MediaPreviewModal } from '../../../../shared/ui/components/MediaPreviewModal.jsx';
 import { PhotoCaptureModal } from './PhotoCaptureModal.jsx';
@@ -92,6 +92,11 @@ export function DynamicFasePanel({
   // Eliminar foto de evidencia
   const handleDeleteFoto = (evidenciaId) => {
     const evidenciasActuales = fase.evidencias || [];
+    const targetEv = evidenciasActuales.find((e) => e.id === evidenciaId);
+    if (targetEv?.url) {
+      deleteArchivoProyecto(proyecto.id, targetEv.url).catch(() => {});
+    }
+
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     const userName = user?.nombre || user?.usuario || 'Usuario';
 
