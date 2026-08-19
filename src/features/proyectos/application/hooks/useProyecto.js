@@ -1,6 +1,6 @@
 // src/features/proyectos/application/hooks/useProyecto.js
 
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import { useProyectosContext } from '../context/ProyectosContext.jsx';
 import { ACTIONS } from '../store/proyectosStore.js';
 import { validarCamposFase, avanzarFase as avanzarFaseUseCase, retrocederFase as retrocederFaseUseCase } from '../../domain/use-cases/avanzarFase.js';
@@ -49,6 +49,40 @@ export function useProyecto(id) {
     lastProyectoRef.current = proyectoFromState;
   }
   const proyecto = lastProyectoRef.current;
+  const [fetchingProyecto, setFetchingProyecto] = useState(false);
+  const fetchAttemptedRef = useRef(false);
+
+  // Cargar proyecto por ID cuando se navega directo (ej. desde notificación /proyectos/PROY-002)
+  useEffect(() => {
+    fetchAttemptedRef.current = false;
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || proyectoFromState || state.loading || fetchAttemptedRef.current) return;
+
+    let cancelled = false;
+    fetchAttemptedRef.current = true;
+    setFetchingProyecto(true);
+
+    adapter.getById(id)
+      .then((actualizado) => {
+        if (cancelled || !actualizado) return;
+        dispatch({
+          type: ACTIONS.UPDATE_PROYECTO,
+          payload: { id, cambios: actualizado },
+        });
+      })
+      .catch((error) => {
+        console.error('[useProyecto] Error al cargar proyecto por ID:', error);
+      })
+      .finally(() => {
+        if (!cancelled) setFetchingProyecto(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, proyectoFromState, state.loading, adapter, dispatch]);
 
   const avanzar = useCallback(async () => {
     if (!proyecto) return;
@@ -141,7 +175,7 @@ export function useProyecto(id) {
 
   return {
     proyecto,
-    loading: state.loading,
+    loading: state.loading || fetchingProyecto,
     avanzar,
     retroceder,
     updateFaseDatos,

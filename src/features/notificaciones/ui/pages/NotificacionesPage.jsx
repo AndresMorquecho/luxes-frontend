@@ -40,16 +40,37 @@ const fmtDateShort = (d) => {
   });
 };
 
-// Helper para extraer ID de proyecto desde metadatos o texto
-const extractProyectoId = (notification) => {
+// Helper para extraer ruta o ID de proyecto desde metadatos o texto
+const extractProyectoRoute = (notification) => {
   const msg = notification.message || '';
   const title = notification.title || '';
-  return notification.proyectoId
-    || notification.data?.proyectoId
-    || msg.match(/\[PROYECTO_ID:(.+?)\]/)?.[1]
-    || msg.match(/\(PROY-\d+\)/i)?.[0]?.replace(/[()]/g, '')
-    || msg.match(/PROY-\d+/i)?.[0]
-    || title.match(/PROY-\d+/i)?.[0];
+  const combined = `${msg} ${title}`;
+
+  const navMatch = combined.match(/\[NAV:(\/proyectos\/[^\]\s?]+)/i);
+  if (navMatch?.[1]) {
+    return navMatch[1].split('?')[0];
+  }
+
+  if (notification.url?.startsWith('/proyectos/')) {
+    return notification.url.split('?')[0];
+  }
+
+  const idFromTag = combined.match(/\[PROYECTO_ID:([^\]]+)\]/i)?.[1]?.trim();
+  if (idFromTag) {
+    return `/proyectos/${idFromTag.toUpperCase()}`;
+  }
+
+  const idFromParens = combined.match(/\(PROY-\d+\)/i)?.[0]?.replace(/[()]/g, '');
+  if (idFromParens) {
+    return `/proyectos/${idFromParens.toUpperCase()}`;
+  }
+
+  const idBare = combined.match(/PROY-\d+/i)?.[0];
+  if (idBare) {
+    return `/proyectos/${idBare.toUpperCase()}`;
+  }
+
+  return null;
 };
 
 // Helper para determinar la ruta basada en el tipo de notificación
@@ -59,16 +80,12 @@ const getNotificationRoute = (notification) => {
 
   // Fases de proyecto (nueva fase, fase completada)
   if (title.includes('fase') || message.includes(' fase ') || message.includes('fase "')) {
-    const proyectoId = extractProyectoId(notification);
-    if (proyectoId) return `/proyectos/${proyectoId}`;
-    return '/proyectos';
+    return extractProyectoRoute(notification);
   }
 
   // Nuevo proyecto creado
   if (title.includes('nuevo proyecto') || message.includes('nuevo proyecto') || message.includes('se ha creado el proyecto')) {
-    const proyectoId = extractProyectoId(notification);
-    if (proyectoId) return `/proyectos/${proyectoId}`;
-    return '/proyectos';
+    return extractProyectoRoute(notification);
   }
 
   // Proformas (aprobación, rechazo, nueva pendiente)
@@ -131,13 +148,13 @@ const getNotificationRoute = (notification) => {
     const userRole = (user?.rol || '').toLowerCase();
     const isAdmin = userRole === 'admin' || userRole === 'administrador';
 
-    const proyectoId = extractProyectoId(notification);
+    const proyectoRoute = extractProyectoRoute(notification);
 
     if (isAdmin) {
-      if (proyectoId) return `/proyectos/${proyectoId}`;
+      if (proyectoRoute) return proyectoRoute;
       return '/proyectos';
     } else {
-      if (proyectoId) return `/proyectos/${proyectoId}`;
+      if (proyectoRoute) return proyectoRoute;
       return '/instalaciones';
     }
   }
@@ -167,7 +184,8 @@ const getSenderName = (notification) =>
 const displayMessage = (message) =>
   (message || '')
     .replace(/\[seed-prueba\]\s*/gi, '')
-    .replace(/\[PROYECTO_ID:.+?\]\s*/g, '')
+    .replace(/\[PROYECTO_ID:[^\]]+\]\s*/g, '')
+    .replace(/\[NAV:[^\]]+\]\s*/g, '')
     .trim();
 
 const getLoadErrorMessage = (err) => {
@@ -271,9 +289,10 @@ export const NotificacionesPage = () => {
     if (route) {
       const title = (notification.title || '').toLowerCase();
       if (title.includes('instalación completada') || title.includes('instalacion completada')) {
-        const proyectoId = extractProyectoId(notification);
+        const proyectoRoute = extractProyectoRoute(notification);
+        const proyectoId = proyectoRoute?.match(/PROY-\d+/i)?.[0] || null;
         window.dispatchEvent(new CustomEvent('instalacion-completada-admin', {
-          detail: { proyectoId: proyectoId || null, notificationId: notification.id },
+          detail: { proyectoId, notificationId: notification.id },
         }));
       }
       // Marcar como leída antes de navegar
