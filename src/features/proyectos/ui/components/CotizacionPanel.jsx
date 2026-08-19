@@ -3,6 +3,7 @@ import { Search, FileText, Eye, X, CheckCircle, Clock, FileEdit, Calendar, Chevr
 import { useProyecto } from '../../application/hooks/useProyecto.js';
 import { getProformas } from '../../../proformas/application/proformasService.js';
 import { ProformaPDF } from '../../../proformas/ui/components/ProformaPDF.jsx';
+import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { getProyectos } from '../../application/proyectosService.js';
 
 const normalizeClientName = (value) =>
@@ -480,42 +481,44 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
         </div>
       )}
 
-      {/* Modal de confirmación de vinculación */}
+      {/* Modal de confirmación de vinculación — portal a body para blur en toda la pantalla */}
       {showLinkConfirmModal && proformaToLink && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 animate-in fade-in-50 zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-amber-600 mb-4">
-              <AlertTriangle size={24} className="shrink-0" />
-              <h3 className="text-lg font-bold text-slate-800">
-                ¿Está seguro de vincular esta proforma?
-              </h3>
-            </div>
-            
-            <p className="text-sm text-slate-600 leading-relaxed mb-6">
-              Se vinculará la proforma <strong className="text-slate-800 font-bold">{proformaToLink.id}</strong> del cliente <strong className="text-slate-800 font-bold">{proformaToLink.cliente}</strong> con un monto total de <strong className="text-slate-800 font-bold">${proformaToLink.total.toFixed(2)}</strong> a este proyecto.
-            </p>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 animate-in fade-in-50 zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 text-amber-600 mb-4">
+                <AlertTriangle size={24} className="shrink-0" />
+                <h3 className="text-lg font-bold text-slate-800">
+                  ¿Está seguro de vincular esta proforma?
+                </h3>
+              </div>
 
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLinkConfirmModal(false);
-                  setProformaToLink(null);
-                }}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmLink}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors cursor-pointer"
-              >
-                Sí, vincular
-              </button>
+              <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                Se vinculará la proforma <strong className="text-slate-800 font-bold">{proformaToLink.id}</strong> del cliente <strong className="text-slate-800 font-bold">{proformaToLink.cliente}</strong> con un monto total de <strong className="text-slate-800 font-bold">${proformaToLink.total.toFixed(2)}</strong> a este proyecto.
+              </p>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLinkConfirmModal(false);
+                    setProformaToLink(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmLink}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors cursor-pointer"
+                >
+                  Sí, vincular
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Modal Preview PDF — mismo diseño que Proformas */}

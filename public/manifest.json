@@ -1,18 +1,31 @@
 {
+  "id": "/",
   "name": "Alux - Sistema de Gestión",
   "short_name": "Alux",
   "description": "Sistema de gestión interna de Alux.",
   "start_url": "/?source=pwa",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
+  "background_color": "#061833",
+  "theme_color": "#061833",
   "orientation": "any",
   "icons": [
     {
       "src": "/icon.png",
-      "sizes": "any",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

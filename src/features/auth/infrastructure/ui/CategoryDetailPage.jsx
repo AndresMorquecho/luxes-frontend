@@ -63,7 +63,7 @@ export const CategoryDetailPage = () => {
       <header className="cat-detail-header">
         <div className="cat-detail-header-inner">
           <Link to="/" className="cat-detail-logo-link">
-            <img src="/LogoGlobo.png" alt="Luxes" className="cat-detail-logo" />
+            <img src="/icon.png" alt="Alux" className="cat-detail-logo" />
             <div className="cat-detail-logo-text">
               <span className="cat-detail-brand">LUXES</span>
               <span className="cat-detail-sub">DISEÑO Y PUBLICIDAD</span>

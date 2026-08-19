@@ -326,7 +326,8 @@
   .mobile-taller-logo {
     width: 28px;
     height: 28px;
-    object-fit: contain;
+    object-fit: cover;
+    border-radius: 6px;
   }
 
   .mobile-taller-user-info {
