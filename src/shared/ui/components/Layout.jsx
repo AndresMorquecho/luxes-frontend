@@ -173,10 +173,10 @@ export const Layout = ({ children, user, onLogout }) => {
         {isAsistenciaMode ? (
           <header className="kiosk-header w-full flex items-center justify-between px-3 sm:px-5 py-2 border-b border-slate-200 bg-white shrink-0" style={{ fontFamily: "'Inter', sans-serif" }}>
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <img src="/icon.png" alt="Alux Logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain shrink-0 rounded-lg p-0.5 bg-[#030d24] border border-amber-500/30" />
+              <img src="/LogoGlobo.png" alt="Luxes Logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain shrink-0" />
               <div className="min-w-0">
                 <h1 className="text-xs sm:text-sm font-bold text-slate-800 m-0 leading-tight truncate">Terminal de Registro de Asistencia</h1>
-                <p className="text-[10px] text-slate-400 font-medium m-0 hidden sm:block">Kiosco de Marcaciones Alux · 2026</p>
+                <p className="text-[10px] text-slate-400 font-medium m-0 hidden sm:block">Kiosco de Marcaciones Luxes · 2026</p>
               </div>
             </div>
             <button
@@ -193,9 +193,9 @@ export const Layout = ({ children, user, onLogout }) => {
         ) : isBottomNavMobile ? (
           <header className="mobile-taller-header">
             <div className="mobile-taller-logo-box">
-              <img src="/icon.png" alt="Alux Logo" className="mobile-taller-logo" />
+              <img src="/LogoGlobo.png" alt="Luxes Logo" className="mobile-taller-logo" />
               <div className="mobile-taller-user-info">
-                <span className="mobile-taller-brand">Alux {mobileBrandLabel}</span>
+                <span className="mobile-taller-brand">Luxes {mobileBrandLabel}</span>
                 <span className="mobile-taller-username">{mobileUserLabel}</span>
               </div>
             </div>

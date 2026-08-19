@@ -65,14 +65,85 @@
   display: none;
 }
 
-.sidebar-logo-expanded {
-  display: block;
-  width: auto;
-  height: 56px;
-  max-width: 220px;
+.sidebar-logo-expanded-wrapper {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.sidebar.collapsed .sidebar-logo-expanded-wrapper {
+  display: none !important;
+}
+
+.sidebar-banner-left {
+  width: 42%;
+  background: linear-gradient(135deg, #030d24 0%, #061833 50%, #0a254a 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  position: relative;
+  z-index: 2;
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 0 100%);
+}
+
+.sidebar-banner-left::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #ecc674 0%, #c8963e 50%, #9e7226 100%);
+}
+
+.sidebar-banner-socials {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #eab308;
+  margin-bottom: 2px;
+}
+
+.sidebar-social-svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-banner-handle {
+  font-size: 8px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  font-family: var(--font-main);
+  opacity: 0.95;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.sidebar-banner-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  padding: 2px 4px 2px 2px;
+  overflow: hidden;
+}
+
+.sidebar-banner-logo-hq {
+  width: 100%;
+  height: 100%;
+  max-height: 56px;
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(3, 13, 36, 0.18);
 }
 
 .sidebar.collapsed .sidebar-logo-box {
@@ -89,9 +160,12 @@
   height: 44px;
   max-height: 44px;
   max-width: 44px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 10px;
+  background: linear-gradient(135deg, #030d24 0%, #081d3d 50%, #0d2854 100%);
+  padding: 5px;
   box-shadow: 0 3px 8px rgba(3, 13, 36, 0.25);
+  border: 1px solid rgba(200, 150, 62, 0.35);
 }
 
 .sidebar.collapsed .sidebar-logo-expanded {

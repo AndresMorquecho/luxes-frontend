@@ -1,6 +1,6 @@
 // Service Worker for Luxes PWA
 
-const CACHE_NAME = 'luxes-static-cache-v103';
+const CACHE_NAME = 'luxes-static-cache-v101';
 
 function resolvePushTargetUrl(data, body, title) {
   const combined = `${body || ''} ${title || ''}`;
@@ -37,9 +37,8 @@ function isAssetResponse(url, response) {
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/icon.png',
-  '/LogoGlobo.png',
-  '/manifest.json',
+  '/favicon.svg',
+  '/LogoBanner.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -149,8 +148,8 @@ self.addEventListener('push', (event) => {
   const targetUrl = resolvePushTargetUrl(data.data, data.body, data.title);
   const options = {
     body: data.body,
-    icon: data.icon || '/icon.png',
-    badge: data.badge || '/icon.png',
+    icon: data.icon || '/favicon.svg',
+    badge: data.badge || '/favicon.svg',
     vibrate: [100, 50, 100],
     data: { ...(data.data || {}), url: targetUrl },
   };
