@@ -296,7 +296,11 @@ export const NuevaProformaPage = () => {
       if (action === 'abono') {
         navigate(`/proformas/detalle/${saved.id}?action=abono`);
       } else {
-        setPreview({ ...saved, items: saved.items && saved.items.length > 0 ? saved.items : payload.items });
+        const mergedItems = (saved.items?.length ? saved.items : payload.items).map((savedItem, idx) => ({
+          ...(payload.items[idx] || {}),
+          ...savedItem,
+        }));
+        setPreview({ ...saved, items: mergedItems });
       }
     } catch (err) {
       console.error(err);
