@@ -1,6 +1,26 @@
 // Service Worker for Luxes PWA
 
-const CACHE_NAME = 'luxes-static-cache-v100';
+const CACHE_NAME = 'luxes-static-cache-v101';
+
+function resolvePushTargetUrl(data, body, title) {
+  const combined = `${body || ''} ${title || ''}`;
+  const fromData = data?.url || (data?.proyectoId ? `/proyectos/${data.proyectoId}` : null);
+  if (fromData && fromData !== '/') return fromData.split('?')[0];
+
+  const navMatch = combined.match(/\[NAV:(\/[^\]\s?]+)/i);
+  if (navMatch?.[1]) return navMatch[1].split('?')[0];
+
+  const idFromTag = combined.match(/\[PROYECTO_ID:([^\]]+)\]/i)?.[1]?.trim();
+  if (idFromTag) return `/proyectos/${idFromTag.toUpperCase()}`;
+
+  const idFromParens = combined.match(/\(PROY-\d+\)/i)?.[0]?.replace(/[()]/g, '');
+  if (idFromParens) return `/proyectos/${idFromParens.toUpperCase()}`;
+
+  const idBare = combined.match(/PROY-\d+/i)?.[0];
+  if (idBare) return `/proyectos/${idBare.toUpperCase()}`;
+
+  return '/notificaciones';
+}
 
 function isAssetResponse(url, response) {
   if (!response || !response.ok) return false;
@@ -125,12 +145,13 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const targetUrl = resolvePushTargetUrl(data.data, data.body, data.title);
   const options = {
     body: data.body,
     icon: data.icon || '/favicon.svg',
     badge: data.badge || '/favicon.svg',
     vibrate: [100, 50, 100],
-    data: data.data || { url: data.url || '/' },
+    data: { ...(data.data || {}), url: targetUrl },
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));
@@ -138,14 +159,15 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const rawUrl = event.notification.data?.url || '/';
+  const targetUrl = new URL(rawUrl, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         for (const client of clientList) {
-          if (client.url.includes(self.location.origin) && 'focus' in client) {
-            return client.navigate(targetUrl).then((c) => c.focus());
+          if (client.url.startsWith(self.location.origin) && 'focus' in client && 'navigate' in client) {
+            return client.focus().then((c) => c.navigate(targetUrl));
           }
         }
         if (clients.openWindow) {

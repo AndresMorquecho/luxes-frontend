@@ -74,3 +74,17 @@ export const generateAluxFasesWithDates = (baseDateStr = new Date().toISOString(
     };
   });
 };
+
+/** Detecta si un proyecto aún tiene el paquete completo de fases precargado al crear (bug legacy). */
+export function isPreloadedDefaultAluxFases(fases) {
+  if (!Array.isArray(fases) || fases.length !== ALUX_DEFAULT_FASES.length) return false;
+
+  const matchesTemplate = ALUX_DEFAULT_FASES.every((template, idx) => {
+    const fase = fases[idx];
+    return fase?.nombre === template.nombre;
+  });
+
+  if (!matchesTemplate) return false;
+
+  return fases.every((f) => f.estado !== 'COMPLETADA');
+};

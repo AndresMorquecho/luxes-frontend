@@ -30,7 +30,7 @@ import { EntregaPanel } from '../components/EntregaPanel.jsx';
 import { CompletadoPanel } from '../components/CompletadoPanel.jsx';
 import { AluxFasesPanel } from '../components/AluxFasesPanel.jsx';
 import { AluxGastosResumenPanel } from '../components/AluxGastosResumenPanel.jsx';
-import { generateAluxFasesWithDates } from '../../domain/value-objects/aluxFasesTemplate.js';
+import { isPreloadedDefaultAluxFases } from '../../domain/value-objects/aluxFasesTemplate.js';
 import { getTodayDateISO } from '../../domain/utils/proyectoDates.js';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { ProyectoDetallesModal } from '../components/ProyectoDetallesModal.jsx';
@@ -38,7 +38,7 @@ import { ProyectoEditModal } from '../components/ProyectoEditModal.jsx';
 import { PRIORIDADES_CONFIG, ESTADOS_CONFIG } from '../../domain/value-objects/EstadoProyecto.js';
 import { getFaseConfig, FASES } from '../../domain/value-objects/FaseConfig.js';
 import { proyectoEstaVencido } from '../../domain/proyectoDisplayUtils.js';
-import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
+import { isAdminUser, isTrabajadorUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -78,9 +78,12 @@ export default function ProyectoDetallePage() {
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const isAdmin = isAdminUser(user);
+  const isTrabajador = isTrabajadorUser(user);
+  const canAddFase = isAdmin || isTrabajador;
   const userRole = (user?.rol || '').toLowerCase();
 
-  const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual: validacionBase } = useProyecto(id);
+  const refreshKey = searchParams.get('refresh');
+  const { proyecto, loading, avanzar, retroceder, updateProyecto, updateFaseDatos, validacionFaseActual: validacionBase } = useProyecto(id, { refreshKey });
   const { getJobsByProyectoId } = usePrintQueueStable();
   const [printQueueTick, setPrintQueueTick] = useState(0);
 
@@ -130,19 +133,48 @@ export default function ProyectoDetallePage() {
   // Fases dinámicas del proyecto (Inicia únicamente con Cotización + bolita +)
   const dynamicFases = React.useMemo(() => {
     if (proyecto?.fasesAlux && Array.isArray(proyecto.fasesAlux)) {
+      if (
+        proyecto.faseActual === 'COTIZACION' &&
+        isPreloadedDefaultAluxFases(proyecto.fasesAlux)
+      ) {
+        return [];
+      }
       return proyecto.fasesAlux;
     }
     return [];
-  }, [proyecto?.fasesAlux]);
+  }, [proyecto?.fasesAlux, proyecto?.faseActual]);
+
+  const cleanedPreloadedFasesRef = useRef(false);
+  useEffect(() => {
+    cleanedPreloadedFasesRef.current = false;
+  }, [proyecto?.id]);
+
+  useEffect(() => {
+    if (!proyecto || cleanedPreloadedFasesRef.current) return;
+    if (
+      proyecto.faseActual === 'COTIZACION' &&
+      Array.isArray(proyecto.fasesAlux) &&
+      isPreloadedDefaultAluxFases(proyecto.fasesAlux)
+    ) {
+      cleanedPreloadedFasesRef.current = true;
+      updateProyecto({ fasesAlux: [], progreso: 0 });
+    }
+  }, [proyecto?.id, proyecto?.faseActual, proyecto?.fasesAlux, updateProyecto]);
 
   const [activeFaseId, setActiveFaseId] = useState(() => {
-    return isAdmin ? 'fase-cotizacion' : 'fase-completado';
+    return isAdmin ? 'fase-cotizacion' : 'fase-pendiente';
   });
+
+  useEffect(() => {
+    setActiveFaseId(isAdmin ? 'fase-cotizacion' : 'fase-pendiente');
+    setFaseVista(null);
+    setSubTab('fases');
+  }, [id, isAdmin]);
   const [showFaseModal, setShowFaseModal] = useState(false);
   const [faseToEdit, setFaseToEdit] = useState(null);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
-  // Si el usuario no es admin y está en cotización, seleccionar automáticamente la primera fase dinámica disponible
+  // Si el trabajador no tiene fases, mantener vista de alta; si hay fases, ir a la primera pendiente
   useEffect(() => {
     if (!isAdmin) {
       if (activeFaseId === 'fase-cotizacion' || activeFaseId === 'COTIZACION') {
@@ -150,11 +182,13 @@ export default function ProyectoDetallePage() {
           const primeraPendiente = dynamicFases.find((f) => f.estado !== 'COMPLETADA') || dynamicFases[0];
           setActiveFaseId(primeraPendiente.id);
         } else {
-          setActiveFaseId('fase-completado');
+          setActiveFaseId('fase-pendiente');
         }
       }
     }
   }, [isAdmin, dynamicFases, activeFaseId]);
+
+  const isFasePendienteActive = activeFaseId === 'fase-pendiente';
 
   const cotizacionCompletada = Boolean(
     proyecto?.fases?.COTIZACION?.completada ||
@@ -200,7 +234,7 @@ export default function ProyectoDetallePage() {
       if (updated.length > 0) {
         setActiveFaseId(updated[0].id);
       } else {
-        setActiveFaseId(isAdmin ? 'fase-cotizacion' : 'fase-completado');
+        setActiveFaseId(isAdmin ? 'fase-cotizacion' : 'fase-pendiente');
       }
       setShowValidationErrors(false);
     }
@@ -510,7 +544,7 @@ export default function ProyectoDetallePage() {
               cotizacionCompletada={cotizacionCompletada}
               proyectoCompletado={proyecto.estado === 'COMPLETADO'}
               canViewCotizacion={isAdmin}
-              canAddFase={isAdmin}
+              canAddFase={canAddFase}
             />
           </div>
 
@@ -538,26 +572,53 @@ export default function ProyectoDetallePage() {
                   <CotizacionPanel proyectoId={proyecto.id} />
                 </div>
               </>
-            ) : isCompletadoActive ? (
-              <div className="p-5 sm:p-6 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                  <CheckCircle2 size={28} />
+            ) : isFasePendienteActive || (!isAdmin && dynamicFases.length === 0) ? (
+              <div className="p-5 sm:p-6 text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto">
+                  <Plus size={28} />
                 </div>
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-slate-900">
-                    Fase Final: Entrega y Cierre del Proyecto
+                    Agregar fases del proyecto
                   </h2>
                   <p className="text-xs text-slate-500 max-w-lg mx-auto mt-0.5">
+                    Este proyecto aún no tiene fases operativas. Crea la primera fase para registrar avances, evidencias y observaciones.
+                  </p>
+                </div>
+                {canAddFase && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFaseToEdit(null);
+                      setShowFaseModal(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all cursor-pointer"
+                  >
+                    <Plus size={16} />
+                    Agregar primera fase
+                  </button>
+                )}
+              </div>
+            ) : isCompletadoActive ? (
+              <div className="p-5 sm:p-8 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <CheckCircle2 size={28} />
+                </div>
+                <div className="w-full max-w-2xl mx-auto space-y-2">
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 text-center">
+                    Fase Final: Entrega y Cierre del Proyecto
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 text-center leading-relaxed px-2 sm:px-6">
                     Al finalizar todas las fases del proyecto, puedes marcar el estado general como COMPLETADO para cerrar la obra o entrega.
                   </p>
                 </div>
-                <div className="pt-1">
+                <div className="pt-1 flex justify-center w-full">
                   {proyecto.estado === 'COMPLETADO' ? (
                     <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-100 text-emerald-800 font-extrabold text-xs sm:text-sm border border-emerald-300">
                       <CheckCircle2 size={16} />
                       ¡Proyecto Oficialmente Completado!
                     </span>
-                  ) : (
+                  ) : isAdmin ? (
                     <button
                       type="button"
                       onClick={() => updateProyecto({ estado: 'COMPLETADO', fechaCompletado: new Date().toISOString(), progreso: 100 })}
@@ -565,6 +626,10 @@ export default function ProyectoDetallePage() {
                     >
                       ✓ Marcar Proyecto como COMPLETADO
                     </button>
+                  ) : (
+                    <p className="text-xs sm:text-sm text-slate-500 font-medium text-center max-w-md mx-auto px-4">
+                      Solo un administrador puede cerrar el proyecto como completado.
+                    </p>
                   )}
                 </div>
               </div>
@@ -605,7 +670,7 @@ export default function ProyectoDetallePage() {
               </div>
 
               <div>
-                {!isCompletadoActive && (
+                {!isCompletadoActive && !isFasePendienteActive && dynamicFases.length > 0 && (
                   <button
                     type="button"
                     onClick={handleDynamicAvanzar}

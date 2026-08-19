@@ -48,13 +48,22 @@ export function proyectosReducer(state, action) {
         proyectos: [...state.proyectos, action.payload],
       };
 
-    case ACTIONS.UPDATE_PROYECTO:
+    case ACTIONS.UPDATE_PROYECTO: {
+      const { id, cambios } = action.payload;
+      const idx = state.proyectos.findIndex((p) => p.id === id);
+      if (idx === -1) {
+        return {
+          ...state,
+          proyectos: [...state.proyectos, { id, ...cambios }],
+        };
+      }
       return {
         ...state,
         proyectos: state.proyectos.map((p) =>
-          p.id === action.payload.id ? { ...p, ...action.payload.cambios } : p
+          p.id === id ? { ...p, ...cambios } : p
         ),
       };
+    }
 
     case ACTIONS.DELETE_PROYECTO:
       return {

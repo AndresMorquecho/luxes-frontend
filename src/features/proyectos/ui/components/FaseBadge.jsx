@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { CheckCircle } from 'lucide-react';
-import { generateAluxFasesWithDates } from '../../domain/value-objects/aluxFasesTemplate.js';
 
 /**
  * Obtiene la información de conteo de fases dinámicas omitiendo cotización y completado.
@@ -19,11 +18,6 @@ export function getProyectoFaseInfo(proyecto) {
     }
   }
 
-  // Fallback a las fases por defecto si no existen
-  if (!fases || fases.length === 0) {
-    fases = generateAluxFasesWithDates(proyecto?.fechaCreacion || proyecto?.fechaInicio);
-  }
-
   // Filtrar Cotización y Completado/Finalizado
   const operationalFases = (fases || []).filter((f) => {
     const name = (f.nombre || '').toLowerCase();
@@ -33,7 +27,20 @@ export function getProyectoFaseInfo(proyecto) {
     return true;
   });
 
-  const totalFases = operationalFases.length || 5;
+  if (operationalFases.length === 0) {
+    const enCotizacion = proyecto?.faseActual === 'COTIZACION' || proyecto?.estado === 'ACTIVO';
+    return {
+      faseIndex: 0,
+      totalFases: 0,
+      faseLabel: enCotizacion ? 'Cotización' : 'Sin fases',
+      faseTitulo: enCotizacion ? 'Cotización' : 'Sin fases operativas',
+      fechaLimite: proyecto?.fechaEntregaEstimada || '—',
+      isFinalizado: false,
+      estadoFase: enCotizacion ? 'EN_PROGRESO' : 'PENDIENTE',
+    };
+  }
+
+  const totalFases = operationalFases.length;
 
   const isFinalizado = Boolean(
     proyecto?.estado === 'COMPLETADO' ||
