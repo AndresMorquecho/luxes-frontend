@@ -77,7 +77,7 @@ const calculateLapses = (marcaciones) => {
   const entrada = marcaciones.find(m => m.tipo === 'ENTRADA');
   const inicioAlm = marcaciones.find(m => m.tipo === 'INICIO_ALMUERZO');
   const finAlm = marcaciones.find(m => m.tipo === 'FIN_ALMUERZO');
-  const salida = marcaciones.find(m => m.tipo === 'SALIDA');
+  const salida = marcaciones.find(m => m.tipo === 'SALIDA' || m.tipo === 'SALIDA_PERMISO' || m.tipo === 'FIN_HORAS_EXTRA');
 
   let almuerzoLapso = '';
   let trabajoLapso = '';
@@ -242,6 +242,9 @@ const KioskView = () => {
           found = empleados.find(
             (e) => e.codigo?.toLowerCase().trim() === currentUser.username?.toLowerCase().trim()
           );
+        }
+        if (!found && (currentUser?.username === 'admin' || currentUser?.rol?.toLowerCase() === 'administrador')) {
+          found = empleados[0];
         }
         if (found) {
           setUserEmpleadoId(found.id);
@@ -444,6 +447,74 @@ const KioskView = () => {
       setScanError(err.message || 'Error al procesar el código QR.');
       setIsCameraActive(false);
       setTimeout(() => setScanError(null), 5000);
+      setIsProcessingScan(false);
+    }
+  };
+
+  const handleMarcacionBiometrica = async () => {
+    if (gpsBadge.tone === 'amber') {
+      toast.error('La ubicación (GPS) es obligatoria para registrar asistencia. Actívala en tu navegador e intenta nuevamente.');
+      return;
+    }
+    setIsProcessingScan(true);
+    setScanError(null);
+
+    try {
+      const targetEmpId = userEmpleadoId || kioskSession?.empleadoId || currentUser?.empleadoId || 'EMP-001';
+      const targetEmpNombre = kioskSession?.nombreEmpleado || currentUser?.nombre || 'Colaborador';
+      const empTarget = { id: targetEmpId, nombre: targetEmpNombre };
+
+      const res = await requestBiometricScan(empTarget);
+      if (res.success) {
+        toast.success('Huella biométrica verificada con éxito');
+
+        // Consultar marcaciones actuales y opciones disponibles
+        const [marcaciones, proxima] = await Promise.all([
+          getTodayMarcaciones(targetEmpId),
+          getProximaMarcacion(targetEmpId),
+        ]);
+
+        const lapsos = calculateLapses(marcaciones);
+
+        setKioskSession({
+          empleadoId: targetEmpId,
+          nombreEmpleado: marcaciones[0]?.nombreEmpleado || targetEmpNombre,
+          marcaciones,
+          lapsos,
+        });
+
+        if (!puedeRegistrarMarcacion(marcaciones, proxima.tipoContrato, horarioHoy?.diaConfig?.salida)) {
+          throw new Error('El colaborador ya completó todas las marcaciones del día.');
+        }
+
+        const horaSalidaConfig = horarioHoy?.diaConfig?.salida ?? null;
+        const opciones = proxima.opciones?.length
+          ? proxima.opciones.filter(op => {
+            if (op.tipo === 'SALIDA_PERMISO') {
+              const now = new Date();
+              if (horaSalidaConfig) {
+                const [sh, sm] = horaSalidaConfig.split(':').map(Number);
+                if (now.getHours() * 60 + now.getMinutes() >= sh * 60 + sm) return false;
+              }
+            }
+            return true;
+          })
+          : getOpcionesMarcacion(marcaciones, proxima.tipoContrato, horaSalidaConfig);
+
+        setPendingScan({
+          empleadoId: targetEmpId,
+          nombreEmpleado: marcaciones[0]?.nombreEmpleado || targetEmpNombre,
+          marcaciones,
+          opciones,
+          tipoContrato: proxima.tipoContrato,
+        });
+      }
+    } catch (err) {
+      console.error('Error en marcación biométrica:', err);
+      toast.error(err.message || 'Error en autenticación de huella');
+      setScanError(err.message);
+      setTimeout(() => setScanError(null), 5000);
+    } finally {
       setIsProcessingScan(false);
     }
   };
@@ -683,36 +754,7 @@ const KioskView = () => {
                   {/* Alternativa Huella en Web */}
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (gpsBadge.tone === 'amber') {
-                        toast.error('La ubicación (GPS) es obligatoria para registrar asistencia. Actívala e intenta nuevamente.');
-                        return;
-                      }
-                      setIsProcessingScan(true);
-                      try {
-                        const targetEmpId = userEmpleadoId || kioskSession?.empleadoId || currentUser?.empleadoId || currentUser?.id || 'EMP-001';
-                        const targetEmpNombre = kioskSession?.nombreEmpleado || currentUser?.nombre || 'Empleado';
-                        const empTarget = { id: targetEmpId, nombre: targetEmpNombre };
-                        const res = await requestBiometricScan(empTarget);
-                        if (res.success) {
-                          toast.success('Huella biométrica verificada con éxito');
-                          const ubicacionFinal = await resolveUbicacion();
-                          const reg = await registrarAsistencia({
-                            empleadoId: empTarget.id,
-                            ubicacion: ubicacionFinal,
-                          });
-                          toast.success(`Asistencia registrada: ${reg?.label || 'Marcación completada'}`);
-                          if (empTarget.id) {
-                            await loadUserTodaySession(empTarget.id);
-                          }
-                          await loadRecentRegistros();
-                        }
-                      } catch (err) {
-                        toast.error(err.message || 'Error en autenticación de huella');
-                      } finally {
-                        setIsProcessingScan(false);
-                      }
-                    }}
+                    onClick={handleMarcacionBiometrica}
                     disabled={isProcessingScan}
                     className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1.5 cursor-pointer mt-1"
                   >
@@ -727,36 +769,7 @@ const KioskView = () => {
                 <>
                   {/* Botón Circular de Huella Dactilar */}
                   <button
-                    onClick={async () => {
-                      if (gpsBadge.tone === 'amber') {
-                        toast.error('La ubicación (GPS) es obligatoria para registrar asistencia. Actívala e intenta nuevamente.');
-                        return;
-                      }
-                      setIsProcessingScan(true);
-                      try {
-                        const targetEmpId = userEmpleadoId || kioskSession?.empleadoId || currentUser?.empleadoId || currentUser?.id || 'EMP-001';
-                        const targetEmpNombre = kioskSession?.nombreEmpleado || currentUser?.nombre || 'Empleado';
-                        const empTarget = { id: targetEmpId, nombre: targetEmpNombre };
-                        const res = await requestBiometricScan(empTarget);
-                        if (res.success) {
-                          toast.success('Huella biométrica verificada con éxito');
-                          const ubicacionFinal = await resolveUbicacion();
-                          const reg = await registrarAsistencia({
-                            empleadoId: empTarget.id,
-                            ubicacion: ubicacionFinal,
-                          });
-                          toast.success(`Asistencia registrada: ${reg?.label || 'Marcación completada'}`);
-                          if (empTarget.id) {
-                            await loadUserTodaySession(empTarget.id);
-                          }
-                          await loadRecentRegistros();
-                        }
-                      } catch (err) {
-                        toast.error(err.message || 'Error en autenticación de huella');
-                      } finally {
-                        setIsProcessingScan(false);
-                      }
-                    }}
+                    onClick={handleMarcacionBiometrica}
                     disabled={isProcessingScan}
                     className={`w-40 h-40 border-4 rounded-full flex flex-col items-center justify-center gap-1.5 transition-all duration-300 transform hover:scale-105 cursor-pointer shadow-lg shadow-blue-500/20 active:scale-95 ${
                       gpsBadge.tone === 'amber'
@@ -777,36 +790,7 @@ const KioskView = () => {
 
                   {/* Botón Principal de Huella */}
                   <button
-                    onClick={async () => {
-                      if (gpsBadge.tone === 'amber') {
-                        toast.error('La ubicación (GPS) es obligatoria para registrar asistencia. Actívala en tu navegador.');
-                        return;
-                      }
-                      setIsProcessingScan(true);
-                      try {
-                        const targetEmpId = userEmpleadoId || kioskSession?.empleadoId || currentUser?.empleadoId || currentUser?.id || 'EMP-001';
-                        const targetEmpNombre = kioskSession?.nombreEmpleado || currentUser?.nombre || 'Empleado';
-                        const empTarget = { id: targetEmpId, nombre: targetEmpNombre };
-                        const res = await requestBiometricScan(empTarget);
-                        if (res.success) {
-                          toast.success('Huella biométrica verificada con éxito');
-                          const ubicacionFinal = await resolveUbicacion();
-                          const reg = await registrarAsistencia({
-                            empleadoId: empTarget.id,
-                            ubicacion: ubicacionFinal,
-                          });
-                          toast.success(`Asistencia registrada: ${reg?.label || 'Marcación completada'}`);
-                          if (empTarget.id) {
-                            await loadUserTodaySession(empTarget.id);
-                          }
-                          await loadRecentRegistros();
-                        }
-                      } catch (err) {
-                        toast.error(err.message || 'Error en autenticación de huella');
-                      } finally {
-                        setIsProcessingScan(false);
-                      }
-                    }}
+                    onClick={handleMarcacionBiometrica}
                     disabled={isProcessingScan}
                     className={`w-full max-w-xs py-3 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
                       gpsBadge.tone === 'amber'
@@ -1115,7 +1099,7 @@ const buildAsistenciaRowMeta = (marcaciones, estado) => {
   const entrada = marcaciones.find(m => m.tipo === 'ENTRADA');
   const inicioAlm = marcaciones.find(m => m.tipo === 'INICIO_ALMUERZO');
   const finAlm = marcaciones.find(m => m.tipo === 'FIN_ALMUERZO');
-  const salida = marcaciones.find(m => m.tipo === 'SALIDA');
+  const salida = marcaciones.find(m => m.tipo === 'SALIDA' || m.tipo === 'SALIDA_PERMISO' || m.tipo === 'FIN_HORAS_EXTRA');
   const isFalto = estado === 'FALTO';
   const isPermiso = estado === 'PERMISO';
   const isAsistio = estado === 'ASISTIO';
