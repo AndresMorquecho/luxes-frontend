@@ -38,6 +38,7 @@ export async function getMisTareas(filters = {}) {
   if (filters.limit) params.set('limit', filters.limit);
   if (filters.estado) params.set('estado', filters.estado);
   if (filters.prioridad) params.set('prioridad', filters.prioridad);
+  if (filters.search) params.set('search', filters.search);
   if (filters.fechaInicio) params.set('fechaInicio', filters.fechaInicio);
   if (filters.fechaFin) params.set('fechaFin', filters.fechaFin);
   return request(`${API_BASE}/mis-tareas?${params}`);

@@ -17,6 +17,7 @@ import { confirmDialog, alertDialog } from '../../../../shared/ui/components/Con
 import { notifyNotificationsUpdated } from '../../../notificaciones/application/notificationsService';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker.jsx';
 import { ComprasPageHeader, ComprasHeaderButton } from '../../../compras/ui/components/ComprasPageHeader';
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers';
 import '../../../compras/ui/pages/ComprasPage.css';
 import './TareasPage.css';
 
@@ -40,8 +41,7 @@ const CHECK_ICON = 'M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 
 
 export default function TareasPage() {
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin = storedUser?.permissions?.includes('gestion_tareas') ||
-    ['admin', 'administrador'].includes((storedUser?.rol || '').toLowerCase());
+  const isAdmin = isAdminUser(storedUser);
 
   const [tareas, setTareas] = useState([]);
   const [total, setTotal] = useState(0);
@@ -535,20 +535,18 @@ export default function TareasPage() {
 
   const renderFilters = (mobile = false) => (
     <div className={`grid gap-2 ${mobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-4'}`}>
-      {isAdmin && (activeTab === 'todas' || activeTab === 'historial') && (
-        <div className={`relative ${mobile ? '' : 'col-span-2 lg:col-span-1'}`}>
-          <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Buscar tarea…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
-          />
-        </div>
-      )}
+      <div className={`relative ${mobile ? '' : 'col-span-2 lg:col-span-1'}`}>
+        <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Buscar tarea…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-800 outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15"
+        />
+      </div>
       <div className="min-w-0">
         <DateRangePicker value={fechas} onChange={(val) => setFechas({ start: val.start, end: val.end })} placeholder="Rango de fechas" />
       </div>
@@ -577,7 +575,7 @@ export default function TareasPage() {
   );
 
   const renderTareaActions = (tarea, compact = false) => {
-    const isAssigned = tarea.asignaciones?.some((a) => a.userId === storedUser.id);
+    const isAssigned = tarea.asignaciones?.some((a) => a.userId === storedUser.id || a.user?.id === storedUser.id);
     const hasAssignments = (tarea.asignaciones || []).length > 0;
 
     return (
@@ -587,7 +585,7 @@ export default function TareasPage() {
             type="button"
             title="Iniciar tarea"
             onClick={() => handleStatusChange(tarea, 'en_progreso')}
-            className="h-8 px-2.5 inline-flex items-center gap-1 bg-[#2b41b8] hover:bg-[#1a1c3d] text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+            className="h-8 px-2.5 inline-flex items-center gap-1 bg-[#2b41b8] hover:bg-[#1a1c3d] text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
           >
             <Play size={13} />
             {!compact && <span>Iniciar</span>}
@@ -599,7 +597,7 @@ export default function TareasPage() {
             type="button"
             title="Completar tarea"
             onClick={() => handleStatusChange(tarea, 'completada')}
-            className="h-8 px-2.5 inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+            className="h-8 px-2.5 inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
           >
             <CheckCircle2 size={13} />
             {!compact && <span>Completar</span>}
@@ -613,7 +611,7 @@ export default function TareasPage() {
                 type="button"
                 title="Multar colaborador por incumplimiento"
                 onClick={() => openMultaModal(tarea)}
-                className="h-8 px-2.5 inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300/80 rounded-lg text-xs font-bold transition-all shadow-sm"
+                className="h-8 px-2.5 inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300/80 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
               >
                 <DollarSign size={14} className="text-amber-700" strokeWidth={2.5} />
                 {!compact && <span>Multar</span>}
@@ -624,7 +622,7 @@ export default function TareasPage() {
               type="button"
               title="Editar tarea"
               onClick={() => openEditModal(tarea)}
-              className="h-8 w-8 inline-flex items-center justify-center border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 rounded-lg transition-all shadow-sm"
+              className="h-8 w-8 inline-flex items-center justify-center border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 rounded-lg transition-all shadow-sm cursor-pointer"
             >
               <Pencil size={14} />
             </button>
@@ -634,7 +632,7 @@ export default function TareasPage() {
                 type="button"
                 title="Cancelar tarea"
                 onClick={() => handleStatusChange(tarea, 'cancelada')}
-                className="h-8 w-8 inline-flex items-center justify-center border border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all shadow-sm"
+                className="h-8 w-8 inline-flex items-center justify-center border border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all shadow-sm cursor-pointer"
               >
                 <Ban size={14} />
               </button>
@@ -644,7 +642,7 @@ export default function TareasPage() {
               type="button"
               title="Eliminar tarea"
               onClick={() => handleDelete(tarea)}
-              className="h-8 w-8 inline-flex items-center justify-center border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-all shadow-sm"
+              className="h-8 w-8 inline-flex items-center justify-center border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-all shadow-sm cursor-pointer"
             >
               <Trash2 size={14} />
             </button>
@@ -758,14 +756,12 @@ export default function TareasPage() {
       {/* Móvil: filtros colapsables */}
       <div className="md:hidden mb-3 space-y-2">
         <div className="flex gap-2">
-          {isAdmin && (activeTab === 'todas' || activeTab === 'historial') && (
-            <div className="relative flex-1 min-w-0">
-              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input type="text" placeholder="Buscar tarea…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-xl bg-white text-sm outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15" />
-            </div>
-          )}
+          <div className="relative flex-1 min-w-0">
+            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input type="text" placeholder="Buscar tarea…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-10 pl-10 pr-3 border border-slate-200 rounded-xl bg-white text-sm outline-none focus:border-[#2b41b8] focus:ring-2 focus:ring-[#2b41b8]/15" />
+          </div>
           <button type="button" onClick={() => setMobileFiltersOpen((v) => !v)} className="w-10 h-10 shrink-0 inline-flex items-center justify-center border border-slate-200 rounded-xl bg-white text-slate-500 relative" aria-label="Filtros">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
