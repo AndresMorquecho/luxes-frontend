@@ -177,7 +177,6 @@ export const AbonoModal = ({
                         type="number"
                         step="0.01"
                         min="0"
-                        max={pending || undefined}
                         value={monto}
                         onChange={(e) => setMonto(e.target.value)}
                         className="w-full px-3 text-sm bg-white font-mono font-bold text-[#0f172a] focus:outline-none placeholder-slate-400 h-full"
@@ -197,7 +196,7 @@ export const AbonoModal = ({
                       )}
                       <button
                         type="button"
-                        onClick={() => setMonto(pending.toFixed(2))}
+                        onClick={() => setMonto(Number(pending || 0).toFixed(2))}
                         className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[11px] font-bold text-[#2563eb] transition-colors"
                       >
                         Abono Total (100%)
@@ -205,7 +204,7 @@ export const AbonoModal = ({
                       {isApproval && total > 0 && (
                         <button
                           type="button"
-                          onClick={() => setMonto((total / 2).toFixed(2))}
+                          onClick={() => setMonto((Number(total || 0) / 2).toFixed(2))}
                           className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[11px] font-bold text-[#2563eb] transition-colors"
                         >
                           Abono 50%

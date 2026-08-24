@@ -133,10 +133,10 @@ export const VentasPage = () => {
 
   // ── Computed values ──
   const getItemTotals = (v) => {
-    const subtotal = v.items.reduce((s, item) => s + (item.cantidad || 0) * (item.precioUnitario || 0), 0);
-    const total = subtotal * (1 + (v.iva || 0));
-    const cobrado = (v.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
-    const pendiente = Math.max(0, total - cobrado);
+    const subtotal = (v.items || []).reduce((s, item) => s + (Number(item.cantidad) || 0) * (Number(item.precioUnitario) || 0), 0);
+    const total = Math.round(subtotal * (1 + (Number(v.iva) || 0)) * 100) / 100;
+    const cobrado = Math.round((v.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0) * 100) / 100;
+    const pendiente = Math.max(0, Math.round((total - cobrado) * 100) / 100);
     return { total, cobrado, pendiente };
   };
 

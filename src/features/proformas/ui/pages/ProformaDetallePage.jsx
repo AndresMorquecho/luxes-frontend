@@ -131,12 +131,12 @@ export const ProformaDetallePage = () => {
   }
 
   const subtotal = (proforma.items || []).reduce((s, item) => s + Number(item.cantidad) * Number(item.precioUnitario), 0);
-  const total = subtotal * (1 + Number(proforma.iva));
-  const totalCobrado = (proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
-  const totalPendiente = Math.max(0, total - totalCobrado);
+  const total = Math.round(subtotal * (1 + Number(proforma.iva)) * 100) / 100;
+  const totalCobrado = Math.round((proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0) * 100) / 100;
+  const totalPendiente = Math.max(0, Math.round((total - totalCobrado) * 100) / 100);
   
   const sumOtrosAbonos = editingAbono 
-    ? (proforma.abonos || []).filter(ab => ab.id !== editingAbono.id).reduce((s, ab) => s + Number(ab.monto), 0)
+    ? Math.round((proforma.abonos || []).filter(ab => ab.id !== editingAbono.id).reduce((s, ab) => s + Number(ab.monto), 0) * 100) / 100
     : 0;
 
   const handleRechazar = async () => {
@@ -779,7 +779,7 @@ export const ProformaDetallePage = () => {
           proforma.estado === 'Pendiente'
             ? total
             : editingAbono
-            ? total - sumOtrosAbonos
+            ? Math.max(0, Math.round((total - sumOtrosAbonos) * 100) / 100)
             : totalPendiente
         }
         monto={abonoForm.monto}

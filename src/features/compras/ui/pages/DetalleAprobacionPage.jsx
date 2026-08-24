@@ -637,7 +637,6 @@ export const DetalleAprobacionPage = () => {
                       type="number"
                       step="0.01"
                       min="0"
-                      max={total}
                       value={abonoMonto}
                       onChange={(e) => {
                         setAbonoMonto(e.target.value);
