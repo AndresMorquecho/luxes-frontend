@@ -4,7 +4,7 @@ import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
 import {
   getCuentasPorPagar, registrarAbono, getMetodosPago, getComprasStats, getAbonos, eliminarAbono,
-  getCheques, procesarChequeManual, editarCheque, eliminarCheque, createCuentaPorPagarManual, getProveedores
+  getCheques, procesarChequeManual, editarCheque, eliminarCheque, createCuentaPorPagarManual, getProveedores, deleteOrden
 } from '../../application/comprasService';
 import { buildOrdenParaAbono, getAbonoSaldoPendiente } from '../../helpers/ordenCompraHelpers';
 import { ComprasPageHeader } from '../components/ComprasPageHeader';
@@ -181,6 +181,39 @@ export const CuentasPorPagarPage = () => {
     fechaCobro: '',
   });
   const [manualSaving, setManualSaving] = useState(false);
+
+  // Modal Confirmación Eliminar Orden
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [ordenToDelete, setOrdenToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleOpenDeleteModal = (cuenta) => {
+    setOrdenToDelete(cuenta);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!ordenToDelete) return;
+    const ordenId = ordenToDelete.ordenCompraId || ordenToDelete.ordenCompra?.id;
+    if (!ordenId) {
+      toast.error('Identificador de orden no válido');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await deleteOrden(ordenId);
+      toast.success(`Orden ${ordenToDelete.ordenCompra?.numero || ''} eliminada correctamente`);
+      setDeleteModalOpen(false);
+      setOrdenToDelete(null);
+      loadCxP();
+      loadStats();
+    } catch (err) {
+      toast.error(err?.message || 'Error al eliminar la orden de compra');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleOpenManualModal = async () => {
     try {
@@ -617,25 +650,55 @@ export const CuentasPorPagarPage = () => {
         <div><span className="text-slate-400 block text-[10px]">Pagado</span><span className="font-semibold text-emerald-600">{fmt(c.montoPagado)}</span></div>
         <div className="col-span-2"><span className="text-slate-400 block text-[10px]">Vencimiento</span><span className="text-slate-700">{fmtDate(c.fechaVencimiento)}</span></div>
       </div>
-      <div className="px-3 pb-3 flex gap-2">
-        <button
-          type="button"
-          onClick={() => openVerModal(c)}
-          className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
-        >
-          <Eye size={14} />
-          Ver pagos
-        </button>
-        <button
-          type="button"
-          onClick={() => openAbonoModal(c)}
-          disabled={c.estado === 'pagado'}
-          className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ backgroundColor: c.estado === 'pagado' ? '#94a3b8' : CO_PRIMARY }}
-        >
-          Registrar abono
-        </button>
-      </div>
+      {(() => {
+        const tieneAbonos = Number(c.montoPagado || 0) > 0;
+        const tieneChequePendiente = Boolean(pendingCheque);
+        const cannotDelete = !isAdmin || tieneAbonos || tieneChequePendiente;
+
+        let deleteReasonTooltip = 'Eliminar orden de compra';
+        if (!isAdmin) {
+          deleteReasonTooltip = 'Solo los administradores pueden eliminar órdenes de compra';
+        } else if (tieneAbonos) {
+          deleteReasonTooltip = 'No se puede eliminar: tiene pagos registrados. Anule los abonos desde "Ver" primero.';
+        } else if (tieneChequePendiente) {
+          deleteReasonTooltip = 'No se puede eliminar: tiene cheques posfechados pendientes';
+        }
+
+        return (
+          <div className="px-3 pb-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => openVerModal(c)}
+              className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              <Eye size={14} />
+              Ver pagos
+            </button>
+            <button
+              type="button"
+              onClick={() => openAbonoModal(c)}
+              disabled={c.estado === 'pagado'}
+              className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ backgroundColor: c.estado === 'pagado' ? '#94a3b8' : CO_PRIMARY }}
+            >
+              Registrar abono
+            </button>
+            <button
+              type="button"
+              disabled={cannotDelete}
+              onClick={() => handleOpenDeleteModal(c)}
+              className={`h-9 w-9 inline-flex items-center justify-center rounded-lg border shrink-0 transition-colors ${
+                cannotDelete
+                  ? 'border-slate-100 bg-slate-50 text-slate-300 opacity-40 cursor-not-allowed'
+                  : 'border-red-100 bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer'
+              }`}
+              title={deleteReasonTooltip}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        );
+      })()}
     </div>
     );
   };
@@ -819,25 +882,55 @@ export const CuentasPorPagarPage = () => {
                       <td className="px-4 py-3 text-center text-slate-500 text-xs whitespace-nowrap">{fmtDate(c.fechaVencimiento)}</td>
                       <td className="px-4 py-3 text-center">{renderBadge(c.estado)}</td>
                       <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openVerModal(c)}
-                            className="h-8 px-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 transition-all cursor-pointer"
-                            title="Ver historial de abonos y cheques posfechados"
-                          >
-                            <Eye size={14} />
-                            Ver
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openAbonoModal(c)}
-                            disabled={c.estado === 'pagado'}
-                            className="h-8 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-white whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            Registrar abono
-                          </button>
-                        </div>
+                        {(() => {
+                          const tieneAbonos = Number(c.montoPagado || 0) > 0;
+                          const tieneChequePendiente = Boolean(pendingCheque);
+                          const cannotDelete = !isAdmin || tieneAbonos || tieneChequePendiente;
+
+                          let deleteReasonTooltip = 'Eliminar orden de compra';
+                          if (!isAdmin) {
+                            deleteReasonTooltip = 'Solo los administradores pueden eliminar órdenes de compra';
+                          } else if (tieneAbonos) {
+                            deleteReasonTooltip = 'No se puede eliminar: tiene pagos registrados. Anule los abonos desde "Ver" primero.';
+                          } else if (tieneChequePendiente) {
+                            deleteReasonTooltip = 'No se puede eliminar: tiene cheques posfechados pendientes';
+                          }
+
+                          return (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openVerModal(c)}
+                                className="h-8 px-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-100 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 transition-all cursor-pointer"
+                                title="Ver historial de abonos y cheques posfechados"
+                              >
+                                <Eye size={14} />
+                                Ver
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openAbonoModal(c)}
+                                disabled={c.estado === 'pagado'}
+                                className="h-8 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-white whitespace-nowrap transition-all shadow-sm bg-[#0b2d64] hover:bg-[#071f45] shrink-0 cursor-pointer shadow-blue-950/20 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                Registrar abono
+                              </button>
+                              <button
+                                type="button"
+                                disabled={cannotDelete}
+                                onClick={() => handleOpenDeleteModal(c)}
+                                className={`h-8 w-8 inline-flex items-center justify-center rounded-xl border transition-all ${
+                                  cannotDelete
+                                    ? 'border-slate-100 bg-slate-50 text-slate-300 opacity-40 cursor-not-allowed'
+                                    : 'border-red-100 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-200 cursor-pointer active:scale-95'
+                                }`}
+                                title={deleteReasonTooltip}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
@@ -1584,6 +1677,55 @@ export const CuentasPorPagarPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      </ModalPortal>
+
+      {/* Modal Confirmar Eliminación de Orden */}
+      <ModalPortal open={deleteModalOpen}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+          <div
+            className="fixed inset-0 transition-opacity"
+            style={{ background: 'rgba(15, 23, 42, 0.35)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+            onClick={() => !deleting && setDeleteModalOpen(false)}
+          />
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-2xl w-full max-w-md overflow-hidden relative z-[201] animate-slide-up p-5 sm:p-6">
+            <div className="flex items-center gap-3 mb-3 text-red-600">
+              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-800">Eliminar Orden de Compra</h3>
+                <p className="text-xs text-slate-500 font-mono font-semibold">{ordenToDelete?.ordenCompra?.numero || 'OC'}</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-600 mb-4 leading-relaxed">
+              ¿Estás seguro de que deseas eliminar permanentemente la orden de <strong className="text-slate-800">{ordenToDelete?.ordenCompra?.proveedor?.nombre || 'proveedor'}</strong> por un valor de <strong className="text-slate-800 font-mono">{fmt(ordenToDelete?.montoTotal)}</strong>?
+            </p>
+
+            <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-[11px] sm:text-xs text-amber-800 mb-5 leading-relaxed">
+              <strong>Nota:</strong> Como esta orden no tiene pagos registrados ni cheques pendientes, se eliminará de forma segura sin afectar saldos de cuentas ni la caja.
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
+              </button>
+            </div>
           </div>
         </div>
       </ModalPortal>

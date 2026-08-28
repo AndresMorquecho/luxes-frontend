@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getOrdenes } from '../../application/comprasService';
+import { Trash2 } from 'lucide-react';
+import { getOrdenes, deleteOrden } from '../../application/comprasService';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
-import { deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { isAdminUser } from '../../../../shared/utils/userRoleHelpers';
 import {
   ESTADO_ORDEN_LABELS,
   FILTROS_HISTORIAL,
@@ -19,6 +21,7 @@ import './ComprasPage.css';
 export const HistorialOrdenesCompraPage = () => {
   const navigate = useNavigate();
   const [user] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
+  const isAdmin = isAdminUser(user);
   const userRole = (user?.rol || '').toLowerCase();
   const isImpresion = userRole === 'impresión' || userRole === 'impresion';
   const isTaller = userRole === 'taller';
@@ -35,6 +38,32 @@ export const HistorialOrdenesCompraPage = () => {
   const [fechas, setFechas] = useState({ start: '', end: '' });
   const perPage = 25;
   const searchTimer = useRef(null);
+
+  // Modal Confirmación Eliminar Orden
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [ordenToDelete, setOrdenToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleOpenDeleteModal = (orden) => {
+    setOrdenToDelete(orden);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!ordenToDelete?.id) return;
+    setDeleting(true);
+    try {
+      await deleteOrden(ordenToDelete.id);
+      toast.success(`Orden ${ordenToDelete.numero || ''} eliminada correctamente`);
+      setDeleteModalOpen(false);
+      setOrdenToDelete(null);
+      loadOrdenes();
+    } catch (err) {
+      toast.error(err?.message || 'Error al eliminar la orden de compra');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const loadOrdenes = useCallback(async () => {
     setLoading(true);
@@ -201,19 +230,46 @@ export const HistorialOrdenesCompraPage = () => {
                     </td>
                     <td className="text-slate-500 text-xs">{fmtDateTime(ultimaFecha)}</td>
                     <td>
-                      <div className="flex items-center justify-center gap-1">
-                        <button type="button" onClick={() => navigate(`/compras/historial/${o.id}`)} className="co-action-btn co-action-blue" title="Ver detalle">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                          </svg>
-                        </button>
-                        <button type="button" onClick={() => openPDFPreview(o)} className="co-action-btn co-action-blue" title="Ver PDF">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                          </svg>
-                        </button>
-                      </div>
+                      {(() => {
+                        const tieneAbonos = (o.abonos && o.abonos.length > 0) || (o.cuentaPorPagar && Number(o.cuentaPorPagar.montoPagado || 0) > 0) || o.estadoPago === 'pagado' || o.estadoPago === 'parcial';
+                        const cannotDelete = !isAdmin || tieneAbonos;
+
+                        let deleteReasonTooltip = 'Eliminar orden de compra';
+                        if (!isAdmin) {
+                          deleteReasonTooltip = 'Solo los administradores pueden eliminar órdenes de compra';
+                        } else if (tieneAbonos) {
+                          deleteReasonTooltip = 'No se puede eliminar: tiene pagos registrados. Anule los abonos primero.';
+                        }
+
+                        return (
+                          <div className="flex items-center justify-center gap-1">
+                            <button type="button" onClick={() => navigate(`/compras/historial/${o.id}`)} className="co-action-btn co-action-blue" title="Ver detalle">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                              </svg>
+                            </button>
+                            <button type="button" onClick={() => openPDFPreview(o)} className="co-action-btn co-action-blue" title="Ver PDF">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={cannotDelete}
+                              onClick={() => handleOpenDeleteModal(o)}
+                              className={`co-action-btn ${
+                                cannotDelete
+                                  ? 'opacity-40 cursor-not-allowed text-slate-300'
+                                  : 'text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer'
+                              }`}
+                              title={deleteReasonTooltip}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );
@@ -240,6 +296,16 @@ export const HistorialOrdenesCompraPage = () => {
             {!loading && ordenes.map(o => {
               const badge = ESTADO_ORDEN_LABELS[o.estado] || { bg: '#f1f5f9', color: '#64748b', label: o.estado };
               const ultimaFecha = o.fechaRecepcion || o.fechaAprobacion || o.fechaCreacion || o.fecha;
+              const tieneAbonos = (o.abonos && o.abonos.length > 0) || (o.cuentaPorPagar && Number(o.cuentaPorPagar.montoPagado || 0) > 0) || o.estadoPago === 'pagado' || o.estadoPago === 'parcial';
+              const cannotDelete = !isAdmin || tieneAbonos;
+
+              let deleteReasonTooltip = 'Eliminar orden de compra';
+              if (!isAdmin) {
+                deleteReasonTooltip = 'Solo los administradores pueden eliminar órdenes de compra';
+              } else if (tieneAbonos) {
+                deleteReasonTooltip = 'No se puede eliminar: tiene pagos registrados. Anule los abonos primero.';
+              }
+
               return (
                 <div key={o.id} className="prest-card">
                   <div className="prest-card-header">
@@ -290,6 +356,20 @@ export const HistorialOrdenesCompraPage = () => {
                         style={{ flex: 1, height: '32px', justifyContent: 'center' }}
                       >
                         PDF
+                      </button>
+                      <button
+                        type="button"
+                        disabled={cannotDelete}
+                        onClick={() => handleOpenDeleteModal(o)}
+                        className={`co-action-btn ${
+                          cannotDelete
+                            ? 'opacity-40 cursor-not-allowed text-slate-300'
+                            : 'text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer'
+                        }`}
+                        style={{ width: '32px', height: '32px', justifyContent: 'center' }}
+                        title={deleteReasonTooltip}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -342,6 +422,55 @@ export const HistorialOrdenesCompraPage = () => {
           oc={previewOC}
         />
       )}
+
+      {/* Modal Confirmar Eliminación de Orden */}
+      <ModalPortal open={deleteModalOpen}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+          <div
+            className="fixed inset-0 transition-opacity"
+            style={{ background: 'rgba(15, 23, 42, 0.35)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+            onClick={() => !deleting && setDeleteModalOpen(false)}
+          />
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-2xl w-full max-w-md overflow-hidden relative z-[201] animate-slide-up p-5 sm:p-6">
+            <div className="flex items-center gap-3 mb-3 text-red-600">
+              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-800">Eliminar Orden de Compra</h3>
+                <p className="text-xs text-slate-500 font-mono font-semibold">{ordenToDelete?.numero || 'OC'}</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-600 mb-4 leading-relaxed">
+              ¿Estás seguro de que deseas eliminar permanentemente la orden de <strong className="text-slate-800">{ordenToDelete?.proveedor?.nombre || 'proveedor'}</strong> por un valor de <strong className="text-slate-800 font-mono">${Number(ordenToDelete?.total || 0).toFixed(2)}</strong>?
+            </p>
+
+            <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-[11px] sm:text-xs text-amber-800 mb-5 leading-relaxed">
+              <strong>Nota:</strong> Como esta orden no tiene pagos registrados, se eliminará de forma segura sin afectar saldos de cuentas ni la caja.
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
     </div>
   );
 };
