@@ -39,6 +39,7 @@ const EMPTY_FORM = {
   iessValor: '',
   direccion: '',
   foto: '',
+  horaEntrada: '08:00',
 };
 
 const BANCOS = ['Pichincha', 'Guayaquil', 'Bolivariano', 'Pacifico', 'Internacional', 'Produbanco', 'Austro', 'Machala'];
@@ -614,6 +615,7 @@ export const EmpleadoFormPage = () => {
           decimoTerceroValor: emp.decimoTerceroValor !== null && emp.decimoTerceroValor !== undefined ? Number(emp.decimoTerceroValor) : '',
           decimoCuartoValor: emp.decimoCuartoValor !== null && emp.decimoCuartoValor !== undefined ? Number(emp.decimoCuartoValor) : '',
           iessValor: emp.iessValor !== null && emp.iessValor !== undefined ? Number(emp.iessValor) : '',
+          horaEntrada: emp.horaEntrada || '08:00',
         };
         setForm(loadedForm);
         setInitialForm(loadedForm);
@@ -1070,6 +1072,70 @@ export const EmpleadoFormPage = () => {
                             {form.tipoContrato === 'Medio Día'
                               ? 'Salida a la 1:00 PM · Sin descuento por salida a las 13:00'
                               : 'Jornada completa · Lun–Vie 8h · Sáb hasta 14:00'}
+                          </p>
+                        </div>
+
+                        {/* Hora de Entrada habitual */}
+                        <div className="sm:col-span-2 bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                              Hora de Entrada habitual (Lunes a Viernes)
+                            </label>
+                            <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                              Tolerancia: 8 min
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setForm((prev) => ({ ...prev, horaEntrada: '08:00' }))}
+                              className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                                (form.horaEntrada || '08:00') === '08:00'
+                                  ? 'bg-blue-50/90 border-blue-500 text-blue-900 ring-2 ring-blue-500/20'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="font-mono text-sm font-black">08:00 AM</span>
+                                {(form.horaEntrada || '08:00') === '08:00' && (
+                                  <span className="w-2 h-2 rounded-full bg-blue-600" />
+                                )}
+                              </div>
+                              <span className="text-[10px] font-medium text-slate-400 mt-1">Sin multa hasta 08:08</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setForm((prev) => ({ ...prev, horaEntrada: '08:30' }))}
+                              className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                                form.horaEntrada === '08:30'
+                                  ? 'bg-blue-50/90 border-blue-500 text-blue-900 ring-2 ring-blue-500/20'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="font-mono text-sm font-black">08:30 AM</span>
+                                {form.horaEntrada === '08:30' && (
+                                  <span className="w-2 h-2 rounded-full bg-blue-600" />
+                                )}
+                              </div>
+                              <span className="text-[10px] font-medium text-slate-400 mt-1">Sin multa hasta 08:38</span>
+                            </button>
+
+                            <div className="col-span-2 sm:col-span-1 flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide shrink-0">Otra:</span>
+                              <input
+                                type="time"
+                                name="horaEntrada"
+                                value={form.horaEntrada || '08:00'}
+                                onChange={handleChange}
+                                className="w-full text-xs font-mono font-bold text-slate-800 outline-none bg-transparent"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-400 leading-relaxed">
+                            Las multas aplican tras 8 min de tolerancia: +1 a +8 min ($2.00), +9 a +16 min ($3.00), ≥ +17 min ($4.00).
                           </p>
                         </div>
 

@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, eliminarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig, adminEditarONuevaMarcacion } from '../../application/asistenciaService';
+import { getAsistencias, registrarAsistencia, getTodayMarcaciones, getProximaMarcacion, registrarPermiso, eliminarPermiso, getHorarioDelDia, getHorarioConfig, saveHorarioConfig, adminEditarONuevaMarcacion, eliminarMarcacion } from '../../application/asistenciaService';
 import { getOpcionesMarcacion, puedeRegistrarMarcacion } from '../../helpers/asistenciaHelpers';
 import { MarcacionPickerModal } from '../components/MarcacionPickerModal';
-import { getHorarioEsperado, getHorarioLabel, getEstadoAlmuerzo, normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG, getTodayEcuadorStr } from '../../helpers/horarioLaboral';
+import { getHorarioEsperado, getHorarioLabel, getEstadoAlmuerzo, normalizeHorariosConfig, DEFAULT_HORARIOS_CONFIG, getTodayEcuadorStr, parseTimeSlot, isSabado } from '../../helpers/horarioLaboral';
 import { HorarioDelDiaBanner, HorarioEditModal } from '../components/HorarioDelDiaBanner';
 import { MarcacionHorarioCell } from '../components/MarcacionHorarioCell';
 import { MarcacionesTimeline } from '../components/MarcacionesTimeline';
@@ -1290,6 +1290,7 @@ const AdminView = () => {
   const [horaFormVal, setHoraFormVal] = useState('08:00');
   const [eliminarMultaChecked, setEliminarMultaChecked] = useState(true);
   const [savingAdminCell, setSavingAdminCell] = useState(false);
+  const [deletingAdminCell, setDeletingAdminCell] = useState(false);
 
   const handleOpenAdminCellModal = useCallback(({ marcacion, esperado, tipo, empleado, dateStr }) => {
     let existingTime = '08:00';
@@ -1342,6 +1343,42 @@ const AdminView = () => {
       toast.error(err.message || 'Error al guardar la marcación');
     } finally {
       setSavingAdminCell(false);
+    }
+  };
+
+  const handleDeleteAdminCellModal = async () => {
+    if (!editingCellData?.marcacion?.id) return;
+
+    const tipoLabels = {
+      ENTRADA: 'Entrada',
+      INICIO_ALMUERZO: 'Salida a Almuerzo',
+      FIN_ALMUERZO: 'Regreso de Almuerzo',
+      SALIDA: 'Salida',
+      SALIDA_PERMISO: 'Salida con Permiso',
+      FIN_HORAS_EXTRA: 'Fin de Horas Extras',
+    };
+    const tipoLabel = tipoLabels[editingCellData.tipo] || editingCellData.tipo;
+
+    const confirmed = await confirmDialog(
+      'Eliminar Marcación',
+      `¿Estás seguro de que deseas eliminar la marcación de ${tipoLabel} de ${editingCellData.empleado.nombre} (${editingCellData.dateStr})? Esta acción no se puede deshacer.`,
+      { confirmLabel: 'Sí, eliminar', cancelLabel: 'Cancelar', type: 'danger' }
+    );
+
+    if (!confirmed) return;
+
+    setDeletingAdminCell(true);
+    try {
+      await eliminarMarcacion(editingCellData.marcacion.id);
+      toast.success('Marcación eliminada correctamente');
+      setAdminCellModalOpen(false);
+      setEditingCellData(null);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Error al eliminar la marcación');
+    } finally {
+      setDeletingAdminCell(false);
     }
   };
 
@@ -1432,6 +1469,8 @@ const AdminView = () => {
     setFechaFiltro(toISODate(d));
   };
 
+  const isSab = useMemo(() => isSabado(fechaFiltro), [fechaFiltro]);
+
   const rows = useMemo(() => {
     return empleados.map(emp => {
       const marcaciones = asistencias.filter(a => a.empleadoId === emp.id);
@@ -1444,14 +1483,24 @@ const AdminView = () => {
         estado = 'ASISTIO';
       }
 
+      const esperadoEntradaEmp = (!isSab && emp.horaEntrada)
+        ? (parseTimeSlot(emp.horaEntrada) || horarioDia.ENTRADA)
+        : horarioDia.ENTRADA;
+
+      const horarioEmp = {
+        ...horarioDia,
+        ENTRADA: esperadoEntradaEmp,
+      };
+
       return {
         emp,
         marcaciones,
         estado,
+        horarioEmp,
         almuerzo: getEstadoAlmuerzo(marcaciones, fechaFiltro, horariosConfig, emp.tipoContrato),
       };
     });
-  }, [empleados, asistencias, fechaFiltro, horariosConfig]);
+  }, [empleados, asistencias, fechaFiltro, horariosConfig, horarioDia, isSab]);
 
   const rowsFiltrados = useMemo(() => {
     return rows.filter(r => {
@@ -1802,9 +1851,11 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {rowsFiltrados.map(({ emp, marcaciones, estado, almuerzo }) => {
+                  {rowsFiltrados.map(({ emp, marcaciones, estado, almuerzo, horarioEmp }) => {
                     const { entrada, inicioAlm, finAlm, salida, isFalto, isPermiso, isAsistio, mapsUrl, lapsos } =
                       buildAsistenciaRowMeta(marcaciones, estado);
+
+                    const currentHorario = horarioEmp || horarioDia;
 
                     return (
                       <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
@@ -1826,7 +1877,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           className="px-4 py-4 whitespace-nowrap text-center border-l border-slate-100 cursor-pointer"
                           onClick={() => handleOpenAdminCellModal({
                             marcacion: entrada,
-                            esperado: horarioDia.ENTRADA,
+                            esperado: currentHorario.ENTRADA,
                             tipo: 'ENTRADA',
                             empleado: emp,
                             dateStr: fechaFiltro,
@@ -1834,11 +1885,11 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                         >
                           <MarcacionHorarioCell
                             marcacion={entrada}
-                            esperado={horarioDia.ENTRADA}
+                            esperado={currentHorario.ENTRADA}
                             isAdmin={isAdmin}
                             onClick={() => handleOpenAdminCellModal({
                               marcacion: entrada,
-                              esperado: horarioDia.ENTRADA,
+                              esperado: currentHorario.ENTRADA,
                               tipo: 'ENTRADA',
                               empleado: emp,
                               dateStr: fechaFiltro,
@@ -1849,7 +1900,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           className="px-4 py-4 whitespace-nowrap text-center cursor-pointer"
                           onClick={() => handleOpenAdminCellModal({
                             marcacion: inicioAlm,
-                            esperado: horarioDia.INICIO_ALMUERZO,
+                            esperado: currentHorario.INICIO_ALMUERZO,
                             tipo: 'INICIO_ALMUERZO',
                             empleado: emp,
                             dateStr: fechaFiltro,
@@ -1857,12 +1908,12 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                         >
                           <MarcacionHorarioCell
                             marcacion={inicioAlm}
-                            esperado={horarioDia.INICIO_ALMUERZO}
-                            omitidoEsperado={!horarioDia.INICIO_ALMUERZO}
+                            esperado={currentHorario.INICIO_ALMUERZO}
+                            omitidoEsperado={!currentHorario.INICIO_ALMUERZO}
                             isAdmin={isAdmin}
                             onClick={() => handleOpenAdminCellModal({
                               marcacion: inicioAlm,
-                              esperado: horarioDia.INICIO_ALMUERZO,
+                              esperado: currentHorario.INICIO_ALMUERZO,
                               tipo: 'INICIO_ALMUERZO',
                               empleado: emp,
                               dateStr: fechaFiltro,
@@ -1873,7 +1924,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           className="px-4 py-4 whitespace-nowrap text-center cursor-pointer"
                           onClick={() => handleOpenAdminCellModal({
                             marcacion: finAlm,
-                            esperado: horarioDia.FIN_ALMUERZO,
+                            esperado: currentHorario.FIN_ALMUERZO,
                             tipo: 'FIN_ALMUERZO',
                             empleado: emp,
                             dateStr: fechaFiltro,
@@ -1881,12 +1932,12 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                         >
                           <MarcacionHorarioCell
                             marcacion={finAlm}
-                            esperado={horarioDia.FIN_ALMUERZO}
-                            omitidoEsperado={!horarioDia.FIN_ALMUERZO}
+                            esperado={currentHorario.FIN_ALMUERZO}
+                            omitidoEsperado={!currentHorario.FIN_ALMUERZO}
                             isAdmin={isAdmin}
                             onClick={() => handleOpenAdminCellModal({
                               marcacion: finAlm,
-                              esperado: horarioDia.FIN_ALMUERZO,
+                              esperado: currentHorario.FIN_ALMUERZO,
                               tipo: 'FIN_ALMUERZO',
                               empleado: emp,
                               dateStr: fechaFiltro,
@@ -1897,7 +1948,7 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                           className="px-4 py-4 whitespace-nowrap text-center cursor-pointer"
                           onClick={() => handleOpenAdminCellModal({
                             marcacion: salida,
-                            esperado: horarioDia.SALIDA,
+                            esperado: currentHorario.SALIDA,
                             tipo: 'SALIDA',
                             empleado: emp,
                             dateStr: fechaFiltro,
@@ -1905,11 +1956,11 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                         >
                           <MarcacionHorarioCell
                             marcacion={salida}
-                            esperado={horarioDia.SALIDA}
+                            esperado={currentHorario.SALIDA}
                             isAdmin={isAdmin}
                             onClick={() => handleOpenAdminCellModal({
                               marcacion: salida,
-                              esperado: horarioDia.SALIDA,
+                              esperado: currentHorario.SALIDA,
                               tipo: 'SALIDA',
                               empleado: emp,
                               dateStr: fechaFiltro,
@@ -1942,14 +1993,14 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
           </div>
 
           <div className="md:hidden space-y-3">
-            {rowsFiltrados.map(({ emp, marcaciones, estado, almuerzo }) => (
+            {rowsFiltrados.map(({ emp, marcaciones, estado, almuerzo, horarioEmp }) => (
               <AsistenciaColaboradorCard
                 key={emp.id}
                 emp={emp}
                 marcaciones={marcaciones}
                 estado={estado}
                 almuerzo={almuerzo}
-                horarioDia={horarioDia}
+                horarioDia={horarioEmp || horarioDia}
                 isAdmin={isAdmin}
                 dateStr={fechaFiltro}
                 onCellClick={handleOpenAdminCellModal}
@@ -2059,29 +2110,46 @@ th{background:#d6e4f0;font-weight:bold;padding:4px 8px;font-size:10pt;font-famil
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setAdminCellModalOpen(false)}
-                    disabled={savingAdminCell}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingAdminCell}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2"
-                  >
-                    {savingAdminCell ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Guardando...</span>
-                      </>
-                    ) : (
-                      <span>Guardar Marcación</span>
-                    )}
-                  </button>
+                <div className={`flex flex-col-reverse sm:flex-row items-stretch sm:items-center ${editingCellData.marcacion?.id && isAdmin ? 'sm:justify-between' : 'sm:justify-end'} gap-2.5 pt-3 border-t border-slate-100`}>
+                  {editingCellData.marcacion?.id && isAdmin && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteAdminCellModal}
+                      disabled={savingAdminCell || deletingAdminCell}
+                      className="px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition-all disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98]"
+                      title="Eliminar esta marcación"
+                    >
+                      <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                      </svg>
+                      <span>{deletingAdminCell ? 'Eliminando...' : 'Eliminar Marcación'}</span>
+                    </button>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setAdminCellModalOpen(false)}
+                      disabled={savingAdminCell || deletingAdminCell}
+                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer text-center"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingAdminCell || deletingAdminCell}
+                      className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0b2d64] hover:bg-[#071f45] active:scale-[0.99] shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {savingAdminCell ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Guardando...</span>
+                        </>
+                      ) : (
+                        <span>Guardar Marcación</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

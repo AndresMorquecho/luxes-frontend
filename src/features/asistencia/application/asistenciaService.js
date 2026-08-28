@@ -133,3 +133,13 @@ export const adminEditarONuevaMarcacion = async ({ asistenciaId, empleadoId, tip
   );
 };
 
+export const eliminarMarcacion = async (asistenciaId) => {
+  return parseResponse(
+    await fetch(`/api/asistencias/${asistenciaId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    })
+  );
+};
+
+
