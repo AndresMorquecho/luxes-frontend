@@ -121,6 +121,7 @@ export const saveEmpleado = async (empleado) => {
     iessValor: empleado.iessValor !== undefined && empleado.iessValor !== null && empleado.iessValor !== '' ? Number(empleado.iessValor) : null,
     direccion: empleado.direccion ?? '',
     foto: empleado.foto ?? '',
+    horaEntrada: empleado.horaEntrada || '08:00',
   };
 
   if (empleado.id) {
