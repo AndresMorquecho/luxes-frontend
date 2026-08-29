@@ -81,12 +81,13 @@ const SearchableSelect = ({ label, value, onChange, options, placeholder }) => {
   );
 };
 
-import { isAdminUser } from '../../../../shared/utils/userRoleHelpers';
+import { isAdminUser, isAsistenciaUser } from '../../../../shared/utils/userRoleHelpers';
 
 export const ProformasPage = () => {
   const navigate = useNavigate();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = isAdminUser(currentUser);
+  const isVentasODisenador = !isAsistenciaUser(currentUser);
   
   // Core lists & stats
   const [proformas, setProformas] = useState([]);
@@ -125,9 +126,25 @@ export const ProformasPage = () => {
   const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
-  const calcularTotal = (items, iva) => {
-    const sub = (items || []).reduce((s, i) => s + (i.cantidad || 0) * (i.precioUnitario || 0), 0);
-    return sub + sub * Number(iva || 0);
+  const calcularTotal = (p) => {
+    if (!p) return 0;
+    if (typeof p === 'object' && !Array.isArray(p)) {
+      if (p.total !== undefined && p.total !== null && !isNaN(Number(p.total))) {
+        return Number(p.total);
+      }
+      const sub = (p.items || []).reduce((s, i) => {
+        const valor = i.valor != null ? Number(i.valor) : 0;
+        return s + (valor > 0 ? valor : (Number(i.cantidad) || 0) * (Number(i.precioUnitario) || 0));
+      }, 0);
+      const desc = Number(p.descuento || 0);
+      const iva = Number(p.iva || 0);
+      return Math.max(0, (sub - desc) * (1 + iva));
+    }
+    const items = Array.isArray(p) ? p : [];
+    return items.reduce((s, i) => {
+      const valor = i.valor != null ? Number(i.valor) : 0;
+      return s + (valor > 0 ? valor : (Number(i.cantidad) || 0) * (Number(i.precioUnitario) || 0));
+    }, 0);
   };
 
   const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -178,7 +195,7 @@ export const ProformasPage = () => {
       
       const pendientes = list.filter(p => p.estado === 'Pendiente').length;
       const aprobadas = list.filter(p => p.estado === 'Aprobada' || p.estado === 'Pagada').length;
-      const montoTotal = list.reduce((sum, p) => sum + calcularTotal(p.items, p.iva), 0);
+      const montoTotal = list.reduce((sum, p) => sum + calcularTotal(p), 0);
       setStats({ total, totalEsteMes, pendientes, aprobadas, montoTotal });
 
       // Unique executives
@@ -423,7 +440,7 @@ export const ProformasPage = () => {
       p.fecha,
       p.cliente,
       p.atiende,
-      calcularTotal(p.items, p.iva).toFixed(2),
+      calcularTotal(p).toFixed(2),
       p.estado,
       p.vencimiento || '—'
     ]);
@@ -705,7 +722,7 @@ export const ProformasPage = () => {
 
                           {/* TOTAL */}
                           <td className="px-6 py-4.5 text-right font-bold text-slate-800 text-base">
-                            {formatUSD(calcularTotal(p.items, p.iva))}
+                            {formatUSD(calcularTotal(p))}
                           </td>
 
                           {/* ESTADO */}
@@ -830,7 +847,7 @@ export const ProformasPage = () => {
                       <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-100">
                         <div className="flex flex-col">
                           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total</span>
-                          <span className="text-base font-extrabold text-slate-800">{formatUSD(calcularTotal(p.items, p.iva))}</span>
+                          <span className="text-base font-extrabold text-slate-800">{formatUSD(calcularTotal(p))}</span>
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${estStyle.bg}`}>

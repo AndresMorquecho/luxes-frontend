@@ -20,11 +20,15 @@ export function SendProformaModal({ isOpen, onClose, proforma, onSent }) {
   const [enviando, setEnviando] = useState(false);
 
   const total = useMemo(() => {
-    const sub = (proforma?.items || []).reduce(
-      (s, i) => s + Number(i.cantidad || 0) * Number(i.precioUnitario || 0),
-      0,
-    );
-    return sub * (1 + Number(proforma?.iva || 0.12));
+    if (proforma?.total !== undefined && proforma?.total !== null && !isNaN(Number(proforma.total))) {
+      return Number(proforma.total);
+    }
+    const sub = (proforma?.items || []).reduce((s, i) => {
+      const valor = i.valor != null ? Number(i.valor) : 0;
+      return s + (valor > 0 ? valor : Number(i.cantidad || 0) * Number(i.precioUnitario || 0));
+    }, 0);
+    const desc = Number(proforma?.descuento || 0);
+    return Math.max(0, (sub - desc) * (1 + Number(proforma?.iva || 0)));
   }, [proforma]);
 
   const mensajeDefault = useMemo(() => (

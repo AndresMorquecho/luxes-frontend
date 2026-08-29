@@ -10,7 +10,7 @@ import { useIsMobileSm } from '../../../../shared/hooks/useMediaQuery.js';
 import { FileText, Calendar, CheckCircle2, User, Check, Edit2, Trash2, Download, Clock, ArrowLeft, Image as ImageIcon, Share2 } from 'lucide-react';
 import { AbonoModal } from '../components/AbonoModal';
 import { ComprobanteViewerModal } from '../components/ComprobanteViewerModal';
-import { isAdminUser } from '../../../../shared/utils/userRoleHelpers.js';
+import { isAdminUser, isAsistenciaUser } from '../../../../shared/utils/userRoleHelpers.js';
 
 const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -64,6 +64,7 @@ export const ProformaDetallePage = () => {
   // User auth state
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = isAdminUser(loggedInUser);
+  const isVentasODisenador = !isAsistenciaUser(loggedInUser);
 
   useEffect(() => {
     const loadDetails = async () => {
