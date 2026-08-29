@@ -97,6 +97,7 @@ export class Nomina {
       usuarioNombre: abono.usuarioNombre,
       fechaHora: abono.fechaHora,
       comprobanteUrl: abono.comprobanteUrl || null,
+      observaciones: abono.observaciones ? String(abono.observaciones).trim() : null,
     }));
 
     this.estado = estado;

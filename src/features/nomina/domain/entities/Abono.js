@@ -15,7 +15,7 @@ export class Abono {
    * @param {string} [data.fechaHora] - Fecha y hora formateada local
    * @param {string} [data.comprobanteUrl] - URL del comprobante de pago (opcional)
    */
-  constructor({ id, monto, fecha, metodoPagoId, metodoPagoNombre, usuarioNombre, fechaHora, comprobanteUrl }) {
+  constructor({ id, monto, fecha, metodoPagoId, metodoPagoNombre, usuarioNombre, fechaHora, comprobanteUrl, observaciones }) {
     this.id = id;
     this.monto = Number(monto);
     this.fecha = fecha;
@@ -24,6 +24,7 @@ export class Abono {
     this.usuarioNombre = usuarioNombre;
     this.fechaHora = fechaHora;
     this.comprobanteUrl = comprobanteUrl || null;
+    this.observaciones = observaciones ? String(observaciones).trim() : null;
   }
 
   /**

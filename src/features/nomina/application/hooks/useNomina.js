@@ -110,7 +110,7 @@ export function useNomina() {
   /**
    * Agrega un abono a un empleado en el período actual
    */
-  const addAbono = useCallback(async (empleadoId, monto, fecha) => {
+  const addAbono = useCallback(async (empleadoId, monto, fecha, metodoPagoId, observaciones, comprobanteUrl) => {
     const nomina = state.payrolls.find(p => p.empleadoId === empleadoId);
     if (!nomina) {
       toast.error('No se encontró el registro de nómina para este colaborador.');
@@ -118,7 +118,7 @@ export function useNomina() {
     }
 
     try {
-      const nominaActualizada = registrarAbono(nomina, { monto, fecha });
+      const nominaActualizada = registrarAbono(nomina, { monto, fecha, metodoPagoId, observaciones, comprobanteUrl });
       await savePayrollRecord(nominaActualizada);
     } catch (err) {
       toast.error(`Error al registrar abono: ${err.message}`);

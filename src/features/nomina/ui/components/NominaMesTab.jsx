@@ -116,8 +116,8 @@ const getTodayLocalDate = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomina, onDeleteAbono, onEditAbono, onClose, onConfirm, onMontoChange }) => {
-  const [activeTab, setActiveTab] = useState('registrar'); // 'registrar' | 'historial'
+const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomina, initialTab, onDeleteAbono, onEditAbono, onClose, onConfirm, onMontoChange }) => {
+  const [activeTab, setActiveTab] = useState(() => initialTab || (maxMonto <= 0.001 ? 'historial' : 'registrar')); // 'registrar' | 'historial'
   const [metodosPago, setMetodosPago] = useState([]);
   const [selectedMetodoPagoId, setSelectedMetodoPagoId] = useState('');
   const [fechaPago, setFechaPago] = useState(() => getTodayLocalDate());
@@ -127,6 +127,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   const [comprobanteUrl, setComprobanteUrl] = useState(null);
   const [comprobantePreview, setComprobantePreview] = useState(null);
   const [comprobanteName, setComprobanteName] = useState('');
+  const [observaciones, setObservaciones] = useState('');
   const [uploadingComprobante, setUploadingComprobante] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const comprobanteInputRef = React.useRef(null);
@@ -136,6 +137,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   const [editMonto, setEditMonto] = useState(0);
   const [editFecha, setEditFecha] = useState('');
   const [editMetodoPagoId, setEditMetodoPagoId] = useState('');
+  const [editObservaciones, setEditObservaciones] = useState('');
   const [editComprobanteUrl, setEditComprobanteUrl] = useState(null);
   const [editComprobantePreview, setEditComprobantePreview] = useState(null);
   const [editComprobanteName, setEditComprobanteName] = useState('');
@@ -285,6 +287,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
     setEditComprobanteUrl(ab.comprobanteUrl || null);
     setEditComprobantePreview(ab.comprobanteUrl || null);
     setEditComprobanteName(ab.comprobanteUrl ? ab.comprobanteUrl.split('/').pop() : '');
+    setEditObservaciones(ab.observaciones || '');
   };
 
   const handleCancelEditAbono = () => {
@@ -292,6 +295,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
     setEditMonto(0);
     setEditFecha('');
     setEditMetodoPagoId('');
+    setEditObservaciones('');
     setEditComprobanteUrl(null);
     setEditComprobantePreview(null);
     setEditComprobanteName('');
@@ -329,6 +333,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
         metodoPagoId: editMetodoPagoId,
         metodoPagoNombre: selectedMp?.nombre || editingAbono.metodoPagoNombre,
         comprobanteUrl: editComprobanteUrl,
+        observaciones: editObservaciones.trim() || null,
         usuarioNombre: editingAbono.usuarioNombre,
         fechaHora: editingAbono.fechaHora,
       };
@@ -362,7 +367,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fade-in"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full md:w-[90vw] max-w-4xl mx-4 h-[630px] overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl xl:max-w-6xl mx-4 h-[630px] overflow-hidden border border-slate-200 flex flex-col animate-slide-up animate-duration-200"
         onClick={(e) => e.stopPropagation()}>
         
         {/* Minimalist Header */}
@@ -415,14 +420,14 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
         </div>
 
         {/* Content Wrapper (Fixed height inside flex-col) */}
-        <div className="px-8 py-5 flex-1 min-h-0 flex flex-col justify-between">
+        <div className="px-8 py-5 flex-1 min-h-0 flex flex-col justify-between overflow-hidden">
           
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 flex flex-col">
             {activeTab === 'registrar' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start pt-1">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2">
                 
                 {/* Columna Izquierda: Datos del Colaborador y Banco */}
-                <div className="flex flex-col justify-center items-center space-y-3 py-1">
+                <div className="lg:col-span-5 flex flex-col justify-center items-center space-y-4 py-1">
                   <div className="space-y-1 w-full text-center">
                     <span className="text-[10px] font-bold text-blue-650 uppercase tracking-widest block">Colaborador Destinatario</span>
                     <h4 className="text-xl font-bold text-slate-800 uppercase leading-none tracking-tight">
@@ -511,7 +516,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                 </div>
 
                 {/* Columna Derecha: Detalle de Liquidación / Abono y Selección de Caja */}
-                <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/40 flex flex-col space-y-2.5 shadow-xs shrink-0">
+                <div className="lg:col-span-7 border border-slate-200 rounded-2xl p-5 bg-slate-50/40 flex flex-col space-y-3.5 shadow-xs shrink-0">
                   
                   {/* 1. Monto Total a Pagar */}
                   <div className="flex justify-between items-center py-2 px-3.5 bg-white border border-slate-200 rounded-xl shadow-xs shrink-0">
@@ -644,6 +649,20 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                           <input ref={comprobanteInputRef} type="file" className="hidden" onChange={(e) => handleUploadComprobante(e.target.files?.[0])} />
                         </div>
                       )}
+                    </div>
+
+                    {/* Observaciones / Notas */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                        Observaciones <span className="text-slate-400 font-normal">(opcional)</span>
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={observaciones}
+                        onChange={(e) => setObservaciones(e.target.value)}
+                        placeholder="Escriba notas, detalles o motivo de este pago..."
+                        className="w-full px-3.5 py-2 text-xs text-slate-800 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all resize-none shadow-inner"
+                      />
                     </div>
                   </div>
 
@@ -800,6 +819,20 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                           </div>
                         )}
                       </div>
+
+                      {/* Observaciones en Edición */}
+                      <div className="col-span-1 md:col-span-2 space-y-1 bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs">
+                        <label className="text-[10px] font-bold text-slate-650 uppercase tracking-wider block">
+                          Observaciones / Notas <span className="text-slate-400 font-normal">(opcional)</span>
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editObservaciones}
+                          onChange={(e) => setEditObservaciones(e.target.value)}
+                          placeholder="Modificar observaciones o notas..."
+                          className="w-full px-3.5 py-2 text-xs text-slate-800 border border-slate-200 rounded-xl bg-slate-50/30 focus:outline-none focus:border-blue-600 focus:bg-white transition-all resize-none shadow-inner"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex gap-2 justify-end pt-4 mt-2 border-t border-slate-200/80">
@@ -822,103 +855,117 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
                   </div>
                 ) : (
                   /* Tabla Normal de Abonos */
-                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs flex-1 max-h-[350px] overflow-y-auto">
-                    <table className="w-full text-xs text-left text-slate-600">
-                      <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200 sticky top-0 z-10">
-                        <tr>
-                          <th className="px-3 py-3">Fecha y Hora</th>
-                          <th className="px-3 py-3">Registrado Por</th>
-                          <th className="px-3 py-3">Caja / Cuenta</th>
-                          <th className="px-3 py-3 text-right">Monto</th>
-                          <th className="px-3 py-3 text-center">Comprobante</th>
-                          <th className="px-3 py-3 text-center">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-medium text-xs">
-                        {(!nomina || !nomina.abonos || nomina.abonos.length === 0) ? (
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs flex-1 min-h-0 flex flex-col">
+                    <div className="overflow-y-auto flex-1 min-h-0 w-full">
+                      <table className="w-full text-xs text-left text-slate-600 border-collapse table-fixed">
+                        <thead className="bg-slate-50 text-[10px] font-extrabold text-slate-500 uppercase border-b border-slate-200 sticky top-0 z-10 tracking-wider">
                           <tr>
-                            <td colSpan={6} className="px-4 py-12 text-center text-slate-400 italic">
-                              No hay abonos registrados en este período para el colaborador.
-                            </td>
+                            <th className="w-[14%] px-4 py-3">Fecha y Hora</th>
+                            <th className="w-[17%] px-4 py-3">Registrado por</th>
+                            <th className="w-[16%] px-4 py-3">Caja / Cuenta</th>
+                            <th className="w-[27%] px-4 py-3">Observaciones</th>
+                            <th className="w-[10%] px-4 py-3 text-right">Monto</th>
+                            <th className="w-[8%] px-3 py-3 text-center">Comprobante</th>
+                            <th className="w-[8%] px-3 py-3 text-center">Acciones</th>
                           </tr>
-                        ) : (
-                          nomina.abonos.map((ab, idx) => (
-                            <tr key={ab.id || idx} className="hover:bg-slate-50/50">
-                              {/* Fecha y Hora con Icono */}
-                              <td className="px-3 py-3.5">
-                                <span className="inline-flex items-center gap-1.5 text-slate-500 font-mono">
-                                  <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                                  </svg>
-                                  {ab.fechaHora || ab.fecha}
-                                </span>
-                              </td>
-                              {/* Registrado Por con Icono */}
-                              <td className="px-3 py-3.5">
-                                <span className="inline-flex items-center gap-1.5 text-slate-700">
-                                  <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                                  </svg>
-                                  {ab.usuarioNombre || 'Usuario'}
-                                </span>
-                              </td>
-                              {/* Caja / Cuenta de Salida con Icono */}
-                              <td className="px-3 py-3.5">
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-bold">
-                                  <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
-                                  </svg>
-                                  {ab.metodoPagoNombre || 'No especificado'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-3.5 text-right font-black text-slate-800">{formatUSD(ab.monto)}</td>
-                              {/* Comprobante */}
-                              <td className="px-3 py-3.5 text-center">
-                                {ab.comprobanteUrl ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => setViewComprobanteUrl(ab.comprobanteUrl)}
-                                    className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-[10px] font-bold hover:bg-blue-100 transition-all cursor-pointer border border-blue-200 outline-none"
-                                    title="Ver comprobante"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v13.5A1.5 1.5 0 0 0 3.75 21Z" />
-                                    </svg>
-                                    Ver
-                                  </button>
-                                ) : (
-                                  <span className="text-slate-300 text-[10px] font-medium">—</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-3.5 text-center">
-                                <div className="inline-flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleStartEditAbono(ab)}
-                                    className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-all cursor-pointer bg-transparent border-0 outline-none"
-                                    title="Editar abono"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onDeleteAbono(nomina, ab.id)}
-                                    className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-all cursor-pointer bg-transparent border-0 outline-none"
-                                    title="Eliminar abono y devolver fondos a caja"
-                                  >
-                                    <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                                </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-medium text-xs">
+                          {(!nomina || !nomina.abonos || nomina.abonos.length === 0) ? (
+                            <tr>
+                              <td colSpan={7} className="px-4 py-12 text-center text-slate-400 italic">
+                                No hay abonos registrados en este período para el colaborador.
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          ) : (
+                            nomina.abonos.map((ab, idx) => {
+                              const rawUser = ab.usuarioNombre || 'Usuario';
+                              const fDate = ab.fecha || (ab.fechaHora ? ab.fechaHora.split(' ')[0] : '');
+                              const fTime = (ab.fechaHora ? ab.fechaHora.split(' ')[1] : '') || '';
+                              return (
+                                <tr key={ab.id || idx} className="hover:bg-slate-50/70 transition-colors">
+                                  {/* Fecha y Hora */}
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-col">
+                                      <span className="font-bold text-slate-800 text-xs font-mono">{fDate}</span>
+                                      {fTime && <span className="text-[10px] text-slate-400 font-mono">{fTime}</span>}
+                                    </div>
+                                  </td>
+                                  {/* Registrado Por */}
+                                  <td className="px-4 py-3">
+                                    <span className="text-slate-800 font-bold text-xs block truncate" title={rawUser}>
+                                      {rawUser}
+                                    </span>
+                                  </td>
+                                  {/* Caja / Cuenta */}
+                                  <td className="px-4 py-3">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[11px] font-bold truncate max-w-full" title={ab.metodoPagoNombre || 'No especificado'}>
+                                      <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                                      </svg>
+                                      <span className="truncate">{ab.metodoPagoNombre || 'Caja'}</span>
+                                    </span>
+                                  </td>
+                                  {/* Observaciones */}
+                                  <td className="px-4 py-3">
+                                    {ab.observaciones ? (
+                                      <div className="text-xs text-slate-700 font-normal break-all whitespace-pre-wrap leading-relaxed py-0.5" title={ab.observaciones}>
+                                        {ab.observaciones}
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-300 text-xs italic">—</span>
+                                    )}
+                                  </td>
+                                  {/* Monto */}
+                                  <td className="px-4 py-3 text-right font-black text-slate-900 text-xs whitespace-nowrap">
+                                    {formatUSD(ab.monto)}
+                                  </td>
+                                  {/* Comprobante */}
+                                  <td className="px-3 py-3 text-center">
+                                    {ab.comprobanteUrl ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setViewComprobanteUrl(ab.comprobanteUrl)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-md text-[10px] font-bold hover:bg-blue-100 transition-all cursor-pointer border border-blue-200 outline-none"
+                                        title="Ver comprobante"
+                                      >
+                                        Ver
+                                      </button>
+                                    ) : (
+                                      <span className="text-slate-300 text-[10px] font-medium">—</span>
+                                    )}
+                                  </td>
+                                  {/* Acciones */}
+                                  <td className="px-3 py-3 text-center">
+                                    <div className="inline-flex items-center justify-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartEditAbono(ab)}
+                                        className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-all cursor-pointer bg-transparent border-0 outline-none"
+                                        title="Editar abono"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => onDeleteAbono(nomina, ab.id)}
+                                        className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-all cursor-pointer bg-transparent border-0 outline-none"
+                                        title="Eliminar abono y devolver fondos a caja"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -933,7 +980,7 @@ const PayModal = ({ emp, monto, maxMonto, restante, quincenaLabel, isCross, nomi
             </button>
             {activeTab === 'registrar' && (
               <button
-                onClick={() => onConfirm(selectedMetodoPagoId, comprobanteUrl, fechaPago)}
+                onClick={() => onConfirm(selectedMetodoPagoId, comprobanteUrl, fechaPago, observaciones)}
                 disabled={!monto || monto <= 0 || !selectedMetodoPagoId || loadingMps || uploadingComprobante}
                 className="px-8 py-2.5 rounded-lg bg-blue-900 text-white font-extrabold text-xs hover:bg-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
               >
@@ -2411,9 +2458,17 @@ const QuincenaTable = ({
                   <td className="border border-slate-200 text-center px-2 py-1.5">
                     <div className="flex justify-center items-center">
                       {ep === 'PAGADO' ? (
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg font-bold text-[9px] uppercase tracking-wider border ${badge.cls} w-full justify-center`}>
+                        <button
+                          type="button"
+                          onClick={() => onPagar(emp, cp, netoRecibir, pendientePago, quincenaNum)}
+                          className="w-full py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold text-[9px] uppercase tracking-wider hover:bg-emerald-100 hover:border-emerald-400 shadow-2xs transition-all cursor-pointer flex items-center justify-center gap-1"
+                          title="Ver historial de abonos o editar pagos"
+                        >
+                          <svg className="w-3 h-3 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
                           Liquidada
-                        </span>
+                        </button>
                       ) : (
                         <button onClick={() => onPagar(emp, cp, netoRecibir, pendientePago, quincenaNum)}
                           className="w-full py-1 rounded-lg bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider hover:bg-slate-700 shadow-xs transition-all cursor-pointer border-0">
@@ -2598,15 +2653,17 @@ const QuincenaTable = ({
                 >
                   Egresos
                 </button>
-                {ep !== 'PAGADO' && (
-                  <button
-                    type="button"
-                    onClick={() => onPagar(emp, cp, netoRecibir, pendientePago, quincenaNum)}
-                    className="flex-1 min-w-[80px] py-2 rounded-lg bg-slate-800 text-white text-[10px] font-bold uppercase cursor-pointer"
-                  >
-                    {ep === 'ABONO_PARCIAL' ? 'Abonar' : 'Pagar'}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => onPagar(emp, cp, netoRecibir, pendientePago, quincenaNum)}
+                  className={`flex-1 min-w-[80px] py-2 rounded-lg text-[10px] font-bold uppercase cursor-pointer transition-all ${
+                    ep === 'PAGADO'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 flex items-center justify-center gap-1'
+                      : 'bg-slate-800 text-white hover:bg-slate-700'
+                  }`}
+                >
+                  {ep === 'PAGADO' ? '✓ Liquidada' : ep === 'ABONO_PARCIAL' ? 'Abonar' : 'Pagar'}
+                </button>
               </div>
             </div>
           );
@@ -2828,6 +2885,7 @@ export const NominaMesTab = () => {
     const maxMonto = Math.max(0, Math.round(restantePagar * 100) / 100);
     const arr = quincena === 1 ? q1Raw : q2Raw;
     const nomina = arr.find(p => p.empleadoId === emp.id);
+    const yaLiquidado = maxMonto <= 0.001;
     setPayTarget({
       emp, cp, subtotal: sub,
       monto: maxMonto,
@@ -2836,6 +2894,7 @@ export const NominaMesTab = () => {
       quincenaOrigen: quincena,
       quincenaDestino: 0,
       nomina,
+      initialTab: yaLiquidado ? 'historial' : 'registrar',
     });
   };
 
@@ -2862,7 +2921,7 @@ export const NominaMesTab = () => {
     setPayTarget(prev => ({ ...prev, monto: newMonto, restante: nuevoRestante }));
   };
 
-  const pagarQuincena = async (rawArr, setter, fechas, empId, monto, fecha, subtotal, metodoPagoId, comprobanteUrl) => {
+  const pagarQuincena = async (rawArr, setter, fechas, empId, monto, fecha, subtotal, metodoPagoId, comprobanteUrl, observaciones) => {
     let nomina = rawArr.find(p => p.empleadoId === empId);
     if (!nomina) {
       const created = await adapter.getPayrolls(fechas.fechaInicio, fechas.fechaFin);
@@ -2877,7 +2936,7 @@ export const NominaMesTab = () => {
       const fechaBase = fecha || getTodayLocalDate();
       const fechaHora = `${fechaBase} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-      const actualizada = registrarAbono(nomina, { monto, fecha: fechaBase, metodoPagoId, usuarioNombre, fechaHora, comprobanteUrl });
+      const actualizada = registrarAbono(nomina, { monto, fecha: fechaBase, metodoPagoId, usuarioNombre, fechaHora, comprobanteUrl, observaciones });
       const totalAb = actualizada.abonos.reduce((s, a) => s + a.monto, 0);
       if (subtotal > 0 && totalAb >= subtotal) {
         actualizada.estado = 'PAGADO';
@@ -2889,7 +2948,7 @@ export const NominaMesTab = () => {
     }
   };
 
-  const handleConfirmPago = async (metodoPagoId, comprobanteUrl, fechaSeleccionada) => {
+  const handleConfirmPago = async (metodoPagoId, comprobanteUrl, fechaSeleccionada, observaciones) => {
     if (!payTarget || !payTarget.monto || payTarget.monto <= 0) return;
     if (!metodoPagoId) {
       toast.error('Debe seleccionar una cuenta de pago (caja).');
@@ -2918,12 +2977,12 @@ export const NominaMesTab = () => {
         const arr   = qDest === 1 ? q1Raw : q2Raw;
         const set   = qDest === 1 ? setQ1Raw : setQ2Raw;
         const fec   = qDest === 1 ? fechas1 : fechas2;
-        await pagarQuincena(arr, set, fec, empId, payTarget.monto, fechaPagoFinal, sub, metodoPagoId, comprobanteUrl);
+        await pagarQuincena(arr, set, fec, empId, payTarget.monto, fechaPagoFinal, sub, metodoPagoId, comprobanteUrl, observaciones);
       } else {
         if (payTarget.quincenaOrigen === 2) {
-          await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, fechaPagoFinal, subQ2, metodoPagoId, comprobanteUrl);
+          await pagarQuincena(q2Raw, setQ2Raw, fechas2, empId, payTarget.monto, fechaPagoFinal, subQ2, metodoPagoId, comprobanteUrl, observaciones);
         } else {
-          await pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, fechaPagoFinal, subQ1, metodoPagoId, comprobanteUrl);
+          await pagarQuincena(q1Raw, setQ1Raw, fechas1, empId, payTarget.monto, fechaPagoFinal, subQ1, metodoPagoId, comprobanteUrl, observaciones);
         }
       }
       deferClose(() => setPayTarget(null));
@@ -3308,6 +3367,7 @@ export const NominaMesTab = () => {
             restante={payTarget.restante}
             isCross={payTarget.isCross}
             nomina={payTarget.nomina}
+            initialTab={payTarget.initialTab}
             onDeleteAbono={handleDeleteAbono}
             onEditAbono={handleEditAbono}
             quincenaLabel={`${mesLabel} ${year}`}

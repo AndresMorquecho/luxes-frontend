@@ -37,6 +37,7 @@ const ConfiguracionFeature = lazy(() => import('../features/configuracion/ui'));
 const MovimientosPage = lazy(() => import('../features/gastos/ui/pages/MovimientosPage').then(m => ({ default: m.MovimientosPage })));
 const BalancesPage = lazy(() => import('../features/gastos/ui/pages/BalancesPage').then(m => ({ default: m.BalancesPage })));
 const TallerControlPage = lazy(() => import('../features/gastos/ui/pages/TallerControlPage').then(m => ({ default: m.TallerControlPage })));
+const CalendarioPage = lazy(() => import('../features/calendario/ui/pages/CalendarioPage').then(m => ({ default: m.CalendarioPage })));
 
 const RouteLoading = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
@@ -280,6 +281,7 @@ function App() {
                 } />
                 <Route path="/catalogo/:categorySlug" element={<CategoryDetailPage />} />
                 <Route path="/notificaciones" element={<NotificacionesPage />} />
+                <Route path="/calendario" element={<CalendarioPage />} />
                 {!isImpresion && <Route path="/nomina/*" element={<NominaFeature />} />}
                 {!isImpresion && <Route path="/impresiones" element={<ImpresionesPage />} />}
                 <Route path="/colas-impresion" element={<ColasImpresionPage />} />
