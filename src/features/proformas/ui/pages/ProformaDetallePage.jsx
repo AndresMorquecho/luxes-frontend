@@ -449,7 +449,8 @@ export const ProformaDetallePage = () => {
               <div className="min-w-0">
                 <span className="block font-extrabold text-slate-800 text-sm">{proforma.cliente}</span>
                 <span className="block text-xs text-slate-500 font-medium mt-1">
-                  {proforma.clienteCedula ? `RUC/CC: ${proforma.clienteCedula}` : proforma.telefono ? `Teléfono: ${proforma.telefono}` : '—'}
+                  {(proforma.cedulaRuc || proforma.clienteCedula) ? `RUC/CI: ${proforma.cedulaRuc || proforma.clienteCedula}` : ''}
+                  {proforma.telefono ? `${(proforma.cedulaRuc || proforma.clienteCedula) ? ' | ' : ''}Tel: ${proforma.telefono}` : ''}
                   {proforma.direccion ? ` | Dir: ${proforma.direccion}` : ''}
                 </span>
               </div>

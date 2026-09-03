@@ -47,6 +47,17 @@ export async function createIngresoCaja(body) {
   return data.data;
 }
 
+export async function updateIngresoCaja(id, body) {
+  const res = await fetch(`/api/gastos/ingresos/${id}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al actualizar ingreso');
+  return data.data;
+}
+
 export async function deleteIngresoCaja(id) {
   const res = await fetch(`/api/gastos/ingresos/${id}`, {
     method: 'DELETE',

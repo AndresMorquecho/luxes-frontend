@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Eye, Trash2, X, FileText, AlertCircle, Clock, CheckCircle2, CreditCard, Calendar, Hash, Info, Pencil, Plus, Search, ChevronDown } from 'lucide-react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { toast } from '../../../../shared/ui/components/Toast';
@@ -119,6 +120,12 @@ const SearchableProveedorSelect = ({ proveedores, value, onChange }) => {
 export const CuentasPorPagarPage = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = isAdminUser(currentUser);
+  const [searchParams] = useSearchParams();
+  const paramOrdenId = searchParams.get('ordenId');
+  const paramOrdenNumero = searchParams.get('ordenNumero');
+  const paramCxpId = searchParams.get('cxpId');
+  const paramAction = searchParams.get('action'); // 'ver' | 'abono'
+  const [hasProcessedDeepLink, setHasProcessedDeepLink] = useState(false);
 
   const [chequesList, setChequesList] = useState([]);
   const [chequesLoading, setChequesLoading] = useState(false);
@@ -384,6 +391,25 @@ export const CuentasPorPagarPage = () => {
       setVerLoading(false);
     }
   };
+
+  // Deep-link trigger from searchParams (from /movimientos or /gastos)
+  useEffect(() => {
+    if (!cxpLoading && cxpItems.length > 0 && (paramOrdenId || paramOrdenNumero || paramCxpId) && !hasProcessedDeepLink) {
+      const match = cxpItems.find(c =>
+        (paramCxpId && c.id === paramCxpId) ||
+        (paramOrdenId && (c.ordenCompraId === paramOrdenId || c.ordenCompra?.id === paramOrdenId)) ||
+        (paramOrdenNumero && (c.ordenCompra?.numero === paramOrdenNumero || c.numero === paramOrdenNumero))
+      );
+      if (match) {
+        if (paramAction === 'abono') {
+          openAbonoModal(match);
+        } else {
+          openVerModal(match);
+        }
+        setHasProcessedDeepLink(true);
+      }
+    }
+  }, [cxpLoading, cxpItems, paramOrdenId, paramOrdenNumero, paramCxpId, paramAction, hasProcessedDeepLink]);
 
   const reloadVerAbonos = async () => {
     if (!verCuenta) return;

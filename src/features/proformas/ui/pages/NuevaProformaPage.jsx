@@ -20,6 +20,7 @@ const getOffsetDateStr = (baseDateStr, days) => {
 const EMPTY_PROFORMA = {
   clienteId: '',
   cliente: '',
+  cedulaRuc: '',
   telefono: '',
   email: '',
   direccion: '',
@@ -81,6 +82,7 @@ export const NuevaProformaPage = () => {
             setForm({
               ...existing,
               clienteId: related?.id || existing.clienteId || '',
+              cedulaRuc: related?.cedulaRuc || existing.cedulaRuc || existing.clienteCedula || '',
               direccion: existing.direccion || related?.direccion || '',
               medio: existing.medio || 'LUXES',
               items: existing.items.map(i => ({ ...i })),
@@ -154,6 +156,7 @@ export const NuevaProformaPage = () => {
       ...prev,
       clienteId: c.id,
       cliente: c.nombre,
+      cedulaRuc: c.cedulaRuc || '',
       telefono: c.telefono || prev.telefono,
       email: c.email || prev.email,
       direccion: c.direccion || prev.direccion || '',
@@ -433,7 +436,18 @@ export const NuevaProformaPage = () => {
             </div>
 
             {showMoreClientData && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-100/60 animate-slide-up">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mt-3 pt-3 border-t border-slate-100/60 animate-slide-up">
+                <div>
+                  <label className="co-label">Cédula / RUC</label>
+                  <input
+                    name="cedulaRuc"
+                    value={form.cedulaRuc || ''}
+                    onChange={handleChange}
+                    placeholder="Ej. 0999999999 / 0999999999001"
+                    className="co-input"
+                  />
+                </div>
+
                 <div>
                   <label className="co-label">Telefono Cliente *</label>
                   <input

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import {
   getGastos, saveGasto, deleteGasto, CATEGORIAS,
@@ -17,7 +17,7 @@ import {
   ArrowLeft, AlertTriangle, CheckCircle, Clock, User,
   Settings, Key, AlertCircle, Info, RefreshCw, FileText,
   ClipboardCheck, BarChart3, Filter, ArrowUp, ArrowDown, Scale, Wallet,
-  Eye, Pencil
+  Eye, Pencil, ArrowUpRight
 } from 'lucide-react';
 import { CierrePDFPreviewModal } from '../components/CierrePDFPreviewModal';
 import { ExcelCierreSheet } from '../components/ExcelCierreSheet';
@@ -216,11 +216,37 @@ const StatCard = ({ title, amount, icon: Icon, color, bg, trendValue, trendUp, t
 };
 
 export const GastosPage = ({ defaultTab = 'gastos' }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(defaultTab); // 'gastos' | 'fijos' | 'vehiculos' | 'cierre'
   const [deudasFijasCount, setDeudasFijasCount] = useState(0);
 
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = loggedInUser?.rol?.toLowerCase() === 'admin' || loggedInUser?.rol?.toLowerCase() === 'administrador';
+
+  const handleGastosRedirect = (g) => {
+    const d = new Date(g.fecha);
+    const day = !isNaN(d.getTime()) ? (d.getUTCDate ? d.getUTCDate() : d.getDate()) : 1;
+    const month = !isNaN(d.getTime()) ? ((d.getUTCMonth ? d.getUTCMonth() : d.getMonth()) + 1) : (new Date().getMonth() + 1);
+    const year = !isNaN(d.getTime()) ? (d.getUTCFullYear ? d.getUTCFullYear() : d.getFullYear()) : new Date().getFullYear();
+    const quincena = day >= 16 ? 2 : 1;
+
+    if (g.origen === 'nomina') {
+      const isAnticipo = /anticipo/i.test(g.concepto || '') || /anticipo/i.test(g.notas || '');
+      const empName = g.proveedor !== 'Personal' && g.proveedor ? g.proveedor : (g.empleadoNombre || '');
+      const empId = g.empleadoId || '';
+      if (isAnticipo) {
+        navigate(`/nomina/nomina-del-mes?empleadoId=${empId}&empleadoNombre=${encodeURIComponent(empName)}&month=${month}&year=${year}&quincena=${quincena}&action=egresos`);
+      } else {
+        navigate(`/nomina/nomina-del-mes?empleadoId=${empId}&empleadoNombre=${encodeURIComponent(empName)}&month=${month}&year=${year}&quincena=${quincena}&action=pagar&tab=historial`);
+      }
+    } else if (g.origen === 'orden_compra') {
+      const ordenId = g.ordenCompraId || '';
+      const ordenNum = g.ordenNumero || '';
+      navigate(`/compras/cuentas-por-pagar?ordenId=${ordenId}&ordenNumero=${encodeURIComponent(ordenNum)}&action=ver`);
+    } else if (g.origen === 'vehiculo') {
+      setActiveTab('vehiculos');
+    }
+  };
 
   useEffect(() => {
     setActiveTab(defaultTab);
@@ -1213,7 +1239,17 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                       };
                       const style = origenStyles[g.origen] || origenStyles.otros_gastos;
                       const canEdit = isAdmin && (g.origen === 'otros_gastos' || g.origen === 'vehiculo') && !g.readonly;
-                      const disabledTooltip = !canEdit ? (origenModulos[g.origen] || 'Este gasto no se puede editar desde aquí') : '';
+                      const editTooltip = canEdit ? 'Editar gasto'
+                        : g.origen === 'nomina' ? 'Ir a Nómina para editar este pago o anticipo'
+                        : g.origen === 'orden_compra' ? 'Ir a Cuentas por Pagar para gestionar este abono'
+                        : g.origen === 'vehiculo' ? 'Ir al módulo de Vehículos'
+                        : 'Editar';
+
+                      const deleteTooltip = canEdit ? 'Eliminar gasto'
+                        : g.origen === 'nomina' ? 'Gestionar o eliminar en Nómina'
+                        : g.origen === 'orden_compra' ? 'Gestionar o eliminar en Cuentas por Pagar'
+                        : g.origen === 'vehiculo' ? 'Gestionar en Vehículos'
+                        : 'Eliminar';
 
                       return (
                         <tr
@@ -1248,47 +1284,39 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                           <td className="px-5 py-4 text-right font-bold text-slate-800">{fmt(Number(g.monto))}</td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1">
-                              {/* Botón Editar */}
-                              <div title={canEdit ? 'Editar gasto' : disabledTooltip} className="relative group">
+                              {/* Botón Editar o Redirigir a Edición */}
+                              <div title={editTooltip} className="relative group">
                                 <button
                                   type="button"
-                                  disabled={!canEdit}
-                                  onClick={(e) => { e.stopPropagation(); if (canEdit) openEditGasto(g); }}
-                                  className={`p-1.5 rounded-lg transition-colors ${canEdit
-                                    ? 'text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 cursor-pointer'
-                                    : 'text-slate-300 cursor-not-allowed'
-                                    }`}
-                                  aria-label="Editar gasto"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (canEdit) openEditGasto(g);
+                                    else handleGastosRedirect(g);
+                                  }}
+                                  className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer flex items-center justify-center"
+                                  aria-label={editTooltip}
                                 >
-                                  <Pencil size={14} />
+                                  {canEdit ? (
+                                    <Pencil size={14} />
+                                  ) : (
+                                    <ArrowUpRight size={14} className="font-bold text-indigo-600" />
+                                  )}
                                 </button>
-                                {!canEdit && (
-                                  <div className="absolute z-50 hidden group-hover:flex bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-800 text-white text-[10px] font-medium rounded-lg whitespace-nowrap shadow-lg pointer-events-none">
-                                    {disabledTooltip}
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
-                                  </div>
-                                )}
                               </div>
-                              {/* Botón Eliminar */}
-                              <div title={canEdit ? 'Eliminar gasto' : disabledTooltip} className="relative group">
+                              {/* Botón Eliminar o Redirigir a Gestión */}
+                              <div title={deleteTooltip} className="relative group">
                                 <button
                                   type="button"
-                                  disabled={!canEdit}
-                                  onClick={(e) => { e.stopPropagation(); if (canEdit) handleDeleteGasto(g.id); }}
-                                  className={`p-1.5 rounded-lg transition-colors ${canEdit
-                                    ? 'text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer'
-                                    : 'text-slate-300 cursor-not-allowed'
-                                    }`}
-                                  aria-label="Eliminar gasto"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (canEdit) handleDeleteGasto(g.id);
+                                    else handleGastosRedirect(g);
+                                  }}
+                                  className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer flex items-center justify-center"
+                                  aria-label={deleteTooltip}
                                 >
                                   <Trash2 size={14} />
                                 </button>
-                                {!canEdit && (
-                                  <div className="absolute z-50 hidden group-hover:flex bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-800 text-white text-[10px] font-medium rounded-lg whitespace-nowrap shadow-lg pointer-events-none">
-                                    {disabledTooltip}
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
-                                  </div>
-                                )}
                               </div>
                             </div>
                           </td>
@@ -1311,14 +1339,13 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                         nomina: { label: 'Nómina', bg: 'rgba(16,185,129,0.1)', color: '#059669' },
                         vehiculo: { label: 'Vehículo', bg: 'rgba(236,72,153,0.1)', color: '#db2777' }
                       };
-                      const origenModulos = {
-                        orden_compra: 'Editar en Órdenes de Compra',
-                        nomina: 'Editar en Nómina y Anticipos',
-                        vehiculo: 'Editar en módulo de Vehículos',
-                      };
                       const style = origenStyles[g.origen] || origenStyles.otros_gastos;
                       const canEdit = isAdmin && (g.origen === 'otros_gastos' || g.origen === 'vehiculo') && !g.readonly;
-                      const modLabel = origenModulos[g.origen];
+                      const editTooltip = canEdit ? 'Editar gasto'
+                        : g.origen === 'nomina' ? 'Ir a Nómina'
+                        : g.origen === 'orden_compra' ? 'Ir a Cuentas por Pagar'
+                        : g.origen === 'vehiculo' ? 'Ir a Vehículos'
+                        : 'Gestionar';
 
                       return (
                         <div
@@ -1346,28 +1373,38 @@ export const GastosPage = ({ defaultTab = 'gastos' }) => {
                             <div className="flex items-center gap-2">
                               <span className="text-right max-w-[90px] truncate bg-slate-50 px-2 py-1 rounded-md">{g.metodoPago?.nombre || 'No especificado'}</span>
                               {/* Acciones móvil */}
-                              {canEdit ? (
-                                <div className="flex gap-1">
+                              <div className="flex gap-1">
+                                {canEdit ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => openEditGasto(g)}
+                                      className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                                      title="Editar gasto"
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteGasto(g.id)}
+                                      className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                                      title="Eliminar gasto"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </>
+                                ) : (
                                   <button
                                     type="button"
-                                    onClick={() => openEditGasto(g)}
-                                    className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
-                                    title="Editar gasto"
+                                    onClick={() => handleGastosRedirect(g)}
+                                    className="px-2 py-1 rounded-lg text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                                    title={editTooltip}
                                   >
-                                    <Pencil size={13} />
+                                    <ArrowUpRight size={11} />
+                                    {g.origen === 'nomina' ? 'Ir a Nómina' : g.origen === 'orden_compra' ? 'Ir a CXP' : 'Gestionar'}
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteGasto(g.id)}
-                                    className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
-                                    title="Eliminar gasto"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
-                              ) : modLabel ? (
-                                <span className="text-[9px] text-slate-400 italic max-w-[80px] text-right leading-tight">{modLabel}</span>
-                              ) : null}
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>

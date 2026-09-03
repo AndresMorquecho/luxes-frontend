@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getMovimientos } from '../../application/movimientosService';
-import { getMetodosPago } from '../../application/gastosService';
+import { useNavigate } from 'react-router-dom';
+import { Pencil, Trash2, ArrowUpRight, X } from 'lucide-react';
+import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
+import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal.jsx';
+import { getMovimientos, updateIngresoCaja, deleteIngresoCaja, deleteTransferencia } from '../../application/movimientosService';
+import { getMetodosPago, saveGasto, deleteGasto, CATEGORIAS } from '../../application/gastosService';
 import { toast } from '../../../../shared/ui/components/Toast.jsx';
 import { DateRangePicker } from '../../../../shared/ui/components/DateRangePicker';
 
@@ -11,6 +15,8 @@ const ORIGEN_LABELS = {
   gasto: 'Gasto',
   orden_compra: 'Pago en caja',
   cuenta_por_pagar: 'Saldo OC',
+  pago_nomina: 'Nómina',
+  anticipo_empleado: 'Anticipo',
   ingreso_manual: 'Ingreso Manual',
   transferencia: 'Transferencia',
 };
@@ -20,11 +26,36 @@ const ORIGEN_COLORS = {
   gasto: { bg: 'rgba(239,68,68,0.08)', color: '#dc2626', border: 'rgba(239,68,68,0.2)' },
   orden_compra: { bg: 'rgba(245,158,11,0.08)', color: '#d97706', border: 'rgba(245,158,11,0.2)' },
   cuenta_por_pagar: { bg: 'rgba(139,92,246,0.08)', color: '#7c3aed', border: 'rgba(139,92,246,0.2)' },
+  pago_nomina: { bg: 'rgba(16,185,129,0.08)', color: '#059669', border: 'rgba(16,185,129,0.2)' },
+  anticipo_empleado: { bg: 'rgba(139,92,246,0.08)', color: '#7c3aed', border: 'rgba(139,92,246,0.2)' },
   ingreso_manual: { bg: 'rgba(16,185,129,0.08)', color: '#059669', border: 'rgba(16,185,129,0.2)' },
   transferencia: { bg: 'rgba(59,130,246,0.08)', color: '#2563eb', border: 'rgba(59,130,246,0.2)' },
 };
 
+const EMPTY_GASTO_FORM = {
+  id: '',
+  concepto: '',
+  categoria: 'oficina',
+  fecha: '',
+  monto: '',
+  metodoPagoId: '',
+  proveedor: '',
+  notas: '',
+};
+
+const EMPTY_INGRESO_FORM = {
+  id: '',
+  concepto: '',
+  categoria: 'Otros',
+  fecha: '',
+  monto: '',
+  metodoPagoId: '',
+  cliente: '',
+  notas: '',
+};
+
 export const MovimientosPage = () => {
+  const navigate = useNavigate();
   const [movimientos, setMovimientos] = useState([]);
   const [kpi, setKpi] = useState({ totalIngresos: 0, totalEgresos: 0, balance: 0, conteo: 0 });
   const [metodosPago, setMetodosPago] = useState([]);
@@ -44,6 +75,15 @@ export const MovimientosPage = () => {
     })(),
     hasta: new Date().toISOString().split('T')[0],
   });
+
+  // Modales de edición
+  const [gastoModalOpen, setGastoModalOpen] = useState(false);
+  const [gastoForm, setGastoForm] = useState(EMPTY_GASTO_FORM);
+  const [savingGasto, setSavingGasto] = useState(false);
+
+  const [ingresoModalOpen, setIngresoModalOpen] = useState(false);
+  const [ingresoForm, setIngresoForm] = useState(EMPTY_INGRESO_FORM);
+  const [savingIngreso, setSavingIngreso] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -70,6 +110,163 @@ export const MovimientosPage = () => {
   useEffect(() => {
     loadData();
   }, [fechas.desde, fechas.hasta, filtroTipo, filtroMetodo]);
+
+  // Helper de fechas para navegación contextual
+  const getDateParams = (fechaStr) => {
+    const d = new Date(fechaStr);
+    if (isNaN(d.getTime())) {
+      const now = new Date();
+      return { month: now.getMonth() + 1, year: now.getFullYear(), quincena: 1 };
+    }
+    const day = d.getUTCDate ? d.getUTCDate() : d.getDate();
+    const month = (d.getUTCMonth ? d.getUTCMonth() : d.getMonth()) + 1;
+    const year = d.getUTCFullYear ? d.getUTCFullYear() : d.getFullYear();
+    return {
+      month,
+      year,
+      quincena: day >= 16 ? 2 : 1,
+    };
+  };
+
+  // Manejo de redirección a módulos de origen
+  const handleActionRedirect = (m) => {
+    const { month, year, quincena } = getDateParams(m.fecha);
+
+    if (m.origen === 'pago_nomina') {
+      const empName = m.entidad || m.proveedor || '';
+      navigate(`/nomina/nomina-del-mes?empleadoNombre=${encodeURIComponent(empName)}&month=${month}&year=${year}&quincena=${quincena}&action=pagar&tab=historial`);
+    } else if (m.origen === 'anticipo_empleado') {
+      const empId = m.empleadoId || '';
+      const empName = m.empleadoNombre || m.entidad || '';
+      navigate(`/nomina/nomina-del-mes?empleadoId=${empId}&empleadoNombre=${encodeURIComponent(empName)}&month=${month}&year=${year}&quincena=${quincena}&action=egresos`);
+    } else if (m.origen === 'orden_compra' || m.origen === 'cuenta_por_pagar') {
+      const ordenId = m.ordenCompraId || '';
+      const ordenNum = m.ordenNumero || '';
+      navigate(`/compras/cuentas-por-pagar?ordenId=${ordenId}&ordenNumero=${encodeURIComponent(ordenNum)}&action=ver`);
+    } else if (m.origen === 'proforma') {
+      const profId = m.proformaId || m.proformaNumero || '';
+      navigate(`/proformas/${profId}?action=abono`);
+    }
+  };
+
+  // Edición directa de Gasto
+  const openEditGasto = (m) => {
+    const fechaVal = m.fecha ? new Date(m.fecha).toISOString().split('T')[0] : '';
+    setGastoForm({
+      id: m.gastoId || m.id,
+      concepto: m.concepto || m.descripcion || '',
+      categoria: m.categoria || 'oficina',
+      fecha: fechaVal,
+      monto: m.monto || '',
+      metodoPagoId: m.metodoPagoId || (metodosPago.length > 0 ? metodosPago[0].id : ''),
+      proveedor: m.proveedor || m.entidad || '',
+      notas: m.notas || m.referencia || '',
+    });
+    setGastoModalOpen(true);
+  };
+
+  const handleSaveGasto = async (e) => {
+    e.preventDefault();
+    setSavingGasto(true);
+    try {
+      await saveGasto({
+        ...gastoForm,
+        monto: Number(gastoForm.monto),
+      });
+      toast.success('Gasto actualizado correctamente');
+      deferClose(() => {
+        setGastoModalOpen(false);
+        setSavingGasto(false);
+      });
+      loadData();
+    } catch (err) {
+      toast.error('Error al guardar gasto: ' + err.message);
+      setSavingGasto(false);
+    }
+  };
+
+  const handleDeleteGasto = async (m) => {
+    const ok = await confirmDialog(
+      'Eliminar Gasto',
+      `¿Estás seguro de eliminar el gasto "${m.descripcion || m.concepto}"? Esta acción revertirá el movimiento en caja.`
+    );
+    if (!ok) return;
+    try {
+      await deleteGasto(m.gastoId || m.id);
+      toast.success('Gasto eliminado correctamente');
+      loadData();
+    } catch (err) {
+      toast.error('Error al eliminar gasto: ' + err.message);
+    }
+  };
+
+  // Edición directa de Ingreso Manual
+  const openEditIngreso = (m) => {
+    const fechaVal = m.fecha ? new Date(m.fecha).toISOString().split('T')[0] : '';
+    setIngresoForm({
+      id: m.ingresoId || m.id,
+      concepto: m.concepto || m.descripcion || '',
+      categoria: m.categoria || 'Otros',
+      fecha: fechaVal,
+      monto: m.monto || '',
+      metodoPagoId: m.metodoPagoId || (metodosPago.length > 0 ? metodosPago[0].id : ''),
+      cliente: m.cliente || m.entidad || '',
+      notas: m.notas || m.referencia || '',
+    });
+    setIngresoModalOpen(true);
+  };
+
+  const handleSaveIngreso = async (e) => {
+    e.preventDefault();
+    setSavingIngreso(true);
+    try {
+      await updateIngresoCaja(ingresoForm.id, {
+        ...ingresoForm,
+        monto: Number(ingresoForm.monto),
+      });
+      toast.success('Ingreso manual actualizado correctamente');
+      deferClose(() => {
+        setIngresoModalOpen(false);
+        setSavingIngreso(false);
+      });
+      loadData();
+    } catch (err) {
+      toast.error('Error al guardar ingreso: ' + err.message);
+      setSavingIngreso(false);
+    }
+  };
+
+  const handleDeleteIngreso = async (m) => {
+    const ok = await confirmDialog(
+      'Eliminar Ingreso Manual',
+      `¿Estás seguro de eliminar el ingreso "${m.descripcion || m.concepto}" de caja?`
+    );
+    if (!ok) return;
+    try {
+      await deleteIngresoCaja(m.ingresoId || m.id);
+      toast.success('Ingreso manual eliminado');
+      loadData();
+    } catch (err) {
+      toast.error('Error al eliminar ingreso: ' + err.message);
+    }
+  };
+
+  // Eliminación de Transferencia
+  const handleDeleteTransferencia = async (m) => {
+    const rawId = m.transferenciaId || m.id.replace('-egreso', '').replace('-ingreso', '');
+    const ok = await confirmDialog(
+      'Eliminar Transferencia',
+      '¿Estás seguro de eliminar esta transferencia interna entre cuentas? Se revertirá en ambas cuentas.'
+    );
+    if (!ok) return;
+    try {
+      await deleteTransferencia(rawId);
+      toast.success('Transferencia eliminada correctamente');
+      loadData();
+    } catch (err) {
+      toast.error('Error al eliminar transferencia: ' + err.message);
+    }
+  };
 
   // Client-side text search
   const filtered = useMemo(() => {
@@ -509,11 +706,36 @@ export const MovimientosPage = () => {
                     <th>Método de Pago</th>
                     <th>Referencia</th>
                     <th style={{ textAlign: 'right' }}>Monto</th>
+                    <th style={{ textAlign: 'center', width: '90px' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.map((m) => {
                     const origenStyle = ORIGEN_COLORS[m.origen] || {};
+                    const isDirectGasto = m.origen === 'gasto';
+                    const isDirectIngreso = m.origen === 'ingreso_manual';
+                    const isTransferencia = m.origen === 'transferencia';
+                    const isNomina = m.origen === 'pago_nomina' || m.origen === 'anticipo_empleado';
+                    const isCompras = m.origen === 'orden_compra' || m.origen === 'cuenta_por_pagar';
+                    const isProforma = m.origen === 'proforma';
+
+                    const editTooltip = isDirectGasto ? 'Editar gasto'
+                      : isDirectIngreso ? 'Editar ingreso manual'
+                      : m.origen === 'pago_nomina' ? 'Ir a Nómina para editar este pago'
+                      : m.origen === 'anticipo_empleado' ? 'Ir a Nómina para ver o editar este anticipo'
+                      : m.origen === 'orden_compra' ? 'Ir a Cuentas por Pagar para gestionar este abono'
+                      : m.origen === 'cuenta_por_pagar' ? 'Ir a Cuentas por Pagar para ver la orden'
+                      : m.origen === 'proforma' ? `Ir a Proforma #${m.proformaId || ''} para gestionar cobro`
+                      : 'Editar';
+
+                    const deleteTooltip = isDirectGasto ? 'Eliminar gasto'
+                      : isDirectIngreso ? 'Eliminar ingreso manual'
+                      : isTransferencia ? 'Revertir / eliminar transferencia'
+                      : isNomina ? 'Gestionar o eliminar en Nómina'
+                      : isCompras ? 'Gestionar o eliminar en Cuentas por Pagar'
+                      : isProforma ? 'Gestionar o eliminar en Proforma'
+                      : 'Eliminar';
+
                     return (
                       <tr key={m.id + m.origen}>
                         <td style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#334155', fontSize: '12.5px', padding: '10px 12px' }}>
@@ -588,6 +810,44 @@ export const MovimientosPage = () => {
                             {m.tipo === 'ingreso' ? '+' : '-'}{fmt(m.monto)}
                           </span>
                         </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div className="flex items-center justify-center gap-1">
+                            {!isTransferencia && (
+                              <button
+                                type="button"
+                                title={editTooltip}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isDirectGasto) openEditGasto(m);
+                                  else if (isDirectIngreso) openEditIngreso(m);
+                                  else handleActionRedirect(m);
+                                }}
+                                className="p-1.5 rounded-lg text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition-colors cursor-pointer flex items-center justify-center"
+                              >
+                                {isDirectGasto || isDirectIngreso ? (
+                                  <Pencil size={14} />
+                                ) : (
+                                  <ArrowUpRight size={14} className="font-bold" />
+                                )}
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              title={deleteTooltip}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isDirectGasto) handleDeleteGasto(m);
+                                else if (isDirectIngreso) handleDeleteIngreso(m);
+                                else if (isTransferencia) handleDeleteTransferencia(m);
+                                else handleActionRedirect(m);
+                              }}
+                              className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer flex items-center justify-center"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -598,6 +858,19 @@ export const MovimientosPage = () => {
             <div className="mv-mobile-cards">
               {paginated.map((m) => {
                 const origenStyle = ORIGEN_COLORS[m.origen] || {};
+                const isDirectGasto = m.origen === 'gasto';
+                const isDirectIngreso = m.origen === 'ingreso_manual';
+                const isTransferencia = m.origen === 'transferencia';
+
+                const editTooltip = isDirectGasto ? 'Editar gasto'
+                  : isDirectIngreso ? 'Editar ingreso'
+                  : m.origen === 'pago_nomina' ? 'Ir a Nómina'
+                  : m.origen === 'anticipo_empleado' ? 'Ir a Nómina'
+                  : m.origen === 'orden_compra' ? 'Ir a Cuentas por Pagar'
+                  : m.origen === 'cuenta_por_pagar' ? 'Ir a Cuentas por Pagar'
+                  : m.origen === 'proforma' ? `Ir a Proforma #${m.proformaId || ''}`
+                  : 'Editar';
+
                 return (
                   <div key={m.id + m.origen} className="mv-mobile-card">
                     <div className="flex justify-between items-center">
@@ -654,6 +927,37 @@ export const MovimientosPage = () => {
                       <span className={m.tipo === 'ingreso' ? 'mv-monto-ingreso text-sm' : 'mv-monto-egreso text-sm'} style={{ fontSize: '14px' }}>
                         {m.tipo === 'ingreso' ? '+' : '-'}{fmt(m.monto)}
                       </span>
+                    </div>
+
+                    {/* Acciones en Mobile Card */}
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 mt-2">
+                      {!isTransferencia && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isDirectGasto) openEditGasto(m);
+                            else if (isDirectIngreso) openEditIngreso(m);
+                            else handleActionRedirect(m);
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 flex items-center gap-1.5 transition-colors"
+                        >
+                          {isDirectGasto || isDirectIngreso ? <Pencil size={12} /> : <ArrowUpRight size={12} />}
+                          {editTooltip}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isDirectGasto) handleDeleteGasto(m);
+                          else if (isDirectIngreso) handleDeleteIngreso(m);
+                          else if (isTransferencia) handleDeleteTransferencia(m);
+                          else handleActionRedirect(m);
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-rose-600 bg-rose-50/80 hover:bg-rose-100 flex items-center gap-1.5 transition-colors"
+                      >
+                        <Trash2 size={12} />
+                        Eliminar
+                      </button>
                     </div>
                   </div>
                 );
@@ -712,6 +1016,268 @@ export const MovimientosPage = () => {
           </>
         )}
       </div>
+
+      {/* Modal Editar Gasto */}
+      {gastoModalOpen && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-slide-up flex flex-col gap-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
+                    <Pencil size={16} />
+                  </div>
+                  <h3 className="font-extrabold text-slate-800 text-base">Editar Gasto Directo</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGastoModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveGasto} className="flex flex-col gap-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Concepto *</label>
+                  <input
+                    type="text"
+                    required
+                    value={gastoForm.concepto}
+                    onChange={(e) => setGastoForm(p => ({ ...p, concepto: e.target.value }))}
+                    className="mv-input"
+                    placeholder="Descripción del gasto"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Categoría *</label>
+                    <select
+                      value={gastoForm.categoria}
+                      onChange={(e) => setGastoForm(p => ({ ...p, categoria: e.target.value }))}
+                      className="mv-input"
+                    >
+                      {CATEGORIAS.map(cat => (
+                        <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Fecha *</label>
+                    <input
+                      type="date"
+                      required
+                      value={gastoForm.fecha}
+                      onChange={(e) => setGastoForm(p => ({ ...p, fecha: e.target.value }))}
+                      className="mv-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Monto ($) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={gastoForm.monto}
+                      onChange={(e) => setGastoForm(p => ({ ...p, monto: e.target.value }))}
+                      className="mv-input"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Método de Pago</label>
+                    <select
+                      value={gastoForm.metodoPagoId}
+                      onChange={(e) => setGastoForm(p => ({ ...p, metodoPagoId: e.target.value }))}
+                      className="mv-input"
+                    >
+                      <option value="">No especificado</option>
+                      {metodosPago.filter(m => m.activo).map(m => (
+                        <option key={m.id} value={m.id}>{m.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Proveedor / Entidad</label>
+                  <input
+                    type="text"
+                    value={gastoForm.proveedor}
+                    onChange={(e) => setGastoForm(p => ({ ...p, proveedor: e.target.value }))}
+                    className="mv-input"
+                    placeholder="Nombre del proveedor o persona"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Notas / Referencia</label>
+                  <textarea
+                    rows={2}
+                    value={gastoForm.notas}
+                    onChange={(e) => setGastoForm(p => ({ ...p, notas: e.target.value }))}
+                    className="mv-input"
+                    placeholder="Notas u observaciones adicionales"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setGastoModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingGasto}
+                    className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    {savingGasto ? 'Guardando...' : 'Guardar Cambios'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Modal Editar Ingreso Manual */}
+      {ingresoModalOpen && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-slide-up flex flex-col gap-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold">
+                    <Pencil size={16} />
+                  </div>
+                  <h3 className="font-extrabold text-slate-800 text-base">Editar Ingreso Manual</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIngresoModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveIngreso} className="flex flex-col gap-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Concepto *</label>
+                  <input
+                    type="text"
+                    required
+                    value={ingresoForm.concepto}
+                    onChange={(e) => setIngresoForm(p => ({ ...p, concepto: e.target.value }))}
+                    className="mv-input"
+                    placeholder="Descripción del ingreso"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Categoría</label>
+                    <input
+                      type="text"
+                      value={ingresoForm.categoria}
+                      onChange={(e) => setIngresoForm(p => ({ ...p, categoria: e.target.value }))}
+                      className="mv-input"
+                      placeholder="Ej. Otros Ingresos"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Fecha *</label>
+                    <input
+                      type="date"
+                      required
+                      value={ingresoForm.fecha}
+                      onChange={(e) => setIngresoForm(p => ({ ...p, fecha: e.target.value }))}
+                      className="mv-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Monto ($) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={ingresoForm.monto}
+                      onChange={(e) => setIngresoForm(p => ({ ...p, monto: e.target.value }))}
+                      className="mv-input"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Cuenta de Destino *</label>
+                    <select
+                      required
+                      value={ingresoForm.metodoPagoId}
+                      onChange={(e) => setIngresoForm(p => ({ ...p, metodoPagoId: e.target.value }))}
+                      className="mv-input"
+                    >
+                      {metodosPago.filter(m => m.activo).map(m => (
+                        <option key={m.id} value={m.id}>{m.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Cliente / Entidad</label>
+                  <input
+                    type="text"
+                    value={ingresoForm.cliente}
+                    onChange={(e) => setIngresoForm(p => ({ ...p, cliente: e.target.value }))}
+                    className="mv-input"
+                    placeholder="Nombre del cliente o entidad"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Notas / Observación</label>
+                  <textarea
+                    rows={2}
+                    value={ingresoForm.notas}
+                    onChange={(e) => setIngresoForm(p => ({ ...p, notas: e.target.value }))}
+                    className="mv-input"
+                    placeholder="Notas u observaciones del ingreso"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIngresoModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingIngreso}
+                    className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    {savingIngreso ? 'Guardando...' : 'Guardar Cambios'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 };

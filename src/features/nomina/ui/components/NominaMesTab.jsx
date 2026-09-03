@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { NominaContext } from '../../application/context/NominaContext';
 import { calcularNomina } from '../../domain/use-cases/calcularNomina';
@@ -2695,19 +2696,41 @@ const QuincenaTable = ({
 
 export const NominaMesTab = () => {
   const { adapter } = useContext(NominaContext);
+  const [searchParams] = useSearchParams();
+  const paramMonth = searchParams.get('month');
+  const paramYear = searchParams.get('year');
+  const paramQuincena = searchParams.get('quincena');
+  const paramEmpleadoId = searchParams.get('empleadoId');
+  const paramEmpleadoNombre = searchParams.get('empleadoNombre');
+  const paramAction = searchParams.get('action'); // 'pagar' | 'historial' | 'egresos' | 'anticipos' | 'ingresos' | 'permisos'
+  const paramTab = searchParams.get('tab'); // 'historial' | 'registrar'
 
-  const [month, setMonth]   = useState(() => new Date().getMonth() + 1);
-  const [year, setYear]     = useState(() => new Date().getFullYear());
+  const [month, setMonth]   = useState(() => {
+    if (paramMonth) {
+      const parsed = parseInt(paramMonth, 10);
+      if (parsed >= 1 && parsed <= 12) return parsed;
+    }
+    return new Date().getMonth() + 1;
+  });
+  const [year, setYear]     = useState(() => {
+    if (paramYear) {
+      const parsed = parseInt(paramYear, 10);
+      if (parsed >= 2000 && parsed <= 2100) return parsed;
+    }
+    return new Date().getFullYear();
+  });
 
   const [employees, setEmployees] = useState([]);
   const [q1Raw, setQ1Raw] = useState([]);
   const [q2Raw, setQ2Raw] = useState([]);
   const [loading, setLoading] = useState(true);
   const [payTarget, setPayTarget] = useState(null);
-  // Selecciona automáticamente la quincena activa según el día del mes actual:
-  // días 1-15 → primera quincena, días 16-fin → segunda quincena.
-  // Solo aplica para el mes/año actuales; cambiar de mes siempre arranca en q1.
+  const [hasProcessedAction, setHasProcessedAction] = useState(false);
+
+  // Selecciona automáticamente la quincena activa según el día del mes actual o parámetro:
   const [activeTab, setActiveTab] = useState(() => {
+    if (paramQuincena === '1' || paramQuincena === 'q1') return 'q1';
+    if (paramQuincena === '2' || paramQuincena === 'q2') return 'q2';
     const hoy = new Date();
     return hoy.getDate() >= 16 ? 'q2' : 'q1';
   });
@@ -2897,6 +2920,49 @@ export const NominaMesTab = () => {
       initialTab: yaLiquidado ? 'historial' : 'registrar',
     });
   };
+
+  // Deep-link action trigger from searchParams (from /movimientos or /gastos)
+  useEffect(() => {
+    if (!loading && employees.length > 0 && paramAction && !hasProcessedAction) {
+      let emp = null;
+      if (paramEmpleadoId) {
+        emp = employees.find(e => e.id === paramEmpleadoId);
+      }
+      if (!emp && paramEmpleadoNombre) {
+        const queryNorm = paramEmpleadoNombre.toLowerCase().trim();
+        emp = employees.find(e => {
+          const empNorm = (e.nombre || '').toLowerCase().trim();
+          return empNorm.includes(queryNorm) || queryNorm.includes(empNorm);
+        });
+      }
+
+      if (emp) {
+        const isQ1 = activeTab === 'q1';
+        const rawArr = isQ1 ? q1Raw : q2Raw;
+        const calcArr = isQ1 ? q1Calculated : q2Calculated;
+        const raw = rawArr.find(p => p.empleadoId === emp.id) || null;
+        const cp = calcArr.find(p => p.empleadoId === emp.id) || null;
+        const sub = computeSubtotal(emp, cp, !isQ1);
+        const abonado = resolveAbonado(cp, raw);
+        const restantePagar = Math.max(0, Math.round((sub - abonado) * 100) / 100);
+        const quincenaNum = isQ1 ? 1 : 2;
+
+        if (paramAction === 'pagar' || paramAction === 'historial') {
+          handlePagar(emp, cp, sub, restantePagar, quincenaNum);
+          if (paramTab) {
+            setPayTarget(prev => prev ? ({ ...prev, initialTab: paramTab }) : null);
+          }
+        } else if (paramAction === 'egresos' || paramAction === 'anticipos') {
+          handleOpenEgresos(emp.id, emp.nombre);
+        } else if (paramAction === 'ingresos') {
+          handleOpenIngresos(emp.id, emp.nombre);
+        } else if (paramAction === 'permisos') {
+          handleOpenPermisos(emp, raw);
+        }
+        setHasProcessedAction(true);
+      }
+    }
+  }, [loading, employees, paramAction, paramEmpleadoId, paramEmpleadoNombre, activeTab, q1Raw, q2Raw, q1Calculated, q2Calculated, hasProcessedAction, paramTab]);
 
   const handlePagarCross = (emp, cross) => {
     const monto = Math.round(cross.pendiente * 100) / 100;
