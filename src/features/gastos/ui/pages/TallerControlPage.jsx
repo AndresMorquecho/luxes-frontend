@@ -285,12 +285,11 @@ export const TallerControlPage = () => {
       toast.error('Solo los administradores pueden eliminar controles');
       return;
     }
-    const ok = await confirmDialog({
-      title: 'Eliminar Control Diario',
-      message: `¿Estás seguro de eliminar el registro de control del ${new Date(log.fecha).toLocaleDateString()} (${log.kilometraje} km)? Esta acción no se puede deshacer.`,
-      confirmText: 'Sí, eliminar',
-      variant: 'danger',
-    });
+    const ok = await confirmDialog(
+      'Eliminar Control Diario',
+      `¿Estás seguro de eliminar el registro de control del ${new Date(log.fecha).toLocaleDateString()} (${log.kilometraje} km)? Esta acción no se puede deshacer.`,
+      { confirmLabel: 'Sí, eliminar', type: 'danger' },
+    );
     if (!ok) return;
 
     try {
