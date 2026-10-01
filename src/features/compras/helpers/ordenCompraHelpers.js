@@ -3,6 +3,7 @@ export const ESTADO_ORDEN_LABELS = {
   aprobada: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', label: 'Aprobada' },
   parcialmente_recibida: { bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', label: 'Recepción parcial' },
   recibida: { bg: 'rgba(16,185,129,0.1)', color: '#10b981', label: 'Recibida' },
+  anulada: { bg: '#f1f5f9', color: '#475569', label: 'Anulada' },
   cancelada: { bg: 'rgba(239,68,68,0.08)', color: '#ef4444', label: 'Cancelada / Rechazada' },
 };
 
@@ -13,6 +14,7 @@ export const FILTROS_HISTORIAL = [
   { id: 'parcialmente_recibida', label: 'Parcial' },
   { id: 'recibida', label: 'Recibidas' },
   { id: 'cancelada', label: 'Canceladas' },
+  { id: 'anulada', label: 'Anuladas' },
 ];
 
 export const fmtMoney = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -20,7 +22,7 @@ export const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-EC', { year
 
 /** Órdenes ya recibidas (total o parcial) no deben editarse. */
 export function isOrdenEditablePorRecepcion(estado) {
-  return estado !== 'recibida' && estado !== 'parcialmente_recibida';
+  return !['recibida', 'parcialmente_recibida', 'anulada'].includes(estado);
 }
 
 /** Solo órdenes aprobadas (y sin recepción) admiten edición administrativa. */

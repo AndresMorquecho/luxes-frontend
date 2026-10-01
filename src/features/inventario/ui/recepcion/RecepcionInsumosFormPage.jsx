@@ -22,6 +22,7 @@ const mapDetalleFromOrden = (d, forceNoDescargable = false) => {
     materialId: d.materialId,
     material: d.material,
     cantidadSolicitada: d.cantidad,
+    metrosPorRollo: '',
     cantidadRecibida: d.cantidadRecibida != null 
       ? String(d.cantidadRecibida) 
       : (isDownloadable ? '' : String(d.cantidad)),
@@ -124,6 +125,15 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
       return;
     }
 
+    for (const d of itemsParaRecepcionar) {
+      if (d.descargableInventario && Number.isInteger(d.cantidadSolicitada) && d.cantidadSolicitada > 1) {
+        const metros = d.metrosPorRollo.split(',').map(v => Number(v.trim()));
+        if (metros.length !== d.cantidadSolicitada || metros.some(n => !Number.isFinite(n) || n <= 0) || Math.abs(metros.reduce((a,b)=>a+b,0) - Number(d.cantidadRecibida)) > 0.000001) {
+          toast.error('Indica los metros de cada rollo separados por comas; la suma debe coincidir con el total recibido.');
+          return;
+        }
+      }
+    }
     setSavingId('ALL');
     try {
       const payload = {
@@ -132,6 +142,7 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
           detalleId: detalle.id,
           materialId: detalle.materialId,
           cantidad: parseFloat(detalle.cantidadRecibida) || 0,
+          ...(detalle.descargableInventario && detalle.cantidadSolicitada > 1 ? { rollos: detalle.metrosPorRollo.split(',').map(v => Number(v.trim())) } : {}),
           fechaRecepcion: fechaRecepcionGlobal,
           // Taller nunca descuenta inventario: solo es registro
           descargableInventario: isTaller ? false : (detalle.descargableInventario === true && !!detalle.materialId),
@@ -384,6 +395,9 @@ export const RecepcionInsumosFormPage = ({ basePath = '/compras/recepcion' }) =>
                                 m
                               </span>
                             </div>
+                            {detalle.cantidadSolicitada > 1 && <label className="text-xs text-slate-600">Metros de cada rollo (separados por comas)
+                              <input type="text" value={detalle.metrosPorRollo} onChange={e => updateDetalle(index, { metrosPorRollo: e.target.value })} placeholder="50, 50" className="border border-slate-300 rounded p-2 w-full" />
+                            </label>}
                             {(!detalle.cantidadRecibida || parseFloat(detalle.cantidadRecibida) <= 0) && (
                               <span className="text-[10px] font-semibold text-red-500">Requerido</span>
                             )}

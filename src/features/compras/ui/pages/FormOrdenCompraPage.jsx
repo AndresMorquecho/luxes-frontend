@@ -373,7 +373,7 @@ export const FormOrdenCompraPage = () => {
       ...(isEdit
         ? {
             precioUnitario: parseFloat(d.precioUnitario) || 0,
-            ...(d.lineId && !String(d.lineId).startsWith('det-') ? { id: d.lineId } : {}),
+            ...(d.lineId && !String(d.lineId).startsWith('det-') && !String(d.lineId).startsWith('new-') ? { id: d.lineId } : {}),
             isCustom: !!d.isCustom,
           }
         : {}),
@@ -404,7 +404,7 @@ export const FormOrdenCompraPage = () => {
   const openSaveConfirm = () => {
     const activeMethod = metodosPago.find((m) => m.activo);
     setConfirmPago({
-      monto: totalNuevo > 0 ? totalNuevo.toFixed(2) : '',
+      monto: '',
       metodoPagoId: activeMethod?.id || '',
       referencia: '',
     });
@@ -416,8 +416,8 @@ export const FormOrdenCompraPage = () => {
       toast.error('Selecciona un método de pago para registrar el abono.');
       return;
     }
-    if (abonoConfirmNum > totalNuevo + 0.01) {
-      toast.error(`El abono no puede exceder el total de la orden (${fmtMoney(totalNuevo)}).`);
+    if (abonoConfirmNum > Math.max(0, totalNuevo - montoPagado) + 0.001) {
+      toast.error(`El abono no puede exceder el saldo pendiente (${fmtMoney(Math.max(0, totalNuevo - montoPagado))}).`);
       return;
     }
 
@@ -822,7 +822,7 @@ export const FormOrdenCompraPage = () => {
                   </span>
                 ) : montoPagado > 0 ? (
                   <span className="text-slate-600">
-                    Esta orden tiene pagos registrados. Al guardar se anulará la orden actual y podrás registrar el pago de la nueva.
+                    Los pagos registrados se conservan. Puedes registrar un abono adicional hasta el saldo pendiente.
                   </span>
                 ) : (
                   <span className="text-slate-400">Revisa los totales antes de guardar los cambios.</span>
@@ -877,9 +877,9 @@ export const FormOrdenCompraPage = () => {
             <div className="co-modal-fixed-wide co-modal-edit-save animate-co-modal-in">
               <div className="co-modal-header">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Confirmar edición e inicializar pago</h3>
+                  <h3 className="text-sm font-bold text-slate-800">Confirmar edición y abono adicional</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    La orden anterior se anulará y se creará una nueva con los cambios aplicados
+                    Se conservan el número de orden, las recepciones y los pagos anteriores
                   </p>
                 </div>
                 <button
@@ -901,10 +901,10 @@ export const FormOrdenCompraPage = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <p className="font-semibold mb-0.5">Información de reversión</p>
+                      <p className="font-semibold mb-0.5">Pagos conservados</p>
                       <p className="font-medium">
-                        Se devolvieron {fmtMoney(montoPagado)} a las cuentas de origen al anular la orden anterior.
-                        Puedes registrar aquí el pago de la nueva orden o dejar el saldo en cuenta por pagar.
+                        Se conservan {fmtMoney(montoPagado)} de pagos anteriores; editar la orden no devuelve dinero a caja.
+                        Puedes registrar un abono adicional o dejar el saldo pendiente.
                       </p>
                     </div>
                   </div>
@@ -913,7 +913,7 @@ export const FormOrdenCompraPage = () => {
                 <div className="co-modal-grid-2col">
                   <div className="co-modal-col-left">
                     <div className="co-modal-summary-card">
-                      <p className="co-modal-summary-card__title">Resumen de nueva orden</p>
+                      <p className="co-modal-summary-card__title">Resumen de la edición</p>
                       <div className="co-modal-summary-row">
                         <span>Orden original</span>
                         <span className="font-mono">{ordenNumero || '—'}</span>
@@ -935,7 +935,7 @@ export const FormOrdenCompraPage = () => {
                         </div>
                       )}
                       <div className="co-modal-summary-row co-modal-summary-total">
-                        <span>Total nueva orden</span>
+                        <span>Total actualizado</span>
                         <span>{fmtMoney(totalNuevo)}</span>
                       </div>
                     </div>
@@ -971,11 +971,11 @@ export const FormOrdenCompraPage = () => {
                             className="co-label-action"
                             onClick={() => setConfirmPago((p) => ({
                               ...p,
-                              monto: totalNuevo.toFixed(2),
+                              monto: Math.max(0, totalNuevo - montoPagado).toFixed(2),
                               metodoPagoId: p.metodoPagoId || metodosPago.find((m) => m.activo)?.id || '',
                             }))}
                           >
-                            Copiar total
+                            Copiar saldo pendiente
                           </button>
                         </div>
                         <input
@@ -992,19 +992,19 @@ export const FormOrdenCompraPage = () => {
                           disabled={saving}
                           autoComplete="off"
                         />
-                        {abonoConfirmNum > totalNuevo + 0.01 && (
+                        {abonoConfirmNum > Math.max(0, totalNuevo - montoPagado) + 0.001 && (
                           <p className="text-[10.5px] font-semibold text-red-600 mt-1">
-                            El abono no puede exceder {fmtMoney(totalNuevo)}.
+                            El abono no puede exceder {fmtMoney(Math.max(0, totalNuevo - montoPagado))}.
                           </p>
                         )}
                         {abonoConfirmNum <= 0 && (
                           <p className="text-[10.5px] font-medium text-slate-500 mt-1">
-                            Deja en 0 para registrar la orden como cuenta por pagar.
+                            Deja en 0 para conservar los pagos actuales sin registrar un abono adicional.
                           </p>
                         )}
-                        {abonoConfirmNum > 0 && abonoConfirmNum < totalNuevo - 0.01 && (
+                        {abonoConfirmNum > 0 && abonoConfirmNum < totalNuevo - montoPagado - 0.01 && (
                           <p className="text-[10.5px] font-medium text-blue-600 mt-1">
-                            Abono parcial. Saldo de {fmtMoney(totalNuevo - abonoConfirmNum)} quedará pendiente.
+                            Abono parcial. Saldo de {fmtMoney(Math.max(0, totalNuevo - montoPagado - abonoConfirmNum))} quedará pendiente.
                           </p>
                         )}
                       </div>
@@ -1038,7 +1038,7 @@ export const FormOrdenCompraPage = () => {
                 <button
                   type="button"
                   onClick={handleConfirmSave}
-                  disabled={saving || abonoConfirmNum > totalNuevo + 0.01}
+                  disabled={saving || abonoConfirmNum > Math.max(0, totalNuevo - montoPagado) + 0.001}
                   className="co-btn-primary"
                   style={{ minWidth: '160px' }}
                 >

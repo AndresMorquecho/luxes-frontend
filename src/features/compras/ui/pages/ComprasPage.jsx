@@ -1,12 +1,12 @@
+import { AnularCompraModal } from '../components/AnularCompraModal.jsx';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  getOrdenes, updateOrden, deleteOrden, getComprasStats,
+  getOrdenes, updateOrden, getComprasStats,
   registrarAbono, getMetodosPago, getProveedores
 } from '../../application/comprasService';
 import { toast } from '../../../../shared/ui/components/Toast';
-import { confirmDialog } from '../../../../shared/ui/components/ConfirmModal';
 import { PDFPreviewModal } from '../../../../shared/ui/components/PDFPreviewModal.jsx';
 import { ComprasOperativoNav } from '../components/ComprasOperativoNav';
 import { ComprasAdminNav } from '../components/ComprasAdminNav';
@@ -28,20 +28,23 @@ const ESTADO_BADGES = {
   aprobada:             { bg: 'bg-blue-50', color: 'text-[#2b41b8]', dot: 'bg-[#2b41b8]', label: 'APROBADO' },
   parcialmente_recibida: { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
   recibida:             { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'RECIBIDA' },
+  anulada: { bg: 'bg-slate-100', color: 'text-slate-600', dot: 'bg-slate-400', label: 'ANULADA' },
   cancelada:            { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'CANCELADA' },
 };
 const PAGO_BADGES = {
+  anulado: { bg: 'bg-slate-100', color: 'text-slate-600', dot: 'bg-slate-400', label: 'CERRADO' },
   sin_pagar: { bg: 'bg-red-50', color: 'text-red-700', dot: 'bg-red-500', label: 'POR PAGAR' },
   parcial:   { bg: 'bg-orange-50', color: 'text-orange-700', dot: 'bg-orange-500', label: 'PARCIAL' },
   pagado:    { bg: 'bg-emerald-50', color: 'text-emerald-700', dot: 'bg-emerald-500', label: 'PAGADO' },
 };
 const ESTADO_FILTER_OPTIONS = [
-  { value: '', label: 'Todos' },
+  { value: '', label: 'Vigentes' },
   { value: 'pendiente_aprobacion', label: 'Pendiente aprobación' },
   { value: 'aprobada', label: 'Aprobada' },
   { value: 'parcialmente_recibida', label: 'Recepción parcial' },
   { value: 'recibida', label: 'Recibida' },
   { value: 'cancelada', label: 'Cancelada' },
+  { value: 'anulada', label: 'Anulada (historial)' },
 ];
 
 const PAGO_FILTER_OPTIONS = [
@@ -193,23 +196,9 @@ export const ComprasPage = () => {
     searchTimer.current = setTimeout(() => { setOrdenSearch(val); }, 350);
   };
 
-  const handleOrdenDelete = async (ordenOrId) => {
-    const targetId = typeof ordenOrId === 'object' ? ordenOrId?.id : ordenOrId;
-    const numeroStr = typeof ordenOrId === 'object' && ordenOrId?.numero ? ` ${ordenOrId.numero}` : '';
-    const confirmed = await confirmDialog(
-      `¿Eliminar orden de compra${numeroStr}?`,
-      `¿Está seguro de que desea eliminar la orden de compra${numeroStr}? Esta acción eliminará la orden, su cuenta por pagar pendiente (deuda) y los cheques posfechados no cobrados asociados.`,
-      { type: 'danger', confirmLabel: 'Eliminar Orden', cancelLabel: 'Cancelar' }
-    );
-    if (!confirmed) return;
-    try {
-      await deleteOrden(targetId);
-      toast.success(`Orden de compra${numeroStr} eliminada con éxito junto a su deuda y cheques pendientes.`);
-      loadOrdenes(); loadStats();
-    } catch (err) {
-      toast.error(err.message || 'Error al eliminar la orden de compra.');
-    }
-  };
+  const [anularTarget, setAnularTarget] = useState(null);
+  const closeAnulacion = useCallback(() => setAnularTarget(null), []);
+  const handleOrdenDelete = (orden) => setAnularTarget(orden);
 
   const handleOrdenEstadoChange = async (id, estado) => {
     try {
@@ -310,17 +299,14 @@ export const ComprasPage = () => {
     { label: 'Total Órdenes', mobileLabel: 'Total Órdenes', value: stats.totalOrdenes, hint: 'Todas las órdenes', accent: '#2b41b8', iconBg: 'bg-[#eef1fc]', iconColor: 'text-[#2b41b8]', icon: BAG_ICON_PATH },
     { label: 'Pendientes Aprobación', mobileLabel: 'Pendientes', value: stats.pendientes, hint: 'Esperando aprobación', accent: '#f97316', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
     ...(isAdmin ? [
-      { label: 'Total Gastado', mobileLabel: 'Gastado', value: fmt(stats.totalGastado), hint: 'Monto acumulado', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+      { label: 'Compras vigentes', mobileLabel: 'Compras vigentes', value: fmt(stats.totalGastado), hint: 'Excluye órdenes anuladas', accent: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', icon: 'M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
       { label: 'Deuda Pendiente', mobileLabel: 'Deuda', value: fmt(stats.totalDeuda), hint: 'Saldo por pagar', accent: '#ef4444', iconBg: 'bg-red-50', iconColor: 'text-red-500', icon: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z' },
     ] : []),
   ];
 
   const renderOrdenActions = (o) => {
     const canRevisar = o.estado === 'pendiente_aprobacion' && hasAprobacionPermission;
-    const canDelete =
-      (isAdmin || hasAprobacionPermission) &&
-      o.estado !== 'recibida' &&
-      o.estado !== 'parcialmente_recibida';
+    const canDelete = isAdmin || hasAprobacionPermission;
 
     return (
       <div className="flex items-center justify-center gap-1.5">
@@ -356,13 +342,7 @@ export const ComprasPage = () => {
               ? 'border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700 hover:border-red-300 cursor-pointer'
               : 'border-slate-200 text-slate-300 opacity-40 cursor-not-allowed'
           }`}
-          title={
-            canDelete
-              ? "Eliminar orden de compra, su deuda y cheques no cobrados"
-              : o.estado === 'recibida' || o.estado === 'parcialmente_recibida'
-              ? "No se puede eliminar una orden recepcionada en almacén"
-              : "No tiene permisos para eliminar esta orden"
-          }
+          title={canDelete ? (o.estado === 'anulada' ? 'Ver anulación registrada' : 'Eliminar con control de caja e inventario') : 'No tiene permisos para anular esta orden'}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -748,6 +728,7 @@ export const ComprasPage = () => {
         </div>
       </ModalPortal>
 
+      {anularTarget && <AnularCompraModal orden={anularTarget} cuentas={metodos} onClose={closeAnulacion} onSaved={() => { closeAnulacion(); toast.success('Orden anulada. Se registraron los efectos seleccionados y se conservó el historial.'); loadOrdenes(); loadStats(); loadMetodos(); }} />}
       {isPDFOpen && previewOC && (
         <PDFPreviewModal
           isOpen

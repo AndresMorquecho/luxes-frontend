@@ -90,15 +90,6 @@ export async function updateOrden(id, body) {
   return data.data;
 }
 
-export async function deleteOrden(id) {
-  const res = await fetch(`/api/compras/${id}`, {
-    method: 'DELETE', headers: getHeaders(),
-  });
-  const data = await res.json();
-  if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al eliminar orden');
-  return data.data;
-}
-
 /**
  * Edición de OC con reconciliación financiera (solo admins).
  * Preserva el historial de pagos y recalcula la Cuenta por Pagar.
@@ -265,5 +256,18 @@ export async function recepcionarOrden(id, body) {
   });
   const data = await res.json();
   if (!res.ok || !data.success) throw new Error(data.error?.message || 'Error al registrar productos recibidos');
+  return data.data;
+}
+
+export async function getAnulacionPreview(id) {
+  const res = await fetch('/api/compras/' + id + '/anulacion', { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'No se pudo preparar la anulación');
+  return data.data;
+}
+export async function anularOrden(id, body) {
+  const res = await fetch('/api/compras/' + id + '/anulacion', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error?.message || 'No se pudo anular la compra');
   return data.data;
 }
