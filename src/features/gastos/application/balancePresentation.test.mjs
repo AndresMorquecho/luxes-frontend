@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthRange, surveyPresentation, percentageChange } from './balancePresentation.js';
+import { monthRange, surveyPresentation, percentageChange, totalsForMonth } from './balancePresentation.js';
+
+test('monthly summary excludes prior and later months from annual comparison series',()=>{
+  const series={ingresos:{ENE:10000,AGO:20000,SEP:150,OCT:90000},egresos:{AGO:1000,SEP:50}};
+  assert.deepEqual(totalsForMonth(series,'SEP'),{ingresos:150,egresos:50});
+  assert.deepEqual(totalsForMonth(series,'AGO'),{ingresos:20000,egresos:1000});
+  assert.deepEqual(totalsForMonth(series,'FEB'),{ingresos:0,egresos:0});
+  assert.deepEqual(totalsForMonth({ventas:{AGO:900,SEP:115},gastos:{ENE:999,SEP:30}},'SEP'),{ventas:115,gastos:30});
+});
 
 test('growth has no invented percentage without a baseline and handles negative results',()=>{
   assert.equal(percentageChange(100,0),null);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useBalancesReport } from '../../application/useBalancesReport';
-import { monthRange, yearRange, surveyPresentation, formatBalanceMoney, percentageChange } from '../../application/balancePresentation';
+import { monthRange, yearRange, surveyPresentation, formatBalanceMoney, percentageChange, totalsForMonth } from '../../application/balancePresentation';
 import {
   DollarSign,
   Calendar,
@@ -1164,13 +1164,12 @@ export function BalancesPage() {
   const monthIndex = MONTHS_LIST.indexOf(selectedHeaderMonth);
   const { desde, hasta } = monthRange(periodo, monthIndex);
   const activeMonths = [selectedHeaderMonth];
-  const [flujoYear, setFlujoYear] = useState(currentYear);
-  const [facturacionYear, setFacturacionYear] = useState(currentYear);
+  const flujoYear = Number(periodo);
+  const facturacionYear = Number(periodo);
   const [ventasMesYear, setVentasMesYear] = useState(currentYear);
   const [cobrarYear, setCobrarYear] = useState(currentYear);
   const changeYear = year => {
     setPeriodo(year);
-    setFlujoYear(Number(year)); setFacturacionYear(Number(year));
     setVentasMesYear(Number(year)); setCobrarYear(Number(year));
   };
   const periodReport = useBalancesReport({ desde, hasta });
@@ -1204,7 +1203,7 @@ export function BalancesPage() {
     return (
       <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${colorClass}`}>
         <span>{arrow}</span>
-        <span>{absPct}% vs año anterior</span>
+        <span>{absPct}% vs mismo mes del año anterior</span>
       </span>
     );
   };
@@ -1256,66 +1255,23 @@ export function BalancesPage() {
 
   const monthsList = MONTHS_LIST;
 
-  // --- CALCULATIONS FOR FLUJO CARD ---
-  let flujoMonthsData = { ingresos: {}, egresos: {} };
-  let flujoMonthsDataPrev = { ingresos: {}, egresos: {} };
-  let ingresosTotal = 0;
-  let egresosTotal = 0;
-  let ingresosTotalPrev = 0;
-  let egresosTotalPrev = 0;
-
-  const activeFlujo = flujoDataReal || {};
-  const activeFlujoPrev = flujoDataRealPrev || {};
-  flujoMonthsData = {
-    ingresos: activeFlujo.comparativos?.ingresosEgresos?.ingresos || {},
-    egresos: activeFlujo.comparativos?.ingresosEgresos?.egresos || {}
-  };
-  flujoMonthsDataPrev = {
-    ingresos: activeFlujoPrev.comparativos?.ingresosEgresos?.ingresos || {},
-    egresos: activeFlujoPrev.comparativos?.ingresosEgresos?.egresos || {}
-  };
-
-  const sumValues = (obj) => Object.values(obj || {}).reduce((s, v) => s + (Number(v) || 0), 0);
-  ingresosTotal = sumValues(flujoMonthsData.ingresos);
-  egresosTotal = sumValues(flujoMonthsData.egresos);
-  ingresosTotalPrev = sumValues(flujoMonthsDataPrev.ingresos);
-  egresosTotalPrev = sumValues(flujoMonthsDataPrev.egresos);
-
+  // Cards follow the selected month; charts retain separate monthly bars for comparison.
+  const flujoMonthsData = flujoDataReal?.comparativos?.ingresosEgresos || {};
+  const flujoMonthsDataPrev = flujoDataRealPrev?.comparativos?.ingresosEgresos || {};
+  const { ingresos: ingresosTotal = 0, egresos: egresosTotal = 0 } = totalsForMonth(flujoMonthsData, selectedHeaderMonth);
+  const { ingresos: ingresosTotalPrev = 0, egresos: egresosTotalPrev = 0 } = totalsForMonth(flujoMonthsDataPrev, selectedHeaderMonth);
   const netTotal = ingresosTotal - egresosTotal;
   const netTotalPrev = ingresosTotalPrev - egresosTotalPrev;
-
   const ingresosGrowth = percentageChange(ingresosTotal, ingresosTotalPrev);
   const egresosGrowth = percentageChange(egresosTotal, egresosTotalPrev);
   const netGrowth = percentageChange(netTotal, netTotalPrev);
 
-  // --- CALCULATIONS FOR FACTURACION CARD ---
-  let facturacionMonthsData = { ventas: {}, gastos: {} };
-  let facturacionMonthsDataPrev = { ventas: {}, gastos: {} };
-  let ventasTotal = 0;
-  let gastosTotal = 0;
-  let ventasTotalPrev = 0;
-  let gastosTotalPrev = 0;
-
-  const activeFact = facturacionDataReal || {};
-  const activeFactPrev = facturacionDataRealPrev || {};
-  facturacionMonthsData = {
-    ventas: activeFact.comparativos?.ventasGastos?.ventas || {},
-    gastos: activeFact.comparativos?.ventasGastos?.gastos || {}
-  };
-  facturacionMonthsDataPrev = {
-    ventas: activeFactPrev.comparativos?.ventasGastos?.ventas || {},
-    gastos: activeFactPrev.comparativos?.ventasGastos?.gastos || {}
-  };
-
-  const sumValues2 = (obj) => Object.values(obj || {}).reduce((s, v) => s + (Number(v) || 0), 0);
-  ventasTotal = sumValues2(facturacionMonthsData.ventas);
-  gastosTotal = sumValues2(facturacionMonthsData.gastos);
-  ventasTotalPrev = sumValues2(facturacionMonthsDataPrev.ventas);
-  gastosTotalPrev = sumValues2(facturacionMonthsDataPrev.gastos);
-
+  const facturacionMonthsData = facturacionDataReal?.comparativos?.ventasGastos || {};
+  const facturacionMonthsDataPrev = facturacionDataRealPrev?.comparativos?.ventasGastos || {};
+  const { ventas: ventasTotal = 0, gastos: gastosTotal = 0 } = totalsForMonth(facturacionMonthsData, selectedHeaderMonth);
+  const { ventas: ventasTotalPrev = 0, gastos: gastosTotalPrev = 0 } = totalsForMonth(facturacionMonthsDataPrev, selectedHeaderMonth);
   const utilidadTotal = ventasTotal - gastosTotal;
   const utilidadTotalPrev = ventasTotalPrev - gastosTotalPrev;
-
   const ventasGrowth = percentageChange(ventasTotal, ventasTotalPrev);
   const gastosGrowth = percentageChange(gastosTotal, gastosTotalPrev);
   const utilidadGrowth = percentageChange(utilidadTotal, utilidadTotalPrev);
@@ -1405,7 +1361,7 @@ export function BalancesPage() {
         {activeTab === 'resumen' && (
           <div className="flex flex-col gap-6 p-4 animate-fadeIn">
             <section aria-label="Totales del período" className="space-y-3">
-              <h2 className="text-sm font-bold text-slate-700">{MONTH_FULL_NAMES[selectedHeaderMonth]} {periodo}</h2>
+              <h2 className="text-sm font-bold text-slate-700">{MONTH_FULL_NAMES[selectedHeaderMonth]} {periodo} · Solo este mes</h2>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   ['Ventas con IVA', totalVentas], ['Dinero recibido', totalIngresos],
@@ -1426,37 +1382,21 @@ export function BalancesPage() {
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-xs font-bold text-slate-400">Ingresos vs Egresos</p>
                       <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200/60 text-slate-500 uppercase tracking-wider">
-                        {flujoYear}
+                        {MONTH_FULL_NAMES[selectedHeaderMonth]} {flujoYear}
                       </span>
                     </div>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={flujoYear}
-                    onChange={(e) => setFlujoYear(Number(e.target.value))}
-                    className="appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 pr-8 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  >
-                    <option value={2026}>2026</option>
-                    <option value={2025}>2025</option>
-                    <option value={2024}>2024</option>
-                    <option value={2023}>2023</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDown size={14} />
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-500/5 space-y-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ingresos totales</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ingresos del mes</span>
                   <span className="text-base font-black text-slate-800 block">{fmt(ingresosTotal)}</span>
                   {renderGrowthIndicator(ingresosGrowth, 'text-emerald-600')}
                 </div>
                 <div className="bg-amber-50/40 p-4 rounded-2xl border border-amber-500/5 space-y-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Egresos totales</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Egresos del mes</span>
                   <span className="text-base font-black text-slate-800 block">{fmt(egresosTotal)}</span>
                   {renderGrowthIndicator(egresosGrowth, 'text-amber-600')}
                 </div>
@@ -1478,6 +1418,7 @@ export function BalancesPage() {
                 </div>
               </div>
 
+              <p className="text-xs text-slate-500">Comparación de {flujoYear}: cada barra muestra solo lo ocurrido en ese mes.</p>
               {loadingFlujo ? (
                 <div className="h-60 flex flex-col items-center justify-center gap-2">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-500 border-t-transparent"></div>
@@ -1508,7 +1449,7 @@ export function BalancesPage() {
                     {ingresosGrowth === null ? 'Sin base de comparación' : ingresosGrowth === 0 ? 'Sin variación' : ingresosGrowth > 0 ? 'Ingresos en aumento' : 'Ingresos en descenso'}
                   </h4>
                   <p className="text-slate-500 font-semibold mt-0.5">
-                    {ingresosGrowth === null ? 'El año anterior no registra ingresos para calcular una variación porcentual.' : `Variación de ingresos: ${ingresosGrowth.toFixed(1)}% respecto al año anterior.`}
+                    {ingresosGrowth === null ? 'El mismo mes del año anterior no registra ingresos para comparar.' : `Variación de ingresos: ${ingresosGrowth.toFixed(1)}% respecto al mismo mes del año anterior.`}
                   </p>
                 </div>
               </div>
@@ -1525,37 +1466,21 @@ export function BalancesPage() {
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-xs font-bold text-slate-400">Ventas vs Gastos</p>
                       <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200/60 text-slate-500 uppercase tracking-wider">
-                        {facturacionYear}
+                        {MONTH_FULL_NAMES[selectedHeaderMonth]} {facturacionYear}
                       </span>
                     </div>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={facturacionYear}
-                    onChange={(e) => setFacturacionYear(Number(e.target.value))}
-                    className="appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 pr-8 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  >
-                    <option value={2026}>2026</option>
-                    <option value={2025}>2025</option>
-                    <option value={2024}>2024</option>
-                    <option value={2023}>2023</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDown size={14} />
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-blue-50/40 p-4 rounded-2xl border border-blue-500/5 space-y-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ventas totales</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Ventas del mes</span>
                   <span className="text-base font-black text-slate-800 block">{fmt(ventasTotal)}</span>
                   {renderGrowthIndicator(ventasGrowth, 'text-blue-600')}
                 </div>
                 <div className="bg-rose-50/40 p-4 rounded-2xl border border-rose-500/5 space-y-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Gastos totales</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Gastos del mes</span>
                   <span className="text-base font-black text-slate-800 block">{fmt(gastosTotal)}</span>
                   {renderGrowthIndicator(gastosGrowth, 'text-rose-600')}
                 </div>
@@ -1577,6 +1502,7 @@ export function BalancesPage() {
                 </div>
               </div>
 
+              <p className="text-xs text-slate-500">Comparación de {facturacionYear}: cada barra muestra solo lo ocurrido en ese mes.</p>
               {loadingFacturacion ? (
                 <div className="h-60 flex flex-col items-center justify-center gap-2">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
@@ -1607,7 +1533,7 @@ export function BalancesPage() {
                     {ventasGrowth === null ? 'Sin base de comparación' : 'Variación de ventas'}
                   </h4>
                   <p className="text-slate-500 font-semibold mt-0.5">
-                    {ventasGrowth === null ? 'El año anterior no registra ventas para calcular una variación porcentual.' : `Variación de ventas: ${ventasGrowth.toFixed(1)}% respecto al año anterior.`}
+                    {ventasGrowth === null ? 'El mismo mes del año anterior no registra ventas para comparar.' : `Variación de ventas: ${ventasGrowth.toFixed(1)}% respecto al mismo mes del año anterior.`}
                   </p>
                 </div>
               </div>
@@ -1698,7 +1624,7 @@ export function BalancesPage() {
                 <AttributionDonutChart
                   data={metodoIngresos}
                   title="Ingresos por método de pago"
-                  subtitle="Cobros e ingresos manuales recibidos en el período"
+                  subtitle="Dinero recibido en el mes, incluidos cobros de ventas anteriores"
                   centerText="Total"
                   footerText={`Cobros de ventas: ${fmt(activeWeekly.ingresosDetalle?.cobrosVentas)} · Otros ingresos: ${fmt(activeWeekly.ingresosDetalle?.otrosIngresos)}`}
                   type="metodo"
@@ -1761,7 +1687,7 @@ export function BalancesPage() {
                         <div>
                           <h3 className="text-lg font-black text-slate-800 tracking-tight leading-tight">Ventas por mes del año</h3>
                           <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs font-bold text-slate-400">Comportamiento anual acumulado</p>
+                            <p className="text-xs font-bold text-slate-400">Comparación por mes · sin acumulación</p>
                             <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200/60 text-slate-500 uppercase tracking-wider">
                               {ventasMesYear}
                             </span>
@@ -1878,7 +1804,7 @@ export function BalancesPage() {
                         <div>
                           <h3 className="text-lg font-black text-slate-800 tracking-tight leading-tight">Saldos pendientes por cobrar por mes</h3>
                           <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs font-bold text-slate-400">Ventas desde enero · cobros hasta {cobrarHasta}</p>
+                            <p className="text-xs font-bold text-slate-400">Cada barra corresponde a su mes de venta · corte {cobrarHasta}</p>
                             <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200/60 text-slate-500 uppercase tracking-wider">
                               {cobrarYear}
                             </span>

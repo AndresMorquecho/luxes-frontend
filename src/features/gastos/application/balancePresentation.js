@@ -4,6 +4,10 @@ export function monthRange(year, monthIndex) {
   return { desde: start.toISOString().slice(0, 10), hasta: end.toISOString().slice(0, 10) };
 }
 export const yearRange = year => ({ desde: `${year}-01-01`, hasta: `${year}-12-31` });
+// Annual series feed comparison charts; headline totals use one selected month.
+export function totalsForMonth(series, month) {
+  return Object.fromEntries(Object.entries(series).map(([name, values]) => [name, Number(values?.[month]) || 0]));
+}
 export const percentageChange = (current, previous) => previous === 0 ? null : (current - previous) / Math.abs(previous) * 100;
 export const formatBalanceMoney = value => Number(value || 0).toLocaleString('es-EC', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function surveyPresentation(stats = {}) {
