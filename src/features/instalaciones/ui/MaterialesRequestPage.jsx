@@ -940,7 +940,7 @@ export function MaterialesRequestPage() {
               </h2>
               <p className="text-xs text-slate-400 -mt-2">
                 {isTallerUser(user)
-                  ? 'Selecciona personal del equipo de Taller que realizará la instalación. Guarda los cambios al terminar.'
+                  ? 'Selecciona personal de Taller e Impresión que realizará la instalación. Guarda los cambios al terminar.'
                   : 'Selecciona al personal que realizará los trabajos de instalación. Asegúrate de hacer clic en el botón de guardar.'}
               </p>
             </div>

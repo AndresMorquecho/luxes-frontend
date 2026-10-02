@@ -23,10 +23,10 @@ export function isTallerRolValue(rol) {
   return normalizeRolKey(rol) === 'taller';
 }
 
-/** En fase instalación, el rol Taller solo ve personal con usuario de rol Taller. */
+/** Para asignar instalaciones, Taller puede elegir personal de Taller e Impresión. */
 export function filterEmpleadosParaInstalacion(empleados, currentUser) {
   if (!isTallerUser(currentUser)) return empleados || [];
-  return (empleados || []).filter((emp) => isTallerRolValue(emp.rol));
+  return (empleados || []).filter((emp) => ['taller', 'impresion'].includes(normalizeRolKey(emp.rol)));
 }
 
 export function isAdminUser(user) {
