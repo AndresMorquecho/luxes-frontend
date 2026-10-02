@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
+import { useBalancesReport } from '../../application/useBalancesReport';
+import { monthRange, yearRange, surveyPresentation, formatBalanceMoney, percentageChange } from '../../application/balancePresentation';
 import {
   DollarSign,
   Calendar,
@@ -385,71 +387,6 @@ function ColumnChart({ data, title, color }) {
   );
 }
 
-// --- DYNAMIC MOCK DATA HELPER ---
-const getMockDataForYear = (year) => {
-  const baseIngresos = {
-    ENE: 18000, FEB: 22000, MAR: 26000, ABR: 20000, MAY: 29000, JUN: 32000,
-    JUL: 28000, AGO: 30000, SEP: 35000, OCT: 39000, NOV: 45000, DIC: 52400
-  };
-  const baseEgresos = {
-    ENE: 14000, FEB: 17000, MAR: 19500, ABR: 15000, MAY: 22000, JUN: 24000,
-    JUL: 21500, AGO: 23000, SEP: 26000, OCT: 30000, NOV: 35000, DIC: 38700
-  };
-  const baseVentas = {
-    ENE: 19000, FEB: 24000, MAR: 28000, ABR: 22000, MAY: 31000, JUN: 34000,
-    JUL: 30000, AGO: 32000, SEP: 37000, OCT: 42000, NOV: 48000, DIC: 54200
-  };
-  const baseGastos = {
-    ENE: 15000, FEB: 18000, MAR: 22000, ABR: 17000, MAY: 25000, JUN: 27000,
-    JUL: 24000, AGO: 26000, SEP: 30005, OCT: 34000, NOV: 38000, DIC: 45795
-  };
-
-  const getScale = (type) => {
-    if (year === 2026) return 1.0;
-    if (year === 2025) {
-      if (type === 'ingresos') return 1.0 / 1.184; // 18.4% growth in 2026
-      if (type === 'egresos') return 1.0 / 1.127;  // 12.7% growth
-      if (type === 'ventas') return 1.0 / 1.176;   // 17.6% growth
-      if (type === 'gastos') return 1.0 / 1.132;   // 13.2% growth
-    }
-    let s = 1.0;
-    if (year === 2024) s = 0.72;
-    else if (year === 2023) s = 0.60;
-    else if (year < 2023) s = 0.50;
-    else if (year > 2026) s = 1.15;
-
-    if (type === 'egresos') return s * 0.98;
-    if (type === 'ventas') return s * 1.05;
-    if (type === 'gastos') return s * 0.95;
-    return s;
-  };
-
-  const scaleObj = (obj, s) => {
-    return Object.keys(obj).reduce((acc, key) => {
-      acc[key] = Math.round(obj[key] * s);
-      return acc;
-    }, {});
-  };
-
-  const ingresos = scaleObj(baseIngresos, getScale('ingresos'));
-  const egresos = scaleObj(baseEgresos, getScale('egresos'));
-  const ventas = scaleObj(baseVentas, getScale('ventas'));
-  const gastos = scaleObj(baseGastos, getScale('gastos'));
-
-  const sum = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
-
-  return {
-    ingresos,
-    egresos,
-    ventas,
-    gastos,
-    totalIngresos: sum(ingresos),
-    totalEgresos: sum(egresos),
-    totalVentas: sum(ventas),
-    totalGastos: sum(gastos)
-  };
-};
-
 // --- MULTI-BAR CHART COMPONENT ---
 function DoubleBarChart({ data, keys, colors, labels, year }) {
   const [hoveredBar, setHoveredBar] = useState(null);
@@ -832,11 +769,11 @@ function AttributionDonutChart({ data, title, subtitle, centerText, centerGrowth
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
               <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest">{centerText || 'Total'}</span>
               <span className="text-base font-black text-slate-800 leading-none mt-0.5">
-                ${Math.round(total).toLocaleString()}
+                {formatBalanceMoney(total)}
               </span>
-              {centerGrowth && (
-                <span className="text-[8px] font-black text-emerald-500 mt-0.5 flex items-center gap-0.5">
-                  {centerGrowth}
+              {centerGrowth != null && (
+                <span className={`text-[8px] font-black mt-0.5 flex items-center gap-0.5 ${centerGrowth < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {centerGrowth < 0 ? '↓' : '↑'} {Math.abs(centerGrowth).toFixed(1)}%
                 </span>
               )}
             </div>
@@ -859,7 +796,7 @@ function AttributionDonutChart({ data, title, subtitle, centerText, centerGrowth
                     <span className="font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">{item.label}</span>
                   </div>
                   <div className="text-right flex items-center gap-3">
-                    <span className="font-extrabold text-slate-800">${Math.round(item.value).toLocaleString()}</span>
+                    <span className="font-extrabold text-slate-800">{formatBalanceMoney(item.value)}</span>
                     <span className="text-[10px] font-extrabold text-slate-400">{pct}%</span>
                   </div>
                 </div>
@@ -1219,326 +1156,48 @@ function PagarComboChart({ data }) {
 // --- COMPONENTE PRINCIPAL ---
 
 export function BalancesPage() {
-  const currentYear = new Date().getFullYear();
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' });
+  const currentYear = Number(today.slice(0, 4));
   const [periodo, setPeriodo] = useState(String(currentYear));
-
-  const [desde, setDesde] = useState('2026-01-01');
-  const [hasta, setHasta] = useState('2026-12-31');
-
-  // Mes centralizado del header — controla todos los gráficos mensuales
-  const currentMonthIdx = new Date().getMonth(); // 0-based
-  const [selectedHeaderMonth, setSelectedHeaderMonth] = useState(MONTHS_LIST[currentMonthIdx]);
-
-  useEffect(() => {
-    const yr = parseInt(periodo, 10) || 2026;
-    setDesde(`${yr}-01-01`);
-    setHasta(`${yr}-12-31`);
-  }, [periodo]);
-
-
-  const activeMonths = useMemo(() => {
-    if (!desde || !hasta) return ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-    const start = new Date(desde);
-    const end = new Date(hasta);
-
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays > 300) {
-      return ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-    }
-
-    const months = [];
-    const mNames = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-    let curr = new Date(start.getFullYear(), start.getMonth(), 1);
-    while (curr <= end) {
-      months.push(mNames[curr.getMonth()]);
-      curr.setMonth(curr.getMonth() + 1);
-    }
-    return months;
-  }, [desde, hasta]);
-
+  const [selectedHeaderMonth, setSelectedHeaderMonth] = useState(MONTHS_LIST[Number(today.slice(5, 7)) - 1]);
   const [activeTab, setActiveTab] = useState('resumen');
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    async function fetchBalances() {
-      setLoading(true);
-      setError(null);
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/gastos/reportes/balances?desde=${desde}&hasta=${hasta}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          throw new Error(json.error?.message || 'Error al obtener los balances');
-        }
-        setData(json.data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchBalances();
-  }, [desde, hasta]);
-
-  useEffect(() => {
-    if (!desde) return;
-    const parts = desde.split('-');
-    const yr = parseInt(parts[0], 10);
-    if (yr) {
-      setFlujoYear(yr);
-      setFacturacionYear(yr);
-      setVentasMesYear(yr);
-      setCobrarYear(yr);
-    }
-  }, [desde]);
-
-  const [flujoYear, setFlujoYear] = useState(2026);
-  const [facturacionYear, setFacturacionYear] = useState(2026);
-
-  const [flujoDataReal, setFlujoDataReal] = useState(null);
-  const [flujoDataRealPrev, setFlujoDataRealPrev] = useState(null);
-  const [facturacionDataReal, setFacturacionDataReal] = useState(null);
-  const [facturacionDataRealPrev, setFacturacionDataRealPrev] = useState(null);
-
-  const [loadingFlujo, setLoadingFlujo] = useState(false);
-  const [loadingFacturacion, setLoadingFacturacion] = useState(false);
-  useEffect(() => {
-    async function fetchFlujoYearData() {
-      setLoadingFlujo(true);
-      try {
-        const token = localStorage.getItem('token');
-        const [resCurr, resPrev] = await Promise.all([
-          fetch(`/api/gastos/reportes/balances?desde=${flujoYear}-01-01&hasta=${flujoYear}-12-31`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch(`/api/gastos/reportes/balances?desde=${flujoYear - 1}-01-01&hasta=${flujoYear - 1}-12-31`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-        ]);
-        const jsonCurr = await resCurr.json();
-        const jsonPrev = await resPrev.json();
-        if (jsonCurr.success) setFlujoDataReal(jsonCurr.data);
-        if (jsonPrev.success) setFlujoDataRealPrev(jsonPrev.data);
-      } catch (err) {
-        console.error('Error fetching flujo year data:', err);
-      } finally {
-        setLoadingFlujo(false);
-      }
-    }
-    fetchFlujoYearData();
-  }, [flujoYear]);
-
-  useEffect(() => {
-    async function fetchFacturacionYearData() {
-      setLoadingFacturacion(true);
-      try {
-        const token = localStorage.getItem('token');
-        const [resCurr, resPrev] = await Promise.all([
-          fetch(`/api/gastos/reportes/balances?desde=${facturacionYear}-01-01&hasta=${facturacionYear}-12-31`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch(`/api/gastos/reportes/balances?desde=${facturacionYear - 1}-01-01&hasta=${facturacionYear - 1}-12-31`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-        ]);
-        const jsonCurr = await resCurr.json();
-        const jsonPrev = await resPrev.json();
-        if (jsonCurr.success) setFacturacionDataReal(jsonCurr.data);
-        if (jsonPrev.success) setFacturacionDataRealPrev(jsonPrev.data);
-      } catch (err) {
-        console.error('Error fetching facturacion year data:', err);
-      } finally {
-        setLoadingFacturacion(false);
-      }
-    }
-    fetchFacturacionYearData();
-  }, [facturacionYear]);
-
-  const [weeklyDataReal, setWeeklyDataReal] = useState(null);
-  const [loadingWeekly, setLoadingWeekly] = useState(false);
-
-  const [ventasMesYear, setVentasMesYear] = useState(2026);
-  const [ventasMesDataReal, setVentasMesDataReal] = useState(null);
-  const [loadingVentasMes, setLoadingVentasMes] = useState(false);
-
-  useEffect(() => {
-    async function fetchWeeklyData() {
-      setLoadingWeekly(true);
-      try {
-        const year = parseInt(desde.substring(0, 4), 10); // parse year directly to avoid UTC-5 timezone shift
-        const monthMap = {
-          ENE: '01', FEB: '02', MAR: '03', ABR: '04', MAY: '05', JUN: '06',
-          JUL: '07', AGO: '08', SEP: '09', OCT: '10', NOV: '11', DIC: '12'
-        };
-        const mNum = monthMap[selectedHeaderMonth];
-        const daysMap = {
-          '01': 31, '02': (year % 4 === 0 ? 29 : 28), '03': 31, '04': 30, '05': 31, '06': 30,
-          '07': 31, '08': 31, '09': 30, '10': 31, '11': 30, '12': 31
-        };
-        const lastDay = daysMap[mNum];
-
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/gastos/reportes/balances?desde=${year}-${mNum}-01&hasta=${year}-${mNum}-${lastDay}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const json = await res.json();
-        if (json.success) {
-          setWeeklyDataReal(json.data);
-        }
-      } catch (err) {
-        console.error('Error fetching weekly data:', err);
-      } finally {
-        setLoadingWeekly(false);
-      }
-    }
-    fetchWeeklyData();
-  }, [selectedHeaderMonth, desde]);
-
-  useEffect(() => {
-    async function fetchVentasMes() {
-      setLoadingVentasMes(true);
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/gastos/reportes/balances?desde=${ventasMesYear}-01-01&hasta=${ventasMesYear}-12-31`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const json = await res.json();
-        if (json.success) {
-          setVentasMesDataReal(json.data);
-        }
-      } catch (err) {
-        console.error('Error fetching ventas mes data:', err);
-      } finally {
-        setLoadingVentasMes(false);
-      }
-    }
-    fetchVentasMes();
-  }, [ventasMesYear]);
-
-  const [cobrarYear, setCobrarYear] = useState(2026);
-  const [cobrarDataReal, setCobrarDataReal] = useState(null);
-  const [loadingCobrar, setLoadingCobrar] = useState(false);
-
-  useEffect(() => {
-    async function fetchCobrarYearData() {
-      setLoadingCobrar(true);
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/gastos/reportes/balances?desde=${cobrarYear}-01-01&hasta=${cobrarYear}-12-31`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const json = await res.json();
-        if (json.success) {
-          setCobrarDataReal(json.data);
-        }
-      } catch (err) {
-        console.error('Error fetching cobrar year data:', err);
-      } finally {
-        setLoadingCobrar(false);
-      }
-    }
-    fetchCobrarYearData();
-  }, [cobrarYear]);
-  const [gastosPeriodo, setGastosPeriodo] = useState('Este mes');
-  const [gastosDataReal, setGastosDataReal] = useState(null);
-  const [loadingGastos, setLoadingGastos] = useState(false);
-
-  useEffect(() => {
-    async function fetchGastosPeriodoData() {
-      setLoadingGastos(true);
-      try {
-        const token = localStorage.getItem('token');
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const daysMap = {
-          '01': 31, '02': (year % 4 === 0 ? 29 : 28), '03': 31, '04': 30, '05': 31, '06': 30,
-          '07': 31, '08': 31, '09': 30, '10': 31, '11': 30, '12': 31
-        };
-
-        let desdeStr = `${year}-${month}-01`;
-        let hastaStr = `${year}-${month}-${daysMap[month]}`;
-
-        if (gastosPeriodo === 'Mes anterior') {
-          const prevMonthDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-          const pYear = prevMonthDate.getFullYear();
-          const pMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
-          desdeStr = `${pYear}-${pMonth}-01`;
-          hastaStr = `${pYear}-${pMonth}-${daysMap[pMonth]}`;
-        } else if (gastosPeriodo === 'Este año') {
-          desdeStr = `${year}-01-01`;
-          hastaStr = `${year}-12-31`;
-        }
-
-        const res = await fetch(`/api/gastos/reportes/balances?desde=${desdeStr}&hasta=${hastaStr}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const json = await res.json();
-        if (json.success) {
-          setGastosDataReal(json.data);
-        }
-      } catch (err) {
-        console.error('Error fetching gastos periodo data:', err);
-      } finally {
-        setLoadingGastos(false);
-      }
-    }
-    fetchGastosPeriodoData();
-  }, [gastosPeriodo]);
-
-  const [weeklyGastosDataReal, setWeeklyGastosDataReal] = useState(null);
-  const [loadingWeeklyGastos, setLoadingWeeklyGastos] = useState(false);
-
-
-
-  useEffect(() => {
-    async function fetchWeeklyGastos() {
-      setLoadingWeeklyGastos(true);
-      try {
-        const year = parseInt(desde.substring(0, 4), 10); // parse year directly to avoid UTC-5 timezone shift
-        const monthMap = {
-          ENE: '01', FEB: '02', MAR: '03', ABR: '04', MAY: '05', JUN: '06',
-          JUL: '07', AGO: '08', SEP: '09', OCT: '10', NOV: '11', DIC: '12'
-        };
-        const mNum = monthMap[selectedHeaderMonth];
-        const daysMap = {
-          '01': 31, '02': (year % 4 === 0 ? 29 : 28), '03': 31, '04': 30, '05': 31, '06': 30,
-          '07': 31, '08': 31, '09': 30, '10': 31, '11': 30, '12': 31
-        };
-        const lastDay = daysMap[mNum];
-
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/gastos/reportes/balances?desde=${year}-${mNum}-01&hasta=${year}-${mNum}-${lastDay}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const json = await res.json();
-        if (json.success) {
-          setWeeklyGastosDataReal(json.data);
-        }
-      } catch (err) {
-        console.error('Error fetching weekly gastos data:', err);
-      } finally {
-        setLoadingWeeklyGastos(false);
-      }
-    }
-    fetchWeeklyGastos();
-  }, [selectedHeaderMonth, desde]);
-
-  const fmt = (val) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(Number(val) || 0);
+  const monthIndex = MONTHS_LIST.indexOf(selectedHeaderMonth);
+  const { desde, hasta } = monthRange(periodo, monthIndex);
+  const activeMonths = [selectedHeaderMonth];
+  const [flujoYear, setFlujoYear] = useState(currentYear);
+  const [facturacionYear, setFacturacionYear] = useState(currentYear);
+  const [ventasMesYear, setVentasMesYear] = useState(currentYear);
+  const [cobrarYear, setCobrarYear] = useState(currentYear);
+  const changeYear = year => {
+    setPeriodo(year);
+    setFlujoYear(Number(year)); setFacturacionYear(Number(year));
+    setVentasMesYear(Number(year)); setCobrarYear(Number(year));
   };
+  const periodReport = useBalancesReport({ desde, hasta });
+  const previousMonth = useBalancesReport(monthRange(periodo, monthIndex - 1), activeTab === 'ventas');
+  const flujoReport = useBalancesReport(yearRange(flujoYear), activeTab === 'resumen');
+  const flujoPrevReport = useBalancesReport(yearRange(flujoYear - 1), activeTab === 'resumen');
+  const factReport = useBalancesReport(yearRange(facturacionYear), activeTab === 'resumen');
+  const factPrevReport = useBalancesReport(yearRange(facturacionYear - 1), activeTab === 'resumen');
+  const salesReport = useBalancesReport(yearRange(ventasMesYear), activeTab === 'ventas');
+  const cobrarHasta = monthRange(cobrarYear, monthIndex).hasta;
+  const receivablesReport = useBalancesReport({ desde: `${cobrarYear}-01-01`, hasta: cobrarHasta }, activeTab === 'cobrar');
+  const reports = [periodReport, previousMonth, flujoReport, flujoPrevReport, factReport, factPrevReport, salesReport, receivablesReport];
+  const loading = reports.some(r => r.loading);
+  const error = reports.find(r => r.error)?.error;
+  const data = periodReport.data;
+  const weeklyDataReal = data, weeklyGastosDataReal = data;
+  const flujoDataReal = flujoReport.data, flujoDataRealPrev = flujoPrevReport.data;
+  const facturacionDataReal = factReport.data, facturacionDataRealPrev = factPrevReport.data;
+  const ventasMesDataReal = salesReport.data, cobrarDataReal = receivablesReport.data;
+  const loadingFlujo = flujoReport.loading, loadingFacturacion = factReport.loading;
+  const loadingWeekly = periodReport.loading, loadingWeeklyGastos = periodReport.loading;
+  const loadingVentasMes = salesReport.loading, loadingCobrar = receivablesReport.loading;
+
+  const fmt = formatBalanceMoney;
 
   const renderGrowthIndicator = (pct, colorClass) => {
+    if (pct === null) return <span className="text-[10px] font-semibold text-slate-400">Sin base de comparación</span>;
     const isPositive = pct >= 0;
     const absPct = Math.abs(pct).toFixed(1);
     const arrow = isPositive ? '▲' : '▼';
@@ -1605,7 +1264,7 @@ export function BalancesPage() {
   let ingresosTotalPrev = 0;
   let egresosTotalPrev = 0;
 
-  const activeFlujo = flujoDataReal || data || {};
+  const activeFlujo = flujoDataReal || {};
   const activeFlujoPrev = flujoDataRealPrev || {};
   flujoMonthsData = {
     ingresos: activeFlujo.comparativos?.ingresosEgresos?.ingresos || {},
@@ -1625,9 +1284,9 @@ export function BalancesPage() {
   const netTotal = ingresosTotal - egresosTotal;
   const netTotalPrev = ingresosTotalPrev - egresosTotalPrev;
 
-  const ingresosGrowth = ingresosTotalPrev > 0 ? ((ingresosTotal - ingresosTotalPrev) / ingresosTotalPrev) * 100 : 0;
-  const egresosGrowth = egresosTotalPrev > 0 ? ((egresosTotal - egresosTotalPrev) / egresosTotalPrev) * 100 : 0;
-  const netGrowth = netTotalPrev > 0 ? ((netTotal - netTotalPrev) / netTotalPrev) * 100 : 0;
+  const ingresosGrowth = percentageChange(ingresosTotal, ingresosTotalPrev);
+  const egresosGrowth = percentageChange(egresosTotal, egresosTotalPrev);
+  const netGrowth = percentageChange(netTotal, netTotalPrev);
 
   // --- CALCULATIONS FOR FACTURACION CARD ---
   let facturacionMonthsData = { ventas: {}, gastos: {} };
@@ -1637,7 +1296,7 @@ export function BalancesPage() {
   let ventasTotalPrev = 0;
   let gastosTotalPrev = 0;
 
-  const activeFact = facturacionDataReal || data || {};
+  const activeFact = facturacionDataReal || {};
   const activeFactPrev = facturacionDataRealPrev || {};
   facturacionMonthsData = {
     ventas: activeFact.comparativos?.ventasGastos?.ventas || {},
@@ -1657,9 +1316,9 @@ export function BalancesPage() {
   const utilidadTotal = ventasTotal - gastosTotal;
   const utilidadTotalPrev = ventasTotalPrev - gastosTotalPrev;
 
-  const ventasGrowth = ventasTotalPrev > 0 ? ((ventasTotal - ventasTotalPrev) / ventasTotalPrev) * 100 : 0;
-  const gastosGrowth = gastosTotalPrev > 0 ? ((gastosTotal - gastosTotalPrev) / gastosTotalPrev) * 100 : 0;
-  const utilidadGrowth = utilidadTotalPrev > 0 ? ((utilidadTotal - utilidadTotalPrev) / utilidadTotalPrev) * 100 : 0;
+  const ventasGrowth = percentageChange(ventasTotal, ventasTotalPrev);
+  const gastosGrowth = percentageChange(gastosTotal, gastosTotalPrev);
+  const utilidadGrowth = percentageChange(utilidadTotal, utilidadTotalPrev);
 
   const tabs = [
     { id: 'resumen', label: 'Resumen General', icon: Grid },
@@ -1689,8 +1348,9 @@ export function BalancesPage() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
             <select
+              aria-label="Año del balance"
               value={periodo}
-              onChange={(e) => setPeriodo(e.target.value)}
+              onChange={(e) => changeYear(e.target.value)}
               className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold px-4 py-2.5 pr-8 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
             >
               <option value="2026">2026</option>
@@ -1704,6 +1364,7 @@ export function BalancesPage() {
           </div>
           <div className="relative">
             <select
+              aria-label="Mes del balance"
               value={selectedHeaderMonth}
               onChange={(e) => setSelectedHeaderMonth(e.target.value)}
               className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold px-4 py-2.5 pr-8 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
@@ -1743,6 +1404,17 @@ export function BalancesPage() {
 
         {activeTab === 'resumen' && (
           <div className="flex flex-col gap-6 p-4 animate-fadeIn">
+            <section aria-label="Totales del período" className="space-y-3">
+              <h2 className="text-sm font-bold text-slate-700">{MONTH_FULL_NAMES[selectedHeaderMonth]} {periodo}</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  ['Ventas con IVA', totalVentas], ['Dinero recibido', totalIngresos],
+                  ['Egresos realizados', totalEgresos], ['Flujo neto del período', totalIngresos - totalEgresos],
+                ].map(([label, value]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs text-slate-500">{label}</p><p className="mt-2 text-lg font-bold text-slate-800">{fmt(value)}</p>
+                </div>)}
+              </div>
+            </section>
             <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 relative hover:shadow-md transition-all">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
@@ -1754,7 +1426,7 @@ export function BalancesPage() {
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-xs font-bold text-slate-400">Ingresos vs Egresos</p>
                       <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200/60 text-slate-500 uppercase tracking-wider">
-                        {formatPeriodLabel(desde, hasta)}
+                        {flujoYear}
                       </span>
                     </div>
                   </div>
@@ -1833,10 +1505,10 @@ export function BalancesPage() {
                 </div>
                 <div className="text-xs">
                   <h4 className="font-extrabold text-slate-800">
-                    {ingresosGrowth >= 0 ? 'Tendencia positiva' : 'Tendencia a la baja'}
+                    {ingresosGrowth === null ? 'Sin base de comparación' : ingresosGrowth === 0 ? 'Sin variación' : ingresosGrowth > 0 ? 'Ingresos en aumento' : 'Ingresos en descenso'}
                   </h4>
                   <p className="text-slate-500 font-semibold mt-0.5">
-                    Los ingresos han {ingresosGrowth >= 0 ? 'aumentado' : 'disminuido'} {Math.abs(ingresosGrowth).toFixed(1)}% comparado con el año anterior.
+                    {ingresosGrowth === null ? 'El año anterior no registra ingresos para calcular una variación porcentual.' : `Variación de ingresos: ${ingresosGrowth.toFixed(1)}% respecto al año anterior.`}
                   </p>
                 </div>
               </div>
@@ -1853,7 +1525,7 @@ export function BalancesPage() {
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-xs font-bold text-slate-400">Ventas vs Gastos</p>
                       <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200/60 text-slate-500 uppercase tracking-wider">
-                        {formatPeriodLabel(desde, hasta)}
+                        {facturacionYear}
                       </span>
                     </div>
                   </div>
@@ -1932,10 +1604,10 @@ export function BalancesPage() {
                 </div>
                 <div className="text-xs">
                   <h4 className="font-extrabold text-slate-800">
-                    {ventasGrowth >= 0 ? 'Crecimiento constante' : 'Variación de ventas'}
+                    {ventasGrowth === null ? 'Sin base de comparación' : 'Variación de ventas'}
                   </h4>
                   <p className="text-slate-500 font-semibold mt-0.5">
-                    Las ventas han {ventasGrowth >= 0 ? 'crecido' : 'bajado'} {Math.abs(ventasGrowth).toFixed(1)}% en comparación al año anterior.
+                    {ventasGrowth === null ? 'El año anterior no registra ventas para calcular una variación porcentual.' : `Variación de ventas: ${ventasGrowth.toFixed(1)}% respecto al año anterior.`}
                   </p>
                 </div>
               </div>
@@ -1947,11 +1619,13 @@ export function BalancesPage() {
           let canalVentas = [];
           const activeWeekly = weeklyDataReal || {};
           const activeSource = activeWeekly.sourceAttr || {};
-          canalVentas = [
-            { label: 'LUXES', value: activeSource.LUXES?.ventas || 0, color: '#3b82f6' },
-            { label: 'REDES', value: activeSource.REDES?.ventas || 0, color: '#0ea5e9' },
-            { label: 'VENDEDORES', value: activeSource.VENDEDORES?.ventas || 0, color: '#6366f1' }
-          ];
+          canalVentas = Object.entries(activeSource).map(([label, values], index) => ({
+            label, value: values.ventas || 0, color: ['#3b82f6', '#0ea5e9', '#6366f1', '#f59e0b'][index % 4],
+          }));
+          const previousSales = Object.values(previousMonth.data?.sourceAttr || {}).reduce((sum, value) => sum + Number(value.ventas || 0), 0);
+          const currentSales = canalVentas.reduce((sum, row) => sum + row.value, 0);
+          const salesChange = percentageChange(currentSales, previousSales);
+
 
           let metodoIngresos = [];
           const activeMethods = activeWeekly.ingresosMetodo || {};
@@ -1973,7 +1647,7 @@ export function BalancesPage() {
             { label: 'Semana 2', range: '8 - 14', value: wData['Semana 2'] || 0 },
             { label: 'Semana 3', range: '15 - 21', value: wData['Semana 3'] || 0 },
             { label: 'Semana 4', range: '22 - 28', value: wData['Semana 4'] || 0 },
-            { label: 'Semana 5', range: '29 - 31', value: wData['Semana 5'] || 0 }
+            ...(Number(hasta.slice(8)) >= 29 ? [{ label: 'Semana 5', range: `29 - ${Number(hasta.slice(8))}`, value: wData['Semana 5'] || 0 }] : [])
           ];
 
           let bestWeekName = 'Semana 1';
@@ -2013,10 +1687,10 @@ export function BalancesPage() {
                 <AttributionDonutChart
                   data={canalVentas}
                   title="Ventas por canal"
-                  subtitle="Distribución del total de ventas"
+                  subtitle="Ventas por fecha de proforma, IVA incluido"
                   centerText="Total"
-                  centerGrowth="↑ 18.6%"
-                  footerText="Crecimiento total: 18.6% vs mes anterior"
+                  centerGrowth={salesChange}
+                  footerText={salesChange === null ? 'Sin ventas en el mes anterior para comparar' : `Variación de ventas: ${salesChange.toFixed(1)}% vs mes anterior`}
                   type="canal"
                   periodLabel={`${MONTH_FULL_NAMES[selectedHeaderMonth]} ${desde.split('-')[0]}`}
                 />
@@ -2024,8 +1698,9 @@ export function BalancesPage() {
                 <AttributionDonutChart
                   data={metodoIngresos}
                   title="Ingresos por método de pago"
-                  subtitle="Total cobrado por método de pago"
+                  subtitle="Cobros e ingresos manuales recibidos en el período"
                   centerText="Total"
+                  footerText={`Cobros de ventas: ${fmt(activeWeekly.ingresosDetalle?.cobrosVentas)} · Otros ingresos: ${fmt(activeWeekly.ingresosDetalle?.otrosIngresos)}`}
                   type="metodo"
                   periodLabel={`${MONTH_FULL_NAMES[selectedHeaderMonth]} ${desde.split('-')[0]}`}
                 />
@@ -2070,7 +1745,7 @@ export function BalancesPage() {
                     <div className="text-xs">
                       <h4 className="font-extrabold text-slate-800">Rendimiento semanal</h4>
                       <p className="text-slate-500 font-semibold mt-0.5">
-                        Mejor semana: <span className="font-black text-blue-600">{bestWeekName}</span> con <span className="font-black text-blue-600">${(bestWeekVal / 1000).toFixed(1)}k</span> en ventas.
+                        {bestWeekVal > 0 ? <>Mejor semana: <span className="font-black text-blue-600">{bestWeekName}</span> con <span className="font-black text-blue-600">{fmt(bestWeekVal)}</span> en ventas.</> : 'Sin ventas registradas en este mes.'}
                       </p>
                     </div>
                   </div>
@@ -2088,7 +1763,7 @@ export function BalancesPage() {
                           <div className="flex items-center gap-2 mt-1">
                             <p className="text-xs font-bold text-slate-400">Comportamiento anual acumulado</p>
                             <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200/60 text-slate-500 uppercase tracking-wider">
-                              {formatPeriodLabel(desde, hasta)}
+                              {ventasMesYear}
                             </span>
                           </div>
                         </div>
@@ -2131,7 +1806,7 @@ export function BalancesPage() {
                     <div className="text-xs">
                       <h4 className="font-extrabold text-slate-800">Rendimiento mensual</h4>
                       <p className="text-slate-500 font-semibold mt-0.5">
-                        Mejor mes: <span className="font-black text-purple-600">{bestMonthFullName}</span> con <span className="font-black text-purple-600">${(bestMonthVal / 1000).toFixed(0)}k</span> en ventas.
+                        {bestMonthVal > 0 ? <>Mejor mes: <span className="font-black text-purple-600">{bestMonthFullName}</span> con <span className="font-black text-purple-600">{fmt(bestMonthVal)}</span> en ventas.</> : 'Sin ventas registradas en este año.'}
                       </p>
                     </div>
                   </div>
@@ -2146,20 +1821,10 @@ export function BalancesPage() {
           const sumValues = (obj) => Object.values(obj || {}).reduce((s, v) => s + (Number(v) || 0), 0);
 
           let monthlyPending = activeCobrarObj.cuentasPorCobrar || {};
-          const filteredPending = {};
-          Object.entries(monthlyPending).forEach(([k, v]) => {
-            if (activeMonths.includes(k)) {
-              filteredPending[k] = v;
-            } else {
-              filteredPending[k] = 0;
-            }
-          });
-          monthlyPending = filteredPending;
-          const pendienteTotal = sumValues(monthlyPending);
-          const cobradoTotal = sumValues(activeCobrarObj.ingresosMetodo);
-
-          const totalBilled = cobradoTotal + pendienteTotal;
-          const pctCobrado = totalBilled > 0 ? (cobradoTotal / totalBilled) * 100 : 0;
+          const pendienteTotal = Number(data?.carteraPeriodo?.pendiente || 0);
+          const cobradoTotal = Number(data?.carteraPeriodo?.cobrado || 0);
+          const totalBilled = Number(data?.carteraPeriodo?.ventas || 0);
+          const pctCobrado = totalBilled > 0 ? Math.min(100, cobradoTotal / totalBilled * 100) : 0;
 
           const proformasFiltered = (cuentasPorCobrarDetalle || []).filter(p => {
             if (!desde || !hasta) return true;
@@ -2189,7 +1854,7 @@ export function BalancesPage() {
               <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-black text-slate-805 tracking-tight leading-tight">Cuentas por cobrar (Clientes)</h3>
-                  <p className="text-xs font-bold text-slate-400 mt-1">Detalle de facturación pendiente y saldos por cobrar de clientes.</p>
+                  <p className="text-xs font-bold text-slate-400 mt-1">Ventas del mes seleccionado y sus cobros registrados hasta el cierre del período.</p>
                 </div>
                 <div className="bg-emerald-50/40 border border-emerald-100 px-5 py-3 rounded-2xl flex items-center gap-3 shrink-0">
                   <div className="bg-emerald-100 text-emerald-650 p-2.5 rounded-xl shrink-0">
@@ -2213,9 +1878,9 @@ export function BalancesPage() {
                         <div>
                           <h3 className="text-lg font-black text-slate-800 tracking-tight leading-tight">Saldos pendientes por cobrar por mes</h3>
                           <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs font-bold text-slate-400">Montos pendientes de cobro por mes</p>
+                            <p className="text-xs font-bold text-slate-400">Ventas desde enero · cobros hasta {cobrarHasta}</p>
                             <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200/60 text-slate-500 uppercase tracking-wider">
-                              {formatPeriodLabel(desde, hasta)}
+                              {cobrarYear}
                             </span>
                           </div>
                         </div>
@@ -2261,7 +1926,7 @@ export function BalancesPage() {
                     <div className="text-xs">
                       <h4 className="font-extrabold text-slate-800">Tendencia de cobro</h4>
                       <p className="text-slate-500 font-semibold mt-0.5">
-                        El saldo pendiente de <span className="font-black text-emerald-600">{maxMonthFullName}</span> es el más alto del año con <span className="font-black text-emerald-600">{fmt(maxMonthVal)}</span>.
+                        {maxMonthVal > 0 ? <>El saldo pendiente de <span className="font-black text-emerald-600">{maxMonthFullName}</span> es el más alto al cierre seleccionado con <span className="font-black text-emerald-600">{fmt(maxMonthVal)}</span>.</> : 'Sin saldos pendientes al cierre seleccionado.'}
                       </p>
                     </div>
                   </div>
@@ -2337,9 +2002,9 @@ export function BalancesPage() {
                         <TrendingUp size={16} />
                       </div>
                       <div className="text-xs">
-                        <h4 className="font-extrabold text-slate-805">¡Buen progreso!</h4>
+                        <h4 className="font-extrabold text-slate-805">Cobro del período</h4>
                         <p className="text-slate-500 font-semibold mt-0.5">
-                          Has cobrado el {Math.round(pctCobrado)}% de la facturación acumulada.
+                          {totalBilled > 0 ? `Se ha cobrado el ${Math.round(pctCobrado)}% de las ventas del mes al cierre del período.` : 'Sin ventas registradas en este período.'}
                         </p>
                       </div>
                     </div>
@@ -2383,7 +2048,7 @@ export function BalancesPage() {
                             statusText = 'Cobrado';
                           } else if (item.cobrado === 0) {
                             badgeBg = 'bg-rose-50 text-rose-700 border-rose-200/60';
-                            statusText = 'Vencido';
+                            statusText = 'Sin abonos';
                           }
 
                           return (
@@ -2495,7 +2160,7 @@ export function BalancesPage() {
             { label: 'Semana 2', range: '8 - 14', value: wData['Semana 2'] || 0 },
             { label: 'Semana 3', range: '15 - 21', value: wData['Semana 3'] || 0 },
             { label: 'Semana 4', range: '22 - 28', value: wData['Semana 4'] || 0 },
-            { label: 'Semana 5', range: '29 - 31', value: wData['Semana 5'] || 0 }
+            ...(Number(hasta.slice(8)) >= 29 ? [{ label: 'Semana 5', range: `29 - ${Number(hasta.slice(8))}`, value: wData['Semana 5'] || 0 }] : [])
           ];
 
           const nom = activeG.nomina?.porRol || {};
@@ -2745,33 +2410,10 @@ export function BalancesPage() {
 
         {/* TAB 4: SATISFACCIÓN Y CALIDAD */}
         {activeTab === 'clientes' && (() => {
-          // --- CALCULATIONS & DATA ---
-          const monthWeights = {
-            ENE: 0.75, FEB: 0.82, MAR: 0.90, ABR: 0.70, MAY: 1.05, JUN: 1.15,
-            JUL: 1.00, AGO: 1.05, SEP: 1.20, OCT: 1.30, NOV: 1.45, DIC: 1.60
-          };
-
-          let totalVal = 0, satVal = 0, neuVal = 0, incVal = 0;
-          let activeCurso = 0, activeFuera = 0;
-
-
-          const activeWeekly = weeklyDataReal || {};
-          const activeSurvey = activeWeekly.surveyStats || {};
-          totalVal = activeSurvey.totalClientes || 0;
-          satVal = activeSurvey.satisfechos || 0;
-          neuVal = activeSurvey.neutros || 0;
-          incVal = activeSurvey.inconformes || 0;
-
-          activeCurso = activeSurvey.pendientesEntrega || 0;
-          activeFuera = activeSurvey.tarde || 0;
-
-          const satPct = totalVal > 0 ? Math.round((satVal / totalVal) * 100) : 0;
-          const neuPct = totalVal > 0 ? Math.round((neuVal / totalVal) * 105) : 0;
-
-          const displaySatPct = satPct;
-          const displayNeuPct = neuPct;
-          const displayIncPct = totalVal > 0 ? (100 - (displaySatPct + displayNeuPct)) : 0;
-
+          const activeSurvey = data?.surveyStats || {};
+          const { totalVal, satVal, neuVal, incVal, displaySatPct, displayNeuPct, displayIncPct, message } = surveyPresentation(activeSurvey);
+          const activeCurso = activeSurvey.pendientesEntrega || 0;
+          const activeFuera = activeSurvey.tarde || 0;
 
           const segments = [
             { pct: displaySatPct, color: '#10b981' },
@@ -2802,6 +2444,7 @@ export function BalancesPage() {
                       {/* Segmented Donut SVG */}
                       <div className="relative w-44 h-44 shrink-0">
                         <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                          <circle cx="50" cy="50" r="45" fill="transparent" stroke="#e2e8f0" strokeWidth="8" />
                           {segments.map((item, idx) => {
                             if (item.pct <= 0) return null;
                             const strokeLength = (item.pct * 282.6) / 100;
@@ -2827,7 +2470,7 @@ export function BalancesPage() {
                           })}
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                          <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest">Total</span>
+                          <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest">Respuestas</span>
                           <span className="text-2xl font-black text-slate-800 leading-none mt-0.5">
                             {totalVal}
                           </span>
@@ -2852,7 +2495,7 @@ export function BalancesPage() {
                             </div>
                           </div>
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                            <div style={{ width: `${displaySatPct}%` }} className="bg-emerald-500 h-full rounded-full" />
+                            <div role="progressbar" aria-label="Satisfechos" aria-valuemin={0} aria-valuemax={100} aria-valuenow={displaySatPct} style={{ width: `${displaySatPct}%` }} className="bg-emerald-500 h-full rounded-full" />
                           </div>
                         </div>
 
@@ -2871,7 +2514,7 @@ export function BalancesPage() {
                             </div>
                           </div>
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                            <div style={{ width: `${displayNeuPct}%` }} className="bg-slate-350 h-full rounded-full" />
+                            <div role="progressbar" aria-label="Neutros" aria-valuemin={0} aria-valuemax={100} aria-valuenow={displayNeuPct} style={{ width: `${displayNeuPct}%` }} className="bg-slate-350 h-full rounded-full" />
                           </div>
                         </div>
 
@@ -2890,7 +2533,7 @@ export function BalancesPage() {
                             </div>
                           </div>
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                            <div style={{ width: `${displayIncPct}%` }} className="bg-rose-500 h-full rounded-full" />
+                            <div role="progressbar" aria-label="Inconformes" aria-valuemin={0} aria-valuemax={100} aria-valuenow={displayIncPct} style={{ width: `${displayIncPct}%` }} className="bg-rose-500 h-full rounded-full" />
                           </div>
                         </div>
 
@@ -2899,12 +2542,12 @@ export function BalancesPage() {
                   </div>
 
                   {/* Soft green alert banner */}
-                  <div className="mt-6 p-4 bg-emerald-50/40 border border-emerald-100/50 rounded-2xl flex items-center gap-3 text-xs">
-                    <div className="p-2 rounded-xl bg-emerald-500 text-white shrink-0 shadow-sm">
+                  <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3 text-xs">
+                    <div className="p-2 rounded-xl bg-slate-500 text-white shrink-0 shadow-sm">
                       <MessageCircle size={16} />
                     </div>
-                    <span className="font-semibold text-emerald-850">
-                      La mayoría de tus clientes están <span className="font-black text-emerald-600">satisfechos</span>. ¡Sigue así!
+                    <span className="font-semibold text-slate-700">
+                      {message}
                     </span>
                   </div>
                 </div>
@@ -2950,7 +2593,7 @@ export function BalancesPage() {
                   <div>
                     <div className="w-full h-px bg-slate-100 my-4" />
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-extrabold uppercase tracking-wider text-[10px]">Clientes auditados:</span>
+                      <span className="text-slate-400 font-extrabold uppercase tracking-wider text-[10px]">Encuestas respondidas:</span>
                       <span className="font-black text-slate-805 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm text-sm">
                         {totalVal}
                       </span>
