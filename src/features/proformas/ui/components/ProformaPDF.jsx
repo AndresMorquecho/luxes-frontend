@@ -1,3 +1,4 @@
+import { calculateProformaAmounts, calculateProformaItemValue } from '../../../../shared/utils/proformaAmounts.js';
 import React, { useState, useRef, useEffect } from 'react';
 import { Printer, X, ZoomIn, ZoomOut, FileText, Download } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
@@ -23,9 +24,7 @@ const getItemCalc = (item, idx = 0) => {
   const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(item.metraje) || 0);
   const metrajeTotal = (ancho > 0 && alto > 0) ? (cant * metraje) : (parseNum(item.metrajeTotal) || (metraje > 0 ? cant * metraje : cant));
   const precioUnitario = parseNum(item.precioUnitario);
-  const valor = (item.valor !== undefined && item.valor !== null && !isNaN(parseNum(item.valor)) && parseNum(item.valor) > 0)
-    ? parseNum(item.valor)
-    : (metrajeTotal > 0 ? metrajeTotal * precioUnitario : cant * precioUnitario);
+  const valor = calculateProformaItemValue(item);
 
   return {
     cod: item.cod || item.codigo || `V${idx + 1}`,
@@ -56,9 +55,7 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
   const termsText = proforma.condiciones || config?.condicionesPago || `60% de anticipo y 40% contra entrega, efectivo o transferencias bancarias\nEntrega en 15 días hábiles después de la confirmación de diseño\nEsta cotización es válida por 3 días después de su fecha de emisión\nNuestros productos cuentan con garantía mínimo de 12 meses, no cubre daños por mal uso o instalación incorrecta`;
 
   const itemsCalculated = (proforma.items || []).map((it, idx) => getItemCalc(it, idx));
-  const subTotal = itemsCalculated.reduce((s, i) => s + i.valor, 0);
-  const descuento = parseFloat(proforma.descuento) || 0;
-  const total = Math.max(0, subTotal - descuento);
+  const { subtotal: subTotal, descuento, impuesto, total } = calculateProformaAmounts(proforma);
 
   const handlePrint = () => {
     window.print();
@@ -437,6 +434,9 @@ export const ProformaPDF = ({ proforma, configuracion, onClose }) => {
                           <th>Descuento</th>
                           <td>$ {descuento.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
+                      )}
+                      {impuesto > 0 && (
+                        <tr><th>IVA ({Number(proforma.iva) * 100}%)</th><td>{formatUSD(impuesto)}</td></tr>
                       )}
                       <tr>
                         <th>TOTAL</th>

@@ -1,3 +1,4 @@
+import { calculateProformaAmounts } from '../../../../shared/utils/proformaAmounts.js';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, FileText, Eye, X, CheckCircle, Clock, FileEdit, Calendar, ChevronDown, AlertTriangle, Package, User } from 'lucide-react';
 import { useProyecto } from '../../application/hooks/useProyecto.js';
@@ -107,10 +108,11 @@ export function CotizacionPanel({ proyectoId, soloLectura }) {
     creadoPor: p.atiende || '—',
     atiende: p.atiende || '—',
     fecha: p.fecha,
-    total: (p.items || []).reduce((s, i) => s + i.cantidad * i.precioUnitario, 0),
+    total: calculateProformaAmounts(p).total,
     estado: p.estado,
     items: p.items || [],
     iva: p.iva,
+    descuento: p.descuento,
     abonos: p.abonos || [],
   }));
 

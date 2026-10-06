@@ -1,3 +1,4 @@
+import { calculateProformaAmounts } from '../../../../shared/utils/proformaAmounts.js';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate } from 'react-router-dom';
@@ -126,26 +127,7 @@ export const ProformasPage = () => {
   const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
-  const calcularTotal = (p) => {
-    if (!p) return 0;
-    if (typeof p === 'object' && !Array.isArray(p)) {
-      if (p.total !== undefined && p.total !== null && !isNaN(Number(p.total))) {
-        return Number(p.total);
-      }
-      const sub = (p.items || []).reduce((s, i) => {
-        const valor = i.valor != null ? Number(i.valor) : 0;
-        return s + (valor > 0 ? valor : (Number(i.cantidad) || 0) * (Number(i.precioUnitario) || 0));
-      }, 0);
-      const desc = Number(p.descuento || 0);
-      const iva = Number(p.iva || 0);
-      return Math.max(0, (sub - desc) * (1 + iva));
-    }
-    const items = Array.isArray(p) ? p : [];
-    return items.reduce((s, i) => {
-      const valor = i.valor != null ? Number(i.valor) : 0;
-      return s + (valor > 0 ? valor : (Number(i.cantidad) || 0) * (Number(i.precioUnitario) || 0));
-    }, 0);
-  };
+  const calcularTotal = (p) => calculateProformaAmounts(Array.isArray(p) ? { items: p } : (p || {})).total;
 
   const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 

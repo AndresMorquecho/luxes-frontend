@@ -1,3 +1,4 @@
+import { calculateProformaAmounts, roundProformaMoney } from '../../../../shared/utils/proformaAmounts.js';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ModalPortal } from '../../../../shared/ui/components/ModalPortal.jsx';
 import { useNavigate } from 'react-router-dom';
@@ -100,12 +101,12 @@ export const VentasPage = () => {
 
   const handleSaveAbono = async (e) => {
     e.preventDefault();
-    const numericMonto = parseFloat(abonoForm.monto);
-    if (isNaN(numericMonto) || numericMonto <= 0) {
+    const numericMonto = roundProformaMoney(Number(abonoForm.monto));
+    if (!Number.isFinite(numericMonto) || numericMonto <= 0) {
       toast.error('Por favor, ingresa un monto válido mayor a $0');
       return;
     }
-    if (numericMonto > abonoForm.pending + 0.01) {
+    if (numericMonto > abonoForm.pending) {
       toast.error(`El abono no puede superar el saldo pendiente de ${fmt(abonoForm.pending)}`);
       return;
     }
@@ -130,14 +131,7 @@ export const VentasPage = () => {
 
   // ── Computed values ──
   const getItemTotals = (v) => {
-    const total = (v.total !== undefined && v.total !== null && !isNaN(Number(v.total)))
-      ? Number(v.total)
-      : Math.max(0, ((v.items || []).reduce((s, item) => {
-          const valor = item.valor != null ? Number(item.valor) : 0;
-          return s + (valor > 0 ? valor : (item.cantidad || 0) * (item.precioUnitario || 0));
-        }, 0) - Number(v.descuento || 0)) * (1 + (v.iva || 0)));
-    const cobrado = (v.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
-    const pendiente = Math.max(0, total - cobrado);
+    const { total, totalAbonado: cobrado, saldoPendiente: pendiente } = calculateProformaAmounts(v);
     return { total, cobrado, pendiente };
   };
 
@@ -146,8 +140,8 @@ export const VentasPage = () => {
     const { pendiente } = getItemTotals(v);
     const matchesEstado =
       !filterEstado ||
-      (filterEstado === 'pendiente' && pendiente > 0.01) ||
-      (filterEstado === 'pagado' && pendiente <= 0.01);
+      (filterEstado === 'pendiente' && pendiente > 0) ||
+      (filterEstado === 'pagado' && pendiente <= 0);
     const matchesSearch =
       !q ||
       v.id.toLowerCase().includes(q) ||
@@ -166,7 +160,7 @@ export const VentasPage = () => {
   const totalFacturado = items.reduce((sum, v) => sum + getItemTotals(v).total, 0);
   const totalCobrado = items.reduce((sum, v) => sum + getItemTotals(v).cobrado, 0);
   const totalPendiente = items.reduce((sum, v) => sum + getItemTotals(v).pendiente, 0);
-  const countPendientes = items.filter((v) => getItemTotals(v).pendiente > 0.01).length;
+  const countPendientes = items.filter((v) => getItemTotals(v).pendiente > 0).length;
 
   const kpiItems = [
     {
@@ -246,7 +240,7 @@ export const VentasPage = () => {
   );
 
   const renderBadge = (pendiente) => {
-    const isPendiente = pendiente > 0.01;
+    const isPendiente = pendiente > 0;
     return (
       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
         isPendiente
@@ -420,7 +414,7 @@ export const VentasPage = () => {
                       <td className="px-5 py-4 text-slate-500 text-xs font-medium whitespace-nowrap">{fmtDate(v.fecha)}</td>
                       <td className="px-5 py-4 text-right font-semibold text-slate-800 tabular-nums">{fmt(total)}</td>
                       <td className="px-5 py-4 text-right font-semibold text-emerald-600 tabular-nums">{fmt(cobrado)}</td>
-                      <td className="px-5 py-4 text-right font-bold tabular-nums" style={{ color: pendiente > 0.01 ? '#d97706' : '#059669' }}>
+                      <td className="px-5 py-4 text-right font-bold tabular-nums" style={{ color: pendiente > 0 ? '#d97706' : '#059669' }}>
                         {fmt(pendiente)}
                       </td>
                       <td className="px-5 py-4 text-center">{renderBadge(pendiente)}</td>
@@ -439,14 +433,14 @@ export const VentasPage = () => {
                           </button>
                           <button
                             type="button"
-                            disabled={pendiente <= 0.01}
+                            disabled={pendiente <= 0}
                             onClick={() => handleOpenAbono(v, pendiente, total)}
                             className={`h-8 px-3.5 inline-flex items-center gap-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                              pendiente <= 0.01
+                              pendiente <= 0
                                 ? 'bg-slate-100 text-slate-400 border border-slate-200/60 cursor-not-allowed'
                                 : 'bg-[#0b2d64] hover:bg-[#071f45] text-white shadow-sm shadow-blue-950/20 active:scale-[0.99] cursor-pointer'
                             }`}
-                            title={pendiente <= 0.01 ? 'Esta proforma ya fue pagada por completo' : 'Registrar Cobro'}
+                            title={pendiente <= 0 ? 'Esta proforma ya fue pagada por completo' : 'Registrar Cobro'}
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

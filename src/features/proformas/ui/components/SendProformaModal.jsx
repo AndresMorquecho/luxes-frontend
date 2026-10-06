@@ -1,3 +1,4 @@
+import { calculateProformaAmounts } from '../../../../shared/utils/proformaAmounts.js';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Send, X, Smartphone, MessageCircle, Copy } from 'lucide-react';
 import { ModalPortal, deferClose } from '../../../../shared/ui/components/ModalPortal.jsx';
@@ -19,17 +20,7 @@ export function SendProformaModal({ isOpen, onClose, proforma, onSent }) {
   const [visible, setVisible] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
-  const total = useMemo(() => {
-    if (proforma?.total !== undefined && proforma?.total !== null && !isNaN(Number(proforma.total))) {
-      return Number(proforma.total);
-    }
-    const sub = (proforma?.items || []).reduce((s, i) => {
-      const valor = i.valor != null ? Number(i.valor) : 0;
-      return s + (valor > 0 ? valor : Number(i.cantidad || 0) * Number(i.precioUnitario || 0));
-    }, 0);
-    const desc = Number(proforma?.descuento || 0);
-    return Math.max(0, (sub - desc) * (1 + Number(proforma?.iva || 0)));
-  }, [proforma]);
+  const total = useMemo(() => calculateProformaAmounts(proforma || {}).total, [proforma]);
 
   const mensajeDefault = useMemo(() => (
     `Hola ${proforma?.cliente || 'estimado cliente'}, le saludamos de LUXES. `

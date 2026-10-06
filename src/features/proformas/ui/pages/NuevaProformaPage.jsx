@@ -1,3 +1,4 @@
+import { calculateProformaAmounts, calculateProformaItemValue } from '../../../../shared/utils/proformaAmounts.js';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getClientes } from '../../../clientes/application/clientesService';
@@ -310,22 +311,9 @@ export const NuevaProformaPage = () => {
     }
   };
 
-  const calculateRowValor = (item) => {
-    if (item.valor !== undefined && item.valor !== null && !isNaN(parseNum(item.valor)) && parseNum(item.valor) > 0) {
-      return parseNum(item.valor);
-    }
-    const qty = parseNum(item.cantidad) || 1;
-    const price = parseNum(item.precioUnitario);
-    const ancho = parseNum(item.ancho);
-    const alto = parseNum(item.alto);
-    const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(item.metraje) || 1);
-    const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : (parseNum(item.metrajeTotal) || qty);
-    return metrajeTotal * price;
-  };
+  const calculateRowValor = calculateProformaItemValue;
 
-  const subTotal = form.items.reduce((s, i) => s + calculateRowValor(i), 0);
-  const descuentoVal = parseNum(form.descuento);
-  const total = Math.max(0, subTotal - descuentoVal);
+  const { subtotal: subTotal, impuesto, total } = calculateProformaAmounts(form);
 
   const formatUSD = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -552,6 +540,9 @@ export const NuevaProformaPage = () => {
                 />
               </div>
             </div>
+            {impuesto > 0 && (
+              <div className="flex justify-between text-xs text-slate-600 mt-3"><span>IVA ({Number(form.iva) * 100}%):</span><span>{formatUSD(impuesto)}</span></div>
+            )}
             <div className="border-t border-slate-100 pt-3 mt-3 flex justify-between items-center">
               <span className="text-xs font-black text-slate-600 uppercase tracking-wider">Total Final:</span>
               <span className="text-xl font-black text-blue-600 font-mono">{formatUSD(total)}</span>

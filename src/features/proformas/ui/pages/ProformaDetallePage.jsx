@@ -1,3 +1,4 @@
+import { calculateProformaAmounts, calculateProformaItemValue, roundProformaMoney } from '../../../../shared/utils/proformaAmounts.js';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getProformaById, aprobarProforma, rechazarProforma, registrarAbonoProforma, editarAbonoProforma, eliminarAbonoProforma, saveProforma } from '../../application/proformasService';
@@ -86,7 +87,7 @@ export const ProformaDetallePage = () => {
 
         if (searchParams.get('action') === 'abono') {
           // Calculate the total to prepopulate
-          const totalPend = data.items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precioUnitario) || 0), 0) * (1 + data.iva);
+          const totalPend = calculateProformaAmounts(data).total;
           setAbonoForm(prev => ({
             ...prev,
             monto: data.estado === 'Pendiente' ? totalPend.toFixed(2) : prev.monto
@@ -127,30 +128,9 @@ export const ProformaDetallePage = () => {
     );
   }
 
-const parseNum = (v) => {
-  if (v === undefined || v === null || v === '') return 0;
-  const num = parseFloat(String(v).replace(',', '.'));
-  return isNaN(num) ? 0 : num;
-};
+  const calculateRowValor = calculateProformaItemValue;
 
-  const calculateRowValor = (item) => {
-    if (item.valor !== undefined && item.valor !== null && !isNaN(parseNum(item.valor)) && parseNum(item.valor) > 0) {
-      return parseNum(item.valor);
-    }
-    const qty = parseNum(item.cantidad) || 1;
-    const price = parseNum(item.precioUnitario);
-    const ancho = parseNum(item.ancho);
-    const alto = parseNum(item.alto);
-    const metraje = (ancho > 0 && alto > 0) ? (ancho * alto) : (parseNum(item.metraje) || 1);
-    const metrajeTotal = (ancho > 0 && alto > 0) ? (qty * metraje) : (parseNum(item.metrajeTotal) || qty);
-    return metrajeTotal * price;
-  };
-
-  const subtotal = (proforma.items || []).reduce((s, item) => s + calculateRowValor(item), 0);
-  const descuentoVal = parseFloat(proforma.descuento) || 0;
-  const total = Math.max(0, subtotal - descuentoVal + (proforma.iva ? subtotal * Number(proforma.iva) : 0));
-  const totalCobrado = (proforma.abonos || []).reduce((s, ab) => s + Number(ab.monto), 0);
-  const totalPendiente = Math.max(0, total - totalCobrado);
+  const { subtotal, descuento: descuentoVal, impuesto, total, totalAbonado: totalCobrado, saldoPendiente: totalPendiente } = calculateProformaAmounts(proforma);
   
   const sumOtrosAbonos = editingAbono 
     ? (proforma.abonos || []).filter(ab => ab.id !== editingAbono.id).reduce((s, ab) => s + Number(ab.monto), 0)
@@ -234,10 +214,10 @@ const parseNum = (v) => {
 
   const handleSaveAbono = async (e) => {
     e.preventDefault();
-    const numericMonto = parseFloat(abonoForm.monto || '0');
+    const numericMonto = roundProformaMoney(Number(abonoForm.monto || '0'));
     
-    if (isNaN(numericMonto) || numericMonto < 0) {
-      toast.error('Por favor, ingresa un monto válido (0 o mayor)');
+    if (!Number.isFinite(numericMonto) || numericMonto < 0 || (proforma.estado !== 'Pendiente' && numericMonto === 0)) {
+      toast.error(proforma.estado === 'Pendiente' ? 'Ingresa un monto válido (0 o mayor)' : 'El monto del abono debe ser mayor a cero');
       return;
     }
 
@@ -245,7 +225,7 @@ const parseNum = (v) => {
       ? total 
       : (editingAbono ? total - sumOtrosAbonos : totalPendiente);
 
-    if (maxPermitted > 0 && numericMonto > (maxPermitted + 0.01)) {
+    if (numericMonto > roundProformaMoney(Math.max(0, maxPermitted))) {
       toast.error(`El abono no puede superar el valor restante de ${formatUSD(maxPermitted)}`);
       return;
     }
@@ -266,7 +246,6 @@ const parseNum = (v) => {
           monto: numericMonto,
           metodoPagoId: abonoForm.metodoPagoId,
           referencia: abonoForm.referencia,
-          aplicarIva: abonoForm.aplicarIva,
           comprobanteUrl: abonoForm.comprobanteUrl,
         });
         toast.success('Proforma aprobada y abono registrado correctamente');
@@ -405,7 +384,7 @@ const parseNum = (v) => {
               </>
             )}
 
-            {isAdmin && (proforma.estado === 'Aprobada' || proforma.estado === 'Pagada') && totalPendiente > 0.01 && (
+            {isAdmin && (proforma.estado === 'Aprobada' || proforma.estado === 'Pagada') && totalPendiente > 0 && (
               <button
                 onClick={handleOpenRegistrarAbono}
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shadow-blue-100"
@@ -585,6 +564,9 @@ const parseNum = (v) => {
                 <span className="font-mono font-bold text-slate-700">- {formatUSD(descuentoVal)}</span>
               </div>
             )}
+            {impuesto > 0 && (
+              <div className="flex justify-between text-slate-500 font-semibold"><span>IVA ({Number(proforma.iva) * 100}%):</span><span className="font-mono">{formatUSD(impuesto)}</span></div>
+            )}
             <div className="flex justify-between text-slate-800 font-bold text-base border-t border-slate-200 pt-2">
               <span>Total Cotización:</span>
               <span className="font-mono text-blue-600 font-extrabold">{formatUSD(total)}</span>
@@ -604,7 +586,7 @@ const parseNum = (v) => {
               <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg px-3 py-1">
                 Cobrado: {formatUSD(totalCobrado)}
               </span>
-              {totalPendiente > 0.01 ? (
+              {totalPendiente > 0 ? (
                 <span className="bg-orange-50 text-orange-700 border border-orange-100 rounded-lg px-3 py-1">
                   Pendiente: {formatUSD(totalPendiente)}
                 </span>
